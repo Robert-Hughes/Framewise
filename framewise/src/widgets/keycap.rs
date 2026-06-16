@@ -31,10 +31,10 @@ pub mod raw {
     /// Measure a keycap's intrinsic size from its measurement spec.
     pub fn calc_keycap_intrinsic_size<T: TextBackend>(
         spec: &KeycapCalcIntrinsicSizeSpec,
-        text_system: &mut T,
+        text_backend: &mut T,
     ) -> crate::layout::IntrinsicSize {
         let metrics = measure_text(
-            text_system,
+            text_backend,
             spec.text,
             spec.style.text_style,
             crate::text::TextBounds::UNBOUNDED,
@@ -48,7 +48,7 @@ pub mod raw {
     /// High-level wrappers should use this internally.
     pub fn keycap<T: TextBackend>(
         spec: KeycapSpec<'_>,
-        text_system: &mut T,
+        text_backend: &mut T,
         cmds: &mut DrawCommands,
     ) -> KeycapResult {
         // Background + border
@@ -82,7 +82,7 @@ pub mod raw {
         // text, centered
         if !spec.text.is_empty() {
             let metrics = measure_text(
-                text_system,
+                text_backend,
                 spec.text,
                 spec.style.text_style,
                 crate::text::TextBounds {
@@ -96,7 +96,7 @@ pub mod raw {
                 .resolve_rect(spec.rect, metrics);
             emit_text_in_rect(
                 cmds,
-                text_system,
+                text_backend,
                 spec.text,
                 spec.style.text_style,
                 text_rect,
@@ -219,7 +219,7 @@ pub fn keycap<'a, T: TextBackend, S: LayoutState, CF>(
         text: spec.text,
         style: spec.style,
     };
-    let intrinsic = raw::calc_keycap_intrinsic_size(&calc_spec, ctx.text_system);
+    let intrinsic = raw::calc_keycap_intrinsic_size(&calc_spec, ctx.text_backend);
     let rect = ctx.layout(layout_params, intrinsic);
     let raw_spec = raw::KeycapSpec {
         layer: ctx.layer,
@@ -227,7 +227,7 @@ pub fn keycap<'a, T: TextBackend, S: LayoutState, CF>(
         text: spec.text,
         style: spec.style,
     };
-    let result = raw::keycap(raw_spec, ctx.text_system, ctx.cmds);
+    let result = raw::keycap(raw_spec, ctx.text_backend, ctx.cmds);
     KeycapResult {
         layout: LayoutInfo::new(rect, result.content_bounds),
     }
@@ -244,7 +244,7 @@ mod tests {
 
     #[test]
     fn test_keycap_visual() {
-        let mut text_system = TestTextBackend;
+        let mut text_backend = TestTextBackend;
         let custom_bg = Color::from_srgb_u8(240, 240, 240, 255);
         let custom_shadow = Color::from_srgb_u8(10, 10, 10, 255);
         let custom_border = Color::from_srgb_u8(10, 10, 10, 255);
@@ -271,7 +271,7 @@ mod tests {
             },
         };
         let mut cmds = DrawCommands::new();
-        let res = raw::keycap(spec, &mut text_system, &mut cmds);
+        let res = raw::keycap(spec, &mut text_backend, &mut cmds);
 
         assert_eq!(
             res.content_bounds,
@@ -352,14 +352,14 @@ mod tests {
     fn test_high_level_explicit_placement_via_manual_layout() {
         use crate::layouts::ManualLayout;
         use crate::test_utils::TestTextBackend;
-        let mut text_system = TestTextBackend;
+        let mut text_backend = TestTextBackend;
         let mut focus = FocusSystem::new();
         let input = crate::Input::default();
         let mut cmds = crate::draw::DrawCommands::new();
         let placement = Rect::new(10.0, 20.0, 50.0, 30.0);
         let mut ctx = crate::widget::WidgetContext::root(
             crate::theme::Theme::framewise(),
-            &mut text_system,
+            &mut text_backend,
             &mut focus,
             &input,
             ManualLayout,
@@ -374,14 +374,14 @@ mod tests {
     fn test_keycap_bounds_and_content_bounds() {
         use crate::layouts::ManualLayout;
         use crate::test_utils::TestTextBackend;
-        let mut text_system = TestTextBackend;
+        let mut text_backend = TestTextBackend;
         let mut focus = FocusSystem::new();
         let input = crate::Input::default();
         let mut cmds = crate::draw::DrawCommands::new();
         let layout_rect = Rect::new(0.0, 0.0, 100.0, 40.0);
         let mut ctx = crate::widget::WidgetContext::root(
             crate::theme::Theme::framewise(),
-            &mut text_system,
+            &mut text_backend,
             &mut focus,
             &input,
             ManualLayout,

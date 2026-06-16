@@ -40,10 +40,10 @@ pub mod raw {
     /// Measure a chip's intrinsic size from its measurement spec.
     pub fn calc_chip_intrinsic_size<T: TextBackend>(
         spec: &ChipCalcIntrinsicSizeSpec,
-        text_system: &mut T,
+        text_backend: &mut T,
     ) -> crate::layout::IntrinsicSize {
         let t = measure_text(
-            text_system,
+            text_backend,
             spec.text,
             spec.style.text_style,
             crate::text::TextBounds::UNBOUNDED,
@@ -60,7 +60,7 @@ pub mod raw {
         state: &mut ChipState,
         input: &Input,
         focus_system: &mut FocusSystem,
-        text_system: &mut T,
+        text_backend: &mut T,
         cmds: &mut DrawCommands,
     ) -> ChipResult {
         let (focused, clicked) = if spec.disabled {
@@ -104,7 +104,7 @@ pub mod raw {
         let h = s.height;
         let pad_x = s.pad_x;
 
-        let layout = layout_text_in_rect(text_system, spec.text, spec.style.text_style, spec.rect);
+        let layout = layout_text_in_rect(text_backend, spec.text, spec.style.text_style, spec.rect);
         let w = spec.rect.w.max(32.0);
         let r = Rect::new(spec.rect.x, spec.rect.y, w, h);
 
@@ -148,7 +148,7 @@ pub mod raw {
         );
         layout.emit_glyphs(
             cmds,
-            text_system,
+            text_backend,
             Vec2::new(text_rect.x, text_rect.y),
             spec.style.text_style,
             tint(text_color),
@@ -302,7 +302,7 @@ pub fn chip<'a, T: TextBackend, S: LayoutState, CF>(
         text: spec.text,
         style: spec.style,
     };
-    let intrinsic = raw::calc_chip_intrinsic_size(&calc_spec, ctx.text_system);
+    let intrinsic = raw::calc_chip_intrinsic_size(&calc_spec, ctx.text_backend);
     let rect = ctx.layout(layout_params, intrinsic);
     let raw_spec = raw::ChipSpec {
         layer: ctx.layer,
@@ -317,7 +317,7 @@ pub fn chip<'a, T: TextBackend, S: LayoutState, CF>(
         state,
         ctx.input,
         ctx.focus_system,
-        ctx.text_system,
+        ctx.text_backend,
         ctx.cmds,
     );
 
@@ -338,13 +338,13 @@ mod tests {
 
     fn chip_raw<'a>(spec: ChipSpec<'a>) -> (raw::ChipResult, DrawCommands) {
         let mut cmds = DrawCommands::new();
-        let mut text_system = TestTextBackend;
+        let mut text_backend = TestTextBackend;
         let res = raw::chip(
             spec,
             &mut ChipState::default(),
             &Input::default(),
             &mut FocusSystem::new(),
-            &mut text_system,
+            &mut text_backend,
             &mut cmds,
         );
         (res, cmds)
@@ -407,7 +407,7 @@ mod tests {
 
     #[test]
     fn test_chip_visual_active() {
-        let mut text_system = TestTextBackend;
+        let mut text_backend = TestTextBackend;
         let mut state = ChipState::default();
         state.checked = true;
         let spec = ChipSpec {
@@ -426,7 +426,7 @@ mod tests {
             &mut state,
             &Input::default(),
             &mut FocusSystem::new(),
-            &mut text_system,
+            &mut text_backend,
             &mut cmds,
         );
 
@@ -478,7 +478,7 @@ mod tests {
         let mut focus_system = FocusSystem::new();
         focus_system.take_keyboard_focus(state.focus_id);
         focus_system.begin_frame();
-        let mut text_system = TestTextBackend;
+        let mut text_backend = TestTextBackend;
         let spec = ChipSpec {
             layer: Layer::default(),
             rect: Rect::new(0.0, 0.0, 50.0, 22.0),
@@ -495,7 +495,7 @@ mod tests {
             &mut state,
             &Input::default(),
             &mut focus_system,
-            &mut text_system,
+            &mut text_backend,
             &mut cmds,
         );
         focus_system.end_frame();
@@ -559,7 +559,7 @@ mod tests {
         input.mouse_pos = Vec2::new(10.0, 10.0);
         input.mouse_pressed = true;
 
-        let mut text_system = TestTextBackend;
+        let mut text_backend = TestTextBackend;
         let spec = ChipSpec {
             layer: Layer::default(),
             rect: Rect::new(0.0, 0.0, 50.0, 22.0),
@@ -577,7 +577,7 @@ mod tests {
             &mut state,
             &input,
             &mut focus_system,
-            &mut text_system,
+            &mut text_backend,
             &mut cmds,
         );
         focus_system.end_frame();
@@ -597,7 +597,7 @@ mod tests {
         input.mouse_pos = Vec2::new(10.0, 10.0);
         input.mouse_pressed = true;
 
-        let mut text_system = TestTextBackend;
+        let mut text_backend = TestTextBackend;
         let spec = ChipSpec {
             layer: Layer::default(),
             rect: Rect::new(0.0, 0.0, 50.0, 22.0),
@@ -615,7 +615,7 @@ mod tests {
             &mut state,
             &input,
             &mut focus_system,
-            &mut text_system,
+            &mut text_backend,
             &mut cmds,
         );
         focus_system.end_frame();
@@ -632,7 +632,7 @@ mod tests {
         let mut focus_system = FocusSystem::new();
         let mut state = ChipState::default();
         let mut input = Input::default();
-        let mut text_system = TestTextBackend;
+        let mut text_backend = TestTextBackend;
 
         // Frame 1: Focus chip
         focus_system.take_keyboard_focus(state.focus_id);
@@ -650,7 +650,7 @@ mod tests {
             &mut state,
             &input,
             &mut focus_system,
-            &mut text_system,
+            &mut text_backend,
             &mut cmds,
         );
         focus_system.end_frame();
@@ -672,7 +672,7 @@ mod tests {
             &mut state,
             &input,
             &mut focus_system,
-            &mut text_system,
+            &mut text_backend,
             &mut cmds,
         );
         focus_system.end_frame();
@@ -695,7 +695,7 @@ mod tests {
             &mut state,
             &input,
             &mut focus_system,
-            &mut text_system,
+            &mut text_backend,
             &mut cmds,
         );
         focus_system.end_frame();
@@ -725,14 +725,14 @@ mod tests {
     #[test]
     fn test_explicit_placement_via_manual_layout() {
         use crate::layouts::ManualLayout;
-        let mut text_system = TestTextBackend;
+        let mut text_backend = TestTextBackend;
         let mut focus = FocusSystem::new();
         let input = crate::Input::default();
         let mut cmds = crate::draw::DrawCommands::new();
         let placement = Rect::new(10.0, 20.0, 200.0, 36.0);
         let mut ctx = crate::widget::WidgetContext::root(
             crate::theme::Theme::framewise(),
-            &mut text_system,
+            &mut text_backend,
             &mut focus,
             &input,
             ManualLayout,

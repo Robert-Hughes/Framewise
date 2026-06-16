@@ -39,11 +39,11 @@ pub mod raw {
 
     pub fn calc_select_intrinsic_size<T: TextBackend>(
         spec: &SelectCalcIntrinsicSizeSpec,
-        text_system: &mut T,
+        text_backend: &mut T,
     ) -> crate::layout::IntrinsicSize {
         let s = spec.style;
         let mut widest = measure_text(
-            text_system,
+            text_backend,
             spec.value,
             s.text_style,
             crate::text::TextBounds::UNBOUNDED,
@@ -53,7 +53,7 @@ pub mod raw {
         for item in spec.items {
             widest = widest.max(
                 measure_text(
-                    text_system,
+                    text_backend,
                     item,
                     s.text_style,
                     crate::text::TextBounds::UNBOUNDED,
@@ -77,7 +77,7 @@ pub mod raw {
         state: &mut SelectState,
         input: &Input,
         focus_system: &mut FocusSystem,
-        text_system: &mut T,
+        text_backend: &mut T,
         cmds: &mut DrawCommands,
     ) -> SelectResult {
         let (focused, clicked) = if spec.disabled {
@@ -243,7 +243,7 @@ pub mod raw {
         };
 
         let val_metrics = measure_text(
-            text_system,
+            text_backend,
             display_text,
             s.text_style,
             crate::text::TextBounds::UNBOUNDED,
@@ -257,7 +257,7 @@ pub mod raw {
         );
         emit_text_in_rect(
             cmds,
-            text_system,
+            text_backend,
             display_text,
             s.text_style,
             val_rect,
@@ -268,7 +268,7 @@ pub mod raw {
         // Chevron "v".
         let chev_color = if state.open { s.accent } else { s.muted };
         let chev_metrics = measure_text(
-            text_system,
+            text_backend,
             "v",
             s.chevron_style,
             crate::text::TextBounds::UNBOUNDED,
@@ -282,7 +282,7 @@ pub mod raw {
         );
         emit_text_in_rect(
             cmds,
-            text_system,
+            text_backend,
             "v",
             s.chevron_style,
             chev_rect,
@@ -334,7 +334,7 @@ pub mod raw {
 
                 let text_color = if is_selected { s.selected_text } else { s.text };
                 let opt_metrics = measure_text(
-                    text_system,
+                    text_backend,
                     opt,
                     s.text_style,
                     crate::text::TextBounds::UNBOUNDED,
@@ -348,7 +348,7 @@ pub mod raw {
                 );
                 emit_text_in_rect(
                     cmds,
-                    text_system,
+                    text_backend,
                     opt,
                     s.text_style,
                     opt_rect,
@@ -535,7 +535,7 @@ pub fn select<'a, T: TextBackend, S: LayoutState, CF>(
         style: spec.style,
         items: spec.items,
     };
-    let intrinsic = raw::calc_select_intrinsic_size(&calc_spec, ctx.text_system);
+    let intrinsic = raw::calc_select_intrinsic_size(&calc_spec, ctx.text_backend);
     let rect = ctx.layout(layout_params, intrinsic);
     let raw_spec = raw::SelectSpec {
         layer: ctx.layer,
@@ -551,7 +551,7 @@ pub fn select<'a, T: TextBackend, S: LayoutState, CF>(
         state,
         ctx.input,
         ctx.focus_system,
-        ctx.text_system,
+        ctx.text_backend,
         ctx.cmds,
     );
 
@@ -572,13 +572,13 @@ mod tests {
 
     fn select_dummy<'a>(spec: SelectSpec<'a>) -> (raw::SelectResult, DrawCommands) {
         let mut cmds = DrawCommands::new();
-        let mut text_system = TestTextBackend;
+        let mut text_backend = TestTextBackend;
         let result = raw::select(
             spec,
             &mut SelectState::default(),
             &Input::default(),
             &mut FocusSystem::new(),
-            &mut text_system,
+            &mut text_backend,
             &mut cmds,
         );
         (result, cmds)
@@ -668,7 +668,7 @@ mod tests {
 
     #[test]
     fn test_select_visual_open() {
-        let mut text_system = TestTextBackend;
+        let mut text_backend = TestTextBackend;
         let items = vec!["Option 1", "Option 2", "Option 3"];
         let spec = SelectSpec {
             layer: Layer::default(),
@@ -697,7 +697,7 @@ mod tests {
             &mut state,
             &Input::default(),
             &mut FocusSystem::new(),
-            &mut text_system,
+            &mut text_backend,
             &mut cmds,
         );
 
@@ -910,7 +910,7 @@ mod tests {
         input.mouse_pos = Vec2::new(15.0, 15.0);
         input.mouse_pressed = true;
 
-        let mut text_system = TestTextBackend;
+        let mut text_backend = TestTextBackend;
         let items = vec!["Option 1", "Option 2"];
         let spec = SelectSpec {
             layer: Layer::default(),
@@ -930,7 +930,7 @@ mod tests {
             &mut state,
             &input,
             &mut focus_system,
-            &mut text_system,
+            &mut text_backend,
             &mut cmds,
         );
         focus_system.end_frame();
@@ -951,7 +951,7 @@ mod tests {
         input.mouse_pos = Vec2::new(15.0, 15.0);
         input.mouse_pressed = true;
 
-        let mut text_system = TestTextBackend;
+        let mut text_backend = TestTextBackend;
         let items = vec!["Option 1", "Option 2"];
         let spec = SelectSpec {
             layer: Layer::default(),
@@ -971,7 +971,7 @@ mod tests {
             &mut state,
             &input,
             &mut focus_system,
-            &mut text_system,
+            &mut text_backend,
             &mut cmds,
         );
         focus_system.end_frame();
@@ -988,7 +988,7 @@ mod tests {
         let mut focus_system = FocusSystem::new();
         let mut state = SelectState::default();
         let mut input = Input::default();
-        let mut text_system = TestTextBackend;
+        let mut text_backend = TestTextBackend;
         let items = vec!["Option 1", "Option 2", "Option 3"];
 
         // Focus the widget first
@@ -1011,7 +1011,7 @@ mod tests {
             &mut state,
             &input,
             &mut focus_system,
-            &mut text_system,
+            &mut text_backend,
             &mut cmds,
         );
         focus_system.end_frame();
@@ -1038,7 +1038,7 @@ mod tests {
             &mut state,
             &input,
             &mut focus_system,
-            &mut text_system,
+            &mut text_backend,
             &mut cmds,
         );
         focus_system.end_frame();
@@ -1061,7 +1061,7 @@ mod tests {
             &mut state,
             &input,
             &mut focus_system,
-            &mut text_system,
+            &mut text_backend,
             &mut cmds,
         );
         focus_system.end_frame();
@@ -1087,7 +1087,7 @@ mod tests {
             &mut state,
             &input,
             &mut focus_system,
-            &mut text_system,
+            &mut text_backend,
             &mut cmds,
         );
         focus_system.end_frame();
@@ -1112,7 +1112,7 @@ mod tests {
             &mut state,
             &input,
             &mut focus_system,
-            &mut text_system,
+            &mut text_backend,
             &mut cmds,
         );
         focus_system.end_frame();
@@ -1143,14 +1143,14 @@ mod tests {
     #[test]
     fn test_user_rect_not_overridden() {
         use crate::layouts::ManualLayout;
-        let mut text_system = TestTextBackend;
+        let mut text_backend = TestTextBackend;
         let mut focus = FocusSystem::new();
         let input = crate::Input::default();
         let mut cmds = crate::draw::DrawCommands::new();
         let custom_rect = Rect::new(10.0, 20.0, 50.0, 30.0);
         let mut ctx = crate::widget::WidgetContext::root(
             crate::theme::Theme::framewise(),
-            &mut text_system,
+            &mut text_backend,
             &mut focus,
             &input,
             ManualLayout,

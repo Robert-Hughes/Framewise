@@ -42,11 +42,11 @@ pub mod raw {
     /// Measure a drag number's intrinsic size from its measurement spec.
     pub fn calc_drag_number_intrinsic_size<T: TextBackend>(
         spec: &DragNumberCalcIntrinsicSizeSpec,
-        text_system: &mut T,
+        text_backend: &mut T,
     ) -> crate::layout::IntrinsicSize {
         let s = spec.style;
         let label_metrics = measure_text(
-            text_system,
+            text_backend,
             spec.text,
             s.text_style,
             crate::text::TextBounds::UNBOUNDED,
@@ -54,13 +54,13 @@ pub mod raw {
         let min_text = format!("{:.2}", spec.min);
         let max_text = format!("{:.2}", spec.max);
         let min_metrics = measure_text(
-            text_system,
+            text_backend,
             &min_text,
             s.text_style,
             crate::text::TextBounds::UNBOUNDED,
         );
         let max_metrics = measure_text(
-            text_system,
+            text_backend,
             &max_text,
             s.text_style,
             crate::text::TextBounds::UNBOUNDED,
@@ -80,7 +80,7 @@ pub mod raw {
         state: &mut DragNumberState,
         input: &Input,
         focus_system: &mut FocusSystem,
-        text_system: &mut T,
+        text_backend: &mut T,
         cmds: &mut DrawCommands,
     ) -> DragNumberResult {
         let (focused, clicked) = if spec.disabled {
@@ -101,7 +101,7 @@ pub mod raw {
 
         // Label width calculation
         let text_metrics = measure_text(
-            text_system,
+            text_backend,
             spec.text,
             s.text_style,
             crate::text::TextBounds::UNBOUNDED,
@@ -202,7 +202,7 @@ pub mod raw {
         );
         emit_text_in_rect(
             cmds,
-            text_system,
+            text_backend,
             spec.text,
             s.text_style,
             text_rect,
@@ -223,7 +223,7 @@ pub mod raw {
 
         let value_text = format!("{:.2}", state.value);
         let value_metrics = measure_text(
-            text_system,
+            text_backend,
             &value_text,
             s.text_style,
             crate::text::TextBounds::UNBOUNDED,
@@ -238,7 +238,7 @@ pub mod raw {
         );
         emit_text_in_rect(
             cmds,
-            text_system,
+            text_backend,
             &value_text,
             s.text_style,
             value_rect,
@@ -415,7 +415,7 @@ pub fn drag_number<'a, T: TextBackend, S: LayoutState, CF>(
         min: spec.min,
         max: spec.max,
     };
-    let intrinsic = raw::calc_drag_number_intrinsic_size(&calc_spec, ctx.text_system);
+    let intrinsic = raw::calc_drag_number_intrinsic_size(&calc_spec, ctx.text_backend);
     let rect = ctx.layout(layout_params, intrinsic);
     let raw_spec = raw::DragNumberSpec {
         layer: ctx.layer,
@@ -432,7 +432,7 @@ pub fn drag_number<'a, T: TextBackend, S: LayoutState, CF>(
         state,
         ctx.input,
         ctx.focus_system,
-        ctx.text_system,
+        ctx.text_backend,
         ctx.cmds,
     );
 
@@ -453,7 +453,7 @@ mod tests {
 
     fn drag_num<'a>(spec: DragNumberSpec<'a>, value: f32) -> (raw::DragNumberResult, DrawCommands) {
         let mut cmds = DrawCommands::new();
-        let mut text_system = TestTextBackend;
+        let mut text_backend = TestTextBackend;
         let res = raw::drag_number(
             spec,
             &mut DragNumberState {
@@ -462,7 +462,7 @@ mod tests {
             },
             &Input::default(),
             &mut FocusSystem::new(),
-            &mut text_system,
+            &mut text_backend,
             &mut cmds,
         );
         (res, cmds)
@@ -579,13 +579,13 @@ mod tests {
         input.mouse_down = true;
         let mut state = state;
         let mut cmds = DrawCommands::new();
-        let mut text_system = TestTextBackend;
+        let mut text_backend = TestTextBackend;
         let _res = raw::drag_number(
             spec,
             &mut state,
             &input,
             &mut FocusSystem::new(),
-            &mut text_system,
+            &mut text_backend,
             &mut cmds,
         );
 
@@ -669,7 +669,7 @@ mod tests {
 
     #[test]
     fn test_drag_number_visual_min_value() {
-        let mut text_system = TestTextBackend;
+        let mut text_backend = TestTextBackend;
         let spec = DragNumberSpec {
             layer: Layer::default(),
             rect: Rect::new(10.0, 10.0, 100.0, 28.0),
@@ -688,7 +688,7 @@ mod tests {
             &mut DragNumberState::default(),
             &Input::default(),
             &mut FocusSystem::new(),
-            &mut text_system,
+            &mut text_backend,
             &mut cmds,
         );
 
@@ -764,7 +764,7 @@ mod tests {
         input.mouse_pos = Vec2::new(15.0, 15.0);
         input.mouse_pressed = true;
 
-        let mut text_system = TestTextBackend;
+        let mut text_backend = TestTextBackend;
         let spec = DragNumberSpec {
             layer: Layer::default(),
             rect: Rect::new(0.0, 0.0, 100.0, 28.0),
@@ -784,7 +784,7 @@ mod tests {
             &mut state,
             &input,
             &mut focus_system,
-            &mut text_system,
+            &mut text_backend,
             &mut cmds,
         );
         focus_system.end_frame();
@@ -807,7 +807,7 @@ mod tests {
         input.mouse_pos = Vec2::new(15.0, 15.0);
         input.mouse_pressed = true;
 
-        let mut text_system = TestTextBackend;
+        let mut text_backend = TestTextBackend;
         let spec = DragNumberSpec {
             layer: Layer::default(),
             rect: Rect::new(0.0, 0.0, 100.0, 28.0),
@@ -827,7 +827,7 @@ mod tests {
             &mut state,
             &input,
             &mut focus_system,
-            &mut text_system,
+            &mut text_backend,
             &mut cmds,
         );
         focus_system.end_frame();
@@ -847,7 +847,7 @@ mod tests {
             ..Default::default()
         };
         let mut input = Input::default();
-        let mut text_system = TestTextBackend;
+        let mut text_backend = TestTextBackend;
 
         // Focus the widget
         focus_system.take_keyboard_focus(state.focus_id);
@@ -870,7 +870,7 @@ mod tests {
             &mut state,
             &input,
             &mut focus_system,
-            &mut text_system,
+            &mut text_backend,
             &mut cmds,
         );
         focus_system.end_frame();
@@ -896,7 +896,7 @@ mod tests {
             &mut state,
             &input,
             &mut focus_system,
-            &mut text_system,
+            &mut text_backend,
             &mut cmds,
         );
         focus_system.end_frame();
@@ -926,14 +926,14 @@ mod tests {
     #[test]
     fn test_high_level_explicit_placement_via_manual_layout() {
         use crate::layouts::ManualLayout;
-        let mut text_system = TestTextBackend;
+        let mut text_backend = TestTextBackend;
         let mut focus = FocusSystem::new();
         let input = crate::Input::default();
         let mut cmds = crate::draw::DrawCommands::new();
         let placement = Rect::new(10.0, 20.0, 50.0, 30.0);
         let mut ctx = crate::widget::WidgetContext::root(
             crate::theme::Theme::framewise(),
-            &mut text_system,
+            &mut text_backend,
             &mut focus,
             &input,
             ManualLayout,

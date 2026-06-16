@@ -30,10 +30,10 @@ pub mod raw {
     /// Measure a status widget's intrinsic size from its measurement spec.
     pub fn calc_status_intrinsic_size<T: TextBackend>(
         spec: &StatusCalcIntrinsicSizeSpec,
-        text_system: &mut T,
+        text_backend: &mut T,
     ) -> crate::layout::IntrinsicSize {
         let metrics = measure_text(
-            text_system,
+            text_backend,
             spec.text,
             spec.style.text_style,
             crate::text::TextBounds::UNBOUNDED,
@@ -51,7 +51,7 @@ pub mod raw {
     /// High-level wrappers should use this internally.
     pub fn status<T: TextBackend>(
         spec: StatusSpec<'_>,
-        text_system: &mut T,
+        text_backend: &mut T,
         cmds: &mut DrawCommands,
     ) {
         let s = spec.style;
@@ -75,7 +75,7 @@ pub mod raw {
         });
 
         let layout = layout_text(
-            text_system,
+            text_backend,
             spec.text,
             s.text_style,
             crate::text::TextBounds {
@@ -93,7 +93,7 @@ pub mod raw {
         );
         layout.emit_glyphs(
             cmds,
-            text_system,
+            text_backend,
             Vec2::new(text_rect.x, text_rect.y),
             s.text_style,
             s.text,
@@ -225,7 +225,7 @@ pub fn status<'a, T: TextBackend, S: LayoutState, CF>(
         text: spec.text,
         style: spec.style,
     };
-    let intrinsic = raw::calc_status_intrinsic_size(&calc_spec, ctx.text_system);
+    let intrinsic = raw::calc_status_intrinsic_size(&calc_spec, ctx.text_backend);
     let rect = ctx.layout(layout_params, intrinsic);
     let raw_spec = raw::StatusSpec {
         rect,
@@ -234,7 +234,7 @@ pub fn status<'a, T: TextBackend, S: LayoutState, CF>(
         style: spec.style,
         layer: ctx.layer,
     };
-    raw::status(raw_spec, ctx.text_system, ctx.cmds);
+    raw::status(raw_spec, ctx.text_backend, ctx.cmds);
     StatusResult {
         layout: LayoutInfo::tight(rect),
     }
@@ -249,7 +249,7 @@ mod tests {
 
     #[test]
     fn test_status_visual_ok() {
-        let mut text_system = TestTextBackend;
+        let mut text_backend = TestTextBackend;
         let spec = StatusSpec {
             rect: Rect::new(0.0, 0.0, 100.0, 20.0),
             text: "Online",
@@ -259,7 +259,7 @@ mod tests {
         };
         let style = spec.style;
         let mut cmds = DrawCommands::new();
-        raw::status(spec, &mut text_system, &mut cmds);
+        raw::status(spec, &mut text_backend, &mut cmds);
 
         assert_eq!(
             cmds.commands(),
@@ -310,7 +310,7 @@ mod tests {
 
     #[test]
     fn test_status_visual_warn() {
-        let mut text_system = TestTextBackend;
+        let mut text_backend = TestTextBackend;
         let spec = StatusSpec {
             rect: Rect::new(0.0, 0.0, 100.0, 20.0),
             text: "Warning",
@@ -320,7 +320,7 @@ mod tests {
         };
         let style = spec.style;
         let mut cmds = DrawCommands::new();
-        raw::status(spec, &mut text_system, &mut cmds);
+        raw::status(spec, &mut text_backend, &mut cmds);
 
         assert_eq!(
             cmds.commands(),
@@ -395,14 +395,14 @@ mod tests {
     #[test]
     fn test_high_level_explicit_placement_via_manual_layout() {
         use crate::layouts::ManualLayout;
-        let mut text_system = TestTextBackend;
+        let mut text_backend = TestTextBackend;
         let mut focus = FocusSystem::new();
         let input = crate::Input::default();
         let mut cmds = crate::draw::DrawCommands::new();
         let placement = Rect::new(10.0, 20.0, 50.0, 30.0);
         let mut ctx = crate::widget::WidgetContext::root(
             crate::theme::Theme::framewise(),
-            &mut text_system,
+            &mut text_backend,
             &mut focus,
             &input,
             ManualLayout,

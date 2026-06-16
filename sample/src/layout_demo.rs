@@ -80,7 +80,7 @@ pub fn draw_layout_page(
     input: &Input,
     _time: f64,
     win_size: (f32, f32),
-    text_system: &mut SampleTextBackend,
+    text_backend: &mut SampleTextBackend,
     debug_layout: bool,
 ) -> framewise::DrawCommands {
     let (win_w, win_h) = win_size;
@@ -95,7 +95,7 @@ pub fn draw_layout_page(
 
     let mut ctx = WidgetContext::root(
         Theme::default(),
-        text_system,
+        text_backend,
         focus_system,
         input,
         ColumnLayout,
@@ -669,8 +669,8 @@ pub(crate) fn draw_layout_page_content<'a, 'b, CF>(
                 };
                 calc_button_intrinsic_size(&spec, ts).preferred.unwrap().x
             };
-            let w_filter = measure(right.text_system, "Filter");
-            let w_sort = measure(right.text_system, "Sort");
+            let w_filter = measure(right.text_backend, "Filter");
+            let w_sort = measure(right.text_backend, "Sort");
             let x_sort = w - w_sort;
             let x_filter = x_sort - spacing - w_filter;
             let search_w = (x_filter - spacing).max(0.0);

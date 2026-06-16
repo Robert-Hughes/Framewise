@@ -219,7 +219,7 @@ impl FrameSpecBuilder {
 ///
 /// To satisfy the Rust borrow checker (avoid E0499), we construct the child context by explicitly
 /// destructuring the parent `ctx` fields. This disjointly borrows `ctx.layout_state` (held by the `LayoutToken`
-/// inside `on_finish`) separately from `ctx.text_system`, `ctx.focus_system`, etc., resulting in a perfectly
+/// inside `on_finish`) separately from `ctx.text_backend`, `ctx.focus_system`, etc., resulting in a perfectly
 /// compile-safe cursor-advance deferral.
 pub fn begin_frame<'a, 'b, T: TextBackend, S: LayoutState, L: Layout, CF>(
     ctx: &'b mut WidgetContext<'a, T, S, CF>,
@@ -261,13 +261,13 @@ pub fn begin_frame<'a, 'b, T: TextBackend, S: LayoutState, L: Layout, CF>(
         // At finish: the frame's outer size is its children's extent plus the chrome on
         // both sides. Advance the parent's cursor with that, then retroactively patch the
         // placeholder draw commands with the resolved bounds.
-        move |(frame_token, spec), token, content, _focus, text_system, cmds| {
+        move |(frame_token, spec), token, content, _focus, text_backend, cmds| {
             let outer_extent = Vec2::new(content.w + inset * 2.0, content.h + inset * 2.0);
             let (bounds, violation) = token.end_layout(outer_extent).into_parts();
             if let Some(v) = violation {
                 crate::widget::react_layout_violation(
                     policy,
-                    text_system,
+                    text_backend,
                     cmds,
                     violation_font,
                     v,

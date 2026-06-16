@@ -33,11 +33,11 @@ pub mod raw {
     /// Measure a tooltip's intrinsic size from its measurement spec.
     pub fn calc_tooltip_intrinsic_size<T: TextBackend>(
         spec: &TooltipCalcIntrinsicSizeSpec,
-        text_system: &mut T,
+        text_backend: &mut T,
     ) -> crate::layout::IntrinsicSize {
         let s = spec.style;
         let metrics = measure_text(
-            text_system,
+            text_backend,
             spec.text,
             s.text_style,
             crate::text::TextBounds::width((s.max_width - s.pad_x * 2.0).max(0.0)),
@@ -53,7 +53,7 @@ pub mod raw {
     /// High-level wrappers should use this internally.
     pub fn tooltip<T: TextBackend>(
         spec: TooltipSpec<'_>,
-        text_system: &mut T,
+        text_backend: &mut T,
         cmds: &mut DrawCommands,
     ) -> TooltipResult {
         let s = spec.style;
@@ -70,7 +70,7 @@ pub mod raw {
         };
 
         let layout = layout_text(
-            text_system,
+            text_backend,
             spec.text,
             s.text_style,
             crate::text::TextBounds::width((s.max_width - pad_x * 2.0).max(0.0)),
@@ -95,7 +95,7 @@ pub mod raw {
         );
         layout.emit_glyphs(
             cmds,
-            text_system,
+            text_backend,
             Vec2::new(text_rect.x, text_rect.y),
             s.text_style,
             text_color,
@@ -264,7 +264,7 @@ pub fn tooltip<'a, T: TextBackend, S: LayoutState, CF>(
         text: spec.text,
         style: spec.style,
     };
-    let intrinsic = raw::calc_tooltip_intrinsic_size(&calc_spec, ctx.text_system);
+    let intrinsic = raw::calc_tooltip_intrinsic_size(&calc_spec, ctx.text_backend);
     let rect = ctx.layout(layout_params, intrinsic);
     let raw_spec = raw::TooltipSpec {
         rect,
@@ -273,7 +273,7 @@ pub fn tooltip<'a, T: TextBackend, S: LayoutState, CF>(
         style: spec.style,
         layer: ctx.layer,
     };
-    let result = raw::tooltip(raw_spec, ctx.text_system, ctx.cmds);
+    let result = raw::tooltip(raw_spec, ctx.text_backend, ctx.cmds);
     TooltipResult {
         layout: LayoutInfo::new(result.bounds, result.content_bounds),
     }
@@ -287,7 +287,7 @@ mod tests {
 
     #[test]
     fn test_tooltip_visual_dark() {
-        let mut text_system = TestTextBackend;
+        let mut text_backend = TestTextBackend;
         let spec = TooltipSpec {
             rect: Rect::new(0.0, 0.0, 100.0, 50.0),
             text: "Tooltip",
@@ -297,7 +297,7 @@ mod tests {
         };
         let style = spec.style;
         let mut cmds = DrawCommands::new();
-        let res = raw::tooltip(spec, &mut text_system, &mut cmds);
+        let res = raw::tooltip(spec, &mut text_backend, &mut cmds);
 
         assert_eq!(res.bounds, Rect::new(0.0, 0.0, 72.0, 27.0));
         assert_eq!(
@@ -369,7 +369,7 @@ mod tests {
 
     #[test]
     fn test_tooltip_visual_rust() {
-        let mut text_system = TestTextBackend;
+        let mut text_backend = TestTextBackend;
         let spec = TooltipSpec {
             rect: Rect::new(0.0, 0.0, 100.0, 50.0),
             text: "Tooltip",
@@ -379,7 +379,7 @@ mod tests {
         };
         let style = spec.style;
         let mut cmds = DrawCommands::new();
-        let res = raw::tooltip(spec, &mut text_system, &mut cmds);
+        let res = raw::tooltip(spec, &mut text_backend, &mut cmds);
 
         assert_eq!(res.bounds, Rect::new(0.0, 0.0, 72.0, 27.0));
         assert_eq!(
@@ -452,14 +452,14 @@ mod tests {
     #[test]
     fn test_high_level_explicit_placement_via_manual_layout() {
         use crate::layouts::ManualLayout;
-        let mut text_system = TestTextBackend;
+        let mut text_backend = TestTextBackend;
         let mut focus = FocusSystem::new();
         let input = crate::Input::default();
         let mut cmds = crate::draw::DrawCommands::new();
         let placement = Rect::new(10.0, 20.0, 50.0, 30.0);
         let mut ctx = crate::widget::WidgetContext::root(
             crate::theme::Theme::framewise(),
-            &mut text_system,
+            &mut text_backend,
             &mut focus,
             &input,
             ManualLayout,
@@ -481,14 +481,14 @@ mod tests {
     fn test_tooltip_bounds_and_content_bounds() {
         use crate::layouts::ManualLayout;
         use crate::test_utils::TestTextBackend;
-        let mut text_system = TestTextBackend;
+        let mut text_backend = TestTextBackend;
         let mut focus = FocusSystem::new();
         let input = crate::Input::default();
         let mut cmds = crate::draw::DrawCommands::new();
         let layout_rect = Rect::new(0.0, 0.0, 100.0, 40.0);
         let mut ctx = crate::widget::WidgetContext::root(
             crate::theme::Theme::framewise(),
-            &mut text_system,
+            &mut text_backend,
             &mut focus,
             &input,
             ManualLayout,

@@ -97,7 +97,7 @@ pub fn begin_demo_page<'a, 'b, T: TextBackend, L: Layout, CF>(
     };
     let label_intrinsic = framewise::widgets::label::raw::calc_label_intrinsic_size(
         &label_spec,
-        parent_ctx.text_system,
+        parent_ctx.text_backend,
     );
     let title_h = label_intrinsic.preferred.map_or(24.0, |p| p.y);
 
@@ -114,7 +114,7 @@ pub fn begin_demo_page<'a, 'b, T: TextBackend, L: Layout, CF>(
         style: title_style,
         layer: parent_ctx.layer,
     };
-    framewise::widgets::label::raw::label(spec, parent_ctx.text_system, parent_ctx.cmds);
+    framewise::widgets::label::raw::label(spec, parent_ctx.text_backend, parent_ctx.cmds);
 
     let offset_y = pad + title_h + 24.0;
     let mut adjusted_space = inner_space;
@@ -147,7 +147,7 @@ pub fn begin_demo_page<'a, 'b, T: TextBackend, L: Layout, CF>(
     let new_clip = Some(clip.map_or(content_bounds, |pc| pc.intersect(&content_bounds)));
 
     let on_finish = move |focus_system: &mut FocusSystem,
-                          _text_system: &mut T,
+                          _text_backend: &mut T,
                           cmds: &mut DrawCommands,
                           resolved_space: Rect| {
         let full_resolved_space = Rect::new(

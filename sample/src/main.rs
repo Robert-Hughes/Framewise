@@ -91,7 +91,7 @@ impl GpuState {
 struct App {
     window: Option<Arc<Window>>,
     gpu: Option<GpuState>,
-    text_system: Option<SampleTextBackend>,
+    text_backend: Option<SampleTextBackend>,
     focus_system: framewise::focus::FocusSystem,
     start_time: std::time::Instant,
     click_tracker: framewise::input::ClickTracker,
@@ -126,16 +126,16 @@ impl App {
     fn new() -> Self {
         let now = std::time::Instant::now();
         eprintln!("[STARTUP] App::new() starting");
-        let text_system_start = std::time::Instant::now();
-        let text_system = SampleTextBackend::new();
+        let text_backend_start = std::time::Instant::now();
+        let text_backend = SampleTextBackend::new();
         eprintln!(
             "[STARTUP]   SampleTextBackend::new() took {:?}",
-            text_system_start.elapsed()
+            text_backend_start.elapsed()
         );
         Self {
             window: None,
             gpu: None,
-            text_system: Some(text_system),
+            text_backend: Some(text_backend),
             focus_system: framewise::focus::FocusSystem::new(),
             start_time: now,
             click_tracker: framewise::input::ClickTracker::new(),
@@ -169,7 +169,7 @@ impl App {
 
     fn draw_missing_feature_page(
         win_size: (f32, f32),
-        text_system: &mut SampleTextBackend,
+        text_backend: &mut SampleTextBackend,
     ) -> framewise::DrawCommands {
         use framewise::{Color, DrawCmd, FontId, Rect, TextBounds, TextFlow};
         let mut cmds = framewise::DrawCommands::new();
@@ -182,7 +182,7 @@ impl App {
         let flow = TextFlow::single_line();
         let style = framewise::TextStyle::new(FontId(1), 24.0, 400, flow);
         let m = framewise::text::measure_text(
-            text_system,
+            text_backend,
             "Feature not enabled",
             style,
             TextBounds::UNBOUNDED,
@@ -190,14 +190,14 @@ impl App {
         let cx = (win_size.0 - m.logical_size.x) * 0.5;
         let cy = (win_size.1 - m.logical_size.y) * 0.5;
         let layout = framewise::text::layout_text_in_rect(
-            text_system,
+            text_backend,
             "Feature not enabled",
             style,
             Rect::new(cx, cy, m.logical_size.x, m.logical_size.y),
         );
         layout.emit_glyphs(
             &mut cmds,
-            text_system,
+            text_backend,
             framewise::Vec2::new(cx, cy),
             style,
             Color::from_srgb_u8(140, 140, 150, 255),
@@ -207,7 +207,7 @@ impl App {
     }
 
     #[allow(unreachable_code)]
-    fn draw_ui(&mut self, text_system: &mut SampleTextBackend) -> framewise::DrawCommands {
+    fn draw_ui(&mut self, text_backend: &mut SampleTextBackend) -> framewise::DrawCommands {
         let win_size = self
             .gpu
             .as_ref()
@@ -226,20 +226,20 @@ impl App {
                         &self.input,
                         time,
                         win_size,
-                        text_system,
+                        text_backend,
                         self.debug_layout,
                     );
                     self.focus_system.end_frame();
                     return cmds;
                 }
-                Self::draw_missing_feature_page(win_size, text_system)
+                Self::draw_missing_feature_page(win_size, text_backend)
             }
             AppPage::WidgetSpec => {
                 #[cfg(feature = "page_spec")]
                 {
                     self.focus_system.begin_frame();
                     let cmds = spec_page::draw_spec_page(
-                        text_system,
+                        text_backend,
                         &mut self.focus_system,
                         &mut self.spec_page_state,
                         &self.input,
@@ -251,7 +251,7 @@ impl App {
                     self.focus_system.end_frame();
                     return cmds;
                 }
-                Self::draw_missing_feature_page(win_size, text_system)
+                Self::draw_missing_feature_page(win_size, text_backend)
             }
             AppPage::ScrollDemo => {
                 #[cfg(feature = "page_scroll_demo")]
@@ -264,13 +264,13 @@ impl App {
                         &self.input,
                         time,
                         win_size,
-                        text_system,
+                        text_backend,
                         self.debug_layout,
                     );
                     self.focus_system.end_frame();
                     return cmds;
                 }
-                Self::draw_missing_feature_page(win_size, text_system)
+                Self::draw_missing_feature_page(win_size, text_backend)
             }
             AppPage::FrameDemo => {
                 #[cfg(feature = "page_frame_demo")]
@@ -282,13 +282,13 @@ impl App {
                         &self.input,
                         time,
                         win_size,
-                        text_system,
+                        text_backend,
                         self.debug_layout,
                     );
                     self.focus_system.end_frame();
                     return cmds;
                 }
-                Self::draw_missing_feature_page(win_size, text_system)
+                Self::draw_missing_feature_page(win_size, text_backend)
             }
             AppPage::LayoutDemo => {
                 #[cfg(feature = "page_layout_demo")]
@@ -300,13 +300,13 @@ impl App {
                         &self.input,
                         time,
                         win_size,
-                        text_system,
+                        text_backend,
                         self.debug_layout,
                     );
                     self.focus_system.end_frame();
                     return cmds;
                 }
-                Self::draw_missing_feature_page(win_size, text_system)
+                Self::draw_missing_feature_page(win_size, text_backend)
             }
             AppPage::LabelDemo => {
                 #[cfg(feature = "page_label_demo")]
@@ -318,13 +318,13 @@ impl App {
                         &self.input,
                         time,
                         win_size,
-                        text_system,
+                        text_backend,
                         self.debug_layout,
                     );
                     self.focus_system.end_frame();
                     return cmds;
                 }
-                Self::draw_missing_feature_page(win_size, text_system)
+                Self::draw_missing_feature_page(win_size, text_backend)
             }
             AppPage::TextEditDemo => {
                 #[cfg(feature = "page_text_edit")]
@@ -336,13 +336,13 @@ impl App {
                         &self.input,
                         time,
                         win_size,
-                        text_system,
+                        text_backend,
                         self.debug_layout,
                     );
                     self.focus_system.end_frame();
                     return cmds;
                 }
-                Self::draw_missing_feature_page(win_size, text_system)
+                Self::draw_missing_feature_page(win_size, text_backend)
             }
         }
     }
@@ -693,10 +693,10 @@ impl ApplicationHandler for App {
                     );
                     self.is_first_frame = false;
                 }
-                let mut text_system = self.text_system.take().unwrap();
-                text_system.begin_frame();
+                let mut text_backend = self.text_backend.take().unwrap();
+                text_backend.begin_frame();
                 let draw_ui_start = std::time::Instant::now();
-                let draw_cmds = self.draw_ui(&mut text_system);
+                let draw_cmds = self.draw_ui(&mut text_backend);
                 if is_first {
                     eprintln!(
                         "[STARTUP] [{:?}]   First draw_ui took {:?}",
@@ -762,7 +762,7 @@ impl ApplicationHandler for App {
                                 &mut encoder,
                                 &draw_cmds,
                                 (gpu.size.width, gpu.size.height),
-                                &mut text_system,
+                                &mut text_backend,
                             );
                             if is_first {
                                 eprintln!(
@@ -789,7 +789,7 @@ impl ApplicationHandler for App {
                     }
                 }
 
-                self.text_system = Some(text_system);
+                self.text_backend = Some(text_backend);
                 if is_first {
                     eprintln!(
                         "[STARTUP] First RedrawRequested completed in {:?}",

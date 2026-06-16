@@ -12,8 +12,8 @@ mod spec_page_golden {
     #[test]
     fn spec_page_matches_golden() {
         pollster::block_on(async {
-            let mut text_system = SampleTextBackend::new();
-            text_system.begin_frame();
+            let mut text_backend = SampleTextBackend::new();
+            text_backend.begin_frame();
 
             let mut focus_system = FocusSystem::new();
             let mut state = crate::spec_page::SpecWidgetsState::default();
@@ -24,7 +24,7 @@ mod spec_page_golden {
             let mut cmds = DrawCommands::new();
             let mut ctx = WidgetContext::root(
                 Theme::framewise(),
-                &mut text_system,
+                &mut text_backend,
                 &mut focus_system,
                 &input,
                 RowLayout,
@@ -39,7 +39,7 @@ mod spec_page_golden {
             focus_system.end_frame();
 
             let Some(actual) =
-                render_commands_to_rgba(rect.w as u32, rect.h as u32, cmds, text_system).await
+                render_commands_to_rgba(rect.w as u32, rect.h as u32, cmds, text_backend).await
             else {
                 panic!("Failed to render commands to RGBA");
             };
@@ -63,8 +63,8 @@ mod analytical_aa_golden {
         pollster::block_on(async {
             let width = 400;
             let height = 400;
-            let mut text_system = SampleTextBackend::new();
-            text_system.begin_frame();
+            let mut text_backend = SampleTextBackend::new();
+            text_backend.begin_frame();
 
             let mut cmds = DrawCommands::new();
 
@@ -179,7 +179,7 @@ mod analytical_aa_golden {
                 anti_alias: true,
             });
 
-            let Some(actual) = render_commands_to_rgba(width, height, cmds, text_system).await
+            let Some(actual) = render_commands_to_rgba(width, height, cmds, text_backend).await
             else {
                 panic!("Failed to render commands to RGBA");
             };
@@ -205,8 +205,8 @@ mod button_page_golden {
     #[test]
     fn button_page_matches_golden() {
         pollster::block_on(async {
-            let mut text_system = SampleTextBackend::new();
-            text_system.begin_frame();
+            let mut text_backend = SampleTextBackend::new();
+            text_backend.begin_frame();
 
             let mut focus_system = FocusSystem::new();
             let mut state = crate::button_page::ButtonPageState::default();
@@ -217,7 +217,7 @@ mod button_page_golden {
             let mut cmds = DrawCommands::new();
             let mut ctx = WidgetContext::root(
                 Theme::default(),
-                &mut text_system,
+                &mut text_backend,
                 &mut focus_system,
                 &input,
                 ColumnLayout,
@@ -241,7 +241,7 @@ mod button_page_golden {
             focus_system.end_frame();
 
             let Some(actual) =
-                render_commands_to_rgba(1600, rect.h as u32, cmds, text_system).await
+                render_commands_to_rgba(1600, rect.h as u32, cmds, text_backend).await
             else {
                 panic!("Failed to render commands to RGBA");
             };
@@ -267,8 +267,8 @@ mod label_page_golden {
     #[test]
     fn label_page_matches_golden() {
         pollster::block_on(async {
-            let mut text_system = SampleTextBackend::new();
-            text_system.begin_frame();
+            let mut text_backend = SampleTextBackend::new();
+            text_backend.begin_frame();
 
             let mut focus_system = FocusSystem::new();
             let input = Input::default();
@@ -278,7 +278,7 @@ mod label_page_golden {
             let mut cmds = DrawCommands::new();
             let mut ctx = WidgetContext::root(
                 Theme::default(),
-                &mut text_system,
+                &mut text_backend,
                 &mut focus_system,
                 &input,
                 ColumnLayout,
@@ -302,7 +302,7 @@ mod label_page_golden {
             focus_system.end_frame();
 
             let Some(actual) =
-                render_commands_to_rgba(1600, rect.h as u32, cmds, text_system).await
+                render_commands_to_rgba(1600, rect.h as u32, cmds, text_backend).await
             else {
                 panic!("Failed to render commands to RGBA");
             };
@@ -328,8 +328,8 @@ mod frame_page_golden {
     #[test]
     fn frame_page_matches_golden() {
         pollster::block_on(async {
-            let mut text_system = SampleTextBackend::new();
-            text_system.begin_frame();
+            let mut text_backend = SampleTextBackend::new();
+            text_backend.begin_frame();
 
             let mut focus_system = FocusSystem::new();
             let mut state = crate::frame_demo::FrameDemoState::default();
@@ -340,7 +340,7 @@ mod frame_page_golden {
             let mut cmds = DrawCommands::new();
             let mut ctx = WidgetContext::root(
                 Theme::default(),
-                &mut text_system,
+                &mut text_backend,
                 &mut focus_system,
                 &input,
                 ColumnLayout,
@@ -364,7 +364,7 @@ mod frame_page_golden {
             focus_system.end_frame();
 
             let Some(actual) =
-                render_commands_to_rgba(1600, rect.h as u32, cmds, text_system).await
+                render_commands_to_rgba(1600, rect.h as u32, cmds, text_backend).await
             else {
                 panic!("Failed to render commands to RGBA");
             };
@@ -390,8 +390,8 @@ mod layout_page_golden {
     #[test]
     fn layout_page_matches_golden() {
         pollster::block_on(async {
-            let mut text_system = SampleTextBackend::new();
-            text_system.begin_frame();
+            let mut text_backend = SampleTextBackend::new();
+            text_backend.begin_frame();
 
             let mut focus_system = FocusSystem::new();
             let mut state = crate::layout_demo::LayoutDemoState::default();
@@ -402,7 +402,7 @@ mod layout_page_golden {
             let mut cmds = DrawCommands::new();
             let mut ctx = WidgetContext::root(
                 Theme::default(),
-                &mut text_system,
+                &mut text_backend,
                 &mut focus_system,
                 &input,
                 ColumnLayout,
@@ -426,7 +426,7 @@ mod layout_page_golden {
             focus_system.end_frame();
 
             let Some(actual) =
-                render_commands_to_rgba(1600, rect.h as u32, cmds, text_system).await
+                render_commands_to_rgba(1600, rect.h as u32, cmds, text_backend).await
             else {
                 panic!("Failed to render commands to RGBA");
             };
@@ -452,8 +452,8 @@ mod scroll_page_golden {
     #[test]
     fn scroll_page_matches_golden() {
         pollster::block_on(async {
-            let mut text_system = SampleTextBackend::new();
-            text_system.begin_frame();
+            let mut text_backend = SampleTextBackend::new();
+            text_backend.begin_frame();
 
             let mut focus_system = FocusSystem::new();
             let mut state = crate::scroll_demo::ScrollDemoState::default();
@@ -464,7 +464,7 @@ mod scroll_page_golden {
             let mut cmds = DrawCommands::new();
             let mut ctx = WidgetContext::root(
                 Theme::default(),
-                &mut text_system,
+                &mut text_backend,
                 &mut focus_system,
                 &input,
                 framewise::layouts::ColumnLayout,
@@ -488,7 +488,7 @@ mod scroll_page_golden {
             focus_system.end_frame();
 
             let Some(actual) =
-                render_commands_to_rgba(1600, (rect.h + 40.0) as u32, cmds, text_system).await
+                render_commands_to_rgba(1600, (rect.h + 40.0) as u32, cmds, text_backend).await
             else {
                 panic!("Failed to render commands to RGBA");
             };
@@ -514,8 +514,8 @@ mod text_edit_page_golden {
     #[test]
     fn text_edit_page_matches_golden() {
         pollster::block_on(async {
-            let mut text_system = SampleTextBackend::new();
-            text_system.begin_frame();
+            let mut text_backend = SampleTextBackend::new();
+            text_backend.begin_frame();
 
             let mut focus_system = FocusSystem::new();
             let mut state = crate::text_edit_demo::TextEditDemoState::default();
@@ -526,7 +526,7 @@ mod text_edit_page_golden {
             let mut cmds = DrawCommands::new();
             let mut ctx = WidgetContext::root(
                 Theme::default(),
-                &mut text_system,
+                &mut text_backend,
                 &mut focus_system,
                 &input,
                 ColumnLayout,
@@ -550,7 +550,7 @@ mod text_edit_page_golden {
             focus_system.end_frame();
 
             let Some(actual) =
-                render_commands_to_rgba(1600, rect.h as u32, cmds, text_system).await
+                render_commands_to_rgba(1600, rect.h as u32, cmds, text_backend).await
             else {
                 panic!("Failed to render commands to RGBA");
             };

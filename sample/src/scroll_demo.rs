@@ -142,7 +142,7 @@ pub fn draw_scroll_demo(
     input: &Input,
     time: f64,
     win_size: (f32, f32),
-    text_system: &mut SampleTextBackend,
+    text_backend: &mut SampleTextBackend,
     debug_layout: bool,
 ) -> framewise::DrawCommands {
     // Clipboard is unused now that the text-edit field has been removed from this
@@ -162,7 +162,7 @@ pub fn draw_scroll_demo(
 
     let mut ctx = WidgetContext::root(
         Theme::default(),
-        text_system,
+        text_backend,
         focus_system,
         input,
         framewise::layouts::ColumnLayout,

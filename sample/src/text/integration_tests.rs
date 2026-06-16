@@ -14,8 +14,8 @@ mod integration_tests {
         pollster::block_on(async {
             let width = 600;
             let height = 80;
-            let mut text_system = SampleTextBackend::new();
-            text_system.begin_frame();
+            let mut text_backend = SampleTextBackend::new();
+            text_backend.begin_frame();
 
             let mut cmds = DrawCommands::new();
             let font_id = FontId(1);
@@ -23,7 +23,7 @@ mod integration_tests {
                 .with_line_height(LineHeight::Relative(1.55));
             let body_rect = Rect::new(0.0, 0.0, width as f32, height as f32);
             let layout = layout_text(
-                &mut text_system,
+                &mut text_backend,
                 "Sharp corners, hairline borders, monospaced numerics. One accent — rust — reserved for focus, drag, and primary action. Every widget describes its state explicitly; nothing is hidden behind animation or chrome.",
                 body_style,
                 TextBounds {
@@ -33,14 +33,14 @@ mod integration_tests {
             );
             layout.emit_glyphs(
                 &mut cmds,
-                &mut text_system,
+                &mut text_backend,
                 body_rect.top_left(),
                 body_style,
                 Color::from_srgb_u8(0, 0, 0, 255),
                 0,
             );
 
-            let Some(actual) = render_commands_to_rgba(width, height, cmds, text_system).await
+            let Some(actual) = render_commands_to_rgba(width, height, cmds, text_backend).await
             else {
                 panic!("Failed to render commands to RGBA");
             };

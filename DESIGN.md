@@ -499,7 +499,7 @@ Three key rules keep these bounds from leaking infinity into leaf widget geometr
 
 **Reading the accumulated extent — `resolve_space`.** `LayoutState` exposes `fn resolve_space(&self) -> Rect`: the accumulated content resolved against the layout's own `LayoutSpace` bounds (an `Exact` axis reports the exact extent, `AtMost` caps the measured size, `Unbounded` shrink-wraps to it), measured from its origin (so it is independent of any scroll offset, and `OffsetState` forwards its inner's value unchanged). Every layout state implements it — a column reports its widest child and stacked height, `ManualLayout` the max far-edge of placed rects, etc. `WidgetContext::finish()` reads it and hands the resolved `Rect` to the cleanup closure, which is how a deferred scroll area learns how large its children turned out (see [Scroll Areas](#scroll-areas-windows-and-symmetrical-container-life-cycles)). It returns the origin with zero extent before any child is placed.
 
-**The `calc_*_intrinsic_size` companion.** Each raw widget that participates has an independent `raw::calc_*_intrinsic_size(spec, text_system) -> IntrinsicSize`. It takes a dedicated raw measurement spec such as `raw::ButtonCalcIntrinsicSizeSpec`, containing only the fields needed to measure that widget. Geometry, clipping, input state, focus state, and any draw-only fields are absent unless they genuinely affect intrinsic size.
+**The `calc_*_intrinsic_size` companion.** Each raw widget that participates has an independent `raw::calc_*_intrinsic_size(spec, text_backend) -> IntrinsicSize`. It takes a dedicated raw measurement spec such as `raw::ButtonCalcIntrinsicSizeSpec`, containing only the fields needed to measure that widget. Geometry, clipping, input state, focus state, and any draw-only fields are absent unless they genuinely affect intrinsic size.
 
 This keeps the type honest: intrinsic sizing runs before layout, so the widget rect is not available and cannot appear in the measurement spec. Callers do not use placeholder rectangles to satisfy a broader raw widget spec; they construct the smaller calc spec directly.
 
@@ -550,9 +550,9 @@ Plain, low-level functions residing in `raw` submodules (e.g., `widgets::button:
 Appending directly to a caller-supplied buffer avoids intermediate `Vec` allocation and copying, and gives callers stable index-based access to the command list (which frame containers rely on for placeholder patching). The `cmds: &mut DrawCommands` parameter is always last, after all other inputs.
 
 ```rust
-pub fn button<T: TextSystem>(spec: raw::ButtonSpec, state: &mut ButtonState, input: &Input, focus_system: &mut FocusSystem, text_system: &mut T, cmds: &mut DrawCommands) -> raw::ButtonResult;
-pub fn label<T: TextSystem>(spec: raw::LabelSpec, text_system: &mut T, cmds: &mut DrawCommands) -> raw::LabelResult;
-pub fn text_edit<T: TextSystem>(spec: raw::TextEditSpec, state: &mut TextEditState, input: &Input, focus_system: &mut FocusSystem, text_system: &mut T, cmds: &mut DrawCommands) -> raw::TextEditResult;
+pub fn button<T: TextSystem>(spec: raw::ButtonSpec, state: &mut ButtonState, input: &Input, focus_system: &mut FocusSystem, text_backend: &mut T, cmds: &mut DrawCommands) -> raw::ButtonResult;
+pub fn label<T: TextSystem>(spec: raw::LabelSpec, text_backend: &mut T, cmds: &mut DrawCommands) -> raw::LabelResult;
+pub fn text_edit<T: TextSystem>(spec: raw::TextEditSpec, state: &mut TextEditState, input: &Input, focus_system: &mut FocusSystem, text_backend: &mut T, cmds: &mut DrawCommands) -> raw::TextEditResult;
 ```
 
 Each `raw::*Result` is a concrete struct with no trait requirements on callers, no metadata maps, and no dynamic type slots. It does **not** contain a `DrawCommands` field — commands are written directly to the caller's buffer. (Result structs may derive utility traits such as `Debug` for inspection, but callers need not implement any traits to receive or use them.)
@@ -710,7 +710,7 @@ The practical dividing line is interaction states: as soon as a widget needs dis
 Example:
 ```rust
 // Low-level: fully resolved, no defaults
-pub fn button<T: TextSystem>(spec: raw::ButtonSpec, state: &mut ButtonState, input: &Input, focus_system: &mut FocusSystem, text_system: &mut T) -> raw::ButtonResult;
+pub fn button<T: TextSystem>(spec: raw::ButtonSpec, state: &mut ButtonState, input: &Input, focus_system: &mut FocusSystem, text_backend: &mut T) -> raw::ButtonResult;
 
 // High-level: uses builder to resolve defaults
 pub fn button<T, S, CF>(
@@ -724,7 +724,7 @@ pub fn button<T, S, CF>(
         text: spec.text,
         style: spec.style,
     };
-    let intrinsic = raw::calc_button_intrinsic_size(&calc_spec, ctx.text_system);
+    let intrinsic = raw::calc_button_intrinsic_size(&calc_spec, ctx.text_backend);
     let rect = ctx.layout(layout_params, intrinsic);
     let raw_spec = raw::ButtonSpec {
         rect,
@@ -733,7 +733,7 @@ pub fn button<T, S, CF>(
         clip_rect: ctx.clip_rect,
         disabled: spec.disabled,
     };
-    let r = raw::button(raw_spec, state, ctx.input, ctx.focus_system, ctx.text_system, ctx.cmds);
+    let r = raw::button(raw_spec, state, ctx.input, ctx.focus_system, ctx.text_backend, ctx.cmds);
     ButtonResult {
         layout: LayoutInfo::new(rect, r.content_bounds),
         input: r.input,

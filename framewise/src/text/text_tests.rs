@@ -759,7 +759,7 @@ fn emit_glyphs_omits_empty_runs() {
 }
 
 #[test]
-fn test_sample_text_system_line_metrics() {
+fn test_sample_text_backend_line_metrics() {
     let layout = layout(
         "hello\nworld",
         TextFlow::single_line(),

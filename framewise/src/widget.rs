@@ -70,7 +70,7 @@ pub enum LayoutViolationPolicy {
 /// `on_finish` closure), so the label is always drawn.
 pub fn react_layout_violation<T: TextBackend>(
     policy: LayoutViolationPolicy,
-    text_system: &mut T,
+    text_backend: &mut T,
     cmds: &mut DrawCommands,
     font: crate::text::FontId,
     violation: LayoutViolation,
@@ -93,14 +93,14 @@ pub fn react_layout_violation<T: TextBackend>(
             let style =
                 crate::text::TextStyle::new(font, 12.0, 400, crate::text::TextFlow::single_line());
             let layout = crate::text::layout_text_in_rect(
-                text_system,
+                text_backend,
                 &violation.to_string(),
                 style,
                 fallback_rect,
             );
             layout.emit_glyphs(
                 cmds,
-                text_system,
+                text_backend,
                 crate::types::Vec2::new(fallback_rect.x, fallback_rect.y),
                 style,
                 color,
@@ -131,7 +131,7 @@ pub struct WidgetContext<'a, T: TextBackend, LS: LayoutState, CF> {
     pub debug_layout: bool,
 
     // System resources
-    pub text_system: &'a mut T,
+    pub text_backend: &'a mut T,
     pub focus_system: &'a mut FocusSystem,
     pub input: &'a Input,
     pub cmds: &'a mut DrawCommands,
@@ -153,7 +153,7 @@ impl<'a, T: TextBackend, LS: LayoutState>
     #[allow(clippy::type_complexity)]
     pub fn root<L: crate::layout::Layout<State = LS>>(
         theme: Theme,
-        text_system: &'a mut T,
+        text_backend: &'a mut T,
         focus_system: &'a mut FocusSystem,
         input: &'a Input,
         layout: L,
@@ -166,7 +166,7 @@ impl<'a, T: TextBackend, LS: LayoutState>
             layer: Layer::default(),
             debug_layout: false,
             theme,
-            text_system,
+            text_backend,
             focus_system,
             input,
             layout_state: layout.begin(space.into()),
@@ -195,7 +195,7 @@ impl<'a, T: TextBackend, LS: LayoutState, CF> WidgetContext<'a, T, LS, CF> {
             clip_rect: inner_clip_rect,
             layer: self.layer,
             debug_layout: self.debug_layout,
-            text_system: self.text_system,
+            text_backend: self.text_backend,
             focus_system: self.focus_system,
             input: self.input,
             layout_state: inner_layout_state,
@@ -263,12 +263,12 @@ impl<'a, T: TextBackend, LS: LayoutState, CF> WidgetContext<'a, T, LS, CF> {
             IntrinsicSize::UNKNOWN,
             inner_layout,
             |_cmds, outer| ((), outer),
-            move |(), token, content, _focus, text_system, cmds| {
+            move |(), token, content, _focus, text_backend, cmds| {
                 let (rect, violation) = token
                     .end_layout(Vec2::new(content.w, content.h))
                     .into_parts();
                 if let Some(v) = violation {
-                    react_layout_violation(policy, text_system, cmds, font, v, rect, z);
+                    react_layout_violation(policy, text_backend, cmds, font, v, rect, z);
                 }
             },
         );
@@ -338,10 +338,10 @@ impl<'a, T: TextBackend, LS: LayoutState, CF> WidgetContext<'a, T, LS, CF> {
         let (carried, inner_space) = before_children(self.cmds, outer_space);
 
         let on_finish = move |focus: &mut FocusSystem,
-                              text_system: &mut T,
+                              text_backend: &mut T,
                               cmds: &mut DrawCommands,
                               resolved: Rect| {
-            after_children(carried, token, resolved, focus, text_system, cmds);
+            after_children(carried, token, resolved, focus, text_backend, cmds);
         };
 
         let child = WidgetContext {
@@ -350,7 +350,7 @@ impl<'a, T: TextBackend, LS: LayoutState, CF> WidgetContext<'a, T, LS, CF> {
             clip_rect: clip,
             layer,
             debug_layout,
-            text_system: self.text_system,
+            text_backend: self.text_backend,
             focus_system: self.focus_system,
             input: self.input,
             cmds: self.cmds,
@@ -372,7 +372,7 @@ impl<'a, T: TextBackend, LS: LayoutState, CF> WidgetContext<'a, T, LS, CF> {
         if let Some(v) = violation {
             react_layout_violation(
                 self.layout_policy,
-                self.text_system,
+                self.text_backend,
                 self.cmds,
                 self.theme.sans_font,
                 v,
@@ -430,7 +430,7 @@ impl<
         let z = self.layer.get_z();
         (self.on_finish)(
             self.focus_system,
-            self.text_system,
+            self.text_backend,
             self.cmds,
             resolved_space,
         );
@@ -440,7 +440,7 @@ impl<
         if let Some(violation) = self.pending_violation {
             react_layout_violation(
                 self.layout_policy,
-                self.text_system,
+                self.text_backend,
                 self.cmds,
                 font,
                 violation,

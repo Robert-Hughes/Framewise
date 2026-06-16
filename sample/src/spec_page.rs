@@ -269,7 +269,7 @@ fn draw_select_fake_state<'s, T: TextBackend, LS: LayoutState, CF>(
         &mut state,
         &dummy_input,
         &mut dummy_focus_sys,
-        b.text_system,
+        b.text_backend,
         b.cmds,
     );
 }
@@ -309,7 +309,7 @@ fn draw_drag_number_fake_state<T: TextBackend, LS: LayoutState, CF>(
         &mut state,
         &dummy_input,
         &mut dummy_focus_sys,
-        b.text_system,
+        b.text_backend,
         b.cmds,
     );
     let _ = result;
@@ -364,7 +364,7 @@ fn draw_button_fake_state<T: TextBackend, LS: LayoutState, CF>(
         &mut state,
         &fake_input,
         &mut dummy_focus_sys,
-        b.text_system,
+        b.text_backend,
         b.cmds,
     );
 }
@@ -373,7 +373,7 @@ fn draw_button_fake_state<T: TextBackend, LS: LayoutState, CF>(
 fn button_intrinsic_width<T: TextBackend>(
     text: &str,
     style: ButtonStyle,
-    text_system: &mut T,
+    text_backend: &mut T,
 ) -> f32 {
     let spec = ButtonSpecBuilder::new().text(text).style(style).build();
     let spec = framewise::widgets::button::raw::ButtonCalcIntrinsicSizeSpec {
@@ -381,7 +381,7 @@ fn button_intrinsic_width<T: TextBackend>(
         style: spec.style,
     };
 
-    framewise::widgets::button::raw::calc_button_intrinsic_size(&spec, text_system)
+    framewise::widgets::button::raw::calc_button_intrinsic_size(&spec, text_backend)
         .preferred
         .expect("button intrinsic size should report preferred size")
         .x
@@ -439,7 +439,7 @@ fn draw_text_edit_fake_state<T: TextBackend, LS: LayoutState, CF>(
         &mut state,
         &fake_input,
         &mut dummy_focus_sys,
-        b.text_system,
+        b.text_backend,
         b.cmds,
     );
 }
@@ -1114,7 +1114,7 @@ fn static_badge<CF, LS: LayoutState>(b: &mut WidgetContext<SampleTextBackend, LS
             style: spec.style,
             layer: b.layer,
         },
-        b.text_system,
+        b.text_backend,
         b.cmds,
     );
 }
@@ -1587,7 +1587,7 @@ fn section_01_buttons<CF>(
         ];
         let mut bx = 0.0;
         for (i, (label, style, width)) in styles.iter().enumerate() {
-            let w = width.unwrap_or_else(|| button_intrinsic_width(label, *style, b.text_system));
+            let w = width.unwrap_or_else(|| button_intrinsic_width(label, *style, b.text_backend));
             let btn = {
                 let state = &mut state.btn_variants[i];
                 let layout_params = Rect::new(bx, 0.0, w, b.theme.h_md);
@@ -1737,7 +1737,7 @@ fn section_01_buttons<CF>(
             ),
         ];
         for (i, (label, h, style)) in size_defs.iter().enumerate() {
-            let w = button_intrinsic_width(label, *style, b.text_system);
+            let w = button_intrinsic_width(label, *style, b.text_backend);
             let _btn = {
                 let state = &mut state.btn_sizes[i];
                 let layout_params = RowLayoutParams::fixed(w, *h).align_y(Align::Center);
@@ -1761,7 +1761,7 @@ fn section_01_buttons<CF>(
         ];
         // draw group border
         for (i, (label, style)) in grp1.iter().enumerate() {
-            let w = button_intrinsic_width(label, *style, b.text_system);
+            let w = button_intrinsic_width(label, *style, b.text_backend);
             let btn = {
                 let state = &mut state.btn_grp1[i];
                 let layout_params = RowLayoutParams::fixed(w, b.theme.h_md).align_y(Align::Center);
@@ -1787,7 +1787,7 @@ fn section_01_buttons<CF>(
             ("Ship", ButtonStyle::primary_from_theme(&b.theme)),
         ];
         for (i, (label, style)) in grp2.iter().enumerate() {
-            let w = button_intrinsic_width(label, *style, b.text_system);
+            let w = button_intrinsic_width(label, *style, b.text_backend);
             let _btn = {
                 let state = &mut state.btn_grp2[i];
                 let layout_params = RowLayoutParams::fixed(w, b.theme.h_md).align_y(Align::Center);
@@ -2716,7 +2716,7 @@ fn section_05_selection<CF>(
                 ..ChipStyle::from_theme(&b.theme)
             };
             let metrics = measure_text(
-                b.text_system,
+                b.text_backend,
                 label,
                 chip_style.text_style,
                 framewise::text::TextBounds::UNBOUNDED,
@@ -2739,7 +2739,7 @@ fn section_05_selection<CF>(
             ..ChipStyle::from_theme(&b.theme)
         };
         let add_metrics = measure_text(
-            b.text_system,
+            b.text_backend,
             "+ add backend",
             chip_style.text_style,
             framewise::text::TextBounds::UNBOUNDED,
@@ -4413,13 +4413,13 @@ fn footer_section<CF>(b: &mut WidgetContext<SampleTextBackend, ColumnState, CF>,
     let title_key = "FRAMEWISE";
     let title_value = "· WIDGET SPECIFICATION";
     let title_key_metrics = measure_text(
-        b.text_system,
+        b.text_backend,
         title_key,
         footer_text,
         framewise::text::TextBounds::UNBOUNDED,
     );
     let title_value_metrics = measure_text(
-        b.text_system,
+        b.text_backend,
         title_value,
         footer_text,
         framewise::text::TextBounds::UNBOUNDED,

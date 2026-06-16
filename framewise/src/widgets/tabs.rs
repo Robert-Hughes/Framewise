@@ -38,12 +38,12 @@ pub mod raw {
     /// Measure a tabs widget's intrinsic size from its measurement spec.
     pub fn calc_tabs_intrinsic_size<T: TextBackend>(
         spec: &TabsCalcIntrinsicSizeSpec,
-        text_system: &mut T,
+        text_backend: &mut T,
     ) -> IntrinsicSize {
         let s = spec.style;
         let mut total_w = 0.0_f32;
         for label in spec.items.iter() {
-            let metrics = measure_text(text_system, label, s.text_style, TextBounds::UNBOUNDED);
+            let metrics = measure_text(text_backend, label, s.text_style, TextBounds::UNBOUNDED);
             total_w += metrics.logical_size.x + s.pad_x * 2.0;
         }
         IntrinsicSize::preferred(Vec2::new(total_w, s.height))
@@ -58,7 +58,7 @@ pub mod raw {
         state: &mut TabsState,
         input: &Input,
         focus_system: &mut FocusSystem,
-        text_system: &mut T,
+        text_backend: &mut T,
         cmds: &mut DrawCommands,
     ) -> TabsResult {
         let s = spec.style;
@@ -70,7 +70,7 @@ pub mod raw {
         // Sum width of tabs
         let mut total_w = 0.0;
         for label in spec.items.iter() {
-            let metrics = measure_text(text_system, label, s.text_style, TextBounds::UNBOUNDED);
+            let metrics = measure_text(text_backend, label, s.text_style, TextBounds::UNBOUNDED);
             total_w += metrics.logical_size.x + pad_x * 2.0;
         }
 
@@ -106,7 +106,7 @@ pub mod raw {
         if clicked && !spec.disabled && !spec.items.is_empty() {
             let mut x = spec.rect.x;
             for (i, label) in spec.items.iter().enumerate() {
-                let metrics = measure_text(text_system, label, s.text_style, TextBounds::UNBOUNDED);
+                let metrics = measure_text(text_backend, label, s.text_style, TextBounds::UNBOUNDED);
                 let tab_w = metrics.logical_size.x + pad_x * 2.0;
                 let tab_rect = Rect::new(x, spec.rect.y, tab_w, tab_h);
                 let is_visible = spec.clip_rect.is_none_or(|c| c.contains(input.mouse_pos));
@@ -137,7 +137,7 @@ pub mod raw {
         for (i, label) in spec.items.iter().enumerate() {
             let is_active = i == state.active_index;
 
-            let metrics = measure_text(text_system, label, s.text_style, TextBounds::UNBOUNDED);
+            let metrics = measure_text(text_backend, label, s.text_style, TextBounds::UNBOUNDED);
             let tab_w = metrics.logical_size.x + pad_x * 2.0;
             let tab_rect = Rect::new(x, spec.rect.y, tab_w, tab_h);
 
@@ -161,7 +161,7 @@ pub mod raw {
             let text_rect = Rect::new(x + pad_x, ty, text_w, text_h);
             emit_text_in_rect(
                 cmds,
-                text_system,
+                text_backend,
                 label,
                 s.text_style,
                 text_rect,
@@ -348,7 +348,7 @@ pub fn tabs<'a, T: TextBackend, S: LayoutState, CF>(
         items: spec.items,
         style: spec.style,
     };
-    let intrinsic = raw::calc_tabs_intrinsic_size(&calc_spec, ctx.text_system);
+    let intrinsic = raw::calc_tabs_intrinsic_size(&calc_spec, ctx.text_backend);
     let rect = ctx.layout(layout_params, intrinsic);
     let raw_spec = raw::TabsSpec {
         rect,
@@ -364,7 +364,7 @@ pub fn tabs<'a, T: TextBackend, S: LayoutState, CF>(
         state,
         ctx.input,
         ctx.focus_system,
-        ctx.text_system,
+        ctx.text_backend,
         ctx.cmds,
     );
 
@@ -395,7 +395,7 @@ mod tests {
 
     fn tabs_dummy<'a>(spec: TabsSpec<'a>, active_index: usize) -> (DrawCommands, raw::TabsResult) {
         let mut cmds = DrawCommands::new();
-        let mut text_system = TestTextBackend;
+        let mut text_backend = TestTextBackend;
         let result = raw::tabs(
             spec,
             &mut TabsState {
@@ -404,7 +404,7 @@ mod tests {
             },
             &Input::default(),
             &mut FocusSystem::new(),
-            &mut text_system,
+            &mut text_backend,
             &mut cmds,
         );
         (cmds, result)
@@ -506,7 +506,7 @@ mod tests {
         let mut focus_system = FocusSystem::new();
         focus_system.take_keyboard_focus(state.focus_id);
         focus_system.begin_frame();
-        let mut text_system = TestTextBackend;
+        let mut text_backend = TestTextBackend;
         let items = ["Tab1", "Tab2"];
         let spec = make_spec(&items);
         let style = spec.style;
@@ -516,7 +516,7 @@ mod tests {
             &mut state,
             &Input::default(),
             &mut focus_system,
-            &mut text_system,
+            &mut text_backend,
             &mut cmds,
         );
         focus_system.end_frame();
@@ -616,7 +616,7 @@ mod tests {
         input.mouse_pos = Vec2::new(20.0, 10.0);
         input.mouse_pressed = true;
 
-        let mut text_system = TestTextBackend;
+        let mut text_backend = TestTextBackend;
         let items = ["Tab1", "Tab2"];
         let spec = make_spec(&items);
 
@@ -627,7 +627,7 @@ mod tests {
             &mut state,
             &input,
             &mut focus_system,
-            &mut text_system,
+            &mut text_backend,
             &mut cmds,
         );
         focus_system.end_frame();
@@ -647,7 +647,7 @@ mod tests {
         input.mouse_pos = Vec2::new(20.0, 10.0);
         input.mouse_pressed = true;
 
-        let mut text_system = TestTextBackend;
+        let mut text_backend = TestTextBackend;
         let items = ["Tab1", "Tab2"];
         let spec = TabsSpec {
             rect: Rect::new(0.0, 0.0, 300.0, 36.0),
@@ -665,7 +665,7 @@ mod tests {
             &mut state,
             &input,
             &mut focus_system,
-            &mut text_system,
+            &mut text_backend,
             &mut cmds,
         );
         focus_system.end_frame();
@@ -682,7 +682,7 @@ mod tests {
         let mut focus_system = FocusSystem::new();
         let mut state = TabsState::default();
         let mut input = Input::default();
-        let mut text_system = TestTextBackend;
+        let mut text_backend = TestTextBackend;
         let items = ["Tab1", "Tab2"];
 
         // Focus the widget
@@ -697,7 +697,7 @@ mod tests {
             &mut state,
             &input,
             &mut focus_system,
-            &mut text_system,
+            &mut text_backend,
             &mut cmds,
         );
         focus_system.end_frame();
@@ -714,7 +714,7 @@ mod tests {
             &mut state,
             &input,
             &mut focus_system,
-            &mut text_system,
+            &mut text_backend,
             &mut cmds,
         );
         focus_system.end_frame();
@@ -744,14 +744,14 @@ mod tests {
     #[test]
     fn test_explicit_placement_via_manual_layout() {
         use crate::layouts::ManualLayout;
-        let mut text_system = TestTextBackend;
+        let mut text_backend = TestTextBackend;
         let mut focus = FocusSystem::new();
         let input = crate::Input::default();
         let mut cmds = crate::draw::DrawCommands::new();
         let placement = Rect::new(10.0, 20.0, 200.0, 36.0);
         let mut ctx = crate::widget::WidgetContext::root(
             crate::theme::Theme::framewise(),
-            &mut text_system,
+            &mut text_backend,
             &mut focus,
             &input,
             ManualLayout,

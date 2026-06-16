@@ -395,7 +395,7 @@ impl Renderer {
         cmds: &[DrawCmd],
         glyphs: &[DrawGlyph],
         window_size: (u32, u32),
-        text_system: &mut crate::text::SampleTextBackend,
+        text_backend: &mut crate::text::SampleTextBackend,
     ) -> (
         Vec<Vertex>,
         Vec<TextVertex>,
@@ -693,7 +693,7 @@ impl Renderer {
                             run_glyphs,
                             *color,
                             *z,
-                            text_system,
+                            text_backend,
                             window_size,
                         );
                     }
@@ -778,9 +778,9 @@ impl Renderer {
         encoder: &mut wgpu::CommandEncoder,
         draw_commands: &DrawCommands,
         window_size: (u32, u32),
-        text_system: &mut crate::text::SampleTextBackend,
+        text_backend: &mut crate::text::SampleTextBackend,
     ) {
-        if text_system.atlas_dirty {
+        if text_backend.atlas_dirty {
             queue.write_texture(
                 wgpu::TexelCopyTextureInfo {
                     texture: &self.atlas_texture,
@@ -788,26 +788,26 @@ impl Renderer {
                     origin: wgpu::Origin3d::ZERO,
                     aspect: wgpu::TextureAspect::All,
                 },
-                &text_system.atlas_data,
+                &text_backend.atlas_data,
                 wgpu::TexelCopyBufferLayout {
                     offset: 0,
-                    bytes_per_row: Some(text_system.atlas_size),
-                    rows_per_image: Some(text_system.atlas_size),
+                    bytes_per_row: Some(text_backend.atlas_size),
+                    rows_per_image: Some(text_backend.atlas_size),
                 },
                 wgpu::Extent3d {
-                    width: text_system.atlas_size,
-                    height: text_system.atlas_size,
+                    width: text_backend.atlas_size,
+                    height: text_backend.atlas_size,
                     depth_or_array_layers: 1,
                 },
             );
-            text_system.atlas_dirty = false;
+            text_backend.atlas_dirty = false;
         }
 
         let (quad_verts, text_verts, aa_shapes, render_cmds) = Self::process_commands(
             draw_commands.commands(),
             draw_commands.glyphs(),
             window_size,
-            text_system,
+            text_backend,
         );
 
         if quad_verts.is_empty() && text_verts.is_empty() && aa_shapes.is_empty() {
@@ -1294,15 +1294,15 @@ fn push_glyph_run(
     glyphs: &[DrawGlyph],
     color: Color,
     z: u32,
-    text_system: &crate::text::SampleTextBackend,
+    text_backend: &crate::text::SampleTextBackend,
     (sw, sh): (u32, u32),
 ) {
     let c = color_arr(color);
     let z = z_to_depth(z);
-    let atlas_size = text_system.atlas_size as f32;
+    let atlas_size = text_backend.atlas_size as f32;
 
     for glyph in glyphs {
-        let Some(image) = text_system.resolve_glyph(glyph.handle) else {
+        let Some(image) = text_backend.resolve_glyph(glyph.handle) else {
             continue;
         };
         let src = image.atlas_rect;
@@ -1373,7 +1373,7 @@ mod tests {
 
     #[test]
     fn glyph_run_vertices_use_draw_glyph_top_left_and_resolved_atlas_size() {
-        let mut text_system = SampleTextBackend::new();
+        let mut text_backend = SampleTextBackend::new();
         let key = GlyphKey {
             font_id: 1,
             glyph_index: 43,
@@ -1382,8 +1382,8 @@ mod tests {
             weight: 400,
             opsz: 14,
         };
-        let handle = text_system.prepare_glyph_handle(key);
-        let image = text_system.glyph_cache.get(&key).unwrap();
+        let handle = text_backend.prepare_glyph_handle(key);
+        let image = text_backend.glyph_cache.get(&key).unwrap();
         assert!(image.atlas_rect.w > 0);
         assert!(image.atlas_rect.h > 0);
 
@@ -1396,7 +1396,7 @@ mod tests {
             }],
             Color::from_srgb_u8(10, 20, 30, 255),
             7,
-            &text_system,
+            &text_backend,
             (200, 100),
         );
 
@@ -1415,8 +1415,8 @@ mod tests {
 
     #[test]
     fn process_commands_draws_glyph_runs_from_arena() {
-        let mut text_system = SampleTextBackend::new();
-        let handle = text_system.prepare_glyph_handle(GlyphKey {
+        let mut text_backend = SampleTextBackend::new();
+        let handle = text_backend.prepare_glyph_handle(GlyphKey {
             font_id: 1,
             glyph_index: 43,
             size: 140,
@@ -1438,7 +1438,7 @@ mod tests {
             cmds.commands(),
             cmds.glyphs(),
             (100, 100),
-            &mut text_system,
+            &mut text_backend,
         );
 
         assert_eq!(text_verts.len(), 6);
@@ -1452,8 +1452,8 @@ mod tests {
         use super::{RenderCommand, Renderer};
         use framewise::{Color, DrawCmd, Rect, Vec2};
 
-        let mut text_system = SampleTextBackend::new();
-        text_system.begin_frame();
+        let mut text_backend = SampleTextBackend::new();
+        text_backend.begin_frame();
 
         // Create a list of mixed commands to test batching/interleaving boundaries
         let cmds = vec![
@@ -1503,7 +1503,7 @@ mod tests {
         ];
 
         let (quad_verts, text_verts, aa_shapes, render_cmds) =
-            Renderer::process_commands(&cmds, &[], (800, 600), &mut text_system);
+            Renderer::process_commands(&cmds, &[], (800, 600), &mut text_backend);
 
         // Expect:
         // - 3 non-AA rects total -> 3 * 6 = 18 quad_verts

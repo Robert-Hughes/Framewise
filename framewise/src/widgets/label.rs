@@ -35,10 +35,10 @@ pub mod raw {
     /// Measure a label's intrinsic size from its measurement spec.
     pub fn calc_label_intrinsic_size<T: TextBackend>(
         spec: &LabelCalcIntrinsicSizeSpec,
-        text_system: &mut T,
+        text_backend: &mut T,
     ) -> crate::layout::IntrinsicSize {
         let t = measure_text(
-            text_system,
+            text_backend,
             spec.text,
             spec.style.text_style,
             crate::text::TextBounds::UNBOUNDED,
@@ -52,11 +52,11 @@ pub mod raw {
     /// High-level wrappers should use this internally.
     pub fn label<T: TextBackend>(
         spec: LabelSpec,
-        text_system: &mut T,
+        text_backend: &mut T,
         cmds: &mut DrawCommands,
     ) -> LabelResult {
         let layout = layout_text(
-            text_system,
+            text_backend,
             spec.text,
             spec.style.text_style,
             crate::text::TextBounds {
@@ -70,7 +70,7 @@ pub mod raw {
             .resolve_rect(spec.rect, layout.metrics().clone());
         layout.emit_glyphs(
             cmds,
-            text_system,
+            text_backend,
             Vec2::new(text_rect.x, text_rect.y),
             spec.style.text_style,
             spec.style.text_color,
@@ -204,7 +204,7 @@ pub fn label<'a, T: TextBackend, S: LayoutState, CF>(
         text: spec.text,
         style: spec.style,
     };
-    let intrinsic = raw::calc_label_intrinsic_size(&calc_spec, ctx.text_system);
+    let intrinsic = raw::calc_label_intrinsic_size(&calc_spec, ctx.text_backend);
     let rect = ctx.layout(layout_params, intrinsic);
     let raw_spec = raw::LabelSpec {
         layer: ctx.layer,
@@ -213,7 +213,7 @@ pub fn label<'a, T: TextBackend, S: LayoutState, CF>(
         style: spec.style,
     };
 
-    let r = raw::label(raw_spec, ctx.text_system, ctx.cmds);
+    let r = raw::label(raw_spec, ctx.text_backend, ctx.cmds);
 
     LabelResult {
         layout: LayoutInfo::new(rect, r.content_bounds),
@@ -568,7 +568,7 @@ mod tests {
     }
 
     #[test]
-    fn test_label_passes_spec_font_to_text_system() {
+    fn test_label_passes_spec_font_to_text_backend() {
         let mut sys = RecordingTextSys { font: None };
         let expected = FontId(42);
         let spec = LabelSpec {
@@ -627,14 +627,14 @@ mod tests {
     #[test]
     fn test_high_level_explicit_placement_via_manual_layout() {
         use crate::layouts::ManualLayout;
-        let mut text_system = TestTextBackend;
+        let mut text_backend = TestTextBackend;
         let mut focus = FocusSystem::new();
         let input = crate::Input::default();
         let mut cmds = crate::draw::DrawCommands::new();
         let placement = Rect::new(10.0, 20.0, 50.0, 30.0);
         let mut ctx = crate::widget::WidgetContext::root(
             crate::theme::Theme::framewise(),
-            &mut text_system,
+            &mut text_backend,
             &mut focus,
             &input,
             ManualLayout,
@@ -648,13 +648,13 @@ mod tests {
     #[test]
     fn test_high_level_honors_user_style() {
         use crate::layouts::ManualLayout;
-        let mut text_system = TestTextBackend;
+        let mut text_backend = TestTextBackend;
         let mut focus = FocusSystem::new();
         let input = crate::Input::default();
         let mut cmds = crate::draw::DrawCommands::new();
         let mut ctx = crate::widget::WidgetContext::root(
             crate::theme::Theme::framewise(),
-            &mut text_system,
+            &mut text_backend,
             &mut focus,
             &input,
             ManualLayout,
@@ -696,13 +696,13 @@ mod tests {
     #[test]
     fn test_label_auto_layout_uses_intrinsic_size() {
         use crate::layouts::{ColumnLayout, ColumnLayoutParams, ManualLayout};
-        let mut text_system = TestTextBackend;
+        let mut text_backend = TestTextBackend;
         let mut focus = FocusSystem::new();
         let input = Input::default();
         let mut cmds = DrawCommands::new();
         let mut ctx = WidgetContext::root(
             theme::Theme::framewise(),
-            &mut text_system,
+            &mut text_backend,
             &mut focus,
             &input,
             ManualLayout,
@@ -736,13 +736,13 @@ mod tests {
     #[test]
     fn test_label_with_custom_flow() {
         use crate::layouts::ManualLayout;
-        let mut text_system = TestTextBackend;
+        let mut text_backend = TestTextBackend;
         let mut focus = FocusSystem::new();
         let input = crate::Input::default();
         let mut cmds = crate::draw::DrawCommands::new();
         let mut ctx = crate::widget::WidgetContext::root(
             crate::theme::Theme::framewise(),
-            &mut text_system,
+            &mut text_backend,
             &mut focus,
             &input,
             ManualLayout,

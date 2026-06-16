@@ -32,7 +32,7 @@ pub mod raw {
 
     pub fn calc_menu_intrinsic_size<T: TextBackend>(
         spec: &MenuCalcIntrinsicSizeSpec,
-        text_system: &mut T,
+        text_backend: &mut T,
     ) -> crate::layout::IntrinsicSize {
         let s = spec.style;
         let mut widest: f32 = s.min_width;
@@ -44,7 +44,7 @@ pub mod raw {
                 } => {
                     height += s.row_height;
                     let label_w = measure_text(
-                        text_system,
+                        text_backend,
                         label,
                         s.label_style,
                         crate::text::TextBounds::UNBOUNDED,
@@ -54,7 +54,7 @@ pub mod raw {
                     let shortcut_w = shortcut
                         .map(|sc| {
                             measure_text(
-                                text_system,
+                                text_backend,
                                 sc,
                                 s.meta_style,
                                 crate::text::TextBounds::UNBOUNDED,
@@ -70,7 +70,7 @@ pub mod raw {
                     height += s.group_height;
                     widest = widest.max(
                         measure_text(
-                            text_system,
+                            text_backend,
                             label,
                             s.meta_style,
                             crate::text::TextBounds::UNBOUNDED,
@@ -90,7 +90,7 @@ pub mod raw {
     /// High-level wrappers should use this internally.
     pub fn menu<'a, T: TextBackend>(
         spec: MenuSpec<'a>,
-        text_system: &mut T,
+        text_backend: &mut T,
         cmds: &mut DrawCommands,
     ) -> MenuResult {
         let s = spec.style;
@@ -147,7 +147,7 @@ pub mod raw {
                 MenuItem::Group(label) => {
                     let ty = y + s.group_text_y;
                     let metrics = measure_text(
-                        text_system,
+                        text_backend,
                         label,
                         s.meta_style,
                         crate::text::TextBounds::UNBOUNDED,
@@ -160,7 +160,7 @@ pub mod raw {
                     );
                     emit_text_in_rect(
                         cmds,
-                        text_system,
+                        text_backend,
                         label,
                         s.meta_style,
                         rect,
@@ -195,7 +195,7 @@ pub mod raw {
                         tint(s.text)
                     };
                     let metrics = measure_text(
-                        text_system,
+                        text_backend,
                         label,
                         s.label_style,
                         crate::text::TextBounds::UNBOUNDED,
@@ -209,7 +209,7 @@ pub mod raw {
                     );
                     emit_text_in_rect(
                         cmds,
-                        text_system,
+                        text_backend,
                         label,
                         s.label_style,
                         rect,
@@ -229,7 +229,7 @@ pub mod raw {
                             tint(s.muted)
                         };
                         let sc_metrics = measure_text(
-                            text_system,
+                            text_backend,
                             sc,
                             s.meta_style,
                             crate::text::TextBounds::UNBOUNDED,
@@ -244,7 +244,7 @@ pub mod raw {
                         );
                         emit_text_in_rect(
                             cmds,
-                            text_system,
+                            text_backend,
                             sc,
                             s.meta_style,
                             sc_rect,
@@ -418,7 +418,7 @@ pub fn menu<'a, T: TextBackend, S: LayoutState, CF>(
         items: spec.items,
         style: spec.style,
     };
-    let intrinsic = raw::calc_menu_intrinsic_size(&calc_spec, ctx.text_system);
+    let intrinsic = raw::calc_menu_intrinsic_size(&calc_spec, ctx.text_backend);
     let rect = ctx.layout(layout_params, intrinsic);
     let raw_spec = raw::MenuSpec {
         layer: ctx.layer,
@@ -426,7 +426,7 @@ pub fn menu<'a, T: TextBackend, S: LayoutState, CF>(
         items: spec.items,
         style: spec.style,
     };
-    let result = raw::menu(raw_spec, ctx.text_system, ctx.cmds);
+    let result = raw::menu(raw_spec, ctx.text_backend, ctx.cmds);
     MenuResult {
         layout: LayoutInfo::new(result.bounds, result.content_bounds),
     }
@@ -460,14 +460,14 @@ mod tests {
     fn test_user_rect_not_overridden() {
         use crate::layouts::ManualLayout;
         use crate::test_utils::TestTextBackend;
-        let mut text_system = TestTextBackend;
+        let mut text_backend = TestTextBackend;
         let mut focus = FocusSystem::new();
         let input = crate::Input::default();
         let mut cmds = crate::draw::DrawCommands::new();
         let custom_rect = Rect::new(10.0, 20.0, 50.0, 30.0);
         let mut ctx = crate::widget::WidgetContext::root(
             crate::theme::Theme::framewise(),
-            &mut text_system,
+            &mut text_backend,
             &mut focus,
             &input,
             ManualLayout,
@@ -484,14 +484,14 @@ mod tests {
     fn test_menu_bounds_and_content_bounds() {
         use crate::layouts::ManualLayout;
         use crate::test_utils::TestTextBackend;
-        let mut text_system = TestTextBackend;
+        let mut text_backend = TestTextBackend;
         let mut focus = FocusSystem::new();
         let input = crate::Input::default();
         let mut cmds = crate::draw::DrawCommands::new();
         let layout_rect = Rect::new(0.0, 0.0, 100.0, 40.0);
         let mut ctx = crate::widget::WidgetContext::root(
             crate::theme::Theme::framewise(),
-            &mut text_system,
+            &mut text_backend,
             &mut focus,
             &input,
             ManualLayout,

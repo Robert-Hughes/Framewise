@@ -48,7 +48,7 @@ pub fn draw_button_page(
     input: &Input,
     _time: f64,
     win_size: (f32, f32),
-    text_system: &mut SampleTextBackend,
+    text_backend: &mut SampleTextBackend,
     debug_layout: bool,
 ) -> framewise::DrawCommands {
     let (win_w, win_h) = win_size;
@@ -63,7 +63,7 @@ pub fn draw_button_page(
 
     let mut ctx = WidgetContext::root(
         Theme::default(),
-        text_system,
+        text_backend,
         focus_system,
         input,
         ColumnLayout,

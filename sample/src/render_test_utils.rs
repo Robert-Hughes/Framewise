@@ -13,7 +13,7 @@ pub async fn render_commands_to_rgba(
     width: u32,
     height: u32,
     draw_commands: DrawCommands,
-    mut text_system: SampleTextBackend,
+    mut text_backend: SampleTextBackend,
 ) -> Option<RgbaImage> {
     let instance = wgpu::Instance::new(&wgpu::InstanceDescriptor {
         backends: wgpu::Backends::all(),
@@ -79,7 +79,7 @@ pub async fn render_commands_to_rgba(
         &mut encoder,
         &draw_commands,
         (width, height),
-        &mut text_system,
+        &mut text_backend,
     );
 
     let bytes_per_pixel = 4;

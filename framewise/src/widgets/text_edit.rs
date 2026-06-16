@@ -79,7 +79,7 @@ pub mod raw {
         text_content: &str,
         spec: &TextEditSpec,
         text_style: TextStyle,
-        text_system: &mut T,
+        text_backend: &mut T,
         caret: CaretPosition,
         caret_byte: usize,
         caret_is_current: bool,
@@ -88,9 +88,9 @@ pub mod raw {
         line_count: usize,
     ) -> VerticalCaretMove {
         let (_, layout_width, layout_height, _) =
-            edit_layout_size(text_content, spec, text_style, text_system);
+            edit_layout_size(text_content, spec, text_style, text_backend);
         let layout = layout_text_in_rect(
-            text_system,
+            text_backend,
             text_content,
             text_style,
             Rect::new(0.0, 0.0, layout_width, layout_height),
@@ -150,14 +150,14 @@ pub mod raw {
         text_content: &str,
         spec: &TextEditSpec,
         text_style: TextStyle,
-        text_system: &mut T,
+        text_backend: &mut T,
         caret_byte: usize,
         scroll_outer_height: f32,
     ) -> usize {
         let (_, layout_width, layout_height, _) =
-            edit_layout_size(text_content, spec, text_style, text_system);
+            edit_layout_size(text_content, spec, text_style, text_backend);
         let layout = layout_text_in_rect(
-            text_system,
+            text_backend,
             text_content,
             text_style,
             Rect::new(0.0, 0.0, layout_width, layout_height),
@@ -171,10 +171,10 @@ pub mod raw {
     pub fn calc_text_edit_intrinsic_size<T: TextBackend>(
         spec: &TextEditCalcIntrinsicSizeSpec,
         state: &TextEditState,
-        text_system: &mut T,
+        text_backend: &mut T,
     ) -> IntrinsicSize {
         let metrics = measure_text(
-            text_system,
+            text_backend,
             &state.value,
             to_text_style(spec.style, spec.wrap, spec.line_align),
             TextBounds::UNBOUNDED,
@@ -195,7 +195,7 @@ pub mod raw {
         state: &mut TextEditState,
         input: &Input,
         focus_system: &mut FocusSystem,
-        text_system: &mut T,
+        text_backend: &mut T,
         cmds: &mut DrawCommands,
     ) -> TextEditResult {
         let text_style = to_text_style(spec.style, spec.wrap, spec.line_align);
@@ -242,7 +242,7 @@ pub mod raw {
             };
             if let Some(text) = disabled_text {
                 let metrics = measure_text(
-                    text_system,
+                    text_backend,
                     text,
                     text_style,
                     TextBounds {
@@ -265,7 +265,7 @@ pub mod raw {
                 };
                 emit_text_in_rect(
                     cmds,
-                    text_system,
+                    text_backend,
                     text,
                     text_style,
                     text_rect,
@@ -297,9 +297,9 @@ pub mod raw {
 
         let initial_text_content = state.value.as_str();
         let (_, initial_layout_width, initial_layout_height, _) =
-            edit_layout_size(initial_text_content, &spec, text_style, text_system);
+            edit_layout_size(initial_text_content, &spec, text_style, text_backend);
         let initial_layout = layout_text_in_rect(
-            text_system,
+            text_backend,
             initial_text_content,
             text_style,
             Rect::new(0.0, 0.0, initial_layout_width, initial_layout_height),
@@ -489,7 +489,7 @@ pub mod raw {
                             state.value.as_str(),
                             &spec,
                             text_style,
-                            text_system,
+                            text_backend,
                             caret,
                             caret_byte,
                             !caret_needs_layout_sync,
@@ -523,7 +523,7 @@ pub mod raw {
                             state.value.as_str(),
                             &spec,
                             text_style,
-                            text_system,
+                            text_backend,
                             caret,
                             caret_byte,
                             !caret_needs_layout_sync,
@@ -547,9 +547,9 @@ pub mod raw {
                         } else if spec.wrap {
                             let text_content = state.value.as_str();
                             let (_, layout_width, layout_height, _) =
-                                edit_layout_size(text_content, &spec, text_style, text_system);
+                                edit_layout_size(text_content, &spec, text_style, text_backend);
                             let layout = layout_text_in_rect(
-                                text_system,
+                                text_backend,
                                 text_content,
                                 text_style,
                                 Rect::new(0.0, 0.0, layout_width, layout_height),
@@ -589,9 +589,9 @@ pub mod raw {
                         } else if spec.wrap {
                             let text_content = state.value.as_str();
                             let (_, layout_width, layout_height, _) =
-                                edit_layout_size(text_content, &spec, text_style, text_system);
+                                edit_layout_size(text_content, &spec, text_style, text_backend);
                             let layout = layout_text_in_rect(
-                                text_system,
+                                text_backend,
                                 text_content,
                                 text_style,
                                 Rect::new(0.0, 0.0, layout_width, layout_height),
@@ -728,12 +728,12 @@ pub mod raw {
                 };
 
                 let (_, _, _, scroll_outer_rect) =
-                    edit_layout_size(state.value.as_str(), &spec, text_style, text_system);
+                    edit_layout_size(state.value.as_str(), &spec, text_style, text_backend);
                 let line_count = page_line_count(
                     state.value.as_str(),
                     &spec,
                     text_style,
-                    text_system,
+                    text_backend,
                     start_byte,
                     scroll_outer_rect.h,
                 );
@@ -741,7 +741,7 @@ pub mod raw {
                     state.value.as_str(),
                     &spec,
                     text_style,
-                    text_system,
+                    text_backend,
                     caret,
                     start_byte,
                     !caret_needs_layout_sync && start_byte == caret_byte,
@@ -777,7 +777,7 @@ pub mod raw {
 
         let text_content = state.value.as_str();
         let (metrics, layout_width, layout_height, scroll_outer_rect) =
-            edit_layout_size(text_content, &spec, text_style, text_system);
+            edit_layout_size(text_content, &spec, text_style, text_backend);
 
         // Drawing Background
         let bg_color = if spec.error {
@@ -898,7 +898,7 @@ pub mod raw {
             scroll_outer_rect.y + spec.style.padding_y - scroll_result.offset.y
         };
         let text_rect = Rect::new(text_x, text_y, layout_width, layout_height);
-        let layout = layout_text_in_rect(text_system, text_content, text_style, text_rect);
+        let layout = layout_text_in_rect(text_backend, text_content, text_style, text_rect);
 
         // Mouse interaction
         if contains && input.mouse_pressed {
@@ -1151,7 +1151,7 @@ pub mod raw {
         if !state.value.is_empty() {
             layout.emit_glyphs(
                 cmds,
-                text_system,
+                text_backend,
                 Vec2::new(text_rect.x, text_rect.y),
                 text_style,
                 spec.style.text_color,
@@ -1161,7 +1161,7 @@ pub mod raw {
             if let Some(placeholder) = spec.placeholder.as_deref() {
                 emit_text_in_rect(
                     cmds,
-                    text_system,
+                    text_backend,
                     placeholder,
                     text_style,
                     text_rect,
@@ -1255,7 +1255,7 @@ pub mod raw {
         text_content: &str,
         spec: &TextEditSpec,
         text_style: TextStyle,
-        text_system: &mut T,
+        text_backend: &mut T,
     ) -> (TextMetrics, f32, f32, Rect) {
         let mut scroll_outer_rect = spec.rect.inset(spec.style.border_width);
         if spec.error {
@@ -1270,7 +1270,7 @@ pub mod raw {
         };
 
         let mut metrics = measure_text(
-            text_system,
+            text_backend,
             text_content,
             text_style,
             TextBounds {
@@ -1291,7 +1291,7 @@ pub mod raw {
                     Some(((scroll_outer_rect.w - 2.0 * spec.style.padding_x) - 5.0).max(0.0));
                 final_max_width = max_width_narrow;
                 metrics = measure_text(
-                    text_system,
+                    text_backend,
                     text_content,
                     text_style,
                     TextBounds {
@@ -1757,7 +1757,7 @@ pub fn text_edit<T: TextBackend, S: LayoutState, CF>(
         wrap: spec.wrap,
         line_align: spec.line_align,
     };
-    let intrinsic = raw::calc_text_edit_intrinsic_size(&calc_spec, state, ctx.text_system);
+    let intrinsic = raw::calc_text_edit_intrinsic_size(&calc_spec, state, ctx.text_backend);
     let rect = ctx.layout(layout_params, intrinsic);
     let raw_spec = raw::TextEditSpec {
         rect,
@@ -1778,7 +1778,7 @@ pub fn text_edit<T: TextBackend, S: LayoutState, CF>(
         state,
         ctx.input,
         ctx.focus_system,
-        ctx.text_system,
+        ctx.text_backend,
         ctx.cmds,
     );
 
@@ -1912,7 +1912,7 @@ mod tests {
 
     #[test]
     fn test_text_edit_overlapping_hover() {
-        let mut text_system = TestTextBackend;
+        let mut text_backend = TestTextBackend;
         let mut state1 = TextEditState::default();
         let mut state2 = TextEditState::default();
 
@@ -1927,9 +1927,9 @@ mod tests {
                 spec2.rect = Rect::new(50.0, 50.0, 100.0, 100.0);
 
                 let res1 =
-                    raw::text_edit(spec1, state1, input, focus_system, &mut text_system, cmds);
+                    raw::text_edit(spec1, state1, input, focus_system, &mut text_backend, cmds);
                 let res2 =
-                    raw::text_edit(spec2, state2, input, focus_system, &mut text_system, cmds);
+                    raw::text_edit(spec2, state2, input, focus_system, &mut text_backend, cmds);
                 (res1.input, res2.input)
             },
         );
@@ -1937,7 +1937,7 @@ mod tests {
 
     #[test]
     fn test_text_edit_overlapping_click() {
-        let mut text_system = TestTextBackend;
+        let mut text_backend = TestTextBackend;
         let mut state1 = TextEditState::default();
         let mut state2 = TextEditState::default();
 
@@ -1953,9 +1953,9 @@ mod tests {
                 spec2.rect = Rect::new(50.0, 50.0, 100.0, 100.0);
 
                 let res1 =
-                    raw::text_edit(spec1, state1, input, focus_system, &mut text_system, cmds);
+                    raw::text_edit(spec1, state1, input, focus_system, &mut text_backend, cmds);
                 let res2 =
-                    raw::text_edit(spec2, state2, input, focus_system, &mut text_system, cmds);
+                    raw::text_edit(spec2, state2, input, focus_system, &mut text_backend, cmds);
                 (res1.input, res2.input)
             },
         );
@@ -1963,7 +1963,7 @@ mod tests {
 
     #[test]
     fn test_typing_and_cursor() {
-        let mut text_system = TestTextBackend;
+        let mut text_backend = TestTextBackend;
         let mut focus_system = FocusSystem::new();
         let mut state = TextEditState::new("");
 
@@ -1980,7 +1980,7 @@ mod tests {
             &mut state,
             &input,
             &mut focus_system,
-            &mut text_system,
+            &mut text_backend,
             &mut DrawCommands::new(),
         );
         assert_eq!(state.value, "abc");
@@ -1997,7 +1997,7 @@ mod tests {
             &mut state,
             &input,
             &mut focus_system,
-            &mut text_system,
+            &mut text_backend,
             &mut DrawCommands::new(),
         );
         assert_eq!(caret_byte(&state), 2);
@@ -2010,7 +2010,7 @@ mod tests {
             &mut state,
             &input,
             &mut focus_system,
-            &mut text_system,
+            &mut text_backend,
             &mut DrawCommands::new(),
         );
         assert_eq!(state.value, "abxc");
@@ -2019,7 +2019,7 @@ mod tests {
 
     #[test]
     fn test_backspace_and_delete() {
-        let mut text_system = TestTextBackend;
+        let mut text_backend = TestTextBackend;
         let mut focus_system = FocusSystem::new();
         let mut state = TextEditState::new("hello");
         set_caret_byte(&mut state, 3);
@@ -2035,7 +2035,7 @@ mod tests {
             &mut state,
             &input,
             &mut focus_system,
-            &mut text_system,
+            &mut text_backend,
             &mut DrawCommands::new(),
         );
         assert_eq!(state.value, "helo");
@@ -2048,7 +2048,7 @@ mod tests {
             &mut state,
             &input,
             &mut focus_system,
-            &mut text_system,
+            &mut text_backend,
             &mut DrawCommands::new(),
         );
         assert_eq!(state.value, "heo");
@@ -2057,7 +2057,7 @@ mod tests {
 
     #[test]
     fn test_ctrl_backspace_and_delete() {
-        let mut text_system = TestTextBackend;
+        let mut text_backend = TestTextBackend;
         let mut focus_system = FocusSystem::new();
         let mut state = TextEditState::new("hello world");
         set_caret_byte(&mut state, 8); // "hello wo|rld"
@@ -2073,7 +2073,7 @@ mod tests {
             &mut state,
             &input,
             &mut focus_system,
-            &mut text_system,
+            &mut text_backend,
             &mut DrawCommands::new(),
         );
         assert_eq!(state.value, "hello rld");
@@ -2086,7 +2086,7 @@ mod tests {
             &mut state,
             &input,
             &mut focus_system,
-            &mut text_system,
+            &mut text_backend,
             &mut DrawCommands::new(),
         );
         assert_eq!(state.value, "hello ");
@@ -2095,7 +2095,7 @@ mod tests {
 
     #[test]
     fn test_selection_and_replacement() {
-        let mut text_system = TestTextBackend;
+        let mut text_backend = TestTextBackend;
         let mut focus_system = FocusSystem::new();
         let mut state = TextEditState::new("hello");
         set_caret_byte(&mut state, 1);
@@ -2118,7 +2118,7 @@ mod tests {
             &mut state,
             &input,
             &mut focus_system,
-            &mut text_system,
+            &mut text_backend,
             &mut DrawCommands::new(),
         );
         assert_eq!(selection_byte(&state), Some(1));
@@ -2131,7 +2131,7 @@ mod tests {
             &mut state,
             &input,
             &mut focus_system,
-            &mut text_system,
+            &mut text_backend,
             &mut DrawCommands::new(),
         );
         assert_eq!(state.value, "halo");
@@ -2141,7 +2141,7 @@ mod tests {
 
     #[test]
     fn test_text_edit_left_right_skip_same_byte_visual_side() {
-        let mut text_system = TestTextBackend;
+        let mut text_backend = TestTextBackend;
         let mut focus_system = FocusSystem::new();
         let mut state = TextEditState::new("ab");
         state.had_keyboard_focus = true;
@@ -2162,7 +2162,7 @@ mod tests {
             &mut state,
             &input,
             &mut focus_system,
-            &mut text_system,
+            &mut text_backend,
             &mut DrawCommands::new(),
         );
         assert_eq!(
@@ -2184,7 +2184,7 @@ mod tests {
             &mut state,
             &input,
             &mut focus_system,
-            &mut text_system,
+            &mut text_backend,
             &mut DrawCommands::new(),
         );
         assert_eq!(
@@ -2198,7 +2198,7 @@ mod tests {
 
     #[test]
     fn test_mouse_release_preserves_visual_side_at_shared_insertion() {
-        let mut text_system = TestTextBackend;
+        let mut text_backend = TestTextBackend;
         let mut focus_system = FocusSystem::new();
         let mut state = TextEditState::new("ab");
         let edit_spec = TextEditSpec {
@@ -2215,7 +2215,7 @@ mod tests {
             &mut state,
             &input,
             &mut focus_system,
-            &mut text_system,
+            &mut text_backend,
             &mut DrawCommands::new(),
         );
         focus_system.end_frame();
@@ -2228,7 +2228,7 @@ mod tests {
             &mut state,
             &input,
             &mut focus_system,
-            &mut text_system,
+            &mut text_backend,
             &mut DrawCommands::new(),
         );
         focus_system.end_frame();
@@ -2249,7 +2249,7 @@ mod tests {
             &mut state,
             &input,
             &mut focus_system,
-            &mut text_system,
+            &mut text_backend,
             &mut DrawCommands::new(),
         );
         focus_system.end_frame();
@@ -2265,7 +2265,7 @@ mod tests {
 
     #[test]
     fn test_empty_mouse_click_keeps_empty_caret() {
-        let mut text_system = TestTextBackend;
+        let mut text_backend = TestTextBackend;
         let mut focus_system = FocusSystem::new();
         let mut state = TextEditState::default();
         let mut input = Input {
@@ -2279,7 +2279,7 @@ mod tests {
             &mut state,
             &input,
             &mut focus_system,
-            &mut text_system,
+            &mut text_backend,
             &mut DrawCommands::new(),
         );
         focus_system.end_frame();
@@ -2292,7 +2292,7 @@ mod tests {
             &mut state,
             &input,
             &mut focus_system,
-            &mut text_system,
+            &mut text_backend,
             &mut DrawCommands::new(),
         );
 
@@ -2302,7 +2302,7 @@ mod tests {
 
     #[test]
     fn test_mouse_clicking_and_dragging() {
-        let mut text_system = TestTextBackend;
+        let mut text_backend = TestTextBackend;
         let mut focus_system = FocusSystem::new();
         let mut state = TextEditState::new("hello world");
 
@@ -2319,7 +2319,7 @@ mod tests {
             &mut state,
             &input,
             &mut focus_system,
-            &mut text_system,
+            &mut text_backend,
             &mut DrawCommands::new(),
         );
         focus_system.end_frame();
@@ -2333,7 +2333,7 @@ mod tests {
             &mut state,
             &input,
             &mut focus_system,
-            &mut text_system,
+            &mut text_backend,
             &mut DrawCommands::new(),
         );
         focus_system.end_frame();
@@ -2350,7 +2350,7 @@ mod tests {
             &mut state,
             &input,
             &mut focus_system,
-            &mut text_system,
+            &mut text_backend,
             &mut DrawCommands::new(),
         );
         focus_system.end_frame();
@@ -2365,7 +2365,7 @@ mod tests {
             &mut state,
             &input,
             &mut focus_system,
-            &mut text_system,
+            &mut text_backend,
             &mut DrawCommands::new(),
         );
         focus_system.end_frame();
@@ -2376,7 +2376,7 @@ mod tests {
 
     #[test]
     fn test_double_click_selection_and_drag() {
-        let mut text_system = TestTextBackend;
+        let mut text_backend = TestTextBackend;
         let mut focus_system = FocusSystem::new();
         let mut state = TextEditState::new("hello rust world");
 
@@ -2394,7 +2394,7 @@ mod tests {
             &mut state,
             &input,
             &mut focus_system,
-            &mut text_system,
+            &mut text_backend,
             &mut DrawCommands::new(),
         );
         focus_system.end_frame();
@@ -2409,7 +2409,7 @@ mod tests {
             &mut state,
             &input,
             &mut focus_system,
-            &mut text_system,
+            &mut text_backend,
             &mut DrawCommands::new(),
         );
         focus_system.end_frame();
@@ -2428,7 +2428,7 @@ mod tests {
             &mut state,
             &input,
             &mut focus_system,
-            &mut text_system,
+            &mut text_backend,
             &mut DrawCommands::new(),
         );
         focus_system.end_frame();
@@ -2444,7 +2444,7 @@ mod tests {
             &mut state,
             &input,
             &mut focus_system,
-            &mut text_system,
+            &mut text_backend,
             &mut DrawCommands::new(),
         );
         focus_system.end_frame();
@@ -2455,7 +2455,7 @@ mod tests {
 
     #[test]
     fn test_double_click_symmetry() {
-        let mut text_system = TestTextBackend;
+        let mut text_backend = TestTextBackend;
         let mut focus_system = FocusSystem::new();
 
         let mut run_double_click = |x_within_text: f32| -> (Option<usize>, usize) {
@@ -2471,7 +2471,7 @@ mod tests {
                 &mut state,
                 &input,
                 &mut focus_system,
-                &mut text_system,
+                &mut text_backend,
                 &mut DrawCommands::new(),
             );
             focus_system.end_frame();
@@ -2486,7 +2486,7 @@ mod tests {
                 &mut state,
                 &input,
                 &mut focus_system,
-                &mut text_system,
+                &mut text_backend,
                 &mut DrawCommands::new(),
             );
             focus_system.end_frame();
@@ -2516,7 +2516,7 @@ mod tests {
 
     #[test]
     fn test_double_click_after_line_end() {
-        let mut text_system = TestTextBackend;
+        let mut text_backend = TestTextBackend;
         let mut focus_system = FocusSystem::new();
 
         let mut run_double_click = |text: &str, y_pos: f32| -> (Option<usize>, usize) {
@@ -2538,7 +2538,7 @@ mod tests {
                 &mut state,
                 &input,
                 &mut focus_system,
-                &mut text_system,
+                &mut text_backend,
                 &mut DrawCommands::new(),
             );
             focus_system.end_frame();
@@ -2553,7 +2553,7 @@ mod tests {
                 &mut state,
                 &input,
                 &mut focus_system,
-                &mut text_system,
+                &mut text_backend,
                 &mut DrawCommands::new(),
             );
             focus_system.end_frame();
@@ -2582,7 +2582,7 @@ mod tests {
 
     #[test]
     fn test_triple_click_selects_logical_line() {
-        let mut text_system = TestTextBackend;
+        let mut text_backend = TestTextBackend;
         let mut focus_system = FocusSystem::new();
         let mut state = TextEditState::new("alpha\nbravo\ncharlie");
         let mut input = Input::default();
@@ -2600,7 +2600,7 @@ mod tests {
             &mut state,
             &input,
             &mut focus_system,
-            &mut text_system,
+            &mut text_backend,
             &mut DrawCommands::new(),
         );
         focus_system.end_frame();
@@ -2614,7 +2614,7 @@ mod tests {
             &mut state,
             &input,
             &mut focus_system,
-            &mut text_system,
+            &mut text_backend,
             &mut DrawCommands::new(),
         );
         focus_system.end_frame();
@@ -2627,7 +2627,7 @@ mod tests {
 
     #[test]
     fn test_triple_click_selection_and_drag() {
-        let mut text_system = TestTextBackend;
+        let mut text_backend = TestTextBackend;
         let mut focus_system = FocusSystem::new();
         let mut state = TextEditState::new("alpha\nbravo\ncharlie\ndelta");
         let mut input = Input::default();
@@ -2645,7 +2645,7 @@ mod tests {
             &mut state,
             &input,
             &mut focus_system,
-            &mut text_system,
+            &mut text_backend,
             &mut DrawCommands::new(),
         );
         focus_system.end_frame();
@@ -2659,7 +2659,7 @@ mod tests {
             &mut state,
             &input,
             &mut focus_system,
-            &mut text_system,
+            &mut text_backend,
             &mut DrawCommands::new(),
         );
         focus_system.end_frame();
@@ -2676,7 +2676,7 @@ mod tests {
             &mut state,
             &input,
             &mut focus_system,
-            &mut text_system,
+            &mut text_backend,
             &mut DrawCommands::new(),
         );
         focus_system.end_frame();
@@ -2691,7 +2691,7 @@ mod tests {
             &mut state,
             &input,
             &mut focus_system,
-            &mut text_system,
+            &mut text_backend,
             &mut DrawCommands::new(),
         );
         focus_system.end_frame();
@@ -2702,7 +2702,7 @@ mod tests {
 
     #[test]
     fn test_triple_click_selects_wrapped_logical_line() {
-        let mut text_system = TestTextBackend;
+        let mut text_backend = TestTextBackend;
         let mut focus_system = FocusSystem::new();
         let mut state = TextEditState::new("abcdefghijklmnopqrst\nzz");
         let mut input = Input::default();
@@ -2721,7 +2721,7 @@ mod tests {
             &mut state,
             &input,
             &mut focus_system,
-            &mut text_system,
+            &mut text_backend,
             &mut DrawCommands::new(),
         );
         focus_system.end_frame();
@@ -2735,7 +2735,7 @@ mod tests {
             &mut state,
             &input,
             &mut focus_system,
-            &mut text_system,
+            &mut text_backend,
             &mut DrawCommands::new(),
         );
         focus_system.end_frame();
@@ -2746,7 +2746,7 @@ mod tests {
 
     #[test]
     fn test_quadruple_click_selects_all() {
-        let mut text_system = TestTextBackend;
+        let mut text_backend = TestTextBackend;
         let mut focus_system = FocusSystem::new();
         let mut state = TextEditState::new("alpha\nbravo\ncharlie");
         let mut input = Input::default();
@@ -2764,7 +2764,7 @@ mod tests {
             &mut state,
             &input,
             &mut focus_system,
-            &mut text_system,
+            &mut text_backend,
             &mut DrawCommands::new(),
         );
         focus_system.end_frame();
@@ -2778,7 +2778,7 @@ mod tests {
             &mut state,
             &input,
             &mut focus_system,
-            &mut text_system,
+            &mut text_backend,
             &mut DrawCommands::new(),
         );
         focus_system.end_frame();
@@ -2789,7 +2789,7 @@ mod tests {
 
     #[test]
     fn test_caret_blink_reset_on_move() {
-        let mut text_system = TestTextBackend;
+        let mut text_backend = TestTextBackend;
         let mut focus_system = FocusSystem::new();
         let mut state = TextEditState::new("hello");
         set_caret_byte(&mut state, 5);
@@ -2806,7 +2806,7 @@ mod tests {
             &mut state,
             &input,
             &mut focus_system,
-            &mut text_system,
+            &mut text_backend,
             &mut cmds,
         );
         let has_caret = cmds.iter().any(
@@ -2823,7 +2823,7 @@ mod tests {
             &mut state,
             &input,
             &mut focus_system,
-            &mut text_system,
+            &mut text_backend,
             &mut cmds,
         );
         let has_caret = cmds.iter().any(
@@ -2844,7 +2844,7 @@ mod tests {
             &mut state,
             &input,
             &mut focus_system,
-            &mut text_system,
+            &mut text_backend,
             &mut cmds,
         );
         assert_eq!(state.last_caret_move_time, 0.6);
@@ -2867,7 +2867,7 @@ mod tests {
             &mut state,
             &input,
             &mut focus_system,
-            &mut text_system,
+            &mut text_backend,
             &mut cmds,
         );
         let has_caret = cmds.iter().any(
@@ -2884,7 +2884,7 @@ mod tests {
             &mut state,
             &input,
             &mut focus_system,
-            &mut text_system,
+            &mut text_backend,
             &mut cmds,
         );
         let has_caret = cmds.iter().any(
@@ -2895,7 +2895,7 @@ mod tests {
 
     #[test]
     fn test_caret_blink_reset_on_focus_even_without_caret_move() {
-        let mut text_system = TestTextBackend;
+        let mut text_backend = TestTextBackend;
         let mut focus_system = FocusSystem::new();
         let mut state = TextEditState::new("hello");
         set_caret_byte(&mut state, 5);
@@ -2913,7 +2913,7 @@ mod tests {
             &mut state,
             &Input::default(),
             &mut focus_system,
-            &mut text_system,
+            &mut text_backend,
             &mut cmds,
         );
 
@@ -2929,7 +2929,7 @@ mod tests {
 
     #[test]
     fn test_caret_blink_reset_on_mouse_focus_even_without_caret_move() {
-        let mut text_system = TestTextBackend;
+        let mut text_backend = TestTextBackend;
         let mut focus_system = FocusSystem::new();
         let mut state = TextEditState::new("hello");
         set_caret_byte(&mut state, 5);
@@ -2948,7 +2948,7 @@ mod tests {
             &mut state,
             &input,
             &mut focus_system,
-            &mut text_system,
+            &mut text_backend,
             &mut DrawCommands::new(),
         );
         focus_system.end_frame();
@@ -2964,7 +2964,7 @@ mod tests {
             &mut state,
             &input,
             &mut focus_system,
-            &mut text_system,
+            &mut text_backend,
             &mut DrawCommands::new(),
         );
         focus_system.end_frame();
@@ -2981,7 +2981,7 @@ mod tests {
             &mut state,
             &input,
             &mut focus_system,
-            &mut text_system,
+            &mut text_backend,
             &mut cmds,
         );
 
@@ -3025,7 +3025,7 @@ mod tests {
 
     #[test]
     fn test_focus_select_all() {
-        let mut text_system = TestTextBackend;
+        let mut text_backend = TestTextBackend;
         let mut focus_system = FocusSystem::new();
         let mut state = TextEditState::new("hello world");
 
@@ -3039,7 +3039,7 @@ mod tests {
             &mut state,
             &input,
             &mut focus_system,
-            &mut text_system,
+            &mut text_backend,
             &mut DrawCommands::new(),
         );
         assert!(state.had_keyboard_focus);
@@ -3049,7 +3049,7 @@ mod tests {
 
     #[test]
     fn test_mouse_focus_no_select_all() {
-        let mut text_system = TestTextBackend;
+        let mut text_backend = TestTextBackend;
         let mut focus_system = FocusSystem::new();
         let mut state = TextEditState::new("hello world");
 
@@ -3066,7 +3066,7 @@ mod tests {
             &mut state,
             &input,
             &mut focus_system,
-            &mut text_system,
+            &mut text_backend,
             &mut DrawCommands::new(),
         );
         focus_system.end_frame();
@@ -3080,7 +3080,7 @@ mod tests {
             &mut state,
             &input,
             &mut focus_system,
-            &mut text_system,
+            &mut text_backend,
             &mut DrawCommands::new(),
         );
         focus_system.end_frame();
@@ -3093,7 +3093,7 @@ mod tests {
             &mut state,
             &input,
             &mut focus_system,
-            &mut text_system,
+            &mut text_backend,
             &mut DrawCommands::new(),
         );
         focus_system.end_frame();
@@ -3105,7 +3105,7 @@ mod tests {
 
     #[test]
     fn test_text_edit_click_takes_focus() {
-        let mut text_system = TestTextBackend;
+        let mut text_backend = TestTextBackend;
         let mut focus_system = FocusSystem::new();
         let mut state = TextEditState::new("hello");
 
@@ -3119,7 +3119,7 @@ mod tests {
             &mut state,
             &input,
             &mut focus_system,
-            &mut text_system,
+            &mut text_backend,
             &mut DrawCommands::new(),
         );
         focus_system.end_frame();
@@ -3133,7 +3133,7 @@ mod tests {
             &mut state,
             &input,
             &mut focus_system,
-            &mut text_system,
+            &mut text_backend,
             &mut DrawCommands::new(),
         );
         focus_system.end_frame();
@@ -3147,7 +3147,7 @@ mod tests {
 
     #[test]
     fn test_text_edit_clipped_click_does_not_take_focus() {
-        let mut text_system = TestTextBackend;
+        let mut text_backend = TestTextBackend;
         let mut focus_system = FocusSystem::new();
         let mut state = TextEditState::new("hello");
 
@@ -3168,7 +3168,7 @@ mod tests {
             &mut state,
             &input,
             &mut focus_system,
-            &mut text_system,
+            &mut text_backend,
             &mut DrawCommands::new(),
         );
         focus_system.end_frame();
@@ -3182,7 +3182,7 @@ mod tests {
 
     #[test]
     fn test_clipboard_actions() {
-        let mut text_system = TestTextBackend;
+        let mut text_backend = TestTextBackend;
         let mut focus_system = FocusSystem::new();
         let mut state = TextEditState::new("hello world");
 
@@ -3200,7 +3200,7 @@ mod tests {
             &mut state,
             &input,
             &mut focus_system,
-            &mut text_system,
+            &mut text_backend,
             &mut DrawCommands::new(),
         );
         assert!(matches!(&res.clipboard_action, Some(ClipboardAction::Copy(s)) if s == "world"));
@@ -3213,7 +3213,7 @@ mod tests {
             &mut state,
             &input,
             &mut focus_system,
-            &mut text_system,
+            &mut text_backend,
             &mut DrawCommands::new(),
         );
         assert!(matches!(&res.clipboard_action, Some(ClipboardAction::Cut(s)) if s == "world"));
@@ -3228,7 +3228,7 @@ mod tests {
             &mut state,
             &input,
             &mut focus_system,
-            &mut text_system,
+            &mut text_backend,
             &mut DrawCommands::new(),
         );
         assert!(res.clipboard_action.is_none());
@@ -3240,7 +3240,7 @@ mod tests {
 
     #[test]
     fn test_text_edit_visual_normal() {
-        let mut text_system = TestTextBackend;
+        let mut text_backend = TestTextBackend;
         let mut focus_system = FocusSystem::new();
         let mut state = TextEditState::new("hello");
         let input = Input::default();
@@ -3250,7 +3250,7 @@ mod tests {
             &mut state,
             &input,
             &mut focus_system,
-            &mut text_system,
+            &mut text_backend,
             &mut cmds,
         );
 
@@ -3295,7 +3295,7 @@ mod tests {
 
     #[test]
     fn test_text_edit_visual_hover_background() {
-        let mut text_system = TestTextBackend;
+        let mut text_backend = TestTextBackend;
         let mut state = TextEditState::new("hello");
         let input = Input {
             mouse_pos: Vec2::new(100.0, 15.0),
@@ -3309,7 +3309,7 @@ mod tests {
             &mut state,
             &input,
             &mut focus_system,
-            &mut text_system,
+            &mut text_backend,
             &mut cmds,
         );
 
@@ -3321,7 +3321,7 @@ mod tests {
 
     #[test]
     fn test_text_edit_visual_placeholder() {
-        let mut text_system = TestTextBackend;
+        let mut text_backend = TestTextBackend;
         let mut focus_system = FocusSystem::new();
         let mut state = TextEditState::default();
         let mut cmds = DrawCommands::new();
@@ -3334,7 +3334,7 @@ mod tests {
             &mut state,
             &Input::default(),
             &mut focus_system,
-            &mut text_system,
+            &mut text_backend,
             &mut cmds,
         );
 
@@ -3358,7 +3358,7 @@ mod tests {
             &mut state,
             &Input::default(),
             &mut focus_system,
-            &mut text_system,
+            &mut text_backend,
             &mut focused_cmds,
         );
 
@@ -3370,7 +3370,7 @@ mod tests {
 
     #[test]
     fn test_text_edit_visual_focused_caret() {
-        let mut text_system = TestTextBackend;
+        let mut text_backend = TestTextBackend;
         let mut focus_system = FocusSystem::new();
         let mut state = TextEditState::new("hello");
         focus_system.take_keyboard_focus(state.focus_id);
@@ -3386,7 +3386,7 @@ mod tests {
             &mut state,
             &input,
             &mut focus_system,
-            &mut text_system,
+            &mut text_backend,
             &mut cmds,
         );
 
@@ -3437,7 +3437,7 @@ mod tests {
 
     #[test]
     fn test_text_edit_visual_focused_selection() {
-        let mut text_system = TestTextBackend;
+        let mut text_backend = TestTextBackend;
         let mut focus_system = FocusSystem::new();
         let mut state = TextEditState::new("hello");
         focus_system.take_keyboard_focus(state.focus_id);
@@ -3455,7 +3455,7 @@ mod tests {
             &mut state,
             &input,
             &mut focus_system,
-            &mut text_system,
+            &mut text_backend,
             &mut cmds,
         );
 
@@ -3514,7 +3514,7 @@ mod tests {
     fn test_text_edit_selection_highlight_respects_horizontal_line_alignment() {
         for (line_align, expected_x) in [(TextLineAlign::Center, 84.0), (TextLineAlign::End, 163.0)]
         {
-            let mut text_system = TestTextBackend;
+            let mut text_backend = TestTextBackend;
             let mut focus_system = FocusSystem::new();
             let mut state = TextEditState::new("hello");
             focus_system.take_keyboard_focus(state.focus_id);
@@ -3535,7 +3535,7 @@ mod tests {
                 &mut state,
                 &input,
                 &mut focus_system,
-                &mut text_system,
+                &mut text_backend,
                 &mut cmds,
             );
 
@@ -3559,7 +3559,7 @@ mod tests {
 
     #[test]
     fn test_text_edit_visual_error() {
-        let mut text_system = TestTextBackend;
+        let mut text_backend = TestTextBackend;
         let mut focus_system = FocusSystem::new();
         let mut state = TextEditState::new("hello");
         let mut sp = spec();
@@ -3572,7 +3572,7 @@ mod tests {
             &mut state,
             &input,
             &mut focus_system,
-            &mut text_system,
+            &mut text_backend,
             &mut cmds,
         );
 
@@ -3624,14 +3624,14 @@ mod tests {
     #[test]
     fn test_user_rect_not_overridden() {
         use crate::layouts::ManualLayout;
-        let mut text_system = TestTextBackend;
+        let mut text_backend = TestTextBackend;
         let mut focus = FocusSystem::new();
         let input = crate::Input::default();
         let mut cmds = crate::draw::DrawCommands::new();
         let custom_rect = Rect::new(10.0, 20.0, 50.0, 30.0);
         let mut ctx = crate::widget::WidgetContext::root(
             crate::theme::Theme::framewise(),
-            &mut text_system,
+            &mut text_backend,
             &mut focus,
             &input,
             ManualLayout,
@@ -3650,7 +3650,7 @@ mod tests {
 
     #[test]
     fn test_text_edit_caret_auto_scrolling() {
-        let mut text_system = TestTextBackend;
+        let mut text_backend = TestTextBackend;
         let mut focus_system = FocusSystem::new();
         focus_system.begin_frame();
 
@@ -3671,7 +3671,7 @@ mod tests {
             &mut state,
             &input,
             &mut focus_system,
-            &mut text_system,
+            &mut text_backend,
             &mut cmds,
         );
         assert_eq!(state.scroll.offset.x, 0.0);
@@ -3688,7 +3688,7 @@ mod tests {
             &mut state,
             &input,
             &mut focus_system,
-            &mut text_system,
+            &mut text_backend,
             &mut cmds,
         );
         assert_eq!(caret_byte(&state), 24);
@@ -3706,7 +3706,7 @@ mod tests {
             &mut state,
             &input,
             &mut focus_system,
-            &mut text_system,
+            &mut text_backend,
             &mut cmds,
         );
         assert_eq!(caret_byte(&state), 35);
@@ -3724,7 +3724,7 @@ mod tests {
             &mut state,
             &input,
             &mut focus_system,
-            &mut text_system,
+            &mut text_backend,
             &mut cmds,
         );
         assert_eq!(caret_byte(&state), 2);
@@ -3733,7 +3733,7 @@ mod tests {
 
     #[test]
     fn test_selection_aware_auto_scrolling() {
-        let mut text_system = TestTextBackend;
+        let mut text_backend = TestTextBackend;
         let mut focus_system = FocusSystem::new();
 
         // String: "leftwordoverlappingedge middle rightwordoverlappingedge"
@@ -3769,7 +3769,7 @@ mod tests {
             &mut state,
             &input,
             &mut focus_system,
-            &mut text_system,
+            &mut text_backend,
             &mut cmds,
         );
         focus_system.end_frame();
@@ -3785,7 +3785,7 @@ mod tests {
             &mut state,
             &input,
             &mut focus_system,
-            &mut text_system,
+            &mut text_backend,
             &mut cmds,
         );
         focus_system.end_frame();
@@ -3807,7 +3807,7 @@ mod tests {
             &mut state,
             &input,
             &mut focus_system,
-            &mut text_system,
+            &mut text_backend,
             &mut cmds,
         );
         focus_system.end_frame();
@@ -3831,7 +3831,7 @@ mod tests {
             &mut state,
             &input,
             &mut focus_system,
-            &mut text_system,
+            &mut text_backend,
             &mut cmds,
         );
         focus_system.end_frame();
@@ -3842,7 +3842,7 @@ mod tests {
 
     #[test]
     fn test_text_edit_scroll_coordinate_translation() {
-        let mut text_system = TestTextBackend;
+        let mut text_backend = TestTextBackend;
         let mut focus_system = FocusSystem::new();
         let mut state = TextEditState::new("hello world how are you today doing");
         focus_system.take_keyboard_focus(state.focus_id);
@@ -3863,7 +3863,7 @@ mod tests {
             &mut state,
             &input,
             &mut focus_system,
-            &mut text_system,
+            &mut text_backend,
             &mut cmds,
         );
 
@@ -3898,7 +3898,7 @@ mod tests {
 
     #[test]
     fn test_text_edit_click_with_scroll_offset() {
-        let mut text_system = TestTextBackend;
+        let mut text_backend = TestTextBackend;
         let mut focus_system = FocusSystem::new();
         let mut state = TextEditState::new("hello world how are you today doing");
 
@@ -3915,7 +3915,7 @@ mod tests {
             &mut state,
             &input,
             &mut focus_system,
-            &mut text_system,
+            &mut text_backend,
             &mut DrawCommands::new(),
         );
         focus_system.end_frame();
@@ -3931,7 +3931,7 @@ mod tests {
             &mut state,
             &input,
             &mut focus_system,
-            &mut text_system,
+            &mut text_backend,
             &mut cmds,
         );
 
@@ -3941,7 +3941,7 @@ mod tests {
 
     #[test]
     fn test_text_edit_vertical_scroll_coordinate_translation() {
-        let mut text_system = TestTextBackend;
+        let mut text_backend = TestTextBackend;
         let mut focus_system = FocusSystem::new();
         let mut state = TextEditState::new("line1\nline2\nline3\nline4");
         focus_system.take_keyboard_focus(state.focus_id);
@@ -3968,7 +3968,7 @@ mod tests {
             &mut state,
             &input,
             &mut focus_system,
-            &mut text_system,
+            &mut text_backend,
             &mut cmds,
         );
 
@@ -4003,7 +4003,7 @@ mod tests {
             &mut state,
             &input,
             &mut focus_system,
-            &mut text_system,
+            &mut text_backend,
             &mut cmds,
         );
 
@@ -4031,7 +4031,7 @@ mod tests {
 
     #[test]
     fn test_text_edit_vertical_click_with_scroll_offset() {
-        let mut text_system = TestTextBackend;
+        let mut text_backend = TestTextBackend;
         let mut focus_system = FocusSystem::new();
         let mut state = TextEditState::new("line1\nline2\nline3\nline4\nline5\nline6");
 
@@ -4059,7 +4059,7 @@ mod tests {
             &mut state,
             &input,
             &mut focus_system,
-            &mut text_system,
+            &mut text_backend,
             &mut DrawCommands::new(),
         );
         focus_system.end_frame();
@@ -4075,7 +4075,7 @@ mod tests {
             &mut state,
             &input,
             &mut focus_system,
-            &mut text_system,
+            &mut text_backend,
             &mut cmds,
         );
 
@@ -4085,7 +4085,7 @@ mod tests {
 
     #[test]
     fn test_text_edit_vertical_caret_auto_scrolling() {
-        let mut text_system = TestTextBackend;
+        let mut text_backend = TestTextBackend;
         let mut focus_system = FocusSystem::new();
         focus_system.begin_frame();
 
@@ -4112,7 +4112,7 @@ mod tests {
             &mut state,
             &input,
             &mut focus_system,
-            &mut text_system,
+            &mut text_backend,
             &mut cmds,
         );
         assert_eq!(state.scroll.offset.y, 0.0);
@@ -4126,7 +4126,7 @@ mod tests {
             &mut state,
             &input,
             &mut focus_system,
-            &mut text_system,
+            &mut text_backend,
             &mut cmds,
         );
         assert_eq!(state.scroll.offset.y, 22.0);
@@ -4140,7 +4140,7 @@ mod tests {
             &mut state,
             &input,
             &mut focus_system,
-            &mut text_system,
+            &mut text_backend,
             &mut cmds,
         );
         assert_eq!(state.scroll.offset.y, 110.0);
@@ -4154,7 +4154,7 @@ mod tests {
             &mut state,
             &input,
             &mut focus_system,
-            &mut text_system,
+            &mut text_backend,
             &mut cmds,
         );
         assert_eq!(state.scroll.offset.y, 0.0);
@@ -4162,7 +4162,7 @@ mod tests {
 
     #[test]
     fn test_text_edit_vertical_selection_aware_auto_scrolling() {
-        let mut text_system = TestTextBackend;
+        let mut text_backend = TestTextBackend;
         let mut focus_system = FocusSystem::new();
 
         // 10 lines of 16px: total height = 160px.
@@ -4187,7 +4187,7 @@ mod tests {
             &mut state,
             &input,
             &mut focus_system,
-            &mut text_system,
+            &mut text_backend,
             &mut cmds,
         );
         focus_system.end_frame();
@@ -4201,7 +4201,7 @@ mod tests {
             &mut state,
             &input,
             &mut focus_system,
-            &mut text_system,
+            &mut text_backend,
             &mut cmds,
         );
         focus_system.end_frame();
@@ -4222,7 +4222,7 @@ mod tests {
             &mut state,
             &input,
             &mut focus_system,
-            &mut text_system,
+            &mut text_backend,
             &mut cmds,
         );
         focus_system.end_frame();
@@ -4245,7 +4245,7 @@ mod tests {
             &mut state,
             &input,
             &mut focus_system,
-            &mut text_system,
+            &mut text_backend,
             &mut cmds,
         );
         focus_system.end_frame();
@@ -4256,7 +4256,7 @@ mod tests {
 
     #[test]
     fn test_text_edit_caret_movement_with_selection() {
-        let mut text_system = TestTextBackend;
+        let mut text_backend = TestTextBackend;
         let mut focus_system = FocusSystem::new();
         focus_system.begin_frame();
 
@@ -4279,7 +4279,7 @@ mod tests {
             &mut state,
             &input,
             &mut focus_system,
-            &mut text_system,
+            &mut text_backend,
             &mut cmds,
         );
         assert_eq!(selection_byte(&state), None);
@@ -4297,7 +4297,7 @@ mod tests {
             &mut state,
             &input,
             &mut focus_system,
-            &mut text_system,
+            &mut text_backend,
             &mut cmds,
         );
         assert_eq!(selection_byte(&state), None);
@@ -4315,7 +4315,7 @@ mod tests {
             &mut state,
             &input,
             &mut focus_system,
-            &mut text_system,
+            &mut text_backend,
             &mut cmds,
         );
         assert_eq!(selection_byte(&state), None);
@@ -4333,7 +4333,7 @@ mod tests {
             &mut state,
             &input,
             &mut focus_system,
-            &mut text_system,
+            &mut text_backend,
             &mut cmds,
         );
         assert_eq!(selection_byte(&state), None);
@@ -4351,7 +4351,7 @@ mod tests {
             &mut state,
             &input,
             &mut focus_system,
-            &mut text_system,
+            &mut text_backend,
             &mut cmds,
         );
         assert_eq!(selection_byte(&state), Some(6));
@@ -4369,7 +4369,7 @@ mod tests {
             &mut state,
             &input,
             &mut focus_system,
-            &mut text_system,
+            &mut text_backend,
             &mut cmds,
         );
         assert_eq!(selection_byte(&state), Some(6));
@@ -4387,7 +4387,7 @@ mod tests {
             &mut state,
             &input,
             &mut focus_system,
-            &mut text_system,
+            &mut text_backend,
             &mut cmds,
         );
         assert_eq!(selection_byte(&state), Some(6));
@@ -4405,7 +4405,7 @@ mod tests {
             &mut state,
             &input,
             &mut focus_system,
-            &mut text_system,
+            &mut text_backend,
             &mut cmds,
         );
         assert_eq!(selection_byte(&state), Some(6));
@@ -4414,7 +4414,7 @@ mod tests {
 
     #[test]
     fn test_text_edit_vertical_caret_movement_with_selection() {
-        let mut text_system = TestTextBackend;
+        let mut text_backend = TestTextBackend;
         let mut focus_system = FocusSystem::new();
         focus_system.begin_frame();
 
@@ -4446,7 +4446,7 @@ mod tests {
             &mut state,
             &input,
             &mut focus_system,
-            &mut text_system,
+            &mut text_backend,
             &mut cmds,
         );
         assert_eq!(selection_byte(&state), None);
@@ -4466,7 +4466,7 @@ mod tests {
             &mut state,
             &input,
             &mut focus_system,
-            &mut text_system,
+            &mut text_backend,
             &mut cmds,
         );
         assert_eq!(selection_byte(&state), None);
@@ -4486,7 +4486,7 @@ mod tests {
             &mut state,
             &input,
             &mut focus_system,
-            &mut text_system,
+            &mut text_backend,
             &mut cmds,
         );
         assert_eq!(selection_byte(&state), None);
@@ -4504,7 +4504,7 @@ mod tests {
             &mut state,
             &input,
             &mut focus_system,
-            &mut text_system,
+            &mut text_backend,
             &mut cmds,
         );
         assert_eq!(selection_byte(&state), None);
@@ -4513,7 +4513,7 @@ mod tests {
 
     #[test]
     fn test_newline_policies() {
-        let mut text_system = TestTextBackend;
+        let mut text_backend = TestTextBackend;
         let mut focus_system = FocusSystem::new();
         let mut cmds = DrawCommands::new();
 
@@ -4532,7 +4532,7 @@ mod tests {
                 &mut state,
                 &input,
                 &mut focus_system,
-                &mut text_system,
+                &mut text_backend,
                 &mut cmds,
             );
             assert_eq!(state.value, "hello world");
@@ -4551,7 +4551,7 @@ mod tests {
                 &mut state,
                 &input,
                 &mut focus_system,
-                &mut text_system,
+                &mut text_backend,
                 &mut cmds,
             );
             assert_eq!(state.value, "helloa b world");
@@ -4570,7 +4570,7 @@ mod tests {
                 &mut state,
                 &input,
                 &mut focus_system,
-                &mut text_system,
+                &mut text_backend,
                 &mut cmds,
             );
             assert_eq!(state.value, " helloa b world");
@@ -4590,7 +4590,7 @@ mod tests {
                 &mut state,
                 &input,
                 &mut focus_system,
-                &mut text_system,
+                &mut text_backend,
                 &mut cmds,
             );
             assert_eq!(state.value, "abc");
@@ -4611,7 +4611,7 @@ mod tests {
                 &mut state,
                 &input,
                 &mut focus_system,
-                &mut text_system,
+                &mut text_backend,
                 &mut cmds,
             );
             assert_eq!(state.value, "helloworld");
@@ -4630,7 +4630,7 @@ mod tests {
                 &mut state,
                 &input,
                 &mut focus_system,
-                &mut text_system,
+                &mut text_backend,
                 &mut cmds,
             );
             assert_eq!(state.value, "helloabworld");
@@ -4649,7 +4649,7 @@ mod tests {
                 &mut state,
                 &input,
                 &mut focus_system,
-                &mut text_system,
+                &mut text_backend,
                 &mut cmds,
             );
             assert_eq!(state.value, "helloabworld");
@@ -4670,7 +4670,7 @@ mod tests {
                 &mut state,
                 &input,
                 &mut focus_system,
-                &mut text_system,
+                &mut text_backend,
                 &mut cmds,
             );
             assert_eq!(state.value, "hello\nworld");
@@ -4689,7 +4689,7 @@ mod tests {
                 &mut state,
                 &input,
                 &mut focus_system,
-                &mut text_system,
+                &mut text_backend,
                 &mut cmds,
             );
             assert_eq!(state.value, "helloa\nb\nworld");
@@ -4708,7 +4708,7 @@ mod tests {
                 &mut state,
                 &input,
                 &mut focus_system,
-                &mut text_system,
+                &mut text_backend,
                 &mut cmds,
             );
             assert_eq!(state.value, "\nhelloa\nb\nworld");
@@ -4730,7 +4730,7 @@ mod tests {
                 &mut state,
                 &input,
                 &mut focus_system,
-                &mut text_system,
+                &mut text_backend,
                 &mut cmds,
             );
             assert_eq!(state.value, "a\nbc");
@@ -4739,7 +4739,7 @@ mod tests {
 
     #[test]
     fn test_caret_up_down_navigation() {
-        let mut text_system = TestTextBackend;
+        let mut text_backend = TestTextBackend;
         let mut focus_system = FocusSystem::new();
         let mut cmds = DrawCommands::new();
 
@@ -4764,7 +4764,7 @@ mod tests {
             &mut state,
             &input,
             &mut focus_system,
-            &mut text_system,
+            &mut text_backend,
             &mut cmds,
         );
 
@@ -4777,7 +4777,7 @@ mod tests {
             &mut state,
             &input,
             &mut focus_system,
-            &mut text_system,
+            &mut text_backend,
             &mut cmds,
         );
         assert_eq!(caret_byte(&state), 11);
@@ -4789,7 +4789,7 @@ mod tests {
             &mut state,
             &input,
             &mut focus_system,
-            &mut text_system,
+            &mut text_backend,
             &mut cmds,
         );
         assert_eq!(caret_byte(&state), 5);
@@ -4802,7 +4802,7 @@ mod tests {
             &mut state,
             &input,
             &mut focus_system,
-            &mut text_system,
+            &mut text_backend,
             &mut cmds,
         );
         assert_eq!(caret_byte(&state), 0);
@@ -4815,7 +4815,7 @@ mod tests {
             &mut state,
             &input,
             &mut focus_system,
-            &mut text_system,
+            &mut text_backend,
             &mut cmds,
         );
         assert_eq!(caret_byte(&state), 17);
@@ -4829,7 +4829,7 @@ mod tests {
             &mut state,
             &input,
             &mut focus_system,
-            &mut text_system,
+            &mut text_backend,
             &mut cmds,
         );
         assert_eq!(selection_byte(&state), Some(2));
@@ -4838,7 +4838,7 @@ mod tests {
 
     #[test]
     fn test_page_up_down_moves_by_outer_scroll_height_whole_lines() {
-        let mut text_system = TestTextBackend;
+        let mut text_backend = TestTextBackend;
         let mut focus_system = FocusSystem::new();
         let mut cmds = DrawCommands::new();
 
@@ -4861,7 +4861,7 @@ mod tests {
             &mut state,
             &input,
             &mut focus_system,
-            &mut text_system,
+            &mut text_backend,
             &mut cmds,
         );
 
@@ -4873,7 +4873,7 @@ mod tests {
             &mut state,
             &input,
             &mut focus_system,
-            &mut text_system,
+            &mut text_backend,
             &mut cmds,
         );
         assert_eq!(caret_byte(&state), 20);
@@ -4886,7 +4886,7 @@ mod tests {
             &mut state,
             &input,
             &mut focus_system,
-            &mut text_system,
+            &mut text_backend,
             &mut cmds,
         );
         assert_eq!(caret_byte(&state), 2);
@@ -4899,7 +4899,7 @@ mod tests {
             &mut state,
             &input,
             &mut focus_system,
-            &mut text_system,
+            &mut text_backend,
             &mut cmds,
         );
         assert_eq!(caret_byte(&state), state.value.len());
@@ -4912,7 +4912,7 @@ mod tests {
             &mut state,
             &input,
             &mut focus_system,
-            &mut text_system,
+            &mut text_backend,
             &mut cmds,
         );
         assert_eq!(caret_byte(&state), 0);
@@ -4920,7 +4920,7 @@ mod tests {
 
     #[test]
     fn test_page_up_down_preserves_caret_x_with_short_target_lines() {
-        let mut text_system = TestTextBackend;
+        let mut text_backend = TestTextBackend;
         let mut focus_system = FocusSystem::new();
         let mut cmds = DrawCommands::new();
 
@@ -4941,7 +4941,7 @@ mod tests {
             &mut state,
             &input,
             &mut focus_system,
-            &mut text_system,
+            &mut text_backend,
             &mut cmds,
         );
 
@@ -4955,7 +4955,7 @@ mod tests {
             &mut state,
             &input,
             &mut focus_system,
-            &mut text_system,
+            &mut text_backend,
             &mut cmds,
         );
         assert_eq!(caret_byte(&state), 19);
@@ -4970,7 +4970,7 @@ mod tests {
             &mut state,
             &input,
             &mut focus_system,
-            &mut text_system,
+            &mut text_backend,
             &mut cmds,
         );
         assert_eq!(caret_byte(&state), 8);
@@ -4978,7 +4978,7 @@ mod tests {
 
     #[test]
     fn test_shift_page_down_extends_selection() {
-        let mut text_system = TestTextBackend;
+        let mut text_backend = TestTextBackend;
         let mut focus_system = FocusSystem::new();
         let mut cmds = DrawCommands::new();
 
@@ -4999,7 +4999,7 @@ mod tests {
             &mut state,
             &input,
             &mut focus_system,
-            &mut text_system,
+            &mut text_backend,
             &mut cmds,
         );
 
@@ -5012,7 +5012,7 @@ mod tests {
             &mut state,
             &input,
             &mut focus_system,
-            &mut text_system,
+            &mut text_backend,
             &mut cmds,
         );
 
@@ -5022,7 +5022,7 @@ mod tests {
 
     #[test]
     fn test_text_edit_claims_page_keys_inside_outer_scroll_area() {
-        let mut text_system = TestTextBackend;
+        let mut text_backend = TestTextBackend;
         let mut focus_system = FocusSystem::new();
         let mut cmds = DrawCommands::new();
         let mut outer_scroll = crate::widgets::scroll_area::ScrollState::default();
@@ -5076,7 +5076,7 @@ mod tests {
                 &mut state,
                 &input,
                 &mut focus_system,
-                &mut text_system,
+                &mut text_backend,
                 &mut cmds,
             );
 
@@ -5116,7 +5116,7 @@ mod tests {
     // `ctrl`, and they have no line-awareness at all.
     #[test]
     fn test_home_end_multiline() {
-        let mut text_system = TestTextBackend;
+        let mut text_backend = TestTextBackend;
         let mut focus_system = FocusSystem::new();
         let mut cmds = DrawCommands::new();
 
@@ -5136,7 +5136,7 @@ mod tests {
             &mut state,
             &Input::default(),
             &mut focus_system,
-            &mut text_system,
+            &mut text_backend,
             &mut cmds,
         );
 
@@ -5154,7 +5154,7 @@ mod tests {
             &mut state,
             &input,
             &mut focus_system,
-            &mut text_system,
+            &mut text_backend,
             &mut cmds,
         );
         assert_eq!(
@@ -5176,7 +5176,7 @@ mod tests {
             &mut state,
             &input,
             &mut focus_system,
-            &mut text_system,
+            &mut text_backend,
             &mut cmds,
         );
         assert_eq!(
@@ -5198,7 +5198,7 @@ mod tests {
             &mut state,
             &input,
             &mut focus_system,
-            &mut text_system,
+            &mut text_backend,
             &mut cmds,
         );
         assert_eq!(
@@ -5219,7 +5219,7 @@ mod tests {
             &mut state,
             &input,
             &mut focus_system,
-            &mut text_system,
+            &mut text_backend,
             &mut cmds,
         );
         assert_eq!(
@@ -5240,7 +5240,7 @@ mod tests {
             &mut state,
             &input,
             &mut focus_system,
-            &mut text_system,
+            &mut text_backend,
             &mut cmds,
         );
         assert_eq!(
@@ -5266,7 +5266,7 @@ mod tests {
             &mut state,
             &input,
             &mut focus_system,
-            &mut text_system,
+            &mut text_backend,
             &mut cmds,
         );
         assert_eq!(
@@ -5292,7 +5292,7 @@ mod tests {
             &mut state,
             &input,
             &mut focus_system,
-            &mut text_system,
+            &mut text_backend,
             &mut cmds,
         );
         assert_eq!(
@@ -5314,7 +5314,7 @@ mod tests {
             &mut state,
             &input,
             &mut focus_system,
-            &mut text_system,
+            &mut text_backend,
             &mut cmds,
         );
         assert_eq!(
@@ -5336,7 +5336,7 @@ mod tests {
             &mut state,
             &input,
             &mut focus_system,
-            &mut text_system,
+            &mut text_backend,
             &mut cmds,
         );
         assert_eq!(
@@ -5362,7 +5362,7 @@ mod tests {
             &mut state,
             &input,
             &mut focus_system,
-            &mut text_system,
+            &mut text_backend,
             &mut cmds,
         );
         assert_eq!(
@@ -5379,7 +5379,7 @@ mod tests {
 
     #[test]
     fn test_text_edit_visual_multiline_selection() {
-        let mut text_system = TestTextBackend;
+        let mut text_backend = TestTextBackend;
         let mut focus_system = FocusSystem::new();
         let mut state = TextEditState::new("hello\nworld");
         focus_system.take_keyboard_focus(state.focus_id);
@@ -5401,7 +5401,7 @@ mod tests {
             &mut state,
             &input,
             &mut focus_system,
-            &mut text_system,
+            &mut text_backend,
             &mut cmds,
         );
 
@@ -5471,7 +5471,7 @@ mod tests {
 
     #[test]
     fn test_text_edit_selection_highlights_collapsed_trailing_space_affordance() {
-        let mut text_system = TestTextBackend;
+        let mut text_backend = TestTextBackend;
         let mut focus_system = FocusSystem::new();
         let mut state = TextEditState::new("a b");
         focus_system.take_keyboard_focus(state.focus_id);
@@ -5495,7 +5495,7 @@ mod tests {
             &mut state,
             &input,
             &mut focus_system,
-            &mut text_system,
+            &mut text_backend,
             &mut cmds,
         );
 
@@ -5519,7 +5519,7 @@ mod tests {
 
     #[test]
     fn test_text_edit_visual_multiline_selection_three_lines() {
-        let mut text_system = TestTextBackend;
+        let mut text_backend = TestTextBackend;
         let mut focus_system = FocusSystem::new();
         let mut state = TextEditState::new("one\ntwo\nthree");
         focus_system.take_keyboard_focus(state.focus_id);
@@ -5541,7 +5541,7 @@ mod tests {
             &mut state,
             &input,
             &mut focus_system,
-            &mut text_system,
+            &mut text_backend,
             &mut cmds,
         );
 
@@ -5627,7 +5627,7 @@ mod tests {
         // This mismatch leads to incorrect wrapping or line calculations during navigation, causing
         // the caret to jump unexpectedly or land on wrong characters compared to what is rendered.
 
-        let mut text_system = TestTextBackend;
+        let mut text_backend = TestTextBackend;
         let mut focus_system = FocusSystem::new();
         let mut state = TextEditState::new("abcdefghij");
         focus_system.take_keyboard_focus(state.focus_id);
@@ -5671,7 +5671,7 @@ mod tests {
             &mut state,
             &input,
             &mut focus_system,
-            &mut text_system,
+            &mut text_backend,
             &mut DrawCommands::new(),
         );
 
@@ -5684,7 +5684,7 @@ mod tests {
 
     #[test]
     fn test_text_edit_alignment_combinations() {
-        let mut text_system = TestTextBackend;
+        let mut text_backend = TestTextBackend;
         let mut focus_system = FocusSystem::new();
         let input = Input::default();
 
@@ -5702,7 +5702,7 @@ mod tests {
                 &mut state,
                 &input,
                 &mut focus_system,
-                &mut text_system,
+                &mut text_backend,
                 &mut cmds,
             );
 
@@ -5733,7 +5733,7 @@ mod tests {
                 &mut state,
                 &input,
                 &mut focus_system,
-                &mut text_system,
+                &mut text_backend,
                 &mut cmds,
             );
 
@@ -5762,7 +5762,7 @@ mod tests {
                 &mut state,
                 &input,
                 &mut focus_system,
-                &mut text_system,
+                &mut text_backend,
                 &mut cmds,
             );
 
@@ -5805,7 +5805,7 @@ mod tests {
                 &mut state,
                 &click_input,
                 &mut focus_system,
-                &mut text_system,
+                &mut text_backend,
                 &mut cmds,
             );
             focus_system.end_frame();
@@ -5819,7 +5819,7 @@ mod tests {
                 &mut state,
                 &click_input,
                 &mut focus_system,
-                &mut text_system,
+                &mut text_backend,
                 &mut cmds,
             );
             focus_system.end_frame();
@@ -5834,7 +5834,7 @@ mod tests {
 
     #[test]
     fn test_edit_layout_size_wrapping() {
-        let mut text_system = TestTextBackend;
+        let mut text_backend = TestTextBackend;
         let mut edit_spec = spec();
         edit_spec.rect = Rect::new(0.0, 0.0, 100.0, 30.0);
         edit_spec.wrap = true;
@@ -5854,7 +5854,7 @@ mod tests {
         // Height = 16.0. Height + padding = 24.0 <= 28.0 (viewport h).
         // No vertical scrollbar width deduction should happen.
         let (metrics, layout_width, layout_height, _) =
-            super::raw::edit_layout_size("abcdefghijk", &edit_spec, text_style, &mut text_system);
+            super::raw::edit_layout_size("abcdefghijk", &edit_spec, text_style, &mut text_backend);
         assert_eq!(metrics.line_count, 1);
         assert_eq!(layout_width, 90.0);
         assert_eq!(layout_height, 28.0);
@@ -5872,7 +5872,7 @@ mod tests {
             "abcdefghijklmnopqrst",
             &edit_spec,
             text_style,
-            &mut text_system,
+            &mut text_backend,
         );
         assert_eq!(metrics.line_count, 2);
         assert_eq!(metrics.lines[0].byte_end - metrics.lines[0].byte_start, 10);
@@ -5882,7 +5882,7 @@ mod tests {
 
     #[test]
     fn test_text_edit_error_vertical_scrollbar_layout_and_hit_test() {
-        let mut text_system = TestTextBackend;
+        let mut text_backend = TestTextBackend;
         let mut focus_system = FocusSystem::new();
         let mut state = TextEditState::new("line1\nline2\nline3\nline4\nline5");
         let mut edit_spec = spec();
@@ -5899,7 +5899,7 @@ mod tests {
             &mut state,
             &input,
             &mut focus_system,
-            &mut text_system,
+            &mut text_backend,
             &mut cmds,
         );
 
@@ -5954,7 +5954,7 @@ mod tests {
             &mut state,
             &click_input,
             &mut focus_system,
-            &mut text_system,
+            &mut text_backend,
             &mut DrawCommands::new(),
         );
         focus_system.end_frame();
@@ -5968,7 +5968,7 @@ mod tests {
             &mut state,
             &click_input,
             &mut focus_system,
-            &mut text_system,
+            &mut text_backend,
             &mut DrawCommands::new(),
         );
         focus_system.end_frame();
@@ -5982,7 +5982,7 @@ mod tests {
 
     #[test]
     fn test_text_edit_visual_vertical_scrollbar() {
-        let mut text_system = TestTextBackend;
+        let mut text_backend = TestTextBackend;
         let mut focus_system = FocusSystem::new();
         let mut state = TextEditState::new("one\ntwo\nthree\nfour\nfive"); // 5 lines, height 80px
         let input = Input::default();
@@ -5996,7 +5996,7 @@ mod tests {
             &mut state,
             &input,
             &mut focus_system,
-            &mut text_system,
+            &mut text_backend,
             &mut cmds,
         );
 
@@ -6029,7 +6029,7 @@ mod tests {
 
     #[test]
     fn test_text_edit_visual_horizontal_scrollbar() {
-        let mut text_system = TestTextBackend;
+        let mut text_backend = TestTextBackend;
         let mut focus_system = FocusSystem::new();
         let mut state = TextEditState::new("abcdefghijklmnopqrstuvwxyz0123"); // 30 chars = 240px wide
         let input = Input::default();
@@ -6042,7 +6042,7 @@ mod tests {
             &mut state,
             &input,
             &mut focus_system,
-            &mut text_system,
+            &mut text_backend,
             &mut cmds,
         );
 
@@ -6075,7 +6075,7 @@ mod tests {
 
     #[test]
     fn test_text_edit_wrapping() {
-        let mut text_system = TestTextBackend;
+        let mut text_backend = TestTextBackend;
         let state = TextEditState::new("abcdefghijklmnopqrst"); // 20 chars
         let mut edit_spec = spec();
         edit_spec.rect = Rect::new(0.0, 0.0, 100.0, 30.0); // available width = 90px without scrollbar (11 chars)
@@ -6084,7 +6084,7 @@ mod tests {
         let text_style =
             super::to_text_style(edit_spec.style, edit_spec.wrap, edit_spec.line_align);
         let (metrics, layout_width, _, _) =
-            super::raw::edit_layout_size(&state.value, &edit_spec, text_style, &mut text_system);
+            super::raw::edit_layout_size(&state.value, &edit_spec, text_style, &mut text_backend);
 
         // Verify that the text is laid out with the narrower max_width (85px)
         // so that it fits 10 characters per line.
@@ -6096,7 +6096,7 @@ mod tests {
 
     #[test]
     fn test_text_edit_wrapping_home_end() {
-        let mut text_system = TestTextBackend;
+        let mut text_backend = TestTextBackend;
         let mut focus_system = FocusSystem::new();
         let mut state = TextEditState::new("abcdefghijklmnopqrst"); // 20 chars
         focus_system.take_keyboard_focus(state.focus_id);
@@ -6123,7 +6123,7 @@ mod tests {
             &mut state,
             &input,
             &mut focus_system,
-            &mut text_system,
+            &mut text_backend,
             &mut DrawCommands::new(),
         );
         focus_system.end_frame();
@@ -6143,7 +6143,7 @@ mod tests {
             &mut state,
             &input,
             &mut focus_system,
-            &mut text_system,
+            &mut text_backend,
             &mut DrawCommands::new(),
         );
         focus_system.end_frame();
@@ -6153,7 +6153,7 @@ mod tests {
 
     #[test]
     fn test_text_edit_wrapping_home_end_preserves_visual_line_side() {
-        let mut text_system = TestTextBackend;
+        let mut text_backend = TestTextBackend;
         let mut focus_system = FocusSystem::new();
         let mut state = TextEditState::new("abcdefghijklmnopqrst"); // 20 chars
         focus_system.take_keyboard_focus(state.focus_id);
@@ -6185,7 +6185,7 @@ mod tests {
             &mut state,
             &input,
             &mut focus_system,
-            &mut text_system,
+            &mut text_backend,
             &mut DrawCommands::new(),
         );
         focus_system.end_frame();
@@ -6212,7 +6212,7 @@ mod tests {
             &mut state,
             &input,
             &mut focus_system,
-            &mut text_system,
+            &mut text_backend,
             &mut DrawCommands::new(),
         );
         focus_system.end_frame();
@@ -6228,7 +6228,7 @@ mod tests {
 
     #[test]
     fn test_text_edit_wrapping_home_end_targets_visual_line_anchors() {
-        let mut text_system = TestTextBackend;
+        let mut text_backend = TestTextBackend;
         let mut focus_system = FocusSystem::new();
         let mut state = TextEditState::new("abcdefghijklmnopqrst"); // 20 chars
         focus_system.take_keyboard_focus(state.focus_id);
@@ -6253,7 +6253,7 @@ mod tests {
             &mut state,
             &input,
             &mut focus_system,
-            &mut text_system,
+            &mut text_backend,
             &mut DrawCommands::new(),
         );
         focus_system.end_frame();
@@ -6280,7 +6280,7 @@ mod tests {
             &mut state,
             &input,
             &mut focus_system,
-            &mut text_system,
+            &mut text_backend,
             &mut DrawCommands::new(),
         );
         focus_system.end_frame();
@@ -6296,7 +6296,7 @@ mod tests {
 
     #[test]
     fn test_text_edit_wrapping_end_stays_before_collapsed_boundary_space() {
-        let mut text_system = TestTextBackend;
+        let mut text_backend = TestTextBackend;
         let mut focus_system = FocusSystem::new();
         let mut state = TextEditState::new("a b");
         focus_system.take_keyboard_focus(state.focus_id);
@@ -6321,7 +6321,7 @@ mod tests {
             &mut state,
             &input,
             &mut focus_system,
-            &mut text_system,
+            &mut text_backend,
             &mut DrawCommands::new(),
         );
         focus_system.end_frame();
@@ -6337,7 +6337,7 @@ mod tests {
 
     #[test]
     fn test_text_edit_wrapping_selection_visual() {
-        let mut text_system = TestTextBackend;
+        let mut text_backend = TestTextBackend;
         let mut focus_system = FocusSystem::new();
         let mut state = TextEditState::new("abcdefghijklmnopqrst"); // 20 chars
         state.had_keyboard_focus = true;
@@ -6356,7 +6356,7 @@ mod tests {
             &mut state,
             &input,
             &mut focus_system,
-            &mut text_system,
+            &mut text_backend,
             &mut cmds,
         );
 

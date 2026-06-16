@@ -38,7 +38,7 @@ pub mod raw {
     /// Measure a segmented control's intrinsic size from its measurement spec.
     pub fn calc_segmented_intrinsic_size<T: TextBackend>(
         spec: &SegmentedCalcIntrinsicSizeSpec,
-        text_system: &mut T,
+        text_backend: &mut T,
     ) -> crate::layout::IntrinsicSize {
         let s = spec.style;
         let total_w = spec
@@ -46,7 +46,7 @@ pub mod raw {
             .iter()
             .map(|text| {
                 measure_text(
-                    text_system,
+                    text_backend,
                     text,
                     s.text_style,
                     crate::text::TextBounds::UNBOUNDED,
@@ -67,7 +67,7 @@ pub mod raw {
         state: &mut SegmentedState,
         input: &Input,
         focus_system: &mut FocusSystem,
-        text_system: &mut T,
+        text_backend: &mut T,
         cmds: &mut DrawCommands,
     ) -> SegmentedResult {
         let s = spec.style;
@@ -93,7 +93,7 @@ pub mod raw {
             .iter()
             .map(|text| {
                 measure_text(
-                    text_system,
+                    text_backend,
                     text,
                     s.text_style,
                     crate::text::TextBounds::UNBOUNDED,
@@ -217,7 +217,7 @@ pub mod raw {
             let text_rect = Rect::new(x + pad_x, ty, metric.logical_size.x, metric.logical_size.y);
             emit_text_in_rect(
                 cmds,
-                text_system,
+                text_backend,
                 label,
                 s.text_style,
                 text_rect,
@@ -374,7 +374,7 @@ pub fn segmented<'a, T: TextBackend, S: LayoutState, CF>(
         items: spec.items,
         style: spec.style,
     };
-    let intrinsic = raw::calc_segmented_intrinsic_size(&calc_spec, ctx.text_system);
+    let intrinsic = raw::calc_segmented_intrinsic_size(&calc_spec, ctx.text_backend);
     let rect = ctx.layout(layout_params, intrinsic);
     let raw_spec = raw::SegmentedSpec {
         layer: ctx.layer,
@@ -389,7 +389,7 @@ pub fn segmented<'a, T: TextBackend, S: LayoutState, CF>(
         state,
         ctx.input,
         ctx.focus_system,
-        ctx.text_system,
+        ctx.text_backend,
         ctx.cmds,
     );
 
@@ -412,7 +412,7 @@ mod tests {
         active_index: usize,
     ) -> (raw::SegmentedResult, DrawCommands) {
         let mut cmds = DrawCommands::new();
-        let mut text_system = TestTextBackend;
+        let mut text_backend = TestTextBackend;
         let res = raw::segmented(
             spec,
             &mut SegmentedState {
@@ -421,7 +421,7 @@ mod tests {
             },
             &Input::default(),
             &mut FocusSystem::new(),
-            &mut text_system,
+            &mut text_backend,
             &mut cmds,
         );
         (res, cmds)
@@ -507,7 +507,7 @@ mod tests {
         let mut focus_system = FocusSystem::new();
         focus_system.take_keyboard_focus(state.focus_id);
         focus_system.begin_frame();
-        let mut text_system = TestTextBackend;
+        let mut text_backend = TestTextBackend;
         let items = ["A", "B"];
         let spec = SegmentedSpec {
             layer: Layer::default(),
@@ -524,7 +524,7 @@ mod tests {
             &mut state,
             &Input::default(),
             &mut focus_system,
-            &mut text_system,
+            &mut text_backend,
             &mut cmds,
         );
         focus_system.end_frame();
@@ -601,7 +601,7 @@ mod tests {
         input.mouse_pos = Vec2::new(20.0, 10.0);
         input.mouse_pressed = true;
 
-        let mut text_system = TestTextBackend;
+        let mut text_backend = TestTextBackend;
         let items = ["A", "B"];
         let spec = SegmentedSpec {
             layer: Layer::default(),
@@ -619,7 +619,7 @@ mod tests {
             &mut state,
             &input,
             &mut focus_system,
-            &mut text_system,
+            &mut text_backend,
             &mut cmds,
         );
         focus_system.end_frame();
@@ -639,7 +639,7 @@ mod tests {
         input.mouse_pos = Vec2::new(20.0, 10.0);
         input.mouse_pressed = true;
 
-        let mut text_system = TestTextBackend;
+        let mut text_backend = TestTextBackend;
         let items = ["A", "B"];
         let spec = SegmentedSpec {
             layer: Layer::default(),
@@ -657,7 +657,7 @@ mod tests {
             &mut state,
             &input,
             &mut focus_system,
-            &mut text_system,
+            &mut text_backend,
             &mut cmds,
         );
         focus_system.end_frame();
@@ -674,7 +674,7 @@ mod tests {
         let mut focus_system = FocusSystem::new();
         let mut state = SegmentedState::default();
         let mut input = Input::default();
-        let mut text_system = TestTextBackend;
+        let mut text_backend = TestTextBackend;
         let items = ["A", "B"];
 
         // Focus the widget
@@ -696,7 +696,7 @@ mod tests {
             &mut state,
             &input,
             &mut focus_system,
-            &mut text_system,
+            &mut text_backend,
             &mut cmds,
         );
         focus_system.end_frame();
@@ -720,7 +720,7 @@ mod tests {
             &mut state,
             &input,
             &mut focus_system,
-            &mut text_system,
+            &mut text_backend,
             &mut cmds,
         );
         focus_system.end_frame();
@@ -750,14 +750,14 @@ mod tests {
     #[test]
     fn test_high_level_explicit_placement_via_manual_layout() {
         use crate::layouts::ManualLayout;
-        let mut text_system = TestTextBackend;
+        let mut text_backend = TestTextBackend;
         let mut focus = FocusSystem::new();
         let input = crate::Input::default();
         let mut cmds = crate::draw::DrawCommands::new();
         let placement = Rect::new(10.0, 20.0, 50.0, 30.0);
         let mut ctx = crate::widget::WidgetContext::root(
             crate::theme::Theme::framewise(),
-            &mut text_system,
+            &mut text_backend,
             &mut focus,
             &input,
             ManualLayout,

@@ -53,7 +53,7 @@ pub mod raw {
     /// High-level wrappers should use this internally.
     pub fn begin_window<'a, T: TextBackend>(
         spec: WindowSpec<'a>,
-        text_system: &mut T,
+        text_backend: &mut T,
         cmds: &mut DrawCommands,
     ) -> WindowResult {
         let s = spec.style;
@@ -91,7 +91,7 @@ pub mod raw {
         });
 
         let title_metrics = measure_text(
-            text_system,
+            text_backend,
             spec.title,
             s.text_style,
             crate::text::TextBounds::UNBOUNDED,
@@ -105,7 +105,7 @@ pub mod raw {
         );
         emit_text_in_rect(
             cmds,
-            text_system,
+            text_backend,
             spec.title,
             s.text_style,
             title_text_rect,
@@ -118,7 +118,7 @@ pub mod raw {
         for btn in spec.buttons.iter().rev() {
             btn_x -= btn_size + s.button_gap;
             let btn_metrics = measure_text(
-                text_system,
+                text_backend,
                 btn.symbol,
                 s.text_style,
                 crate::text::TextBounds::UNBOUNDED,
@@ -132,7 +132,7 @@ pub mod raw {
             );
             emit_text_in_rect(
                 cmds,
-                text_system,
+                text_backend,
                 btn.symbol,
                 s.text_style,
                 btn_rect,
@@ -154,7 +154,7 @@ pub mod raw {
             });
             let status_text = spec.status_text.unwrap_or("");
             let status_metrics = measure_text(
-                text_system,
+                text_backend,
                 status_text,
                 s.text_style,
                 crate::text::TextBounds::UNBOUNDED,
@@ -168,7 +168,7 @@ pub mod raw {
             );
             emit_text_in_rect(
                 cmds,
-                text_system,
+                text_backend,
                 status_text,
                 s.text_style,
                 status_rect,
@@ -369,7 +369,7 @@ pub fn begin_window<'a, 'b, 'c, T: TextBackend, S: LayoutState, L: Layout, CF>(
         layer: ctx.layer,
     };
     let raw::WindowResult { content_bounds } =
-        raw::begin_window(raw_spec, ctx.text_system, ctx.cmds);
+        raw::begin_window(raw_spec, ctx.text_backend, ctx.cmds);
 
     let new_clip = Some(
         ctx.clip_rect
@@ -420,14 +420,14 @@ mod tests {
     fn test_user_rect_not_overridden() {
         use crate::layouts::ManualLayout;
         use crate::test_utils::TestTextBackend;
-        let mut text_system = TestTextBackend;
+        let mut text_backend = TestTextBackend;
         let mut focus = FocusSystem::new();
         let input = crate::Input::default();
         let mut cmds = crate::draw::DrawCommands::new();
         let custom_rect = Rect::new(10.0, 20.0, 100.0, 80.0);
         let mut ctx = crate::widget::WidgetContext::root(
             crate::theme::Theme::framewise(),
-            &mut text_system,
+            &mut text_backend,
             &mut focus,
             &input,
             ManualLayout,

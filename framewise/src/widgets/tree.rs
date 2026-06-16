@@ -42,7 +42,7 @@ pub mod raw {
     /// High-level wrappers should use this internally.
     pub fn tree<'a, T: TextBackend>(
         spec: TreeSpec<'a>,
-        text_system: &mut T,
+        text_backend: &mut T,
         cmds: &mut DrawCommands,
     ) -> TreeResult {
         let s = spec.style;
@@ -109,7 +109,7 @@ pub mod raw {
                 None => " ",
             };
             let caret_metrics =
-                measure_text(text_system, caret_sym, s.text_style, TextBounds::UNBOUNDED);
+                measure_text(text_backend, caret_sym, s.text_style, TextBounds::UNBOUNDED);
             let cty = y + (row_h - caret_metrics.logical_size.y) * 0.5;
             let caret_rect = Rect::new(
                 indent_x,
@@ -119,7 +119,7 @@ pub mod raw {
             );
             emit_text_in_rect(
                 cmds,
-                text_system,
+                text_backend,
                 caret_sym,
                 s.text_style,
                 caret_rect,
@@ -129,7 +129,7 @@ pub mod raw {
 
             // Label.
             let label_metrics =
-                measure_text(text_system, row.label, s.text_style, TextBounds::UNBOUNDED);
+                measure_text(text_backend, row.label, s.text_style, TextBounds::UNBOUNDED);
             let lty = y + (row_h - label_metrics.logical_size.y) * 0.5;
             let label_rect = Rect::new(
                 indent_x + caret_w,
@@ -139,7 +139,7 @@ pub mod raw {
             );
             emit_text_in_rect(
                 cmds,
-                text_system,
+                text_backend,
                 row.label,
                 s.text_style,
                 label_rect,
@@ -150,7 +150,7 @@ pub mod raw {
             // Meta (right-aligned).
             if let Some(meta) = row.meta {
                 let meta_metrics =
-                    measure_text(text_system, meta, s.text_style, TextBounds::UNBOUNDED);
+                    measure_text(text_backend, meta, s.text_style, TextBounds::UNBOUNDED);
                 let mx = outer.x + w - pad_x - meta_metrics.logical_size.x;
                 let mty = y + (row_h - meta_metrics.logical_size.y) * 0.5;
                 let meta_rect = Rect::new(
@@ -161,7 +161,7 @@ pub mod raw {
                 );
                 emit_text_in_rect(
                     cmds,
-                    text_system,
+                    text_backend,
                     meta,
                     s.text_style,
                     meta_rect,
@@ -326,7 +326,7 @@ pub fn tree<'a, T: TextBackend, S: LayoutState, CF>(
         layer: ctx.layer,
     };
 
-    let result = raw::tree(raw_spec, ctx.text_system, ctx.cmds);
+    let result = raw::tree(raw_spec, ctx.text_backend, ctx.cmds);
     TreeResult {
         layout: LayoutInfo::new(result.bounds, result.content_bounds),
     }
@@ -360,14 +360,14 @@ mod tests {
     fn test_explicit_placement_via_manual_layout() {
         use crate::layouts::ManualLayout;
         use crate::test_utils::TestTextBackend;
-        let mut text_system = TestTextBackend;
+        let mut text_backend = TestTextBackend;
         let mut focus = FocusSystem::new();
         let input = crate::Input::default();
         let mut cmds = crate::draw::DrawCommands::new();
         let placement = Rect::new(10.0, 20.0, 50.0, 30.0);
         let mut ctx = crate::widget::WidgetContext::root(
             crate::theme::Theme::framewise(),
-            &mut text_system,
+            &mut text_backend,
             &mut focus,
             &input,
             ManualLayout,
@@ -384,14 +384,14 @@ mod tests {
     fn test_tree_bounds_and_content_bounds() {
         use crate::layouts::ManualLayout;
         use crate::test_utils::TestTextBackend;
-        let mut text_system = TestTextBackend;
+        let mut text_backend = TestTextBackend;
         let mut focus = FocusSystem::new();
         let input = crate::Input::default();
         let mut cmds = crate::draw::DrawCommands::new();
         let layout_rect = Rect::new(0.0, 0.0, 100.0, 40.0);
         let mut ctx = crate::widget::WidgetContext::root(
             crate::theme::Theme::framewise(),
-            &mut text_system,
+            &mut text_backend,
             &mut focus,
             &input,
             ManualLayout,

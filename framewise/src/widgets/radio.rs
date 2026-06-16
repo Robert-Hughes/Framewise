@@ -332,7 +332,7 @@ pub fn labelled_radio<T: TextBackend, S: LayoutState, CF>(
         style: label_style,
     };
     let label_intrinsic =
-        crate::widgets::label::raw::calc_label_intrinsic_size(&label_calc_spec, ctx.text_system);
+        crate::widgets::label::raw::calc_label_intrinsic_size(&label_calc_spec, ctx.text_backend);
     let label_size = label_intrinsic.preferred.unwrap();
 
     let gap = 8.0;
@@ -366,7 +366,7 @@ pub fn labelled_radio<T: TextBackend, S: LayoutState, CF>(
         text: label_text,
         style: label_style,
     };
-    crate::widgets::label::raw::label(raw_label_spec, ctx.text_system, ctx.cmds);
+    crate::widgets::label::raw::label(raw_label_spec, ctx.text_backend, ctx.cmds);
 
     RadioResult {
         layout: LayoutInfo::new(rect, result.content_bounds),
@@ -1152,14 +1152,14 @@ mod tests {
     fn test_high_level_explicit_placement_via_manual_layout() {
         use crate::layouts::ManualLayout;
         use crate::test_utils::TestTextBackend;
-        let mut text_system = TestTextBackend;
+        let mut text_backend = TestTextBackend;
         let mut focus = FocusSystem::new();
         let input = crate::Input::default();
         let mut cmds = crate::draw::DrawCommands::new();
         let placement = Rect::new(10.0, 20.0, 50.0, 30.0);
         let mut ctx = crate::widget::WidgetContext::root(
             crate::theme::Theme::framewise(),
-            &mut text_system,
+            &mut text_backend,
             &mut focus,
             &input,
             ManualLayout,
@@ -1180,13 +1180,13 @@ mod tests {
     fn test_high_level_honors_user_style() {
         use crate::layouts::ManualLayout;
         use crate::test_utils::TestTextBackend;
-        let mut text_system = TestTextBackend;
+        let mut text_backend = TestTextBackend;
         let mut focus = FocusSystem::new();
         let input = crate::Input::default();
         let mut cmds = crate::draw::DrawCommands::new();
         let mut ctx = crate::widget::WidgetContext::root(
             crate::theme::Theme::framewise(),
-            &mut text_system,
+            &mut text_backend,
             &mut focus,
             &input,
             ManualLayout,
@@ -1263,13 +1263,13 @@ mod tests {
     #[test]
     fn test_labelled_radio_intrinsic_size() {
         use crate::layouts::ManualLayout;
-        let mut text_system = crate::test_utils::TestTextBackend;
+        let mut text_backend = crate::test_utils::TestTextBackend;
         let mut focus = FocusSystem::new();
         let input = Input::default();
         let mut cmds = DrawCommands::new();
         let mut ctx = WidgetContext::root(
             crate::theme::Theme::framewise(),
-            &mut text_system,
+            &mut text_backend,
             &mut focus,
             &input,
             ManualLayout,
@@ -1302,10 +1302,10 @@ mod tests {
             &mut state,
             Vec2::new(40.0, 10.0),
             |state, input, focus, cmds| {
-                let mut text_system = crate::test_utils::TestTextBackend;
+                let mut text_backend = crate::test_utils::TestTextBackend;
                 let mut ctx = WidgetContext::root(
                     crate::theme::Theme::framewise(),
-                    &mut text_system,
+                    &mut text_backend,
                     focus,
                     input,
                     ManualLayout,
@@ -1328,7 +1328,7 @@ mod tests {
     #[test]
     fn test_labelled_radio_disabled_label_visual() {
         use crate::layouts::ManualLayout;
-        let mut text_system = crate::test_utils::TestTextBackend;
+        let mut text_backend = crate::test_utils::TestTextBackend;
         let mut focus = FocusSystem::new();
         let input = Input::default();
         let mut cmds = DrawCommands::new();
@@ -1336,7 +1336,7 @@ mod tests {
         {
             let mut ctx = WidgetContext::root(
                 theme.clone(),
-                &mut text_system,
+                &mut text_backend,
                 &mut focus,
                 &input,
                 ManualLayout,

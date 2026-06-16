@@ -67,7 +67,7 @@ pub fn draw_text_edit_demo(
     input: &Input,
     time: f64,
     win_size: (f32, f32),
-    text_system: &mut SampleTextBackend,
+    text_backend: &mut SampleTextBackend,
     debug_layout: bool,
 ) -> framewise::DrawCommands {
     let (win_w, win_h) = win_size;
@@ -82,7 +82,7 @@ pub fn draw_text_edit_demo(
 
     let mut root_ctx = WidgetContext::root(
         Theme::default(),
-        text_system,
+        text_backend,
         focus_system,
         input,
         ColumnLayout,
