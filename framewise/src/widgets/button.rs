@@ -476,7 +476,7 @@ mod tests {
     use super::raw::ButtonSpec;
     use super::*;
 
-    use crate::test_utils::DummyTextSys;
+    use crate::test_utils::TestTextBackend;
     use crate::text::FontId;
     use crate::text::{PrepareGlyphRequest, ShapedCluster, ShapedGlyph, ShapedText};
     use crate::theme;
@@ -560,7 +560,7 @@ mod tests {
         s1: &mut ButtonState,
         s2: &mut ButtonState,
         input: &Input,
-        text_system: &mut DummyTextSys,
+        text_system: &mut TestTextBackend,
         cmds: &mut DrawCommands,
     ) {
         raw::button(
@@ -587,7 +587,7 @@ mod tests {
         let mut s2 = ButtonState::default();
         let focus1 = s1.focus_id;
         let focus2 = s2.focus_id;
-        let mut text_system = DummyTextSys;
+        let mut text_system = TestTextBackend;
 
         crate::widgets::test_helpers::assert_tab_moves_focus_next(
             &mut s1,
@@ -606,7 +606,7 @@ mod tests {
         let mut s2 = ButtonState::default();
         let focus1 = s1.focus_id;
         let focus2 = s2.focus_id;
-        let mut text_system = DummyTextSys;
+        let mut text_system = TestTextBackend;
 
         crate::widgets::test_helpers::assert_right_arrow_moves_focus_next(
             &mut s1,
@@ -625,7 +625,7 @@ mod tests {
         let mut s2 = ButtonState::default();
         let focus1 = s1.focus_id;
         let focus2 = s2.focus_id;
-        let mut text_system = DummyTextSys;
+        let mut text_system = TestTextBackend;
 
         crate::widgets::test_helpers::assert_down_arrow_moves_focus_next(
             &mut s1,
@@ -644,7 +644,7 @@ mod tests {
         let mut s2 = ButtonState::default();
         let focus1 = s1.focus_id;
         let focus2 = s2.focus_id;
-        let mut text_system = DummyTextSys;
+        let mut text_system = TestTextBackend;
 
         crate::widgets::test_helpers::assert_shift_tab_moves_focus_prev(
             &mut s1,
@@ -659,7 +659,7 @@ mod tests {
 
     #[test]
     fn test_drag_off_and_release_does_not_click_other_button() {
-        let mut text_system = DummyTextSys;
+        let mut text_system = TestTextBackend;
         let mut state1 = ButtonState::default();
         let mut state2 = ButtonState::default();
 
@@ -701,7 +701,7 @@ mod tests {
 
     #[test]
     fn test_click_triggers_clicked_state() {
-        let mut text_system = DummyTextSys;
+        let mut text_system = TestTextBackend;
         let mut state = ButtonState::default();
 
         crate::widgets::test_helpers::assert_mouse_click_on_release(
@@ -723,7 +723,7 @@ mod tests {
 
     #[test]
     fn test_button_overlapping_hover() {
-        let mut text_system = DummyTextSys;
+        let mut text_system = TestTextBackend;
         let mut state1 = ButtonState::default();
         let mut state2 = ButtonState::default();
 
@@ -755,7 +755,7 @@ mod tests {
 
     #[test]
     fn test_button_overlapping_click() {
-        let mut text_system = DummyTextSys;
+        let mut text_system = TestTextBackend;
         let mut state1 = ButtonState::default();
         let mut state2 = ButtonState::default();
 
@@ -788,7 +788,7 @@ mod tests {
 
     #[test]
     fn test_button_click_takes_focus() {
-        let mut text_system = DummyTextSys;
+        let mut text_system = TestTextBackend;
         let mut state = ButtonState::default();
         let focus_id = state.focus_id;
 
@@ -812,7 +812,7 @@ mod tests {
 
     #[test]
     fn test_button_clipped_click_does_not_take_focus() {
-        let mut text_system = DummyTextSys;
+        let mut text_system = TestTextBackend;
         let mut state = ButtonState::default();
 
         crate::widgets::test_helpers::assert_clipped_mouse_press_does_not_take_focus(
@@ -841,7 +841,7 @@ mod tests {
 
     #[test]
     fn test_button_disabled_ignores_interaction() {
-        let mut text_system = DummyTextSys;
+        let mut text_system = TestTextBackend;
         let mut state = ButtonState::default();
         let focus_id = state.focus_id;
 
@@ -869,7 +869,7 @@ mod tests {
 
     #[test]
     fn test_enter_clicks_raw_button() {
-        let mut text_system = DummyTextSys;
+        let mut text_system = TestTextBackend;
         let mut state = ButtonState::default();
         let mut focus_system = FocusSystem::new();
 
@@ -904,7 +904,7 @@ mod tests {
 
     #[test]
     fn test_hover_and_press_state() {
-        let mut text_system = DummyTextSys;
+        let mut text_system = TestTextBackend;
         let mut state = ButtonState::default();
 
         crate::widgets::test_helpers::assert_hover_and_press_state(
@@ -927,7 +927,7 @@ mod tests {
 
     #[test]
     fn test_spacebar_click() {
-        let mut text_system = DummyTextSys;
+        let mut text_system = TestTextBackend;
         let mut state = ButtonState::default();
         let focus_id = state.focus_id;
 
@@ -950,7 +950,7 @@ mod tests {
 
     #[test]
     fn test_spacebar_loses_focus_does_not_click() {
-        let mut text_system = DummyTextSys;
+        let mut text_system = TestTextBackend;
         let mut state = ButtonState::default();
         let focus_id = state.focus_id;
 
@@ -975,7 +975,7 @@ mod tests {
 
     #[test]
     fn test_button_visual_normal() {
-        let mut text_system = DummyTextSys;
+        let mut text_system = TestTextBackend;
         let mut focus_system = FocusSystem::new();
         let state = ButtonState::default();
         let input = Input::default();
@@ -1046,7 +1046,7 @@ mod tests {
 
     #[test]
     fn test_button_visual_hovered() {
-        let mut text_system = DummyTextSys;
+        let mut text_system = TestTextBackend;
         let mut focus_system = FocusSystem::new();
         let state = ButtonState::default();
         let mut input = Input::default();
@@ -1131,7 +1131,7 @@ mod tests {
 
     #[test]
     fn test_button_visual_pressed() {
-        let mut text_system = DummyTextSys;
+        let mut text_system = TestTextBackend;
         let mut focus_system = FocusSystem::new();
         let state = ButtonState::default();
         let mut input = Input::default();
@@ -1218,7 +1218,7 @@ mod tests {
 
     #[test]
     fn test_button_visual_focused() {
-        let mut text_system = DummyTextSys;
+        let mut text_system = TestTextBackend;
         let mut focus_system = FocusSystem::new();
         let state = ButtonState::default();
         let spec = btn_spec(Rect::new(10.0, 10.0, 100.0, 30.0));
@@ -1303,7 +1303,7 @@ mod tests {
 
     #[test]
     fn test_button_visual_disabled() {
-        let mut text_system = DummyTextSys;
+        let mut text_system = TestTextBackend;
         let mut focus_system = FocusSystem::new();
         let state = ButtonState::default();
         let spec = ButtonSpec {
@@ -1378,7 +1378,7 @@ mod tests {
 
     #[test]
     fn test_button_logical_content_placement_respects_padding() {
-        let mut text_system = DummyTextSys;
+        let mut text_system = TestTextBackend;
         let mut focus_system = FocusSystem::new();
         let mut state = ButtonState::default();
         let spec = ButtonSpec {
@@ -1459,7 +1459,7 @@ mod tests {
 
     #[test]
     fn test_regression_custom_style_no_theme_lookup() {
-        let mut text_system = DummyTextSys;
+        let mut text_system = TestTextBackend;
         let mut focus_system = FocusSystem::new();
         let state = ButtonState::default();
         let input = Input::default();
@@ -1616,7 +1616,7 @@ mod tests {
     #[test]
     fn test_high_level_explicit_placement_via_manual_layout() {
         use crate::layouts::ManualLayout;
-        let mut text_system = DummyTextSys;
+        let mut text_system = TestTextBackend;
         let mut focus = FocusSystem::new();
         let input = crate::Input::default();
         let mut cmds = crate::draw::DrawCommands::new();
@@ -1645,7 +1645,7 @@ mod tests {
     #[test]
     fn test_high_level_honors_user_style() {
         use crate::layouts::ManualLayout;
-        let mut text_system = DummyTextSys;
+        let mut text_system = TestTextBackend;
         let mut focus = FocusSystem::new();
         let input = crate::Input::default();
         let mut cmds = crate::draw::DrawCommands::new();
@@ -1683,12 +1683,12 @@ mod tests {
 
     #[test]
     fn test_calc_button_intrinsic_size() {
-        let mut ts = DummyTextSys;
+        let mut ts = TestTextBackend;
         let spec = raw::ButtonCalcIntrinsicSizeSpec {
             text: "Btn",
             style: ButtonStyle::primary_from_theme(&theme::Theme::default()),
         };
-        // "Btn" = 3 chars * 8px = 24 wide, 16 tall (DummyTextSys).
+        // "Btn" = 3 chars * 8px = 24 wide, 16 tall (TestTextBackend).
         // width = 24 + 2*pad_x(14) = 52; height = max(16 + 2*pad_y(6), min_height 28) = 28.
         let i = raw::calc_button_intrinsic_size(&spec, &mut ts);
         assert_eq!(i.preferred, Some(Vec2::new(52.0, 28.0)));
@@ -1697,7 +1697,7 @@ mod tests {
     #[test]
     fn test_button_auto_layout_uses_intrinsic_size() {
         use crate::layouts::{ColumnLayout, ColumnLayoutParams, ManualLayout};
-        let mut text_system = DummyTextSys;
+        let mut text_system = TestTextBackend;
         let mut focus = FocusSystem::new();
         let input = Input::default();
         let mut cmds = DrawCommands::new();

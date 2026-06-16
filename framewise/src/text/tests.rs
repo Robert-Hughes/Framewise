@@ -1,103 +1,12 @@
 use super::*;
-use crate::{
-    Color, DrawCmd, DrawCommands, DrawGlyph, FontId, PrepareGlyphRequest, PreparedGlyphHandle,
-    Rect, TextLineLayoutMetrics, Vec2,
-};
-
-#[derive(Default)]
-struct TestTextBackend {
-    prepared: Vec<PrepareGlyphRequest<u32>>,
-}
-
-impl TestTextBackend {
-    fn glyph_width(ch: char) -> f32 {
-        match ch {
-            '\u{0301}' => 0.0,
-            '\t' => 16.0,
-            '\n' => 0.0,
-            ' ' => 8.0,
-            _ => 8.0,
-        }
-    }
-}
-
-impl TextBackend for TestTextBackend {
-    type ShapedGlyphId = u32;
-
-    fn line_metrics(&mut self, _style: TextStyle) -> TextLineLayoutMetrics {
-        TextLineLayoutMetrics {
-            line_height: 16.0,
-            baseline_offset: 12.0,
-        }
-    }
-
-    fn line_height(&mut self, _style: TextStyle) -> f32 {
-        16.0
-    }
-
-    fn shape_text(&mut self, text: &str, _style: TextStyle) -> ShapedText<Self::ShapedGlyphId> {
-        let mut clusters: Vec<ShapedCluster<Self::ShapedGlyphId>> = Vec::new();
-        for (byte_start, ch) in text.char_indices() {
-            let byte_end = byte_start + ch.len_utf8();
-            let advance = Self::glyph_width(ch);
-            if ch == '\u{0301}' {
-                if let Some(previous) = clusters.last_mut() {
-                    previous.byte_end = byte_end;
-                    previous.glyphs.push(ShapedGlyph {
-                        id: ch as u32,
-                        x: 0.0,
-                        y: -4.0,
-                        advance: 0.0,
-                    });
-                    continue;
-                }
-            }
-            let glyphs = if ch.is_whitespace() {
-                Vec::new()
-            } else {
-                vec![ShapedGlyph {
-                    id: ch as u32,
-                    x: 0.0,
-                    y: 0.0,
-                    advance,
-                }]
-            };
-            clusters.push(ShapedCluster {
-                byte_start,
-                byte_end,
-                advance,
-                is_whitespace: ch.is_whitespace(),
-                glyphs,
-            });
-        }
-        ShapedText { clusters }
-    }
-
-    fn shape_ellipsis(&mut self, style: TextStyle) -> ShapedText<Self::ShapedGlyphId> {
-        self.shape_text("…", style)
-    }
-
-    fn prepare_glyph(
-        &mut self,
-        request: PrepareGlyphRequest<Self::ShapedGlyphId>,
-    ) -> Option<DrawGlyph> {
-        self.prepared.push(request);
-        if request.glyph == ' ' as u32 {
-            return None;
-        }
-        Some(DrawGlyph {
-            handle: PreparedGlyphHandle(request.glyph),
-            top_left: request.glyph_origin,
-        })
-    }
-}
+use crate::{test_utils::TestTextBackend, Color, DrawCmd, DrawCommands, FontId, Rect, Vec2};
 
 fn style(flow: TextFlow) -> TextStyle {
     TextStyle::new(FontId(0), 12.0, 400, flow)
 }
 
 fn layout(text: &str, flow: TextFlow, bounds: TextBounds) -> TextLayout<u32> {
-    let mut backend = TestTextBackend::default();
+    let mut backend = TestTextBackend;
     layout_text(&mut backend, text, style(flow), bounds)
 }
 
@@ -803,7 +712,7 @@ fn caret_geom_alignment_empty_lines_and_empty_text() {
 #[test]
 fn emit_glyphs_skips_backend_non_drawable_glyphs_and_offsets_origin() {
     let style = style(TextFlow::single_line());
-    let mut backend = TestTextBackend::default();
+    let mut backend = TestTextBackend;
     let layout = layout_text(&mut backend, "a b", style, TextBounds::UNBOUNDED);
     let mut commands = DrawCommands::new();
 
@@ -832,7 +741,7 @@ fn emit_glyphs_skips_backend_non_drawable_glyphs_and_offsets_origin() {
 #[test]
 fn emit_glyphs_omits_empty_runs() {
     let style = style(TextFlow::single_line());
-    let mut backend = TestTextBackend::default();
+    let mut backend = TestTextBackend;
     let layout = layout_text(&mut backend, "   ", style, TextBounds::UNBOUNDED);
     let mut commands = DrawCommands::new();
 

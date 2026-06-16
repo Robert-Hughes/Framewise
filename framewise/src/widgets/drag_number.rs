@@ -447,13 +447,13 @@ pub fn drag_number<'a, T: TextBackend, S: LayoutState, CF>(
 mod tests {
     use super::raw::DragNumberSpec;
     use super::*;
-    use crate::test_utils::DummyTextSys;
+    use crate::test_utils::TestTextBackend;
     use crate::types::Vec2;
     use crate::{DrawGlyph, PreparedGlyphHandle};
 
     fn drag_num<'a>(spec: DragNumberSpec<'a>, value: f32) -> (raw::DragNumberResult, DrawCommands) {
         let mut cmds = DrawCommands::new();
-        let mut text_system = DummyTextSys;
+        let mut text_system = TestTextBackend;
         let res = raw::drag_number(
             spec,
             &mut DragNumberState {
@@ -579,7 +579,7 @@ mod tests {
         input.mouse_down = true;
         let mut state = state;
         let mut cmds = DrawCommands::new();
-        let mut text_system = DummyTextSys;
+        let mut text_system = TestTextBackend;
         let _res = raw::drag_number(
             spec,
             &mut state,
@@ -669,7 +669,7 @@ mod tests {
 
     #[test]
     fn test_drag_number_visual_min_value() {
-        let mut text_system = DummyTextSys;
+        let mut text_system = TestTextBackend;
         let spec = DragNumberSpec {
             layer: Layer::default(),
             rect: Rect::new(10.0, 10.0, 100.0, 28.0),
@@ -764,7 +764,7 @@ mod tests {
         input.mouse_pos = Vec2::new(15.0, 15.0);
         input.mouse_pressed = true;
 
-        let mut text_system = DummyTextSys;
+        let mut text_system = TestTextBackend;
         let spec = DragNumberSpec {
             layer: Layer::default(),
             rect: Rect::new(0.0, 0.0, 100.0, 28.0),
@@ -807,7 +807,7 @@ mod tests {
         input.mouse_pos = Vec2::new(15.0, 15.0);
         input.mouse_pressed = true;
 
-        let mut text_system = DummyTextSys;
+        let mut text_system = TestTextBackend;
         let spec = DragNumberSpec {
             layer: Layer::default(),
             rect: Rect::new(0.0, 0.0, 100.0, 28.0),
@@ -847,7 +847,7 @@ mod tests {
             ..Default::default()
         };
         let mut input = Input::default();
-        let mut text_system = DummyTextSys;
+        let mut text_system = TestTextBackend;
 
         // Focus the widget
         focus_system.take_keyboard_focus(state.focus_id);
@@ -926,7 +926,7 @@ mod tests {
     #[test]
     fn test_high_level_explicit_placement_via_manual_layout() {
         use crate::layouts::ManualLayout;
-        let mut text_system = DummyTextSys;
+        let mut text_system = TestTextBackend;
         let mut focus = FocusSystem::new();
         let input = crate::Input::default();
         let mut cmds = crate::draw::DrawCommands::new();

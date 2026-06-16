@@ -294,7 +294,7 @@ pub fn begin_frame<'a, 'b, T: TextBackend, S: LayoutState, L: Layout, CF>(
 mod tests {
     use super::*;
     use crate::layouts::ColumnLayout;
-    use crate::test_utils::DummyTextSys;
+    use crate::test_utils::TestTextBackend;
 
     #[test]
     fn test_frame_layout_and_draw() {
@@ -415,7 +415,7 @@ mod tests {
     #[test]
     fn test_high_level_container_fit_to_children() {
         use crate::layouts::ColumnLayoutParams;
-        let mut ts = DummyTextSys;
+        let mut ts = TestTextBackend;
         let mut focus = FocusSystem::new();
         let input = crate::Input::default();
         let mut cmds = DrawCommands::new();

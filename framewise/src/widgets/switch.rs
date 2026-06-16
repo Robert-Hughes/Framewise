@@ -1166,8 +1166,8 @@ mod tests {
     #[test]
     fn test_high_level_explicit_placement_via_manual_layout() {
         use crate::layouts::ManualLayout;
-        use crate::test_utils::DummyTextSys;
-        let mut text_system = DummyTextSys;
+        use crate::test_utils::TestTextBackend;
+        let mut text_system = TestTextBackend;
         let mut focus = FocusSystem::new();
         let input = crate::Input::default();
         let mut cmds = crate::draw::DrawCommands::new();
@@ -1189,8 +1189,8 @@ mod tests {
     #[test]
     fn test_high_level_honors_user_style() {
         use crate::layouts::ManualLayout;
-        use crate::test_utils::DummyTextSys;
-        let mut text_system = DummyTextSys;
+        use crate::test_utils::TestTextBackend;
+        let mut text_system = TestTextBackend;
         let mut focus = FocusSystem::new();
         let input = crate::Input::default();
         let mut cmds = crate::draw::DrawCommands::new();
@@ -1276,7 +1276,7 @@ mod tests {
     #[test]
     fn test_labelled_switch_intrinsic_size() {
         use crate::layouts::ManualLayout;
-        let mut text_system = crate::test_utils::DummyTextSys;
+        let mut text_system = crate::test_utils::TestTextBackend;
         let mut focus = FocusSystem::new();
         let input = Input::default();
         let mut cmds = DrawCommands::new();
@@ -1291,7 +1291,7 @@ mod tests {
         );
 
         let mut state = SwitchState::default();
-        // DummyTextSys logical size reports 8.0 per character. "vsync" is 5 chars -> 40.0.
+        // TestTextBackend logical size reports 8.0 per character. "vsync" is 5 chars -> 40.0.
         // Height is 16.0. Switch size is 30.0 x 16.0. Gap is 8.0.
         // Combined width: 30.0 + 8.0 + 40.0 = 78.0.
         // Combined height: max(16.0, 16.0) = 16.0.
@@ -1315,7 +1315,7 @@ mod tests {
             &mut state,
             Vec2::new(50.0, 10.0),
             |state, input, focus, cmds| {
-                let mut text_system = crate::test_utils::DummyTextSys;
+                let mut text_system = crate::test_utils::TestTextBackend;
                 let mut ctx = WidgetContext::root(
                     crate::theme::Theme::framewise(),
                     &mut text_system,
@@ -1341,7 +1341,7 @@ mod tests {
     #[test]
     fn test_labelled_switch_disabled_label_visual() {
         use crate::layouts::ManualLayout;
-        let mut text_system = crate::test_utils::DummyTextSys;
+        let mut text_system = crate::test_utils::TestTextBackend;
         let mut focus = FocusSystem::new();
         let input = Input::default();
         let mut cmds = DrawCommands::new();

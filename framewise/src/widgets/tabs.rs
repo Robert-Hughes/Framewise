@@ -379,7 +379,7 @@ pub fn tabs<'a, T: TextBackend, S: LayoutState, CF>(
 mod tests {
     use super::raw::TabsSpec;
     use super::*;
-    use crate::test_utils::DummyTextSys;
+    use crate::test_utils::TestTextBackend;
     use crate::{DrawGlyph, PreparedGlyphHandle};
 
     fn make_spec<'a>(items: &'a [&'a str]) -> TabsSpec<'a> {
@@ -395,7 +395,7 @@ mod tests {
 
     fn tabs_dummy<'a>(spec: TabsSpec<'a>, active_index: usize) -> (DrawCommands, raw::TabsResult) {
         let mut cmds = DrawCommands::new();
-        let mut text_system = DummyTextSys;
+        let mut text_system = TestTextBackend;
         let result = raw::tabs(
             spec,
             &mut TabsState {
@@ -506,7 +506,7 @@ mod tests {
         let mut focus_system = FocusSystem::new();
         focus_system.take_keyboard_focus(state.focus_id);
         focus_system.begin_frame();
-        let mut text_system = DummyTextSys;
+        let mut text_system = TestTextBackend;
         let items = ["Tab1", "Tab2"];
         let spec = make_spec(&items);
         let style = spec.style;
@@ -616,7 +616,7 @@ mod tests {
         input.mouse_pos = Vec2::new(20.0, 10.0);
         input.mouse_pressed = true;
 
-        let mut text_system = DummyTextSys;
+        let mut text_system = TestTextBackend;
         let items = ["Tab1", "Tab2"];
         let spec = make_spec(&items);
 
@@ -647,7 +647,7 @@ mod tests {
         input.mouse_pos = Vec2::new(20.0, 10.0);
         input.mouse_pressed = true;
 
-        let mut text_system = DummyTextSys;
+        let mut text_system = TestTextBackend;
         let items = ["Tab1", "Tab2"];
         let spec = TabsSpec {
             rect: Rect::new(0.0, 0.0, 300.0, 36.0),
@@ -682,7 +682,7 @@ mod tests {
         let mut focus_system = FocusSystem::new();
         let mut state = TabsState::default();
         let mut input = Input::default();
-        let mut text_system = DummyTextSys;
+        let mut text_system = TestTextBackend;
         let items = ["Tab1", "Tab2"];
 
         // Focus the widget
@@ -744,7 +744,7 @@ mod tests {
     #[test]
     fn test_explicit_placement_via_manual_layout() {
         use crate::layouts::ManualLayout;
-        let mut text_system = DummyTextSys;
+        let mut text_system = TestTextBackend;
         let mut focus = FocusSystem::new();
         let input = crate::Input::default();
         let mut cmds = crate::draw::DrawCommands::new();
@@ -770,7 +770,7 @@ mod tests {
 
     #[test]
     fn test_calc_tabs_intrinsic_size() {
-        let mut ts = DummyTextSys;
+        let mut ts = TestTextBackend;
         let spec = raw::TabsCalcIntrinsicSizeSpec {
             items: &["Tab1", "Tab2"],
             style: TabsStyle::from_theme(&crate::theme::Theme::framewise()),

@@ -245,11 +245,11 @@ mod tests {
     use super::raw::StatusSpec;
     use super::*;
     use crate::types::Vec2;
-    use crate::{focus::FocusSystem, test_utils::DummyTextSys, DrawGlyph, PreparedGlyphHandle};
+    use crate::{focus::FocusSystem, test_utils::TestTextBackend, DrawGlyph, PreparedGlyphHandle};
 
     #[test]
     fn test_status_visual_ok() {
-        let mut text_system = DummyTextSys;
+        let mut text_system = TestTextBackend;
         let spec = StatusSpec {
             rect: Rect::new(0.0, 0.0, 100.0, 20.0),
             text: "Online",
@@ -310,7 +310,7 @@ mod tests {
 
     #[test]
     fn test_status_visual_warn() {
-        let mut text_system = DummyTextSys;
+        let mut text_system = TestTextBackend;
         let spec = StatusSpec {
             rect: Rect::new(0.0, 0.0, 100.0, 20.0),
             text: "Warning",
@@ -395,7 +395,7 @@ mod tests {
     #[test]
     fn test_high_level_explicit_placement_via_manual_layout() {
         use crate::layouts::ManualLayout;
-        let mut text_system = DummyTextSys;
+        let mut text_system = TestTextBackend;
         let mut focus = FocusSystem::new();
         let input = crate::Input::default();
         let mut cmds = crate::draw::DrawCommands::new();

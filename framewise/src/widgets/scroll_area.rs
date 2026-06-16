@@ -866,7 +866,7 @@ mod tests {
     use super::test_helpers::frames;
     use super::*;
     use crate::layouts::ManualLayout;
-    use crate::test_utils::DummyTextSys;
+    use crate::test_utils::TestTextBackend;
     use crate::theme;
 
     // Helper to keep test calls the same
@@ -1058,7 +1058,7 @@ mod tests {
         let mut input = Input::new();
         input.key_pressed_page_down = true;
         let mut focus_system = FocusSystem::new();
-        let mut text_system = DummyTextSys;
+        let mut text_system = TestTextBackend;
         let mut btn_state = crate::widgets::button::ButtonState::default();
 
         focus_system.take_keyboard_focus(btn_state.focus_id);
@@ -1132,7 +1132,7 @@ mod tests {
         let mut input = Input::new();
         input.key_pressed_page_down = true;
         let mut focus_system = FocusSystem::new();
-        let mut text_system = DummyTextSys;
+        let mut text_system = TestTextBackend;
         let mut btn_state = crate::widgets::button::ButtonState::default();
 
         focus_system.take_keyboard_focus(btn_state.focus_id);
@@ -1206,7 +1206,7 @@ mod tests {
         let mut state = ScrollState::default();
         let mut focus_system = FocusSystem::new();
         let mut btn_state = crate::widgets::button::ButtonState::default();
-        let mut text_system = DummyTextSys;
+        let mut text_system = TestTextBackend;
 
         focus_system.take_keyboard_focus(btn_state.focus_id);
 
@@ -2118,7 +2118,7 @@ mod tests {
         let mut btn_visible_state = crate::widgets::button::ButtonState::default();
         let mut btn_clipped_state = crate::widgets::button::ButtonState::default();
         let mut btn_start_state = crate::widgets::button::ButtonState::default();
-        let mut text_system = DummyTextSys;
+        let mut text_system = TestTextBackend;
 
         let btn_visible_id = btn_visible_state.focus_id;
 
@@ -2259,7 +2259,7 @@ mod tests {
         let mut scroll_state = ScrollState::default();
         let mut btn_partial_state = crate::widgets::button::ButtonState::default();
         let mut btn_start_state = crate::widgets::button::ButtonState::default();
-        let mut text_system = DummyTextSys;
+        let mut text_system = TestTextBackend;
 
         let btn_partial_id = btn_partial_state.focus_id;
 
@@ -3045,14 +3045,14 @@ mod nested_bubbling_tests {
         assert_eq!(outer_state.offset.y, 100.0, "Should not leak cross-axis");
     }
 
-    use crate::test_utils::DummyTextSys;
+    use crate::test_utils::TestTextBackend;
 
     // 5. Keyboard / Inner Content / Same-axis (Bubble)
     #[test]
     fn test_nested_keyboard_content_same_axis_bubbles() {
         let mut focus_system = FocusSystem::new();
         let mut input = Input::new();
-        let mut text_system = DummyTextSys;
+        let mut text_system = TestTextBackend;
         let mut outer_state = ScrollState::default();
         let mut inner_state = ScrollState::default();
         let mut btn_state = crate::widgets::button::ButtonState::default();
@@ -3166,7 +3166,7 @@ mod nested_bubbling_tests {
     fn test_nested_keyboard_content_cross_axis_isolates() {
         let mut focus_system = FocusSystem::new();
         let mut input = Input::new();
-        let mut text_system = DummyTextSys;
+        let mut text_system = TestTextBackend;
         let mut outer_state = ScrollState::default();
         let mut inner_state = ScrollState::default();
         let mut btn_state = crate::widgets::button::ButtonState::default();
@@ -3770,7 +3770,7 @@ mod nested_bubbling_tests {
     fn test_outer_horiz_inner_vert_keyboard_content_cross_axis_isolates() {
         let mut focus_system = FocusSystem::new();
         let mut input = Input::new();
-        let mut text_system = DummyTextSys;
+        let mut text_system = TestTextBackend;
         let mut outer_state = ScrollState::default();
         let mut inner_state = ScrollState::default();
         let mut btn_state = crate::widgets::button::ButtonState::default();
@@ -4338,7 +4338,7 @@ mod nested_bubbling_tests {
     fn test_triple_nested_keyboard_content_middle_blocks() {
         let mut focus_system = FocusSystem::new();
         let mut input = Input::new();
-        let mut text_system = DummyTextSys;
+        let mut text_system = TestTextBackend;
         let mut outer_state = ScrollState::default();
         let mut middle_state = ScrollState::default();
         let mut inner_state = ScrollState::default();
@@ -4989,7 +4989,7 @@ mod nested_bubbling_tests {
     fn test_reversed_triple_nested_keyboard_content_middle_blocks() {
         let mut focus_system = FocusSystem::new();
         let mut input = Input::new();
-        let mut text_system = DummyTextSys;
+        let mut text_system = TestTextBackend;
         let mut outer_state = ScrollState::default();
         let mut middle_state = ScrollState::default();
         let mut inner_state = ScrollState::default();
@@ -6127,7 +6127,7 @@ mod nested_bubbling_tests {
     fn test_nested_2d_keyboard_content_at_extent_bubbles_to_outer() {
         let mut focus_system = FocusSystem::new();
         let mut input = Input::new();
-        let mut text_system = DummyTextSys;
+        let mut text_system = TestTextBackend;
         let mut outer_state = ScrollState::default();
         let mut inner_state = ScrollState::default();
         let mut btn_state = crate::widgets::button::ButtonState::default();
@@ -6343,7 +6343,7 @@ mod nested_bubbling_tests {
     #[test]
     fn test_high_level_explicit_placement_via_manual_layout() {
         use crate::layouts::ManualLayout;
-        let mut text_system = DummyTextSys;
+        let mut text_system = TestTextBackend;
         let mut focus = FocusSystem::new();
         let input = crate::Input::default();
         let mut cmds = crate::draw::DrawCommands::new();
@@ -6459,7 +6459,7 @@ mod nested_bubbling_tests {
 
     #[test]
     fn test_scroll_extent_exact_viewport_alignment() {
-        let mut text_system = DummyTextSys;
+        let mut text_system = TestTextBackend;
         let mut focus = FocusSystem::new();
         let input = Input::new();
         let mut cmds = DrawCommands::new();

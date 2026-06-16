@@ -225,7 +225,7 @@ mod tests {
     use super::raw::LabelSpec;
     use super::*;
     use crate::{
-        test_utils::DummyTextSys,
+        test_utils::TestTextBackend,
         text::FontId,
         text::{PrepareGlyphRequest, ShapedCluster, ShapedGlyph, ShapedText},
         theme, DrawGlyph, Input, PreparedGlyphHandle,
@@ -352,7 +352,7 @@ mod tests {
 
     #[test]
     fn test_label_draws_text() {
-        let mut sys = DummyTextSys;
+        let mut sys = TestTextBackend;
         let spec = LabelSpec {
             layer: Layer::default(),
             rect: Rect::new(0.0, 0.0, 100.0, 50.0),
@@ -411,7 +411,7 @@ mod tests {
 
     #[test]
     fn test_label_rule() {
-        let mut sys = DummyTextSys;
+        let mut sys = TestTextBackend;
         let spec = LabelSpec {
             layer: Layer::default(),
             rect: Rect::new(0.0, 0.0, 100.0, 20.0),
@@ -487,7 +487,7 @@ mod tests {
 
     #[test]
     fn test_label_logical_content_placement_bottom_right() {
-        let mut sys = DummyTextSys;
+        let mut sys = TestTextBackend;
         let spec = LabelSpec {
             layer: Layer::default(),
             rect: Rect::new(10.0, 20.0, 100.0, 50.0),
@@ -627,7 +627,7 @@ mod tests {
     #[test]
     fn test_high_level_explicit_placement_via_manual_layout() {
         use crate::layouts::ManualLayout;
-        let mut text_system = DummyTextSys;
+        let mut text_system = TestTextBackend;
         let mut focus = FocusSystem::new();
         let input = crate::Input::default();
         let mut cmds = crate::draw::DrawCommands::new();
@@ -648,7 +648,7 @@ mod tests {
     #[test]
     fn test_high_level_honors_user_style() {
         use crate::layouts::ManualLayout;
-        let mut text_system = DummyTextSys;
+        let mut text_system = TestTextBackend;
         let mut focus = FocusSystem::new();
         let input = crate::Input::default();
         let mut cmds = crate::draw::DrawCommands::new();
@@ -683,7 +683,7 @@ mod tests {
 
     #[test]
     fn test_calc_label_intrinsic_size() {
-        let mut ts = DummyTextSys;
+        let mut ts = TestTextBackend;
         let theme = crate::theme::Theme::default();
         let spec = raw::LabelCalcIntrinsicSizeSpec {
             text: "Hello",
@@ -696,7 +696,7 @@ mod tests {
     #[test]
     fn test_label_auto_layout_uses_intrinsic_size() {
         use crate::layouts::{ColumnLayout, ColumnLayoutParams, ManualLayout};
-        let mut text_system = DummyTextSys;
+        let mut text_system = TestTextBackend;
         let mut focus = FocusSystem::new();
         let input = Input::default();
         let mut cmds = DrawCommands::new();
@@ -720,7 +720,7 @@ mod tests {
 
     #[test]
     fn test_calc_label_intrinsic_size_with_custom_flow() {
-        let mut ts = DummyTextSys;
+        let mut ts = TestTextBackend;
         let flow = crate::text::TextFlow::wrapped();
         let theme = crate::theme::Theme::default();
         let mut style = LabelStyle::from_theme(&theme);
@@ -736,7 +736,7 @@ mod tests {
     #[test]
     fn test_label_with_custom_flow() {
         use crate::layouts::ManualLayout;
-        let mut text_system = DummyTextSys;
+        let mut text_system = TestTextBackend;
         let mut focus = FocusSystem::new();
         let input = crate::Input::default();
         let mut cmds = crate::draw::DrawCommands::new();

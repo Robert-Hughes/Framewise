@@ -566,13 +566,13 @@ pub fn select<'a, T: TextBackend, S: LayoutState, CF>(
 mod tests {
     use super::raw::SelectSpec;
     use super::*;
-    use crate::test_utils::DummyTextSys;
+    use crate::test_utils::TestTextBackend;
     use crate::types::Vec2;
     use crate::{DrawGlyph, PreparedGlyphHandle};
 
     fn select_dummy<'a>(spec: SelectSpec<'a>) -> (raw::SelectResult, DrawCommands) {
         let mut cmds = DrawCommands::new();
-        let mut text_system = DummyTextSys;
+        let mut text_system = TestTextBackend;
         let result = raw::select(
             spec,
             &mut SelectState::default(),
@@ -668,7 +668,7 @@ mod tests {
 
     #[test]
     fn test_select_visual_open() {
-        let mut text_system = DummyTextSys;
+        let mut text_system = TestTextBackend;
         let items = vec!["Option 1", "Option 2", "Option 3"];
         let spec = SelectSpec {
             layer: Layer::default(),
@@ -910,7 +910,7 @@ mod tests {
         input.mouse_pos = Vec2::new(15.0, 15.0);
         input.mouse_pressed = true;
 
-        let mut text_system = DummyTextSys;
+        let mut text_system = TestTextBackend;
         let items = vec!["Option 1", "Option 2"];
         let spec = SelectSpec {
             layer: Layer::default(),
@@ -951,7 +951,7 @@ mod tests {
         input.mouse_pos = Vec2::new(15.0, 15.0);
         input.mouse_pressed = true;
 
-        let mut text_system = DummyTextSys;
+        let mut text_system = TestTextBackend;
         let items = vec!["Option 1", "Option 2"];
         let spec = SelectSpec {
             layer: Layer::default(),
@@ -988,7 +988,7 @@ mod tests {
         let mut focus_system = FocusSystem::new();
         let mut state = SelectState::default();
         let mut input = Input::default();
-        let mut text_system = DummyTextSys;
+        let mut text_system = TestTextBackend;
         let items = vec!["Option 1", "Option 2", "Option 3"];
 
         // Focus the widget first
@@ -1143,7 +1143,7 @@ mod tests {
     #[test]
     fn test_user_rect_not_overridden() {
         use crate::layouts::ManualLayout;
-        let mut text_system = DummyTextSys;
+        let mut text_system = TestTextBackend;
         let mut focus = FocusSystem::new();
         let input = crate::Input::default();
         let mut cmds = crate::draw::DrawCommands::new();

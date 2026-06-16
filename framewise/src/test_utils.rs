@@ -1,25 +1,26 @@
 use crate::text::{
-    PrepareGlyphRequest, ShapedCluster, ShapedGlyph, ShapedText, TextBackend, TextLineAlign,
-    TextMetrics, TextStyle,
+    PrepareGlyphRequest, ShapedCluster, ShapedGlyph, ShapedText, TextBackend, TextStyle,
 };
 use crate::{DrawGlyph, PreparedGlyphHandle};
 
-/// A dummy text system for unit tests that provides representative text dimensions.
-/// Assumes each character is 8px wide and 16px tall, supporting newlines for multi-line layout.
-pub struct DummyTextSys {
-    pub last_run: Option<(String, TextMetrics)>,
-    pub last_rect_width: f32,
-    pub last_line_align: TextLineAlign,
+/// Deterministic text backend for unit tests.
+///
+/// Each visible character is one 8px cluster, text lines are 16px tall, and
+/// whitespace contributes logical advance without producing drawable glyphs.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct TestTextBackend;
+
+impl TestTextBackend {
+    fn glyph_width(ch: char) -> f32 {
+        match ch {
+            '\u{0301}' | '\n' => 0.0,
+            '\t' => 16.0,
+            _ => 8.0,
+        }
+    }
 }
 
-#[allow(non_upper_case_globals)]
-pub const DummyTextSys: DummyTextSys = DummyTextSys {
-    last_run: None,
-    last_rect_width: 0.0,
-    last_line_align: TextLineAlign::Start,
-};
-
-impl TextBackend for DummyTextSys {
+impl TextBackend for TestTextBackend {
     type ShapedGlyphId = u32;
 
     fn line_height(&mut self, _style: TextStyle) -> f32 {
@@ -27,17 +28,33 @@ impl TextBackend for DummyTextSys {
     }
 
     fn shape_text(&mut self, text: &str, _style: TextStyle) -> ShapedText<Self::ShapedGlyphId> {
-        let mut clusters = Vec::new();
+        let mut clusters: Vec<ShapedCluster<Self::ShapedGlyphId>> = Vec::new();
         for (byte_start, ch) in text.char_indices() {
             let byte_end = byte_start + ch.len_utf8();
-            let advance = 8.0;
+            let advance = Self::glyph_width(ch);
+            if ch == '\u{0301}' {
+                if let Some(previous) = clusters.last_mut() {
+                    previous.byte_end = byte_end;
+                    previous.glyphs.push(ShapedGlyph {
+                        id: ch as u32,
+                        x: 0.0,
+                        y: -4.0,
+                        advance: 0.0,
+                    });
+                    continue;
+                }
+            }
             let is_whitespace = ch.is_whitespace();
-            let glyphs = vec![ShapedGlyph {
-                id: ch as u32,
-                x: 0.0,
-                y: 0.0,
-                advance,
-            }];
+            let glyphs = if is_whitespace {
+                Vec::new()
+            } else {
+                vec![ShapedGlyph {
+                    id: ch as u32,
+                    x: 0.0,
+                    y: 0.0,
+                    advance,
+                }]
+            };
             clusters.push(ShapedCluster {
                 byte_start,
                 byte_end,
@@ -58,7 +75,7 @@ impl TextBackend for DummyTextSys {
                 advance: 8.0,
                 is_whitespace: false,
                 glyphs: vec![ShapedGlyph {
-                    id: '.' as u32,
+                    id: '\u{2026}' as u32,
                     x: 0.0,
                     y: 0.0,
                     advance: 8.0,
@@ -71,7 +88,7 @@ impl TextBackend for DummyTextSys {
         &mut self,
         request: PrepareGlyphRequest<Self::ShapedGlyphId>,
     ) -> Option<DrawGlyph> {
-        if request.glyph == ' ' as u32 {
+        if char::from_u32(request.glyph).is_some_and(char::is_whitespace) {
             return None;
         }
 

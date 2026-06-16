@@ -153,7 +153,7 @@ mod tests {
     use super::raw::ColorSwatchSpec;
     use super::*;
     use crate::focus::FocusSystem;
-    use crate::test_utils::DummyTextSys;
+    use crate::test_utils::TestTextBackend;
 
     #[test]
     fn test_color_swatch_visual_normal() {
@@ -232,7 +232,7 @@ mod tests {
     #[test]
     fn test_high_level_explicit_placement_via_manual_layout() {
         use crate::layouts::ManualLayout;
-        let mut text_system = DummyTextSys;
+        let mut text_system = TestTextBackend;
         let mut focus = FocusSystem::new();
         let input = crate::Input::default();
         let mut cmds = crate::draw::DrawCommands::new();
@@ -257,7 +257,7 @@ mod tests {
     #[test]
     fn test_color_swatch_bounds_and_content_bounds() {
         use crate::layouts::ManualLayout;
-        let mut text_system = DummyTextSys;
+        let mut text_system = TestTextBackend;
         let mut focus = FocusSystem::new();
         let input = crate::Input::default();
         let mut cmds = crate::draw::DrawCommands::new();

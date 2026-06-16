@@ -332,13 +332,13 @@ pub fn chip<'a, T: TextBackend, S: LayoutState, CF>(
 mod tests {
     use super::raw::ChipSpec;
     use super::*;
-    use crate::test_utils::DummyTextSys;
+    use crate::test_utils::TestTextBackend;
     use crate::types::Vec2;
     use crate::{DrawGlyph, PreparedGlyphHandle};
 
     fn chip_raw<'a>(spec: ChipSpec<'a>) -> (raw::ChipResult, DrawCommands) {
         let mut cmds = DrawCommands::new();
-        let mut text_system = DummyTextSys;
+        let mut text_system = TestTextBackend;
         let res = raw::chip(
             spec,
             &mut ChipState::default(),
@@ -407,7 +407,7 @@ mod tests {
 
     #[test]
     fn test_chip_visual_active() {
-        let mut text_system = DummyTextSys;
+        let mut text_system = TestTextBackend;
         let mut state = ChipState::default();
         state.checked = true;
         let spec = ChipSpec {
@@ -478,7 +478,7 @@ mod tests {
         let mut focus_system = FocusSystem::new();
         focus_system.take_keyboard_focus(state.focus_id);
         focus_system.begin_frame();
-        let mut text_system = DummyTextSys;
+        let mut text_system = TestTextBackend;
         let spec = ChipSpec {
             layer: Layer::default(),
             rect: Rect::new(0.0, 0.0, 50.0, 22.0),
@@ -559,7 +559,7 @@ mod tests {
         input.mouse_pos = Vec2::new(10.0, 10.0);
         input.mouse_pressed = true;
 
-        let mut text_system = DummyTextSys;
+        let mut text_system = TestTextBackend;
         let spec = ChipSpec {
             layer: Layer::default(),
             rect: Rect::new(0.0, 0.0, 50.0, 22.0),
@@ -597,7 +597,7 @@ mod tests {
         input.mouse_pos = Vec2::new(10.0, 10.0);
         input.mouse_pressed = true;
 
-        let mut text_system = DummyTextSys;
+        let mut text_system = TestTextBackend;
         let spec = ChipSpec {
             layer: Layer::default(),
             rect: Rect::new(0.0, 0.0, 50.0, 22.0),
@@ -632,7 +632,7 @@ mod tests {
         let mut focus_system = FocusSystem::new();
         let mut state = ChipState::default();
         let mut input = Input::default();
-        let mut text_system = DummyTextSys;
+        let mut text_system = TestTextBackend;
 
         // Frame 1: Focus chip
         focus_system.take_keyboard_focus(state.focus_id);
@@ -725,7 +725,7 @@ mod tests {
     #[test]
     fn test_explicit_placement_via_manual_layout() {
         use crate::layouts::ManualLayout;
-        let mut text_system = DummyTextSys;
+        let mut text_system = TestTextBackend;
         let mut focus = FocusSystem::new();
         let input = crate::Input::default();
         let mut cmds = crate::draw::DrawCommands::new();

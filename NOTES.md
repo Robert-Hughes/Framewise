@@ -33,6 +33,7 @@ Working notes, TODOs, open questions, and half-baked ideas.
   - auto-sizing to height of text (like VS Code commit message)
     - use existing auto-sizing layout stuff?
     - what about width?
+    - can use intrinsic size calculation, if we pass the remaining available LayoutSpace as a 'hint' to the calc_intrinsic_size (maybe rename to something better?) then text edit can auto height if it has a max width!
   - user-sizing using drag handle (height and/or width)
 
   - check all the combinations of \n handling, wrapping, height etc. are meaningful (even if degenerate), to see if we want to tighten it up at all
