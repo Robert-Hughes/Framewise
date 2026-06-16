@@ -483,7 +483,6 @@ mod tests {
     use crate::{DrawGlyph, PreparedGlyphHandle};
 
     struct PlacementTextSys {
-        metrics: crate::text::TextMetrics,
         prepared_rect: Option<Rect>,
     }
 
@@ -491,7 +490,7 @@ mod tests {
         type ShapedGlyphId = u32;
 
         fn line_height(&mut self, _style: crate::text::TextStyle) -> f32 {
-            self.metrics.logical_size.y.max(1.0)
+            20.0
         }
 
         fn shape_text(
@@ -508,13 +507,14 @@ mod tests {
                 clusters: vec![ShapedCluster {
                     byte_start: 0,
                     byte_end: text.len(),
-                    advance: self.metrics.logical_size.x,
+                    advance: 30.0,
                     is_whitespace: false,
                     glyphs: vec![ShapedGlyph {
                         id: 1,
                         x: 0.0,
                         y: -style.size.round(),
-                        advance: self.metrics.logical_size.x,
+                        advance: 30.0,
+                        approx_ink_bounds: Some(Rect::new(-4.0, 3.0, 18.0, 10.0)),
                     }],
                 }],
             }
@@ -534,8 +534,8 @@ mod tests {
             self.prepared_rect = Some(Rect::new(
                 request.glyph_origin.x,
                 request.glyph_origin.y,
-                self.metrics.logical_size.x,
-                self.metrics.logical_size.y,
+                30.0,
+                20.0,
             ));
             Some(DrawGlyph {
                 handle: PreparedGlyphHandle(request.glyph),
@@ -1415,16 +1415,7 @@ mod tests {
 
     #[test]
     fn test_button_ink_content_placement_uses_ink_bounds_when_disabled() {
-        let metrics = crate::text::TextMetrics {
-            logical_size: Vec2::new(30.0, 20.0),
-            ink_bounds: Rect::new(-4.0, 3.0, 18.0, 10.0),
-            line_count: 1,
-            truncated_horizontal: false,
-            truncated_vertical: false,
-            lines: Vec::new(),
-        };
         let mut text_backend = PlacementTextSys {
-            metrics,
             prepared_rect: None,
         };
         let mut focus_system = FocusSystem::new();
@@ -1453,7 +1444,7 @@ mod tests {
 
         assert_eq!(
             text_backend.prepared_rect,
-            Some(Rect::new(45.0, 35.0, 30.0, 20.0))
+            Some(Rect::new(55.0, 37.0, 30.0, 20.0))
         );
     }
 

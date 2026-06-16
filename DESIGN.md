@@ -838,7 +838,7 @@ Because the `WidgetContext` takes the text system as a generic parameter (`Widge
 A major visual challenge in GUI layouts is aligning text containers perfectly with other visual elements such as borders, button centers, input fields, and card edges. Text has two different kinds of geometry, and treating one as the other produces subtle bugs:
 
 - **Logical layout bounds** describe the space used for text flow: advances, baselines, line height, wrapping, ellipsis, caret placement, selection, and hit-testing.
-- **Ink bounds** describe the visible pixels or vector outlines that are actually drawn after shaping, glyph offsets, side bearings, overhangs, accents, and raster placement are applied.
+- **Approximate ink bounds** describe layout-time visible extents estimated from shaped glyph outline/control bounds. Exact raster ink exists only after glyph preparation and emission.
 
 Framewise treats the bounds supplied to the text system as **logical layout constraints**, not promises that all ink will be contained inside the supplied rectangle.
 
@@ -846,9 +846,9 @@ For `measure(text, style, TextBounds)`, `TextBounds` answers: "what logical spac
 
 For `prepare(text, style, Rect)`, the `Rect` is the concrete **logical text block** into which text is shaped and positioned. It supplies the block origin, wrap width, vertical extent, and alignment frame. The renderer or widget may still choose to clip drawing to this rect, but clipping is a rendering policy; it is not the text layout contract.
 
-The `TextMetrics` returned by the interface reports both the resulting **logical** block size and the resulting **ink bounds** after shaping and overflow policy. Under strict policies (`Drop`, successful wrapping, successful ellipsis fitting), the logical size should stay within the provided logical constraints. Policies that explicitly keep overflowing content (`Keep` fallbacks and `OverflowY::Keep`) may report a logical size that exceeds the input constraints; that is the selected overflow behavior, not a contract violation.
+The `TextMetrics` returned by the interface reports both the resulting **logical** block size and the resulting **approximate ink bounds** after shaping and overflow policy. Under strict policies (`Drop`, successful wrapping, successful ellipsis fitting), the logical size should stay within the provided logical constraints. Policies that explicitly keep overflowing content (`Keep` fallbacks and `OverflowY::Keep`) may report a logical size that exceeds the input constraints; that is the selected overflow behavior, not a contract violation.
 
-Ink bounds are related to logical bounds but are not contained by them in general. The ink may sit wholly inside the logical box, protrude to any side, be much smaller than the logical box, be empty for whitespace, or extend beyond the logical box due to italic overhangs, negative side bearings, accents, combining marks, symbol glyphs, or custom font behavior. The relationship is intentionally loose.
+Approximate ink bounds are related to logical bounds but are not contained by them in general. The ink may sit wholly inside the logical box, protrude to any side, be much smaller than the logical box, be empty for whitespace, or extend beyond the logical box due to italic overhangs, negative side bearings, accents, combining marks, symbol glyphs, or custom font behavior. The relationship is intentionally loose. Exact drawn bounds must be derived after `TextLayout::emit_glyphs` from `DrawGlyph::top_left` plus resolved prepared glyph image sizes.
 
 #### Why Logical Bounds Are the Text-System Input
 
@@ -861,8 +861,8 @@ Ink bounds are related to logical bounds but are not contained by them in genera
 
 - Regular text layout, wrapping, caret geometry, and hit-testing operate in logical block coordinates.
 - Widgets that require strict visual containment must clip, add padding, or use a future ink-fitting policy.
-- Widgets that want optical alignment should use `TextMetrics::ink_bounds`, rather than assuming logical metrics describe visible pixels.
-- Labels, buttons, and icon-like text can deliberately choose between logical and optical alignment by choosing whether they align against `TextMetrics::logical_size` or `TextMetrics::ink_bounds`.
+- Widgets that want optical alignment should use `TextMetrics::approx_ink_bounds`, rather than assuming logical metrics describe visible pixels.
+- Labels, buttons, and icon-like text can deliberately choose between logical and optical alignment by choosing whether they align against `TextMetrics::logical_size` or `TextMetrics::approx_ink_bounds`.
 
 ### Alignment Terminology
 
@@ -900,7 +900,7 @@ If this reuse feels confusing in API docs, the fix should be to broaden `Align`'
 For text content placement, the `basis` field chooses which measured text geometry is aligned inside the widget content rect:
 
 - `Logical` aligns the text block using `TextMetrics::logical_size`. This is the normal choice for labels, button captions, paragraphs, and editable text.
-- `Ink` aligns the visible ink using `TextMetrics::ink_bounds`. This is useful for optical centering of icon-like text, emoji, symbols, and badges whose visible pixels do not match their logical advance box.
+- `Ink` aligns the approximate visible ink using `TextMetrics::approx_ink_bounds`. This is useful for optical centering of icon-like text, emoji, symbols, and badges whose visible pixels do not match their logical advance box.
 
 The widget should still call `prepare` with a logical text block rect. Ink-based placement adjusts that rect so the returned ink bounds land at the requested position inside the widget content rect.
 

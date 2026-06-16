@@ -42,6 +42,11 @@ impl TextContentPlacement {
         ContentPlacement::Align(Align::Center),
         ContentPlacement::Align(Align::Center),
     );
+    /// Center using [`TextMetrics::approx_ink_bounds`].
+    ///
+    /// This is optical/layout-time centering, not exact pixel centering. Exact
+    /// raster centering would require preparing glyphs at a concrete draw
+    /// origin first.
     pub const INK_CENTER: Self = Self::ink(
         ContentPlacement::Align(Align::Center),
         ContentPlacement::Align(Align::Center),
@@ -66,7 +71,7 @@ impl TextContentPlacement {
     /// Resolve the logical text block rect used for owned text layout.
     pub fn resolve_rect(self, content_rect: Rect, metrics: TextMetrics) -> Rect {
         let logical = metrics.logical_size;
-        let ink = metrics.ink_bounds;
+        let ink = metrics.approx_ink_bounds;
 
         let (basis_x, basis_w) = match self.basis {
             TextContentBasis::Logical => (0.0, logical.x),
@@ -119,7 +124,7 @@ mod tests {
         let content_rect = Rect::new(10.0, 20.0, 4.0, 12.0);
         let overflow_metrics = TextMetrics {
             logical_size: Vec2::new(9.0, 18.0),
-            ink_bounds: Rect::new(0.0, 0.0, 8.0, 16.0),
+            approx_ink_bounds: Rect::new(0.0, 0.0, 8.0, 16.0),
             line_count: 2,
             truncated_horizontal: true,
             truncated_vertical: true,
@@ -137,7 +142,7 @@ mod tests {
         let content_rect = Rect::new(10.0, 20.0, 100.0, 50.0);
         let metrics = TextMetrics {
             logical_size: Vec2::new(40.0, 16.0),
-            ink_bounds: Rect::new(0.0, 0.0, 40.0, 16.0),
+            approx_ink_bounds: Rect::new(0.0, 0.0, 40.0, 16.0),
             line_count: 1,
             truncated_horizontal: false,
             truncated_vertical: false,
@@ -161,7 +166,7 @@ mod tests {
         let content_rect = Rect::new(10.0, 20.0, 100.0, 50.0);
         let metrics = TextMetrics {
             logical_size: Vec2::new(40.0, 16.0),
-            ink_bounds: Rect::new(0.0, 0.0, 40.0, 16.0),
+            approx_ink_bounds: Rect::new(0.0, 0.0, 40.0, 16.0),
             line_count: 1,
             truncated_horizontal: false,
             truncated_vertical: false,
@@ -177,6 +182,24 @@ mod tests {
         assert_eq!(
             placement.resolve_rect(content_rect, metrics),
             Rect::new(10.0, 37.0, 100.0, 16.0)
+        );
+    }
+
+    #[test]
+    fn text_content_placement_ink_center_uses_approx_ink_offset() {
+        let content_rect = Rect::new(0.0, 0.0, 100.0, 50.0);
+        let metrics = TextMetrics {
+            logical_size: Vec2::new(30.0, 20.0),
+            approx_ink_bounds: Rect::new(-4.0, 3.0, 18.0, 10.0),
+            line_count: 1,
+            truncated_horizontal: false,
+            truncated_vertical: false,
+            lines: Vec::new(),
+        };
+
+        assert_eq!(
+            TextContentPlacement::INK_CENTER.resolve_rect(content_rect, metrics),
+            Rect::new(45.0, 17.0, 30.0, 20.0)
         );
     }
 }

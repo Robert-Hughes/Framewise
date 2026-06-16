@@ -1,9 +1,10 @@
 #[cfg(test)]
 mod tests {
+    use crate::text::types::PreparedGlyphResources;
     use crate::text::SampleTextBackend;
     use framewise::{
         text::{layout_text, measure_text},
-        Color, DrawCommands, FontId, LineHeight, PrepareGlyphRequest, Rect, TextBackend,
+        Color, DrawCommands, DrawGlyph, FontId, LineHeight, PrepareGlyphRequest, Rect, TextBackend,
         TextBounds, TextFlow, TextStyle, Vec2,
     };
 
@@ -305,6 +306,41 @@ mod tests {
         (layout, commands)
     }
 
+    fn union_rect(acc: Option<Rect>, rect: Rect) -> Option<Rect> {
+        if rect.w <= 0.0 || rect.h <= 0.0 {
+            return acc;
+        }
+
+        Some(match acc {
+            Some(existing) => Rect::from_ltrb(
+                existing.x.min(rect.x),
+                existing.y.min(rect.y),
+                existing.right().max(rect.right()),
+                existing.bottom().max(rect.bottom()),
+            ),
+            None => rect,
+        })
+    }
+
+    fn raster_ink_bounds_for_glyphs(
+        glyphs: &[DrawGlyph],
+        resources: &impl PreparedGlyphResources,
+    ) -> Rect {
+        glyphs
+            .iter()
+            .filter_map(|glyph| {
+                let image = resources.resolve_glyph(glyph.handle)?;
+                Some(Rect::new(
+                    glyph.top_left.x,
+                    glyph.top_left.y,
+                    image.atlas_rect.w as f32,
+                    image.atlas_rect.h as f32,
+                ))
+            })
+            .fold(None, union_rect)
+            .unwrap_or(Rect::ZERO)
+    }
+
     #[test]
     fn shaped_combining_mark_records_one_cluster_with_multiple_glyphs() {
         let mut sys = sys();
@@ -471,14 +507,29 @@ mod tests {
     }
 
     #[test]
-    fn test_ink_bounds_match_rasterized_glyph_extents() {
+    fn measure_text_reports_sample_approx_ink_bounds() {
+        let mut sys = sys();
+        let style = style(FontId(1), 18.0, 400, TextFlow::single_line());
+        let metrics = measure_text(&mut sys, "Ink", style, TextBounds::UNBOUNDED);
+
+        assert!(metrics.approx_ink_bounds.w > 0.0);
+        assert!(metrics.approx_ink_bounds.h > 0.0);
+        assert!(metrics.approx_ink_bounds.w <= metrics.logical_size.x);
+    }
+
+    #[test]
+    fn emitted_raster_bounds_are_derived_from_draw_glyphs_and_resources() {
         let mut sys = sys();
         let style = style(FontId(1), 18.0, 400, TextFlow::single_line());
         let (layout, commands) = emit(&mut sys, "Ink", style, TextBounds::UNBOUNDED, Vec2::ZERO);
 
         assert!(!commands.glyphs().is_empty());
-        assert!(layout.metrics().ink_bounds.w > 0.0);
-        assert!(layout.metrics().ink_bounds.h > 0.0);
+        assert!(layout.metrics().approx_ink_bounds.w > 0.0);
+        assert!(layout.metrics().approx_ink_bounds.h > 0.0);
+
+        let raster_bounds = raster_ink_bounds_for_glyphs(commands.glyphs(), &sys);
+        assert!(raster_bounds.w > 0.0);
+        assert!(raster_bounds.h > 0.0);
     }
 
     #[test]

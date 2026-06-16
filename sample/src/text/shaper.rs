@@ -1,7 +1,24 @@
 use crate::text::SampleTextBackend;
 use framewise::{
-    FontId, LineHeight, ShapedCluster, ShapedGlyph, ShapedText, TextLineLayoutMetrics, TextStyle,
+    FontId, LineHeight, Rect, ShapedCluster, ShapedGlyph, ShapedText, TextLineLayoutMetrics,
+    TextStyle,
 };
+use swash::scale::Scaler;
+
+fn outline_approx_ink_bounds(scaler: &mut Scaler<'_>, glyph_id: u16) -> Option<Rect> {
+    let outline = scaler.scale_outline(glyph_id)?;
+    let bounds = outline.bounds();
+    if bounds.is_empty() {
+        return Some(Rect::ZERO);
+    }
+
+    Some(Rect::new(
+        bounds.min.x,
+        -bounds.max.y,
+        bounds.width(),
+        bounds.height(),
+    ))
+}
 
 impl SampleTextBackend {
     /// Get the optical size value for a given pixel size and font.
@@ -55,7 +72,6 @@ impl SampleTextBackend {
         let opsz = self.opsz_for_size(size, font_id);
         let letter_spacing_px = size * style.letter_spacing;
         let font = self.fonts[font_id.0 as usize];
-        let mut shaper = self.shape_context.builder(font).size(size);
 
         let mut vars = Vec::new();
         if self.font_has_wght[font_id.0 as usize] {
@@ -64,11 +80,16 @@ impl SampleTextBackend {
         if self.font_has_opsz[font_id.0 as usize] && opsz > 0.0 {
             vars.push(("opsz", opsz));
         }
+
+        let mut shaper = self.shape_context.builder(font).size(size);
+        let mut scaler = self.scale_context.builder(font).size(size).hint(false);
         if !vars.is_empty() {
             shaper = shaper.variations(&vars);
+            scaler = scaler.variations(&vars);
         }
 
         let mut shaper = shaper.build();
+        let mut scaler = scaler.build();
         shaper.add_str(text);
 
         let mut clusters = Vec::new();
@@ -90,6 +111,11 @@ impl SampleTextBackend {
                     x: pen_x - cluster_x + glyph.x,
                     y: glyph.y,
                     advance,
+                    approx_ink_bounds: if is_whitespace {
+                        Some(Rect::ZERO)
+                    } else {
+                        outline_approx_ink_bounds(&mut scaler, glyph.id)
+                    },
                 });
                 pen_x += advance;
                 cluster_advance += advance;
@@ -101,6 +127,7 @@ impl SampleTextBackend {
                     x: 0.0,
                     y: 0.0,
                     advance: 0.0,
+                    approx_ink_bounds: Some(Rect::ZERO),
                 });
             }
 

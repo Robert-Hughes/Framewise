@@ -106,7 +106,8 @@ pub mod raw {
         if clicked && !spec.disabled && !spec.items.is_empty() {
             let mut x = spec.rect.x;
             for (i, label) in spec.items.iter().enumerate() {
-                let metrics = measure_text(text_backend, label, s.text_style, TextBounds::UNBOUNDED);
+                let metrics =
+                    measure_text(text_backend, label, s.text_style, TextBounds::UNBOUNDED);
                 let tab_w = metrics.logical_size.x + pad_x * 2.0;
                 let tab_rect = Rect::new(x, spec.rect.y, tab_w, tab_h);
                 let is_visible = spec.clip_rect.is_none_or(|c| c.contains(input.mouse_pos));

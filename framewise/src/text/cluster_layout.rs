@@ -34,6 +34,7 @@ pub(super) fn make_source_line<B: TextBackend>(
                     origin: Vec2::new(x + glyph.x, baseline_y + glyph.y),
                     advance: glyph.advance,
                     byte_start,
+                    approx_ink_bounds: glyph.approx_ink_bounds,
                 })
                 .collect();
             clusters.push(OwnedCluster {

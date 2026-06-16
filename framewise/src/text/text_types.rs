@@ -464,11 +464,11 @@ pub struct LineMetrics {
     /// Logical width of the line.
     pub logical_width: f32,
     /// Ink width of the line.
-    pub ink_width: f32,
+    pub approx_ink_width: f32,
     /// X offset of the line's logical start in block-local coordinates.
     pub logical_x: f32,
     /// X offset of the line's ink start in block-local coordinates.
-    pub ink_x: f32,
+    pub approx_ink_x: f32,
     /// Byte start index of the line in the original string.
     pub byte_start: usize,
     /// Byte end index of the line in the original string (exclusive).
@@ -518,15 +518,17 @@ pub struct TextMetrics {
     /// the full string would have needed.
     pub logical_size: Vec2,
 
-    /// Approximate/conservative ink bounds in layout coordinates.
+    /// Approximate raster-independent ink bounds in layout coordinates.
     ///
-    /// These bounds are useful for broad placement decisions and diagnostics,
-    /// but they are not guaranteed to match exact final raster bounds. Ink may
-    /// sit inside the logical box, protrude outside it, be empty for whitespace,
-    /// or be offset by glyph bearings, overhangs, accents, combining marks, or
-    /// symbol placement. Final glyph rasterisation may depend on
-    /// [`TextLayout::emit_glyphs`], backend `prepare_glyph`, draw origin,
-    /// subpixel binning, hinting, glyph bearings, and renderer resource sizes.
+    /// These are computed during shaping/layout from backend-provided glyph
+    /// outline/control bounds where available, or from a conservative fallback.
+    /// They are suitable for optical placement such as
+    /// [`TextContentPlacement::INK_CENTER`](crate::text::TextContentPlacement::INK_CENTER)
+    /// and for diagnostics.
+    ///
+    /// They are not exact final drawn pixel bounds. Final raster ink may depend
+    /// on draw origin, subpixel bin, hinting, rasterisation mode, glyph bearings,
+    /// atlas/resource dimensions, and backend-specific preparation.
     ///
     /// Exact drawn bounds can only be derived from emitted `DrawGlyph`s plus the
     /// resolved image sizes for their `PreparedGlyphHandle`s. `measure_text`
@@ -534,7 +536,7 @@ pub struct TextMetrics {
     /// pixel containment should clip, add padding, or use a future ink-fitting
     /// policy rather than assuming that input bounds contain all rendered
     /// pixels.
-    pub ink_bounds: Rect,
+    pub approx_ink_bounds: Rect,
 
     /// Number of lines actually laid out (after wrapping, hard breaks, and
     /// vertical overflow). Always `≥ 1`, even for empty input.
@@ -568,7 +570,7 @@ pub struct TextMetrics {
 /// - `metrics.line_count == 1` and `lines.len() == 1`.
 /// - `metrics.logical_size.x == 0.0`.
 /// - `metrics.logical_size.y` is one line height.
-/// - `metrics.ink_bounds` is empty because no glyph ink is emitted.
+/// - `metrics.approx_ink_bounds` is empty because no glyph ink is emitted.
 /// - The single line has `byte_start == byte_end == 0`,
 ///   `end_kind == LineEndKind::EndOfText`, and a positive `height`.
 ///
@@ -656,6 +658,8 @@ pub struct LayoutGlyph<G> {
     pub advance: f32,
     /// Source byte index of the cluster that produced this glyph.
     pub byte_start: usize,
+    /// Approximate raster-independent ink bounds relative to this glyph origin.
+    pub approx_ink_bounds: Option<Rect>,
 }
 
 /// A visual caret anchor in prepared text.

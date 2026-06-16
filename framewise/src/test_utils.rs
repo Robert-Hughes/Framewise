@@ -27,7 +27,7 @@ impl TextBackend for TestTextBackend {
         16.0
     }
 
-    fn shape_text(&mut self, text: &str, _style: TextStyle) -> ShapedText<Self::ShapedGlyphId> {
+    fn shape_text(&mut self, text: &str, style: TextStyle) -> ShapedText<Self::ShapedGlyphId> {
         let mut clusters: Vec<ShapedCluster<Self::ShapedGlyphId>> = Vec::new();
         for (byte_start, ch) in text.char_indices() {
             let byte_end = byte_start + ch.len_utf8();
@@ -40,6 +40,7 @@ impl TextBackend for TestTextBackend {
                         x: 0.0,
                         y: -4.0,
                         advance: 0.0,
+                        approx_ink_bounds: Some(crate::Rect::new(0.0, -4.0, 8.0, 4.0)),
                     });
                     continue;
                 }
@@ -53,6 +54,7 @@ impl TextBackend for TestTextBackend {
                     x: 0.0,
                     y: 0.0,
                     advance,
+                    approx_ink_bounds: Some(crate::Rect::new(0.0, -style.size, advance, 16.0)),
                 }]
             };
             clusters.push(ShapedCluster {
@@ -67,7 +69,7 @@ impl TextBackend for TestTextBackend {
         ShapedText { clusters }
     }
 
-    fn shape_ellipsis(&mut self, _style: TextStyle) -> ShapedText<Self::ShapedGlyphId> {
+    fn shape_ellipsis(&mut self, style: TextStyle) -> ShapedText<Self::ShapedGlyphId> {
         ShapedText {
             clusters: vec![ShapedCluster {
                 byte_start: 0,
@@ -79,6 +81,7 @@ impl TextBackend for TestTextBackend {
                     x: 0.0,
                     y: 0.0,
                     advance: 8.0,
+                    approx_ink_bounds: Some(crate::Rect::new(0.0, -style.size, 8.0, 16.0)),
                 }],
             }],
         }

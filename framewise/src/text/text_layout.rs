@@ -93,13 +93,13 @@ pub fn layout_text<B: TextBackend>(
 ///
 /// With strict overflow policies the logical size should fit within bounded
 /// input axes. Policies that explicitly keep overflowing content may return a
-/// logical size larger than the supplied bounds. `ink_bounds` reports approximate
-/// visible bounds, which may protrude outside the logical size due to font
-/// metrics and glyph placement.
+/// logical size larger than the supplied bounds. `approx_ink_bounds` reports
+/// approximate visible bounds, which may protrude outside the logical size due
+/// to font metrics and glyph placement.
 ///
 /// `style.flow.line_align` has no effect on logical sizing, wrapping, or
 /// truncation: those decisions are made in logical line space. It may affect
-/// `ink_bounds`, because alignment shifts the admitted glyphs within the
+/// `approx_ink_bounds`, because alignment shifts the admitted glyphs within the
 /// available line width.
 ///
 /// For empty `text`, this returns the empty-text metrics described on
@@ -166,6 +166,46 @@ pub fn emit_text_in_rect<B: TextBackend>(
         z,
     );
     layout
+}
+
+fn union_rect(acc: Option<Rect>, rect: Rect) -> Option<Rect> {
+    if rect.w <= 0.0 || rect.h <= 0.0 {
+        return acc;
+    }
+
+    Some(match acc {
+        Some(existing) => {
+            let left = existing.x.min(rect.x);
+            let top = existing.y.min(rect.y);
+            let right = existing.right().max(rect.right());
+            let bottom = existing.bottom().max(rect.bottom());
+            Rect::from_ltrb(left, top, right, bottom)
+        }
+        None => rect,
+    })
+}
+
+fn translated_approx_ink<G>(
+    glyph: &LayoutGlyph<G>,
+    line_y_top: f32,
+    line_height: f32,
+) -> Option<Rect> {
+    match glyph.approx_ink_bounds {
+        Some(rect) if rect.w > 0.0 && rect.h > 0.0 => Some(Rect::new(
+            glyph.origin.x + rect.x,
+            glyph.origin.y + rect.y,
+            rect.w,
+            rect.h,
+        )),
+        Some(_) => None,
+        None if glyph.advance > 0.0 => Some(Rect::new(
+            glyph.origin.x,
+            line_y_top,
+            glyph.advance,
+            line_height,
+        )),
+        None => None,
+    }
 }
 
 impl<G: Copy + Eq + Hash> TextLayout<G> {
@@ -399,6 +439,7 @@ impl<G: Copy + Eq + Hash> TextLayout<G> {
         let mut clusters = Vec::new();
         let mut lines = Vec::new();
         let mut block_width = 0.0_f32;
+        let mut block_ink: Option<Rect> = None;
 
         for (idx, mut line) in processed_lines.into_iter().enumerate() {
             let new_baseline_y = idx as f32 * line_height + baseline_offset;
@@ -449,6 +490,13 @@ impl<G: Copy + Eq + Hash> TextLayout<G> {
                 });
             }
 
+            let line_ink = glyphs[glyph_start..]
+                .iter()
+                .filter_map(|glyph| translated_approx_ink(glyph, y_top, line_height))
+                .fold(None, union_rect);
+            block_ink = line_ink.into_iter().fold(block_ink, union_rect);
+            let (ink_x, ink_width) = line_ink.map_or((align_off, 0.0), |rect| (rect.x, rect.w));
+
             lines.push(TextLine {
                 y_top,
                 height: line_height,
@@ -459,9 +507,9 @@ impl<G: Copy + Eq + Hash> TextLayout<G> {
                 byte_start: line.byte_start,
                 byte_end: line.byte_end,
                 logical_width: logical_line_w,
-                ink_width: logical_line_w,
+                ink_width,
                 logical_x: align_off,
-                ink_x: align_off,
+                ink_x,
                 end_kind: line.end_kind,
             });
         }
@@ -472,9 +520,9 @@ impl<G: Copy + Eq + Hash> TextLayout<G> {
                 y_top: line.y_top,
                 height: line.height,
                 logical_width: line.logical_width,
-                ink_width: line.ink_width,
+                approx_ink_width: line.ink_width,
                 logical_x: line.logical_x,
-                ink_x: line.ink_x,
+                approx_ink_x: line.ink_x,
                 byte_start: line.byte_start,
                 byte_end: line.byte_end,
                 end_kind: line.end_kind,
@@ -483,16 +531,7 @@ impl<G: Copy + Eq + Hash> TextLayout<G> {
 
         let metrics = TextMetrics {
             logical_size: Vec2::new(block_width.ceil(), lines.len() as f32 * line_height),
-            ink_bounds: if glyphs.is_empty() {
-                Rect::ZERO
-            } else {
-                Rect::new(
-                    0.0,
-                    0.0,
-                    block_width.ceil(),
-                    lines.len() as f32 * line_height,
-                )
-            },
+            approx_ink_bounds: block_ink.unwrap_or(Rect::ZERO),
             line_count: lines.len() as u32,
             truncated_horizontal,
             truncated_vertical,
@@ -549,6 +588,7 @@ mod tests {
                         x: 0.0,
                         y: 0.0,
                         advance: 8.0,
+                        approx_ink_bounds: Some(Rect::new(0.0, 0.0, 8.0, 16.0)),
                     }],
                 })
                 .collect();

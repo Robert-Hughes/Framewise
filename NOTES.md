@@ -4,22 +4,8 @@ Working notes, TODOs, open questions, and half-baked ideas.
 
 ## Current Work
 
-- D:\Temp\Framewise text refactor.txt
-  - Check code against the design:
-    1. is it implemented completely, correctly, without omission and without unwanted additions
-    2. Is it well tested?
-    3. Did we lose any test coverage compared to the previous design?
-    4. Did we lose any useful documentation or comments?
-    5. Are there any leftovers of the old design?
-  - Update DESIGN.md
-  - The two dodgy tests are:
-    widgets::button::tests::test_button_ink_content_placement_uses_ink_bounds_when_disabled
-    widgets::label::tests::test_label_ink_content_placement_uses_ink_bounds
-    Summary: both try to prove INK_CENTER uses distinct TextMetrics::ink_bounds, but the new widget path recomputes metrics through layout_text, so the fake backend’s stored metrics.ink_bounds is ignored. Later, move that exact assertion to a direct TextContentPlacement::resolve_rect(...) test, and keep these widget tests focused on glyph emission/placement.
-  - AND test_ink_bounds_match_rasterized_glyph_extents
-  - There is also no strong integration test proving TextContentPlacement::INK_CENTER behaves with a layout whose ink_bounds differ from logical_size. placement.rs tests the resolver directly with custom metrics, but normal Framewise layout currently produces approximate block-like ink bounds. That is probably acceptable, but worth being aware that “ink placement” is now mostly a future-facing/approximate feature.
-  - DODGY golden images - spec page, label, button. Probably cos of ink centre broken!
-  - perf 40fps on text edit demo page
+- Update DESIGN.md as per recent text changes
+- check perf 40fps on text edit demo page after text changes
 
 - Text Edit
   - Improve and test
@@ -50,7 +36,7 @@ Working notes, TODOs, open questions, and half-baked ideas.
 
   - Weird behaviour of ligatures(?) with repeated equals sign when soft-wrapping - moves over to left side of textbox, ignoring padding
 
-  - Probably need a full review of the DESIGN.md, code and doc-comments for text.rs to make sure it's consistent, not overly repetitive and is watertight and leaves no ambiguity for how wrapping, spaces etc. are handled.
+  - Probably need a full review of the DESIGN.md, code and doc-comments for the text interface to make sure it's consistent, not overly repetitive and is watertight and leaves no ambiguity for how wrapping, spaces etc. are handled.
 
 - Slider styling - two modes/enum variants for scrollbar vs. regular?
 - Consistency for styling of lines across all widgets - rather than separate width and colour, have a enum which is None or width+colour? Some kind of 'stroke' struct/enum?

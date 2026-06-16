@@ -25,6 +25,7 @@ pub(super) fn apply_ellipsis_x<B: TextBackend>(
                 origin: Vec2::new(pen_x + glyph.x, line_baseline_y + glyph.y),
                 advance: glyph.advance,
                 byte_start: insert_byte,
+                approx_ink_bounds: glyph.approx_ink_bounds,
             });
         }
         pen_x += cluster.advance;

@@ -1,5 +1,8 @@
 use super::*;
-use crate::{test_utils::TestTextBackend, Color, DrawCmd, DrawCommands, FontId, Rect, Vec2};
+use crate::{
+    test_utils::TestTextBackend, Color, DrawCmd, DrawCommands, DrawGlyph, FontId,
+    PrepareGlyphRequest, PreparedGlyphHandle, Rect, Vec2,
+};
 
 fn style(flow: TextFlow) -> TextStyle {
     TextStyle::new(FontId(0), 12.0, 400, flow)
@@ -155,6 +158,48 @@ fn assert_line_ranges(layout: &TextLayout<u32>, ranges: &[(usize, usize)]) {
     assert_eq!(actual, ranges);
 }
 
+struct ApproxInkBackend;
+
+impl TextBackend for ApproxInkBackend {
+    type ShapedGlyphId = u32;
+
+    fn line_height(&mut self, _style: TextStyle) -> f32 {
+        20.0
+    }
+
+    fn shape_text(&mut self, text: &str, _style: TextStyle) -> ShapedText<Self::ShapedGlyphId> {
+        ShapedText {
+            clusters: vec![ShapedCluster {
+                byte_start: 0,
+                byte_end: text.len(),
+                advance: 30.0,
+                is_whitespace: false,
+                glyphs: vec![ShapedGlyph {
+                    id: 1,
+                    x: 2.0,
+                    y: -12.0,
+                    advance: 30.0,
+                    approx_ink_bounds: Some(Rect::new(-4.0, 3.0, 18.0, 10.0)),
+                }],
+            }],
+        }
+    }
+
+    fn shape_ellipsis(&mut self, style: TextStyle) -> ShapedText<Self::ShapedGlyphId> {
+        self.shape_text(".", style)
+    }
+
+    fn prepare_glyph(
+        &mut self,
+        request: PrepareGlyphRequest<Self::ShapedGlyphId>,
+    ) -> Option<DrawGlyph> {
+        Some(DrawGlyph {
+            handle: PreparedGlyphHandle(request.glyph),
+            top_left: request.glyph_origin,
+        })
+    }
+}
+
 #[test]
 fn single_line_is_one_line() {
     let layout = layout(
@@ -199,7 +244,7 @@ fn empty_text_reports_one_blank_line() {
 
     assert_eq!(layout.metrics().line_count, 1);
     assert_eq!(layout.metrics().logical_size, Vec2::new(0.0, 16.0));
-    assert_eq!(layout.metrics().ink_bounds, Rect::ZERO);
+    assert_eq!(layout.metrics().approx_ink_bounds, Rect::ZERO);
     assert_eq!(layout.lines[0].byte_start, 0);
     assert_eq!(layout.lines[0].byte_end, 0);
     assert_eq!(layout.lines[0].end_kind, LineEndKind::EndOfText);
@@ -783,8 +828,8 @@ fn test_line_metrics_logical_and_ink_widths() {
     );
     for line in &hard.metrics().lines {
         assert!(line.logical_width > 0.0);
-        assert!(line.ink_width > 0.0);
-        assert!(line.ink_width <= line.logical_width);
+        assert!(line.approx_ink_width > 0.0);
+        assert!(line.approx_ink_width <= line.logical_width);
     }
 
     let soft = layout(
@@ -795,7 +840,7 @@ fn test_line_metrics_logical_and_ink_widths() {
     assert!(soft.metrics().line_count > 1);
     for line in &soft.metrics().lines {
         assert!(line.logical_width <= 48.0);
-        assert_eq!(line.ink_width, line.logical_width);
+        assert_eq!(line.approx_ink_width, line.logical_width);
     }
 }
 
@@ -926,11 +971,30 @@ fn hit_test_combining_mark_cluster_returns_cluster_boundaries() {
 }
 
 #[test]
-fn metrics_report_ink_bounds_separately_from_logical_size() {
+fn metrics_report_approx_ink_bounds_separately_from_logical_size() {
     let layout = layout("abc", TextFlow::single_line(), TextBounds::UNBOUNDED);
 
     assert_eq!(layout.metrics().logical_size, Vec2::new(24.0, 16.0));
-    assert_eq!(layout.metrics().ink_bounds, Rect::new(0.0, 0.0, 24.0, 16.0));
+    assert_eq!(
+        layout.metrics().approx_ink_bounds,
+        Rect::new(0.0, 0.0, 24.0, 16.0)
+    );
+}
+
+#[test]
+fn measure_text_reports_backend_approx_ink_bounds() {
+    let mut backend = ApproxInkBackend;
+    let metrics = measure_text(
+        &mut backend,
+        "x",
+        style(TextFlow::single_line()),
+        TextBounds::UNBOUNDED,
+    );
+
+    assert_eq!(metrics.logical_size, Vec2::new(30.0, 20.0));
+    assert_eq!(metrics.approx_ink_bounds, Rect::new(-2.0, 3.0, 18.0, 10.0));
+    assert_eq!(metrics.lines[0].approx_ink_x, -2.0);
+    assert_eq!(metrics.lines[0].approx_ink_width, 18.0);
 }
 
 #[test]
@@ -939,7 +1003,7 @@ fn metrics_report_whitespace_logical_advance_without_ink() {
 
     assert_eq!(layout.metrics().logical_size.x, 24.0);
     assert_eq!(layout.glyphs.len(), 0);
-    assert_eq!(layout.metrics().ink_bounds, Rect::ZERO);
+    assert_eq!(layout.metrics().approx_ink_bounds, Rect::ZERO);
 }
 
 #[test]

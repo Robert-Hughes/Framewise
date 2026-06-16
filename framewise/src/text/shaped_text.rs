@@ -35,4 +35,15 @@ pub struct ShapedGlyph<G> {
     pub y: f32,
     /// Shaped advance used by text flow.
     pub advance: f32,
+    /// Approximate raster-independent ink bounds relative to this glyph origin.
+    ///
+    /// Backends should normally derive this from glyph outline/control bounds
+    /// after applying font size, variations, and style choices. It must not
+    /// depend on final draw origin, subpixel bins, hinting, atlas allocation, or
+    /// renderer resource size.
+    ///
+    /// `Some(Rect::ZERO)` means the glyph is known to draw no ink. `None` means
+    /// the backend cannot provide an estimate and Framewise may fall back to a
+    /// conservative logical approximation.
+    pub approx_ink_bounds: Option<crate::types::Rect>,
 }

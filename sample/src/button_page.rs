@@ -607,7 +607,7 @@ pub(crate) fn draw_button_page_content<'a, 'b, CF>(
         label(
             &mut row,
             LabelSpecBuilder::new()
-                .text("ink center:")
+                .text("approx ink center:")
                 .style(comparison_label),
             RowLayoutParams::fixed(72.0, 29.0),
         );
