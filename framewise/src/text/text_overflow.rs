@@ -61,5 +61,3 @@ pub(super) fn apply_ellipsis_x<B: TextBackend>(
         trimmed
     }
 }
-
-// ── The trait ───────────────────────────────────────────────────────────────

@@ -11,11 +11,13 @@ Working notes, TODOs, open questions, and half-baked ideas.
     3. Did we lose any test coverage compared to the previous design?
     4. Did we lose any useful documentation or comments?
     5. Are there any leftovers of the old design?
-  - Rename files to avoid duplicate names
+  - Update DESIGN.md
   - The two dodgy tests are:
     widgets::button::tests::test_button_ink_content_placement_uses_ink_bounds_when_disabled
     widgets::label::tests::test_label_ink_content_placement_uses_ink_bounds
     Summary: both try to prove INK_CENTER uses distinct TextMetrics::ink_bounds, but the new widget path recomputes metrics through layout_text, so the fake backend’s stored metrics.ink_bounds is ignored. Later, move that exact assertion to a direct TextContentPlacement::resolve_rect(...) test, and keep these widget tests focused on glyph emission/placement.
+  - AND test_ink_bounds_match_rasterized_glyph_extents
+  - There is also no strong integration test proving TextContentPlacement::INK_CENTER behaves with a layout whose ink_bounds differ from logical_size. placement.rs tests the resolver directly with custom metrics, but normal Framewise layout currently produces approximate block-like ink bounds. That is probably acceptable, but worth being aware that “ink placement” is now mostly a future-facing/approximate feature.
   - DODGY golden images - spec page, label, button. Probably cos of ink centre broken!
   - perf 40fps on text edit demo page
 
@@ -303,7 +305,7 @@ continue to scroll up, and only when you move the mouse does it 'reset' onto the
 
 - Labels and text measurement
   - All the nice text rendering things like kerning, compositing etc. Text should look great, as good as native OS stuff.
-  - Itatlic support - as these are separate .ttf files, we'll need to wrap this up somehow in our SampleTextSystem.
+  - Itatlic support - as these are separate .ttf files, we'll need to wrap this up somehow in our SampleTextBackend.
   - Compare our rendered text with a gold-standard OS renderer, ideally include this in our text system integration tests!
 
 - Text cache miss attribution — if a widget was "unlucky" and was the one that had the

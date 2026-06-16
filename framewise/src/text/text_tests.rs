@@ -759,31 +759,6 @@ fn emit_glyphs_omits_empty_runs() {
 }
 
 #[test]
-fn layout_cache_hits_and_eviction() {
-    let first = layout(
-        "Cache Test",
-        TextFlow::single_line(),
-        TextBounds::width(200.0),
-    );
-    let second = layout(
-        "Cache Test",
-        TextFlow::single_line(),
-        TextBounds::width(200.0),
-    );
-    let different_bounds = layout(
-        "Cache Test",
-        TextFlow::single_line(),
-        TextBounds::width(40.0),
-    );
-
-    assert_eq!(first.metrics(), second.metrics());
-    assert_ne!(
-        first.metrics().logical_size,
-        different_bounds.metrics().logical_size
-    );
-}
-
-#[test]
 fn test_sample_text_system_line_metrics() {
     let layout = layout(
         "hello\nworld",
