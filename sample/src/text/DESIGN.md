@@ -1,97 +1,156 @@
-# Sample Text System Design
+# Sample Text Backend Design
 
-The sample text system is a reference implementation for Framewise's
-`TextSystem` trait. It is allowed to be simple, but it should model text with the
-same concepts exposed by the public API.
+The sample text code is the sample implementation of Framewise's `TextBackend`.
+It is not responsible for Framewise layout policy. It supplies the font,
+shaping, rasterisation, cache, atlas, and renderer-resource pieces used by
+Framewise's dependency-free text layout.
 
-## Layers
+The sample uses Swash for shaping and rasterisation, then stores prepared glyph
+bitmaps in a texture atlas for the renderer.
+
+## Role
+
+Framewise owns text layout. The sample backend owns the font and rendering
+resources needed to make that layout drawable.
+
+The boundary is:
+
+- the sample backend returns `ShapedText` containing shaped clusters and shaped
+  glyph IDs,
+- Framewise converts that into `TextLayout`, line records, layout clusters, and
+  layout glyphs,
+- `TextLayout::emit_glyphs` later calls the backend's `prepare_glyph` for each
+  visible drawable layout glyph,
+- the renderer resolves the returned `PreparedGlyphHandle`s to atlas data.
+
+There is no sample run table for prepared text layouts, no `TextHandle`, and no
+`DrawCmd::Text`.
+
+## Backend Responsibilities
+
+The sample backend is responsible for:
+
+- loading fonts,
+- maintaining Swash shape and scale contexts,
+- reporting `TextLineLayoutMetrics`, including line height and baseline offset,
+- shaping source text into `ShapedText`,
+- shaping the ellipsis marker,
+- preparing individual glyphs for drawing as `DrawGlyph`,
+- allocating and resolving `PreparedGlyphHandle`s,
+- maintaining the glyph cache and atlas.
+
+Baseline offset should come from font ascent, not from `style.size`. The sample
+uses font metrics to compute ascent, descent, leading, and `LineHeight` policy.
+
+## Framewise Responsibilities
+
+Framewise is responsible for:
+
+- hard newline handling,
+- wrapping,
+- horizontal and vertical overflow,
+- ellipsis fitting at cluster boundaries,
+- line records,
+- logical metrics,
+- caret geometry and movement,
+- hit-testing and source byte mapping,
+- glyph-run emission into `DrawCommands`.
+
+The sample backend must not duplicate those layout policies. It supplies shaped
+clusters and drawable resources; Framewise decides how those clusters become
+visual lines.
+
+## Glyphs And Clusters
 
 Text layout uses two different units:
 
 - **Glyphs** are font-specific draw primitives selected by shaping. The renderer
-  draws positioned glyph instances and caches rasterized glyph bitmaps in the
-  atlas.
-- **Clusters** are the smallest indivisible shaped text units used by layout,
-  wrapping, truncation, ellipsis, caret placement, and hit-testing. A cluster
-  should normally correspond to a shaping cluster emitted by Swash. It must not
-  split combining marks, ligatures, or script-shaped units in a way that would
-  corrupt shaping.
+  draws prepared glyph bitmaps and caches rasterized glyph images in the atlas.
+- **Clusters** are indivisible shaped source units. A cluster may contain
+  multiple glyphs, and a glyph may represent multiple source characters.
 
-The text system therefore keeps both:
+Framewise uses clusters for wrapping, overflow, caret placement, hit-testing,
+and source byte mapping. Glyphs should not answer layout questions by
+themselves.
 
-- a glyph stream for rendering and atlas population,
-- a cluster stream for logical layout decisions and source byte mapping.
-
-Glyphs should not answer layout questions by themselves. A single cluster may
-contain multiple glyphs, and a single glyph may represent multiple source
-characters.
+The backend's job is to preserve Swash's shaping cluster boundaries in
+`ShapedCluster`. Framewise's job is to preserve those indivisible units during
+layout.
 
 ## Shaping
 
-Swash produces shaped clusters. The sample text system records each Swash
-cluster with:
+Swash emits shaped clusters. The sample maps each Swash cluster to
+`ShapedCluster` with:
 
 - source byte range,
-- glyph range,
-- logical x position,
 - advance,
-- whitespace/hard-break classification.
+- whitespace classification,
+- shaped `ShapedGlyph` IDs,
+- shaped glyph offsets and advances,
+- approximate raster-independent ink bounds where available.
 
-The shaped glyphs inside a cluster remain renderer-facing data. The cluster is
-the movement, wrapping, truncation, and hit-test unit.
+Hard newlines are handled before backend shaping. Framewise splits source text
+into hard-break source lines, calls `shape_text` for each segment, and creates
+the hard-break layout clusters and line records itself. The sample backend does
+not need to manufacture hard-newline clusters.
 
-Hard newlines are represented as hard-break clusters so line records and visible
-debug output can still map back to the source string.
+The ellipsis marker is shaped separately through `shape_ellipsis`, currently as
+the Unicode ellipsis character.
 
-## Wrapping And Overflow
+## Glyph Preparation
 
-`OverflowX::WrapCluster` operates on whole clusters:
+`prepare_glyph` receives a `PrepareGlyphRequest`. The request contains the
+backend-shaped glyph ID, the `TextStyle`, and the final glyph origin after
+Framewise layout and caller draw origin have both been applied.
 
-- if a cluster fits, it is admitted to the current line,
-- if it does not fit and the current line is non-empty, it starts a new line,
-- if it still does not fit on an empty line, `WrapClusterFallback` chooses
-  whether to keep the whole cluster overflowing or drop the whole cluster.
+The backend uses the final origin for horizontal subpixel bin selection. It then
+looks up or rasterizes the glyph for the selected font, size, weight, optical
+size, and subpixel bin.
 
-`OverflowX::WrapWord` groups contiguous non-whitespace clusters into word
-segments. Unicode whitespace creates word wrapping opportunities; this includes
-tabs, not only ASCII spaces. Future work may use the full Unicode line breaking
-algorithm for CJK and punctuation-sensitive breaks.
+`prepare_glyph` returns `Option<DrawGlyph>`. It returns `None` for spaces,
+newlines, zero-area glyphs, or failed rasterisation. For drawable glyphs,
+`DrawGlyph::top_left` includes glyph bearing and bitmap placement. It is the
+final bitmap top-left, not the baseline origin or cluster position.
 
-Whitespace is not grouped into runs. Each whitespace cluster is its own
-breakable word-like segment. This means whitespace follows the same overflow
-hierarchy as other segments: if it fits, it is admitted; if it does not fit on a
-non-empty line, it may cause a soft wrap; if it cannot fit even on an empty
-line, the `WrapWordFallback` chain applies.
+The renderer later resolves `DrawGlyph::handle` to atlas UVs and image size, and
+draws the bitmap at `DrawGlyph::top_left` without scaling.
 
-The one exception is the Framewise soft-wrap boundary rule: when a whitespace
-cluster itself overflows a non-empty line, that single whitespace cluster is
-attached to the previous visual line with zero advance rather than producing a
-whitespace-only line. The same collapse applies when a fitted whitespace cluster
-is immediately followed by a segment or cluster that causes the soft wrap and
-the line already contains non-whitespace content before that whitespace.
-Adjacent whitespace remains preserved and participates in wrapping normally; a
-soft wrap collapses only the single boundary whitespace character for that wrap.
-Fallback is still evaluated after wrapping: a whitespace cluster on an empty
-line uses the selected fallback only if it still cannot fit there.
+## Atlas And Handles
 
-`OverflowX::Drop`, `OverflowX::Keep`, and ellipsis fitting also operate on
-clusters. Ellipsis fitting trims whole clusters before appending the shaped
-ellipsis cluster.
+`PreparedGlyphHandle` is an opaque renderer-ready glyph resource handle. It is
+not a source character, not a cluster, not a text run, and not a font glyph ID by
+itself.
 
-## Caret And Hit Testing
+In the sample, a `GlyphKey` combines font ID, glyph index, size, weight, optical
+size, and horizontal subpixel bin. The backend maps each `GlyphKey` to a stable
+`PreparedGlyphHandle`, stores glyph pixels in the atlas, and resolves handles
+back to atlas rectangles for the renderer.
 
-Caret placement and hit-testing resolve against cluster boundaries. A point
-inside a cluster maps to either the cluster start or cluster end boundary. The
-system must not return a byte index inside a source range that was shaped as one
-indivisible cluster.
+## Metrics
 
-Editable text may later add finer grapheme-aware caret stops where the shaper
-and script rules allow it, but cluster boundaries are the conservative baseline.
+The backend supplies line height and baseline offset. Framewise uses those
+metrics when building visual lines, caret geometry, and text block metrics.
+
+`measure_text` and `TextLayout::metrics` report stable logical layout metrics.
+`TextMetrics::logical_size` is suitable for widget sizing.
+`TextMetrics::approx_ink_bounds` is approximate and conservative in layout
+coordinates. Exact drawn bounds require emitted `DrawGlyph`s plus the resolved
+atlas image sizes for their `PreparedGlyphHandle`s. Final raster ink may depend
+on draw origin, subpixel bin, hinting, rasterisation mode, and backend resource
+details.
 
 ## Invariants
 
-- No visual line contains only part of a cluster.
-- Line records include both glyph and cluster ranges.
-- Rendering uses glyph ranges; layout and input use cluster ranges.
-- `measure` and `prepare` produce identical metrics for the same logical bounds.
-- Cached layouts include enough cluster metadata for caret and hit-test queries.
+- Backend shaping must not split indivisible shaping clusters.
+- Framewise layout must not split clusters.
+- Every source character in a shaped segment must be accounted for by shaped
+  cluster byte ranges.
+- `prepare_glyph` may skip non-drawable glyphs by returning `None`.
+- `PreparedGlyphHandle` must remain valid for the renderer resource lifetime
+  expected by the sample renderer.
+- `DrawGlyph::top_left` is the final bitmap top-left.
+- Framewise owns wrapping, overflow, line records, caret semantics, and
+  hit-testing.
+- The sample backend must not duplicate Framewise layout policy.
+- There is no `TextHandle`, no `DrawCmd::Text`, and no sample-owned prepared
+  layout cache.

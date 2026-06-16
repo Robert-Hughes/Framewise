@@ -28,6 +28,75 @@ In short: if a value changes because the user clicked or typed, it belongs in `*
 
 ---
 
+## Text Architecture
+
+Framewise owns text layout policy. The application supplies a `TextBackend`,
+but that backend does not decide where Framewise lines wrap, which clusters are
+admitted by overflow, or how editor caret positions work. Wrapping, hard newline
+handling, line records, horizontal and vertical overflow, ellipsis placement,
+logical metrics, caret geometry, hit-testing, insertion byte conversion, caret
+movement, and glyph-run emission are all Framewise responsibilities.
+
+The backend boundary is deliberately narrow:
+
+- `TextBackend::shape_text` shapes source text into `ShapedText`, made of
+  `ShapedCluster`s and backend-shaped `ShapedGlyph` IDs.
+- `TextBackend::shape_ellipsis` shapes the overflow marker used by ellipsis
+  policies.
+- `TextBackend::line_metrics` supplies line height and baseline offset through
+  `TextLineLayoutMetrics`.
+- `TextBackend::prepare_glyph` turns one visible laid-out glyph into an
+  optional `DrawGlyph`.
+
+Font loading, fallback strategy, Swash state, glyph rasterisation, glyph cache
+keys, atlas allocation, texture upload, `PreparedGlyphHandle` allocation, and
+`PreparedGlyphHandle` to renderer-resource lookup are backend/application
+concerns. Framewise remains dependency-free; Swash, font files, atlas packing,
+glyph rasterisation, and WGPU resources stay in the sample/backend.
+
+`layout_text(...)` is the main layout entry point:
+
+```rust
+let layout = layout_text(text_backend, text, style, bounds);
+let metrics = layout.metrics();
+```
+
+It returns an owned `TextLayout<G>`. Widgets query that layout directly for
+metrics, caret geometry, hit-testing, insertion byte conversion, and caret
+movement. There is no `TextHandle` or `TextLayoutHandle` indirection, and there
+is no Framewise-side layout cache by default. Caching, if an application needs
+it, belongs above this owned value API.
+
+Drawing is a second step. `TextLayout::emit_glyphs(...)` walks the visible
+layout glyphs, passes their final glyph origins to `TextBackend::prepare_glyph`,
+and stores any returned `DrawGlyph`s in the `DrawCommands` glyph arena. The draw
+stream contains:
+
+```rust
+DrawCmd::GlyphRun {
+    glyphs: Range<usize>,
+    color,
+    z,
+}
+```
+
+The range references a contiguous slice of `DrawCommands::glyphs()`. The
+renderer resolves each `DrawGlyph::handle` (`PreparedGlyphHandle`) to atlas or
+resource data and performs a no-scale glyph bitmap draw at
+`DrawGlyph::top_left`. That `top_left` is the final bitmap top-left. It is not a
+text baseline origin, cluster position, or unadjusted glyph origin.
+
+Measurement reports stable logical layout geometry. `measure_text(...)` and
+`TextLayout::metrics()` produce `TextMetrics`, whose `logical_size` is suitable
+for widget sizing. `TextMetrics::approx_ink_bounds` is an approximate,
+conservative layout-coordinate estimate, not exact final raster ink. Exact
+drawn ink requires emitted `DrawGlyph`s plus image sizes resolved from their
+`PreparedGlyphHandle`s. Final raster bounds may depend on draw origin, subpixel
+binning, hinting, rasterisation mode, atlas placement, and backend-specific
+resource details.
+
+---
+
 ## Text Wrapping And Whitespace
 
 Soft-wrapping whitespace has no single obvious answer. CSS has several
@@ -200,6 +269,52 @@ that causes a soft wrap when the line already contains non-whitespace content,
 so the normal well-authored prose case avoids a blank space-only line or a
 visually trailing wrap space without turning Framewise into a
 whitespace-collapsing text engine.
+
+This behaviour is implemented by Framewise's text layout module. The backend
+supplies shaped clusters and glyph IDs; it does not implement the soft-wrap
+boundary policy.
+
+---
+
+## Text Overflow And Cluster Boundaries
+
+Framewise text overflow is cluster-based. A cluster is the conservative
+indivisible unit returned by shaping: it may contain multiple glyphs, and a
+single glyph may represent multiple source characters. Layout must not split a
+cluster, because doing so can break combining marks, ligatures, or script-shaped
+units.
+
+`OverflowX::WrapCluster` operates on whole clusters:
+
+- if a cluster fits, it is admitted to the current line,
+- if it does not fit and the current line is non-empty, it starts a new line,
+- if it still does not fit on an empty line, `WrapClusterFallback` chooses
+  whether to keep the overflowing cluster or drop it.
+
+`OverflowX::WrapWord` groups contiguous non-whitespace clusters into word-like
+segments. Unicode whitespace creates wrapping opportunities, and each
+whitespace cluster is its own breakable word-like segment. Whitespace follows
+the same overflow hierarchy as other segments: if it fits, it is admitted; if it
+does not fit on a non-empty line, it may cause a soft wrap; if it cannot fit
+even on an empty line, the fallback chain applies.
+
+The one exception is the soft-wrap boundary-space rule described above. When a
+single whitespace cluster becomes the boundary between two visual lines, that
+cluster may remain in the previous line with zero advance rather than producing
+a whitespace-only visual line. Adjacent whitespace remains preserved and
+participates in wrapping normally.
+
+`OverflowX::Drop`, `OverflowX::Keep`, and ellipsis fitting also operate on whole
+clusters. Ellipsis fitting trims whole clusters before appending the shaped
+ellipsis marker. `OverflowY` operates on whole visual lines after hard breaks,
+wrapping, and horizontal overflow have been resolved.
+
+Caret placement and hit-testing also resolve against cluster boundaries. A point
+inside a cluster maps to either the cluster start or cluster end boundary.
+Framewise must not return an insertion byte inside a source range that was
+shaped as one indivisible cluster. Editable text may later add finer
+grapheme-aware caret stops where the shaper and script rules allow it, but
+cluster boundaries are the conservative baseline.
 
 ---
 
@@ -466,7 +581,7 @@ enum LayoutResult<T> {
 
 The `Fallback` arm always carries a usable value (`Start` offset `0.0` for alignment; intrinsic clamped to the ceiling, or `0.0`, for `Fill`) **and** a `LayoutViolation` describing what was unsatisfiable plus the call site (`#[track_caller]`). The `LayoutState` methods (`layout`, `begin_layout`, `end_layout`) compose these — assembling their `Rect`/`LayoutSpace` from the fallback sub-values and keeping the first violation — and return a `LayoutResult` instead of unwrapping internally. Layout math therefore never panics on its own; it *reports*.
 
-**Reaction is a `WidgetContext`-level concern.** Every layout call funnels through `WidgetContext` (which owns the draw buffer, the text system, and the policy), which reacts according to `layout_policy: LayoutViolationPolicy`:
+**Reaction is a `WidgetContext`-level concern.** Every layout call funnels through `WidgetContext` (which owns the draw buffer, the text backend, and the policy), which reacts according to `layout_policy: LayoutViolationPolicy`:
 
 - **`Panic`** (default) — rethrow the violation's message. Preserves the strict fail-loud contract; used by tests and any caller wanting a hard guarantee.
 - **`Highlight`** — draw a red outline over the fallback geometry, label the violation message in red at its corner, and keep running.
@@ -487,7 +602,7 @@ A middle ground is required, and *which* one depends on the caller, so it can't 
 
 The key separation: keep the *value* deterministic and safe (`Start` / clamped-intrinsic) while putting the *loudness* in a policy-driven reaction. Because the fallback never moves a widget off-screen or yields a `NaN`, the rest of the frame lays out sanely around a flagged region even under `Highlight`.
 
-**Scope and non-goals (current).** Only `Panic` and `Highlight` exist; `WarnOnce` (log-once-per-call-site, needs cross-frame state) and `Collect` (push violations to a buffer the app reads) are deferred. `Fallback` carries a single violation (first-wins); plural is a possible future direction. The text label is drawn on every reaction path — the `on_finish` closure carries the text system into the deferred `begin_layout`/`end_layout` reactions, so they label the box like the immediate path does. The unrecoverable cases (deferred `Auto` + `Center`/`End`, `WrapLayout` `Auto` deferred) remain hard panics — no safe fallback exists, so the policy does not apply to them.
+**Scope and non-goals (current).** Only `Panic` and `Highlight` exist; `WarnOnce` (log-once-per-call-site, needs cross-frame state) and `Collect` (push violations to a buffer the app reads) are deferred. `Fallback` carries a single violation (first-wins); plural is a possible future direction. The text label is drawn on every reaction path — the `on_finish` closure carries the text backend into the deferred `begin_layout`/`end_layout` reactions, so they label the box like the immediate path does. The unrecoverable cases (deferred `Auto` + `Center`/`End`, `WrapLayout` `Auto` deferred) remain hard panics — no safe fallback exists, so the policy does not apply to them.
 
 #### Sizing Resolution Rules
 
@@ -550,16 +665,16 @@ Plain, low-level functions residing in `raw` submodules (e.g., `widgets::button:
 Appending directly to a caller-supplied buffer avoids intermediate `Vec` allocation and copying, and gives callers stable index-based access to the command list (which frame containers rely on for placeholder patching). The `cmds: &mut DrawCommands` parameter is always last, after all other inputs.
 
 ```rust
-pub fn button<T: TextSystem>(spec: raw::ButtonSpec, state: &mut ButtonState, input: &Input, focus_system: &mut FocusSystem, text_backend: &mut T, cmds: &mut DrawCommands) -> raw::ButtonResult;
-pub fn label<T: TextSystem>(spec: raw::LabelSpec, text_backend: &mut T, cmds: &mut DrawCommands) -> raw::LabelResult;
-pub fn text_edit<T: TextSystem>(spec: raw::TextEditSpec, state: &mut TextEditState, input: &Input, focus_system: &mut FocusSystem, text_backend: &mut T, cmds: &mut DrawCommands) -> raw::TextEditResult;
+pub fn button<T: TextBackend>(spec: raw::ButtonSpec, state: &mut ButtonState, input: &Input, focus_system: &mut FocusSystem, text_backend: &mut T, cmds: &mut DrawCommands) -> raw::ButtonResult;
+pub fn label<T: TextBackend>(spec: raw::LabelSpec, text_backend: &mut T, cmds: &mut DrawCommands) -> raw::LabelResult;
+pub fn text_edit<T: TextBackend>(spec: raw::TextEditSpec, state: &mut TextEditState, input: &Input, focus_system: &mut FocusSystem, text_backend: &mut T, cmds: &mut DrawCommands) -> raw::TextEditResult;
 ```
 
 Each `raw::*Result` is a concrete struct with no trait requirements on callers, no metadata maps, and no dynamic type slots. It does **not** contain a `DrawCommands` field — commands are written directly to the caller's buffer. (Result structs may derive utility traits such as `Debug` for inspection, but callers need not implement any traits to receive or use them.)
 
 ### High-Level Freestanding API: Context Integration
 
-A unified `WidgetContext<'a, T, S, CF>` carries style parameters (theme, current text size, colors, clip rectangles, time) and system resources (mutable references `&'a mut T` to the text system and `&'a mut FocusSystem` to the focus manager). The `CF` parameter is a one-shot cleanup closure (`FnOnce(&mut FocusSystem, &mut DrawCommands, Rect)`) called when the context is finished; it receives the shared command buffer and the layout's resolved space (the `Rect` from `finish()` reading `resolve_space()`), so container cleanup can both emit post-commands and resolve geometry from how large the children turned out. Root contexts use a no-op function pointer, container widgets embed their cleanup in a move closure (see [Scroll Areas and Windows](#scroll-areas-windows-and-symmetrical-container-life-cycles)).
+A unified `WidgetContext<'a, T, S, CF>` carries style parameters (theme, current text size, colors, clip rectangles, time) and system resources (mutable references `&'a mut T` to the text backend and `&'a mut FocusSystem` to the focus manager). The `CF` parameter is a one-shot cleanup closure (`FnOnce(&mut FocusSystem, &mut DrawCommands, Rect)`) called when the context is finished; it receives the shared command buffer and the layout's resolved space (the `Rect` from `finish()` reading `resolve_space()`), so container cleanup can both emit post-commands and resolve geometry from how large the children turned out. Root contexts use a no-op function pointer, container widgets embed their cleanup in a move closure (see [Scroll Areas and Windows](#scroll-areas-windows-and-symmetrical-container-life-cycles)).
 
 High-level widget APIs are freestanding, highly ergonomic functions that accept a mutable reference to `WidgetContext` along with a high-level spec/state:
 
@@ -617,7 +732,7 @@ This pattern cleanly separates concerns:
 - **High-level functions** are ergonomic and integrated — they resolve defaults, handle layout, bridge from high-level specs to raw specs, and hide low-level geometry/context plumbing.
 
 > [!IMPORTANT]
-> **Spec and SpecBuilder Value-Type Rule:** High-level `*Spec`, `*SpecBuilder`, `raw::*CalcIntrinsicSizeSpec`, and `raw::*Spec` structs must contain only basic parameters (colors, fonts, rectangles, strings, numeric values, etc.). They must NOT include references to "systems" like `Input`, `FocusSystem`, `TextSystem`, or other external state. These structs should be pure value-types with no external references, making them trivially copyable, serializable, and independent of any runtime context.
+> **Spec and SpecBuilder Value-Type Rule:** High-level `*Spec`, `*SpecBuilder`, `raw::*CalcIntrinsicSizeSpec`, and `raw::*Spec` structs must contain only basic parameters (colors, fonts, rectangles, strings, numeric values, etc.). They must NOT include references to runtime resources like `Input`, `FocusSystem`, a text backend, or other external state. These structs should be pure value-types with no external references, making them trivially copyable, serializable, and independent of any runtime context.
 
 > [!IMPORTANT]
 > **Theme Must Not Appear in Specs:** A high-level `*Spec`, raw calc spec, or raw widget spec must never hold a `Theme` field. `Theme` is a high-level convenience that maps semantic intent to concrete values; by the time a spec is constructed, that mapping is complete. The `*SpecBuilder` is the only place `Theme` is touched — its `defaults_from_theme()` method reads the theme and writes resolved colours, sizes, and font handles into the builder's fields. The resulting specs contain only those resolved primitives. This keeps every spec self-contained and renderer-agnostic, and prevents the low-level widget layer from having any dependency on the theme system.
@@ -710,7 +825,7 @@ The practical dividing line is interaction states: as soon as a widget needs dis
 Example:
 ```rust
 // Low-level: fully resolved, no defaults
-pub fn button<T: TextSystem>(spec: raw::ButtonSpec, state: &mut ButtonState, input: &Input, focus_system: &mut FocusSystem, text_backend: &mut T) -> raw::ButtonResult;
+pub fn button<T: TextBackend>(spec: raw::ButtonSpec, state: &mut ButtonState, input: &Input, focus_system: &mut FocusSystem, text_backend: &mut T) -> raw::ButtonResult;
 
 // High-level: uses builder to resolve defaults
 pub fn button<T, S, CF>(
@@ -826,12 +941,13 @@ Because Framewise lacks a retained UI tree, routing user input to the correct wi
 
 Text rendering is notoriously complex (shaping, hinting, atlas caching) and is a common source of hidden costs in immediate-mode GUIs. Framewise handles this by strictly separating **preparation** from **rendering**.
 
-To draw text, the widget building pass must have access to a `TextSystem` (provided by the application).
+To draw text, the widget building pass must have access to a `TextBackend` provided by the application.
 
-- **Widget pass:** The widget asks the `TextSystem` to prepare a string. The text system shapes the string, updates its internal glyph atlas if there are cache misses, and returns a size and an opaque `TextHandle`.
-- **Render pass:** The library emits `DrawCmd::Text(TextHandle)`. The renderer blindly draws the pre-cached quads.
+- **Layout pass:** The widget calls `layout_text(...)` or `measure_text(...)`. Framewise asks the backend to shape text and provide line metrics, then builds an owned `TextLayout` containing line, cluster, glyph, caret, hit-test, and metrics data.
+- **Emission pass:** The widget calls `TextLayout::emit_glyphs(...)`. Framewise asks the backend to prepare each visible drawable layout glyph at its final glyph origin. Returned `DrawGlyph`s are appended to the `DrawCommands` glyph arena and referenced by `DrawCmd::GlyphRun`.
+- **Render pass:** The renderer reads each glyph run, resolves every `PreparedGlyphHandle` through backend/application resource tables, and draws each prepared bitmap at `DrawGlyph::top_left`.
 
-Because the `WidgetContext` takes the text system as a generic parameter (`WidgetContext<'a, T: TextSystem, S>`), we guarantee **static dispatch** and maximum inlining, keeping the library zero-cost while maintaining complete renderer agnosticism.
+Because the `WidgetContext` takes the text backend as a generic parameter (`WidgetContext<'a, T: TextBackend, S>`), Framewise keeps static dispatch and renderer agnosticism without storing renderer-facing text layout handles.
 
 ### Logical Layout Bounds and Ink Bounds
 
@@ -840,20 +956,20 @@ A major visual challenge in GUI layouts is aligning text containers perfectly wi
 - **Logical layout bounds** describe the space used for text flow: advances, baselines, line height, wrapping, ellipsis, caret placement, selection, and hit-testing.
 - **Approximate ink bounds** describe layout-time visible extents estimated from shaped glyph outline/control bounds. Exact raster ink exists only after glyph preparation and emission.
 
-Framewise treats the bounds supplied to the text system as **logical layout constraints**, not promises that all ink will be contained inside the supplied rectangle.
+Framewise treats text bounds as **logical layout constraints**, not promises that all ink will be contained inside the supplied rectangle.
 
-For `measure(text, style, TextBounds)`, `TextBounds` answers: "what logical space is available for shaping, wrapping, alignment, and overflow policy?" A bounded width constrains line breaking and horizontal overflow handling. A bounded height constrains which visual lines are admitted. These inputs are available before final ink is known, so they cannot honestly be tight ink boxes.
+For `measure_text(text_backend, text, style, TextBounds)`, `TextBounds` answers: "what logical space is available for shaping, wrapping, alignment, and overflow policy?" A bounded width constrains line breaking and horizontal overflow handling. A bounded height constrains which visual lines are admitted. These inputs are available before final ink is known, so they cannot honestly be tight ink boxes.
 
-For `prepare(text, style, Rect)`, the `Rect` is the concrete **logical text block** into which text is shaped and positioned. It supplies the block origin, wrap width, vertical extent, and alignment frame. The renderer or widget may still choose to clip drawing to this rect, but clipping is a rendering policy; it is not the text layout contract.
+For drawing, widgets lay text out against the concrete logical text block size and pass the block origin to `TextLayout::emit_glyphs(...)`. The logical block supplies the wrap width, vertical extent, and alignment frame. The renderer or widget may still choose to clip drawing to this rect, but clipping is a rendering policy; it is not the text layout contract.
 
 The `TextMetrics` returned by the interface reports both the resulting **logical** block size and the resulting **approximate ink bounds** after shaping and overflow policy. Under strict policies (`Drop`, successful wrapping, successful ellipsis fitting), the logical size should stay within the provided logical constraints. Policies that explicitly keep overflowing content (`Keep` fallbacks and `OverflowY::Keep`) may report a logical size that exceeds the input constraints; that is the selected overflow behavior, not a contract violation.
 
 Approximate ink bounds are related to logical bounds but are not contained by them in general. The ink may sit wholly inside the logical box, protrude to any side, be much smaller than the logical box, be empty for whitespace, or extend beyond the logical box due to italic overhangs, negative side bearings, accents, combining marks, symbol glyphs, or custom font behavior. The relationship is intentionally loose. Exact drawn bounds must be derived after `TextLayout::emit_glyphs` from `DrawGlyph::top_left` plus resolved prepared glyph image sizes.
 
-#### Why Logical Bounds Are the Text-System Input
+#### Why Logical Bounds Are the Text Input
 
-1. **Wrapping and editing are advance-based.** Text flow is driven by shaped cluster advances. A cluster is the smallest indivisible shaped text unit emitted by the text system; it should not split combining marks, ligatures, or script-shaped units in a way that would corrupt shaping. Spaces have advance but no ink; combining marks may have ink but little or no advance. Wrapping by ink would make ordinary text unstable and would make caret and hit-testing behavior harder to reason about.
-2. **The ink box is an output of shaping and rasterization.** The caller cannot provide a tight ink rect before the text system has shaped the string, selected glyphs, applied offsets, and measured raster placement.
+1. **Wrapping and editing are advance-based.** Text flow is driven by shaped cluster advances. A cluster is the smallest indivisible shaped text unit emitted by the backend; it should not split combining marks, ligatures, or script-shaped units in a way that would corrupt shaping. Spaces have advance but no ink; combining marks may have ink but little or no advance. Wrapping by ink would make ordinary text unstable and would make caret and hit-testing behavior harder to reason about.
+2. **The ink box is an output of shaping and rasterization.** The caller cannot provide a tight ink rect before the backend has shaped the string and before glyph preparation has selected subpixel bins, hinting, bitmap placement, and renderer resources.
 3. **Overflow policy must be explicit.** A caller that needs hard pixel containment should request clipping or a future ink-fit policy. A caller that passes a logical rect should not assume that visible ink cannot spill outside it.
 4. **Different widgets want different alignment bases.** Text labels, editable text, menus, and paragraphs usually want logical centering/alignment. Icon-like glyphs and optical badges may want ink centering. Keeping both concepts explicit lets each widget choose the correct behavior.
 
@@ -868,7 +984,7 @@ Approximate ink bounds are related to logical bounds but are not contained by th
 
 Framewise has several alignment concepts that sound similar but operate at different layers. They should stay separate in naming, documentation, and implementation.
 
-1. **`TextFlow::line_align`** positions each shaped line horizontally inside the logical text layout block supplied to the text system. It is per-line text flow policy. It does not move the widget, does not choose the text block's vertical position, and does not change text measurement, wrapping, or truncation.
+1. **`TextFlow::line_align`** positions each shaped line horizontally inside the logical text layout block supplied to Framewise text layout. It is per-line text flow policy. It does not move the widget, does not choose the text block's vertical position, and does not change text measurement, wrapping, or truncation.
 2. **Layout `Align`** positions a child widget inside the available parent layout space on one axis. It is parent-to-child widget placement, used through types such as `Placement` and `Placement2D`. It moves the widget's resolved `Rect`.
 3. **Widget text/content placement** positions the prepared text block inside the widget's own content rect. It is local to widgets such as labels and buttons. It does not move the widget in its parent, and it should not be implemented by changing `TextFlow::line_align`.
 
@@ -902,7 +1018,7 @@ For text content placement, the `basis` field chooses which measured text geomet
 - `Logical` aligns the text block using `TextMetrics::logical_size`. This is the normal choice for labels, button captions, paragraphs, and editable text.
 - `Ink` aligns the approximate visible ink using `TextMetrics::approx_ink_bounds`. This is useful for optical centering of icon-like text, emoji, symbols, and badges whose visible pixels do not match their logical advance box.
 
-The widget should still call `prepare` with a logical text block rect. Ink-based placement adjusts that rect so the returned ink bounds land at the requested position inside the widget content rect.
+The widget should still lay out text against a logical text block rect. Ink-based placement adjusts that rect so the reported approximate ink bounds land at the requested position inside the widget content rect.
 
 ---
 
@@ -1010,7 +1126,7 @@ Design decisions around how complex container widgets (Scroll Areas and Windows)
 For high-performance rendering of lines, circles, and rectangles without the visual trade-offs or cost of MSAA (Multi-Sample Anti-Aliasing), Framewise uses CPU-side proxy quad expansion and GPU-side analytical distance field (SDF) evaluation.
 
 ### Core Philosophy & Text Handling
-- **Text System**: AA for text is handled specially within the text system (e.g., using subpixel or grayscale glyph caching/rasterization), as text rendering is highly specialized and unique.
+- **Text Backend**: AA for text is handled specially within the backend (e.g., using subpixel or grayscale glyph caching/rasterization), as text rendering is highly specialized and unique.
 - **Other Geometry**: For lines, rectangles, borders, and general widget geometry, we will use a dual solution: **pixel snapping** and **analytical AA**. This hybrid approach provides maximum visual quality with high performance, unlike MSAA (Multi-Sample Anti-Aliasing), which would yield poor visual quality for text/lines and bad performance.
 
 ### Renderer vs. Widget Responsibilities
