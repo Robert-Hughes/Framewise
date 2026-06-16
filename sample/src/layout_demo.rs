@@ -22,7 +22,7 @@
 //!   M. RowLayout main-axis End       — trailing action anchored to row end.
 //!   N. Overlapping buttons (ManualLayout) — manual layout with overlapping buttons.
 
-use crate::text::SampleTextSystem;
+use crate::text::SampleTextBackend;
 use framewise::{
     focus::FocusSystem,
     input::Input,
@@ -80,7 +80,7 @@ pub fn draw_layout_page(
     input: &Input,
     _time: f64,
     win_size: (f32, f32),
-    text_system: &mut SampleTextSystem,
+    text_system: &mut SampleTextBackend,
     debug_layout: bool,
 ) -> framewise::DrawCommands {
     let (win_w, win_h) = win_size;
@@ -137,7 +137,7 @@ pub fn draw_layout_page(
 pub(crate) fn draw_layout_page_content<'a, 'b, CF>(
     outer: &'b mut WidgetContext<
         'a,
-        SampleTextSystem,
+        SampleTextBackend,
         framewise::layouts::OffsetState<framewise::ColumnState>,
         CF,
     >,
@@ -657,7 +657,7 @@ pub(crate) fn draw_layout_page_content<'a, 'b, CF>(
 
             // Measure the two intrinsic buttons up front — the reorder trick needs
             // their sizes before the fill child can be placed.
-            let measure = |ts: &mut SampleTextSystem, label: &str| {
+            let measure = |ts: &mut SampleTextBackend, label: &str| {
                 let spec = ButtonSpecBuilder::new()
                     .text(label)
                     .style(secondary)
@@ -762,9 +762,9 @@ pub(crate) fn draw_layout_page_content<'a, 'b, CF>(
 /// A full-width label used as a heading/label. Generic over the
 /// column context's `on_finish` closure type, so it works inside any column.
 fn label_row<
-    CF: FnOnce(&mut FocusSystem, &mut SampleTextSystem, &mut framewise::DrawCommands, Rect),
+    CF: FnOnce(&mut FocusSystem, &mut SampleTextBackend, &mut framewise::DrawCommands, Rect),
 >(
-    col: &mut WidgetContext<SampleTextSystem, ColumnState, CF>,
+    col: &mut WidgetContext<SampleTextBackend, ColumnState, CF>,
     text: &str,
     height: f32,
 ) {
@@ -776,18 +776,18 @@ fn label_row<
 }
 
 fn heading<
-    CF: FnOnce(&mut FocusSystem, &mut SampleTextSystem, &mut framewise::DrawCommands, Rect),
+    CF: FnOnce(&mut FocusSystem, &mut SampleTextBackend, &mut framewise::DrawCommands, Rect),
 >(
-    col: &mut WidgetContext<SampleTextSystem, ColumnState, CF>,
+    col: &mut WidgetContext<SampleTextBackend, ColumnState, CF>,
     text: &str,
 ) {
     label_row(col, text, 30.0);
 }
 
 fn subheading<
-    CF: FnOnce(&mut FocusSystem, &mut SampleTextSystem, &mut framewise::DrawCommands, Rect),
+    CF: FnOnce(&mut FocusSystem, &mut SampleTextBackend, &mut framewise::DrawCommands, Rect),
 >(
-    col: &mut WidgetContext<SampleTextSystem, ColumnState, CF>,
+    col: &mut WidgetContext<SampleTextBackend, ColumnState, CF>,
     text: &str,
 ) {
     label_row(col, text, 22.0);

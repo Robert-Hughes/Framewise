@@ -5,7 +5,7 @@
 //! scroll_area) renders the scaffolding, and each `section_NN_*` fn below is
 //! compiled in only when the widgets it demonstrates are enabled.
 
-use crate::text::SampleTextSystem;
+use crate::text::SampleTextBackend;
 #[allow(unused_imports)]
 use framewise::text::{measure_text, TextBackend};
 #[cfg(feature = "radio")]
@@ -1095,7 +1095,7 @@ impl Default for SpecWidgetsState {
 
 // Used only by sections that show fake/static states; may be unused in minimal builds.
 #[allow(dead_code)]
-fn static_badge<CF, LS: LayoutState>(b: &mut WidgetContext<SampleTextSystem, LS, CF>, rect: Rect) {
+fn static_badge<CF, LS: LayoutState>(b: &mut WidgetContext<SampleTextBackend, LS, CF>, rect: Rect) {
     let size = 9.0;
     let color = b.theme.muted;
     let spec_builder = LabelSpecBuilder::new().text("(STATIC)").style(LabelStyle {
@@ -1120,7 +1120,7 @@ fn static_badge<CF, LS: LayoutState>(b: &mut WidgetContext<SampleTextSystem, LS,
 }
 
 fn sec_y<CF>(
-    b: &mut WidgetContext<SampleTextSystem, ColumnState, CF>,
+    b: &mut WidgetContext<SampleTextBackend, ColumnState, CF>,
     w: f32,
     num: &str,
     title: &str,
@@ -1196,7 +1196,7 @@ fn sec_y<CF>(
 }
 
 #[allow(dead_code)]
-fn group_y<CF>(b: &mut WidgetContext<SampleTextSystem, ColumnState, CF>, text: &str) {
+fn group_y<CF>(b: &mut WidgetContext<SampleTextBackend, ColumnState, CF>, text: &str) {
     b.spacer(32.0);
     {
         let text: &str = &text.to_uppercase();
@@ -1214,7 +1214,7 @@ fn group_y<CF>(b: &mut WidgetContext<SampleTextSystem, ColumnState, CF>, text: &
 // ── Main function ─────────────────────────────────────────────────────────────
 
 pub fn draw_spec_page(
-    ts: &mut SampleTextSystem,
+    ts: &mut SampleTextBackend,
     focus_system: &mut FocusSystem,
     state: &mut SpecPageState,
     input: &Input,
@@ -1269,13 +1269,13 @@ pub fn draw_spec_page(
 
 pub fn draw_spec_page_inner<LS, CF>(
     state: &mut SpecWidgetsState,
-    page: &mut WidgetContext<SampleTextSystem, LS, CF>,
+    page: &mut WidgetContext<SampleTextBackend, LS, CF>,
     debug_layout: bool,
     w: f32,
 ) where
     <LS as SpacerLayoutState>::SpacerParams: From<LinearSpacer>,
     LS: SpacerLayoutState<Params = RowLayoutParams>,
-    CF: FnOnce(&mut FocusSystem, &mut SampleTextSystem, &mut DrawCommands, framewise::Rect),
+    CF: FnOnce(&mut FocusSystem, &mut SampleTextBackend, &mut DrawCommands, framewise::Rect),
 {
     let content_w = w.min(1100.0);
 
@@ -1380,7 +1380,7 @@ pub fn draw_spec_page_inner<LS, CF>(
     }
 }
 
-fn header_section<CF>(b: &mut WidgetContext<SampleTextSystem, ColumnState, CF>, content_w: f32) {
+fn header_section<CF>(b: &mut WidgetContext<SampleTextBackend, ColumnState, CF>, content_w: f32) {
     b.spacer(LinearSpacer::always(64.0));
     let mut b = b.child_with_layout(ColumnLayoutParams::fixed(content_w, 320.0), ManualLayout);
     let logo_rect = b.layout(Rect::new(0.0, 0.0, 96.0, 96.0), IntrinsicSize::UNKNOWN);
@@ -1542,7 +1542,7 @@ fn hero_logo(t: &Theme, x0: f32, y0: f32) -> DrawCommands {
 
 #[cfg(feature = "button")]
 fn section_01_buttons<CF>(
-    b: &mut WidgetContext<SampleTextSystem, ColumnState, CF>,
+    b: &mut WidgetContext<SampleTextBackend, ColumnState, CF>,
     content_w: f32,
     state: &mut SpecWidgetsState,
     should_reset: &mut bool,
@@ -1804,7 +1804,7 @@ fn section_01_buttons<CF>(
 
 #[cfg(feature = "text_edit")]
 fn section_02_text_inputs<CF>(
-    b: &mut WidgetContext<SampleTextSystem, ColumnState, CF>,
+    b: &mut WidgetContext<SampleTextBackend, ColumnState, CF>,
     content_w: f32,
     state: &mut SpecWidgetsState,
 ) {
@@ -2059,7 +2059,7 @@ fn section_02_text_inputs<CF>(
 
 #[cfg(all(feature = "checkbox", feature = "radio", feature = "switch"))]
 fn section_03_toggles<CF>(
-    b: &mut WidgetContext<SampleTextSystem, ColumnState, CF>,
+    b: &mut WidgetContext<SampleTextBackend, ColumnState, CF>,
     content_w: f32,
     state: &mut SpecWidgetsState,
 ) {
@@ -2343,7 +2343,7 @@ fn section_03_toggles<CF>(
 
 #[cfg(all(feature = "slider", feature = "drag_number", feature = "color_swatch"))]
 fn section_04_sliders<CF>(
-    b: &mut WidgetContext<SampleTextSystem, ColumnState, CF>,
+    b: &mut WidgetContext<SampleTextBackend, ColumnState, CF>,
     content_w: f32,
     state: &mut SpecWidgetsState,
 ) {
@@ -2648,7 +2648,7 @@ fn section_04_sliders<CF>(
     feature = "menu"
 ))]
 fn section_05_selection<CF>(
-    b: &mut WidgetContext<SampleTextSystem, ColumnState, CF>,
+    b: &mut WidgetContext<SampleTextBackend, ColumnState, CF>,
     content_w: f32,
     state: &mut SpecWidgetsState,
 ) {
@@ -2845,7 +2845,7 @@ fn section_05_selection<CF>(
 
 #[cfg(feature = "scroll_area")]
 fn section_06_scrollbars<CF>(
-    b: &mut WidgetContext<SampleTextSystem, ColumnState, CF>,
+    b: &mut WidgetContext<SampleTextBackend, ColumnState, CF>,
     content_w: f32,
     state: &mut SpecWidgetsState,
 ) {
@@ -3137,7 +3137,7 @@ fn section_06_scrollbars<CF>(
 
 #[cfg(feature = "tabs")]
 fn section_07_tabs<CF>(
-    b: &mut WidgetContext<SampleTextSystem, ColumnState, CF>,
+    b: &mut WidgetContext<SampleTextBackend, ColumnState, CF>,
     content_w: f32,
     state: &mut SpecWidgetsState,
 ) {
@@ -3170,7 +3170,7 @@ fn section_07_tabs<CF>(
     feature = "status"
 ))]
 fn section_08_progress<CF>(
-    b: &mut WidgetContext<SampleTextSystem, ColumnState, CF>,
+    b: &mut WidgetContext<SampleTextBackend, ColumnState, CF>,
     content_w: f32,
     time: f64,
 ) {
@@ -3326,7 +3326,7 @@ fn section_08_progress<CF>(
 }
 
 #[cfg(feature = "tree")]
-fn section_09_tree<CF>(b: &mut WidgetContext<SampleTextSystem, ColumnState, CF>, content_w: f32) {
+fn section_09_tree<CF>(b: &mut WidgetContext<SampleTextBackend, ColumnState, CF>, content_w: f32) {
     // ── 09 · TREE / LIST ─────────────────────────────────────────────────────
     sec_y(b, content_w, "09", "Tree & list",
         "monospaced rows, ascii carets, ids on the right. the selected row is filled ink — it is unambiguously the focus.");
@@ -3474,7 +3474,7 @@ fn section_09_tree<CF>(b: &mut WidgetContext<SampleTextSystem, ColumnState, CF>,
 
 #[cfg(all(feature = "tooltip", feature = "keycap"))]
 fn section_10_tooltips<CF>(
-    b: &mut WidgetContext<SampleTextSystem, ColumnState, CF>,
+    b: &mut WidgetContext<SampleTextBackend, ColumnState, CF>,
     content_w: f32,
 ) {
     // ── 10 · TOOLTIPS · KEYCAPS ──────────────────────────────────────────────
@@ -3561,7 +3561,7 @@ fn section_10_tooltips<CF>(
 
 #[cfg(all(feature = "window", feature = "drag_number", feature = "checkbox"))]
 fn section_11_window<CF>(
-    b: &mut WidgetContext<SampleTextSystem, ColumnState, CF>,
+    b: &mut WidgetContext<SampleTextBackend, ColumnState, CF>,
     content_w: f32,
     state: &mut SpecWidgetsState,
 ) {
@@ -3913,7 +3913,7 @@ fn section_11_window<CF>(
     feature = "menu"
 ))]
 fn section_12_in_use<CF>(
-    b: &mut WidgetContext<SampleTextSystem, ColumnState, CF>,
+    b: &mut WidgetContext<SampleTextBackend, ColumnState, CF>,
     content_w: f32,
     state: &mut SpecWidgetsState,
 ) {
@@ -4387,7 +4387,7 @@ fn section_12_in_use<CF>(
     }
 }
 
-fn footer_section<CF>(b: &mut WidgetContext<SampleTextSystem, ColumnState, CF>, content_w: f32) {
+fn footer_section<CF>(b: &mut WidgetContext<SampleTextBackend, ColumnState, CF>, content_w: f32) {
     const FOOTER_MARGIN_TOP: f32 = 40.0;
     const FOOTER_TOP_PAD: f32 = 28.0;
     const FOOTER_ITEM_GAP: f32 = 32.0;

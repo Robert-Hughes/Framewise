@@ -1,14 +1,14 @@
 #[cfg(test)]
 mod tests {
-    use crate::text::SampleTextSystem;
+    use crate::text::SampleTextBackend;
     use framewise::{
         text::{layout_text, measure_text},
         Color, DrawCommands, FontId, LineHeight, PrepareGlyphRequest, Rect, TextBackend,
         TextBounds, TextFlow, TextStyle, Vec2,
     };
 
-    fn sys() -> SampleTextSystem {
-        SampleTextSystem::new()
+    fn sys() -> SampleTextBackend {
+        SampleTextBackend::new()
     }
 
     fn style(font: FontId, size: f32, weight: u16, flow: TextFlow) -> TextStyle {
@@ -293,7 +293,7 @@ mod tests {
     }
 
     fn emit(
-        sys: &mut SampleTextSystem,
+        sys: &mut SampleTextBackend,
         text: &str,
         style: TextStyle,
         bounds: TextBounds,

@@ -1,9 +1,9 @@
 use crate::text::types::{AtlasRect, GlyphInfo, GlyphKey};
-use crate::text::SampleTextSystem;
+use crate::text::SampleTextBackend;
 use swash::scale::{Render, Source, StrikeWith};
 use zeno::{Format, Vector};
 
-impl SampleTextSystem {
+impl SampleTextBackend {
     pub fn ensure_glyph(&mut self, key: GlyphKey) {
         if self.glyph_cache.contains_key(&key) {
             return;

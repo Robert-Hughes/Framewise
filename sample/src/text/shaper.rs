@@ -1,9 +1,9 @@
-use crate::text::SampleTextSystem;
+use crate::text::SampleTextBackend;
 use framewise::{
     FontId, LineHeight, ShapedCluster, ShapedGlyph, ShapedText, TextLineLayoutMetrics, TextStyle,
 };
 
-impl SampleTextSystem {
+impl SampleTextBackend {
     /// Get the optical size value for a given pixel size and font.
     /// Returns 0.0 if the font doesn't have opsz axis.
     pub fn opsz_for_size(&self, size: f32, font_id: FontId) -> f32 {

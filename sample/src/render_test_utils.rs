@@ -1,5 +1,5 @@
 use crate::renderer::Renderer;
-use crate::text::SampleTextSystem;
+use crate::text::SampleTextBackend;
 use framewise::DrawCommands;
 use std::path::Path;
 
@@ -13,7 +13,7 @@ pub async fn render_commands_to_rgba(
     width: u32,
     height: u32,
     draw_commands: DrawCommands,
-    mut text_system: SampleTextSystem,
+    mut text_system: SampleTextBackend,
 ) -> Option<RgbaImage> {
     let instance = wgpu::Instance::new(&wgpu::InstanceDescriptor {
         backends: wgpu::Backends::all(),

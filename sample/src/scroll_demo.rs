@@ -1,4 +1,4 @@
-use crate::text::SampleTextSystem;
+use crate::text::SampleTextBackend;
 use framewise::{
     focus::FocusSystem,
     input::Input,
@@ -142,7 +142,7 @@ pub fn draw_scroll_demo(
     input: &Input,
     time: f64,
     win_size: (f32, f32),
-    text_system: &mut SampleTextSystem,
+    text_system: &mut SampleTextBackend,
     debug_layout: bool,
 ) -> framewise::DrawCommands {
     // Clipboard is unused now that the text-edit field has been removed from this
@@ -191,7 +191,7 @@ pub fn draw_scroll_demo(
 pub(crate) fn draw_scroll_demo_content<'a, 'b, CF>(
     main_row: &'b mut WidgetContext<
         'a,
-        SampleTextSystem,
+        SampleTextBackend,
         framewise::layouts::OffsetState<framewise::RowState>,
         CF,
     >,

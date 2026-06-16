@@ -2,7 +2,7 @@
 mod spec_page_golden {
     use crate::{
         render_test_utils::{assert_matches_png_golden, render_commands_to_rgba},
-        text::SampleTextSystem,
+        text::SampleTextBackend,
     };
     use framewise::{
         focus::FocusSystem, input::Input, DrawCommands, LayoutSpace, RowLayout, Theme,
@@ -12,7 +12,7 @@ mod spec_page_golden {
     #[test]
     fn spec_page_matches_golden() {
         pollster::block_on(async {
-            let mut text_system = SampleTextSystem::new();
+            let mut text_system = SampleTextBackend::new();
             text_system.begin_frame();
 
             let mut focus_system = FocusSystem::new();
@@ -54,7 +54,7 @@ mod spec_page_golden {
 mod analytical_aa_golden {
     use crate::{
         render_test_utils::{assert_matches_png_golden, render_commands_to_rgba},
-        text::SampleTextSystem,
+        text::SampleTextBackend,
     };
     use framewise::{Color, DrawCmd, DrawCommands, Rect, Vec2};
 
@@ -63,7 +63,7 @@ mod analytical_aa_golden {
         pollster::block_on(async {
             let width = 400;
             let height = 400;
-            let mut text_system = SampleTextSystem::new();
+            let mut text_system = SampleTextBackend::new();
             text_system.begin_frame();
 
             let mut cmds = DrawCommands::new();
@@ -195,7 +195,7 @@ mod analytical_aa_golden {
 mod button_page_golden {
     use crate::{
         render_test_utils::{assert_matches_png_golden, render_commands_to_rgba},
-        text::SampleTextSystem,
+        text::SampleTextBackend,
     };
     use framewise::{
         focus::FocusSystem, input::Input, ColumnLayout, DrawCommands, LayoutSpace, Theme,
@@ -205,7 +205,7 @@ mod button_page_golden {
     #[test]
     fn button_page_matches_golden() {
         pollster::block_on(async {
-            let mut text_system = SampleTextSystem::new();
+            let mut text_system = SampleTextBackend::new();
             text_system.begin_frame();
 
             let mut focus_system = FocusSystem::new();
@@ -257,7 +257,7 @@ mod button_page_golden {
 mod label_page_golden {
     use crate::{
         render_test_utils::{assert_matches_png_golden, render_commands_to_rgba},
-        text::SampleTextSystem,
+        text::SampleTextBackend,
     };
     use framewise::{
         focus::FocusSystem, input::Input, ColumnLayout, DrawCommands, LayoutSpace, Theme,
@@ -267,7 +267,7 @@ mod label_page_golden {
     #[test]
     fn label_page_matches_golden() {
         pollster::block_on(async {
-            let mut text_system = SampleTextSystem::new();
+            let mut text_system = SampleTextBackend::new();
             text_system.begin_frame();
 
             let mut focus_system = FocusSystem::new();
@@ -318,7 +318,7 @@ mod label_page_golden {
 mod frame_page_golden {
     use crate::{
         render_test_utils::{assert_matches_png_golden, render_commands_to_rgba},
-        text::SampleTextSystem,
+        text::SampleTextBackend,
     };
     use framewise::{
         focus::FocusSystem, input::Input, ColumnLayout, DrawCommands, LayoutSpace, Theme,
@@ -328,7 +328,7 @@ mod frame_page_golden {
     #[test]
     fn frame_page_matches_golden() {
         pollster::block_on(async {
-            let mut text_system = SampleTextSystem::new();
+            let mut text_system = SampleTextBackend::new();
             text_system.begin_frame();
 
             let mut focus_system = FocusSystem::new();
@@ -380,7 +380,7 @@ mod frame_page_golden {
 mod layout_page_golden {
     use crate::{
         render_test_utils::{assert_matches_png_golden, render_commands_to_rgba},
-        text::SampleTextSystem,
+        text::SampleTextBackend,
     };
     use framewise::{
         focus::FocusSystem, input::Input, ColumnLayout, DrawCommands, LayoutSpace, Theme,
@@ -390,7 +390,7 @@ mod layout_page_golden {
     #[test]
     fn layout_page_matches_golden() {
         pollster::block_on(async {
-            let mut text_system = SampleTextSystem::new();
+            let mut text_system = SampleTextBackend::new();
             text_system.begin_frame();
 
             let mut focus_system = FocusSystem::new();
@@ -442,7 +442,7 @@ mod layout_page_golden {
 mod scroll_page_golden {
     use crate::{
         render_test_utils::{assert_matches_png_golden, render_commands_to_rgba},
-        text::SampleTextSystem,
+        text::SampleTextBackend,
     };
     use framewise::{
         focus::FocusSystem, input::Input, DrawCommands, LayoutSpace, RowLayout, Theme,
@@ -452,7 +452,7 @@ mod scroll_page_golden {
     #[test]
     fn scroll_page_matches_golden() {
         pollster::block_on(async {
-            let mut text_system = SampleTextSystem::new();
+            let mut text_system = SampleTextBackend::new();
             text_system.begin_frame();
 
             let mut focus_system = FocusSystem::new();
@@ -504,7 +504,7 @@ mod scroll_page_golden {
 mod text_edit_page_golden {
     use crate::{
         render_test_utils::{assert_matches_png_golden, render_commands_to_rgba},
-        text::SampleTextSystem,
+        text::SampleTextBackend,
     };
     use framewise::{
         focus::FocusSystem, input::Input, ColumnLayout, DrawCommands, LayoutSpace, Theme,
@@ -514,7 +514,7 @@ mod text_edit_page_golden {
     #[test]
     fn text_edit_page_matches_golden() {
         pollster::block_on(async {
-            let mut text_system = SampleTextSystem::new();
+            let mut text_system = SampleTextBackend::new();
             text_system.begin_frame();
 
             let mut focus_system = FocusSystem::new();

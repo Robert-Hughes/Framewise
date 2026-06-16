@@ -395,7 +395,7 @@ impl Renderer {
         cmds: &[DrawCmd],
         glyphs: &[DrawGlyph],
         window_size: (u32, u32),
-        text_system: &mut crate::text::SampleTextSystem,
+        text_system: &mut crate::text::SampleTextBackend,
     ) -> (
         Vec<Vertex>,
         Vec<TextVertex>,
@@ -778,7 +778,7 @@ impl Renderer {
         encoder: &mut wgpu::CommandEncoder,
         draw_commands: &DrawCommands,
         window_size: (u32, u32),
-        text_system: &mut crate::text::SampleTextSystem,
+        text_system: &mut crate::text::SampleTextBackend,
     ) {
         if text_system.atlas_dirty {
             queue.write_texture(
@@ -1294,7 +1294,7 @@ fn push_glyph_run(
     glyphs: &[DrawGlyph],
     color: Color,
     z: u32,
-    text_system: &crate::text::SampleTextSystem,
+    text_system: &crate::text::SampleTextBackend,
     (sw, sh): (u32, u32),
 ) {
     let c = color_arr(color);
@@ -1368,12 +1368,12 @@ fn push_glyph_run(
 #[cfg(test)]
 mod tests {
     use super::push_glyph_run;
-    use crate::text::{GlyphKey, SampleTextSystem};
+    use crate::text::{GlyphKey, SampleTextBackend};
     use framewise::{Color, DrawCommands, DrawGlyph, Vec2};
 
     #[test]
     fn glyph_run_vertices_use_draw_glyph_top_left_and_resolved_atlas_size() {
-        let mut text_system = SampleTextSystem::new();
+        let mut text_system = SampleTextBackend::new();
         let key = GlyphKey {
             font_id: 1,
             glyph_index: 43,
@@ -1415,7 +1415,7 @@ mod tests {
 
     #[test]
     fn process_commands_draws_glyph_runs_from_arena() {
-        let mut text_system = SampleTextSystem::new();
+        let mut text_system = SampleTextBackend::new();
         let handle = text_system.prepare_glyph_handle(GlyphKey {
             font_id: 1,
             glyph_index: 43,
@@ -1452,7 +1452,7 @@ mod tests {
         use super::{RenderCommand, Renderer};
         use framewise::{Color, DrawCmd, Rect, Vec2};
 
-        let mut text_system = SampleTextSystem::new();
+        let mut text_system = SampleTextBackend::new();
         text_system.begin_frame();
 
         // Create a list of mixed commands to test batching/interleaving boundaries

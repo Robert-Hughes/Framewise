@@ -2,7 +2,7 @@
 mod integration_tests {
     use crate::{
         render_test_utils::{assert_matches_png_golden, render_commands_to_rgba},
-        text::SampleTextSystem,
+        text::SampleTextBackend,
     };
     use framewise::{
         text::layout_text, Color, DrawCommands, FontId, LineHeight, Rect, TextBounds, TextFlow,
@@ -14,7 +14,7 @@ mod integration_tests {
         pollster::block_on(async {
             let width = 600;
             let height = 80;
-            let mut text_system = SampleTextSystem::new();
+            let mut text_system = SampleTextBackend::new();
             text_system.begin_frame();
 
             let mut cmds = DrawCommands::new();

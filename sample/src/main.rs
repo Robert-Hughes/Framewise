@@ -25,7 +25,7 @@ use framewise::types::Vec2;
 
 use renderer::Renderer;
 use std::sync::Arc;
-use text::SampleTextSystem;
+use text::SampleTextBackend;
 use winit::{
     application::ApplicationHandler,
     dpi::PhysicalSize,
@@ -91,7 +91,7 @@ impl GpuState {
 struct App {
     window: Option<Arc<Window>>,
     gpu: Option<GpuState>,
-    text_system: Option<SampleTextSystem>,
+    text_system: Option<SampleTextBackend>,
     focus_system: framewise::focus::FocusSystem,
     start_time: std::time::Instant,
     click_tracker: framewise::input::ClickTracker,
@@ -127,9 +127,9 @@ impl App {
         let now = std::time::Instant::now();
         eprintln!("[STARTUP] App::new() starting");
         let text_system_start = std::time::Instant::now();
-        let text_system = SampleTextSystem::new();
+        let text_system = SampleTextBackend::new();
         eprintln!(
-            "[STARTUP]   SampleTextSystem::new() took {:?}",
+            "[STARTUP]   SampleTextBackend::new() took {:?}",
             text_system_start.elapsed()
         );
         Self {
@@ -169,7 +169,7 @@ impl App {
 
     fn draw_missing_feature_page(
         win_size: (f32, f32),
-        text_system: &mut SampleTextSystem,
+        text_system: &mut SampleTextBackend,
     ) -> framewise::DrawCommands {
         use framewise::{Color, DrawCmd, FontId, Rect, TextBounds, TextFlow};
         let mut cmds = framewise::DrawCommands::new();
@@ -207,7 +207,7 @@ impl App {
     }
 
     #[allow(unreachable_code)]
-    fn draw_ui(&mut self, text_system: &mut SampleTextSystem) -> framewise::DrawCommands {
+    fn draw_ui(&mut self, text_system: &mut SampleTextBackend) -> framewise::DrawCommands {
         let win_size = self
             .gpu
             .as_ref()

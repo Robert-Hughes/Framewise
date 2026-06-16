@@ -42,7 +42,7 @@ use swash::scale::ScaleContext;
 use swash::shape::ShapeContext;
 use swash::FontRef;
 
-pub struct SampleTextSystem {
+pub struct SampleTextBackend {
     pub fonts: Vec<FontRef<'static>>,
     pub font_opsz_ranges: Vec<(f32, f32)>, // (min, max) for each font's opsz axis
     pub font_has_wght: Vec<bool>,          // Whether each font has a wght axis
@@ -64,7 +64,7 @@ pub struct SampleTextSystem {
     pub atlas_dirty: bool,
 }
 
-impl SampleTextSystem {
+impl SampleTextBackend {
     pub fn new() -> Self {
         let jetbrains_mono_data =
             include_bytes!("../../assets/JetBrains_Mono/JetBrainsMono-VariableFont_wght.ttf")
@@ -170,7 +170,7 @@ impl SampleTextSystem {
     }
 }
 
-impl PreparedGlyphResources for SampleTextSystem {
+impl PreparedGlyphResources for SampleTextBackend {
     fn resolve_glyph(&self, handle: PreparedGlyphHandle) -> Option<PreparedGlyphImage> {
         let key = self.prepared_glyph_keys.get(handle.0 as usize)?;
         let info = self.glyph_cache.get(key)?;
@@ -180,7 +180,7 @@ impl PreparedGlyphResources for SampleTextSystem {
     }
 }
 
-impl TextBackend for SampleTextSystem {
+impl TextBackend for SampleTextBackend {
     type ShapedGlyphId = u16;
 
     fn line_metrics(&mut self, style: framewise::TextStyle) -> TextLineLayoutMetrics {

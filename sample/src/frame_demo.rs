@@ -1,4 +1,4 @@
-use crate::text::SampleTextSystem;
+use crate::text::SampleTextBackend;
 use framewise::{
     focus::FocusSystem,
     input::Input,
@@ -92,7 +92,7 @@ pub fn draw_frame_page(
     input: &Input,
     _time: f64,
     win_size: (f32, f32),
-    text_system: &mut SampleTextSystem,
+    text_system: &mut SampleTextBackend,
     debug_layout: bool,
 ) -> framewise::DrawCommands {
     let (win_w, win_h) = win_size;
@@ -149,7 +149,7 @@ pub fn draw_frame_page(
 pub(crate) fn draw_frame_page_content<'a, 'b, CF>(
     outer: &'b mut WidgetContext<
         'a,
-        SampleTextSystem,
+        SampleTextBackend,
         framewise::layouts::OffsetState<framewise::ColumnState>,
         CF,
     >,
