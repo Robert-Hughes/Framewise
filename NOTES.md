@@ -4,7 +4,6 @@ Working notes, TODOs, open questions, and half-baked ideas.
 
 ## Current Work
 
-- Update DESIGN.md as per recent text changes
 - check perf 40fps on text edit demo page after text changes
 
 - Text Edit

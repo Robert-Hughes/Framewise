@@ -42,6 +42,19 @@ use swash::scale::ScaleContext;
 use swash::shape::ShapeContext;
 use swash::FontRef;
 
+const MAX_SHAPE_CACHE_ENTRIES: usize = 4096;
+const FLOAT_KEY_SCALE: f32 = 1024.0;
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub(crate) struct ShapeCacheKey {
+    text: String,
+    font_id: u16,
+    size: i64,
+    weight: u16,
+    letter_spacing_px: i64,
+    opsz: i64,
+}
+
 pub struct SampleTextBackend {
     pub fonts: Vec<FontRef<'static>>,
     pub font_opsz_ranges: Vec<(f32, f32)>, // (min, max) for each font's opsz axis
@@ -49,6 +62,9 @@ pub struct SampleTextBackend {
     pub font_has_opsz: Vec<bool>,          // Whether each font has an opsz axis
     pub shape_context: ShapeContext,
     pub scale_context: ScaleContext,
+    pub(crate) shape_cache: HashMap<ShapeCacheKey, ShapedText<u16>>,
+    #[cfg(test)]
+    pub(crate) shape_text_run_count: usize,
     // Atlas data
     pub glyph_cache: HashMap<GlyphKey, GlyphInfo>,
     pub prepared_glyph_keys: Vec<GlyphKey>,
@@ -141,6 +157,9 @@ impl SampleTextBackend {
             font_has_opsz,
             shape_context: ShapeContext::new(),
             scale_context: ScaleContext::new(),
+            shape_cache: HashMap::new(),
+            #[cfg(test)]
+            shape_text_run_count: 0,
             glyph_cache: HashMap::new(),
             prepared_glyph_keys: Vec::new(),
             prepared_glyph_handles: HashMap::new(),
@@ -157,6 +176,18 @@ impl SampleTextBackend {
         self.atlas_dirty = false;
     }
 
+    fn shape_cache_key(&self, text: &str, style: framewise::TextStyle) -> ShapeCacheKey {
+        let opsz = self.opsz_for_size(style.size, style.font);
+        ShapeCacheKey {
+            text: text.to_owned(),
+            font_id: style.font.0,
+            size: quantize_float_key(style.size),
+            weight: style.weight,
+            letter_spacing_px: quantize_float_key(style.size * style.letter_spacing),
+            opsz: quantize_float_key(opsz),
+        }
+    }
+
     pub fn prepare_glyph_handle(&mut self, key: GlyphKey) -> PreparedGlyphHandle {
         if let Some(handle) = self.prepared_glyph_handles.get(&key) {
             return *handle;
@@ -168,6 +199,18 @@ impl SampleTextBackend {
         self.prepared_glyph_handles.insert(key, handle);
         handle
     }
+}
+
+fn quantize_float_key(value: f32) -> i64 {
+    if !value.is_finite() {
+        return if value.is_sign_negative() {
+            i64::MIN
+        } else {
+            i64::MAX
+        };
+    }
+
+    (value * FLOAT_KEY_SCALE).round() as i64
 }
 
 impl PreparedGlyphResources for SampleTextBackend {
@@ -196,7 +239,21 @@ impl TextBackend for SampleTextBackend {
         text: &str,
         style: framewise::TextStyle,
     ) -> ShapedText<Self::ShapedGlyphId> {
-        self.shape_text_run(text, style)
+        // Cache whole hard-line segments: sample shaping depends on text plus
+        // font/variation inputs, not Framewise layout bounds, wrapping,
+        // alignment, overflow, or final draw origin. The final origin is still
+        // handled by prepare_glyph for subpixel bins and atlas resources.
+        let key = self.shape_cache_key(text, style);
+        if let Some(shaped) = self.shape_cache.get(&key) {
+            return shaped.clone();
+        }
+
+        let shaped = self.shape_text_run(text, style);
+        if self.shape_cache.len() >= MAX_SHAPE_CACHE_ENTRIES {
+            self.shape_cache.clear();
+        }
+        self.shape_cache.insert(key, shaped.clone());
+        shaped
     }
 
     fn shape_ellipsis(&mut self, style: framewise::TextStyle) -> ShapedText<Self::ShapedGlyphId> {

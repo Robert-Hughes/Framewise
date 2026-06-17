@@ -66,6 +66,11 @@ impl SampleTextBackend {
         }
     }
     pub fn shape_text_run(&mut self, text: &str, style: TextStyle) -> ShapedText<u16> {
+        #[cfg(test)]
+        {
+            self.shape_text_run_count += 1;
+        }
+
         let font_id = style.font;
         let size = style.size;
         let weight = style.weight;

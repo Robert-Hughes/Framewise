@@ -5,7 +5,7 @@ mod tests {
     use framewise::{
         text::{layout_text, measure_text},
         Color, DrawCommands, DrawGlyph, FontId, LineHeight, PrepareGlyphRequest, Rect, TextBackend,
-        TextBounds, TextFlow, TextStyle, Vec2,
+        TextBounds, TextFlow, TextLineAlign, TextStyle, Vec2,
     };
 
     fn sys() -> SampleTextBackend {
@@ -237,6 +237,125 @@ mod tests {
         );
 
         assert!(spaced.logical_size.x > normal.logical_size.x);
+    }
+
+    #[test]
+    fn shape_text_cache_hits_for_repeated_text_and_style() {
+        let mut sys = sys();
+        let style = style(FontId(1), 16.0, 400, TextFlow::single_line());
+
+        let first = TextBackend::shape_text(&mut sys, "cached", style);
+        let second = TextBackend::shape_text(&mut sys, "cached", style);
+
+        assert_eq!(first, second);
+        assert_eq!(sys.shape_text_run_count, 1);
+        assert_eq!(sys.shape_cache.len(), 1);
+    }
+
+    #[test]
+    fn shape_text_cache_misses_when_text_changes() {
+        let mut sys = sys();
+        let style = style(FontId(1), 16.0, 400, TextFlow::single_line());
+
+        TextBackend::shape_text(&mut sys, "cached", style);
+        TextBackend::shape_text(&mut sys, "changed", style);
+
+        assert_eq!(sys.shape_text_run_count, 2);
+        assert_eq!(sys.shape_cache.len(), 2);
+    }
+
+    #[test]
+    fn shape_text_cache_misses_when_font_id_changes() {
+        let mut sys = sys();
+
+        TextBackend::shape_text(
+            &mut sys,
+            "cached",
+            style(FontId(0), 16.0, 400, TextFlow::single_line()),
+        );
+        TextBackend::shape_text(
+            &mut sys,
+            "cached",
+            style(FontId(1), 16.0, 400, TextFlow::single_line()),
+        );
+
+        assert_eq!(sys.shape_text_run_count, 2);
+        assert_eq!(sys.shape_cache.len(), 2);
+    }
+
+    #[test]
+    fn shape_text_cache_misses_when_size_changes() {
+        let mut sys = sys();
+
+        TextBackend::shape_text(
+            &mut sys,
+            "cached",
+            style(FontId(1), 16.0, 400, TextFlow::single_line()),
+        );
+        TextBackend::shape_text(
+            &mut sys,
+            "cached",
+            style(FontId(1), 18.0, 400, TextFlow::single_line()),
+        );
+
+        assert_eq!(sys.shape_text_run_count, 2);
+        assert_eq!(sys.shape_cache.len(), 2);
+    }
+
+    #[test]
+    fn shape_text_cache_misses_when_weight_changes() {
+        let mut sys = sys();
+
+        TextBackend::shape_text(
+            &mut sys,
+            "cached",
+            style(FontId(1), 16.0, 400, TextFlow::single_line()),
+        );
+        TextBackend::shape_text(
+            &mut sys,
+            "cached",
+            style(FontId(1), 16.0, 700, TextFlow::single_line()),
+        );
+
+        assert_eq!(sys.shape_text_run_count, 2);
+        assert_eq!(sys.shape_cache.len(), 2);
+    }
+
+    #[test]
+    fn shape_text_cache_misses_when_letter_spacing_changes() {
+        let mut sys = sys();
+
+        TextBackend::shape_text(
+            &mut sys,
+            "cached",
+            style(FontId(1), 16.0, 400, TextFlow::single_line()),
+        );
+        TextBackend::shape_text(
+            &mut sys,
+            "cached",
+            style(FontId(1), 16.0, 400, TextFlow::single_line()).with_letter_spacing(0.05),
+        );
+
+        assert_eq!(sys.shape_text_run_count, 2);
+        assert_eq!(sys.shape_cache.len(), 2);
+    }
+
+    #[test]
+    fn shape_text_cache_ignores_layout_only_style_fields() {
+        let mut sys = sys();
+        let mut centered_wrapped = TextFlow::wrapped();
+        centered_wrapped.line_align = TextLineAlign::Center;
+
+        let base = style(FontId(1), 16.0, 400, TextFlow::single_line());
+        let layout_only_change = style(FontId(1), 16.0, 400, centered_wrapped)
+            .with_line_height(LineHeight::Relative(2.0));
+
+        let first = TextBackend::shape_text(&mut sys, "cached", base);
+        let second = TextBackend::shape_text(&mut sys, "cached", layout_only_change);
+
+        assert_eq!(first, second);
+        assert_eq!(sys.shape_text_run_count, 1);
+        assert_eq!(sys.shape_cache.len(), 1);
     }
 
     #[test]
