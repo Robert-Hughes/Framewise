@@ -95,7 +95,9 @@ not need to manufacture hard-newline clusters.
 
 Framewise owns overflow policy and chooses synthetic marker text such as the
 Unicode ellipsis. The sample backend shapes those markers through the same
-`shape_text` path as ordinary text, so the normal shaping cache applies.
+`shape_text` path as ordinary text, so the normal shaping cache applies. Cache
+entries are `Rc<ShapedText<_>>`: a cache hit clones the `Rc`, while layouts can
+hold immutable shaped data even if the backend later evicts or clears its cache.
 
 ## Glyph Preparation
 

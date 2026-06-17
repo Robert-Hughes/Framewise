@@ -558,7 +558,13 @@ pub struct TextMetrics {
     pub lines: Vec<LineMetrics>,
 }
 
-/// The owned geometry for a laid-out piece of text.
+/// The geometry for a laid-out piece of text.
+///
+/// `TextLayout` keeps final line and cluster records as an overlay over shared
+/// immutable shaped runs. It does not store a flat glyph vector; final glyph
+/// positions are resolved from line baselines, cluster positions, and shaped
+/// glyph offsets only for approximate ink bounds, glyph emission, or explicit
+/// materialisation through [`TextLayout::resolved_glyphs`].
 ///
 /// All positions are in block-local coordinates: the origin is the text block's
 /// top-left corner, with y increasing downward. Callers translate the layout to
@@ -601,9 +607,9 @@ pub enum TextClusterSource<G> {
 pub struct TextLayout<G> {
     /// The block's measured logical geometry.
     pub metrics: TextMetrics,
-    /// Owned visual line records in block-local coordinates.
+    /// Final visual line records in block-local coordinates.
     pub lines: Vec<TextLine>,
-    /// Owned text clusters used for wrapping, caret placement, hit-testing, and
+    /// Final text clusters used for wrapping, caret placement, hit-testing, and
     /// source byte mapping.
     pub clusters: Vec<TextCluster>,
     pub(crate) cluster_sources: Vec<TextClusterSource<G>>,

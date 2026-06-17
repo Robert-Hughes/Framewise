@@ -39,9 +39,10 @@ movement, and glyph-run emission are all Framewise responsibilities.
 
 The backend boundary is deliberately narrow:
 
-- `TextBackend::shape_text` shapes source text into `ShapedText`, made of
-  `ShapedCluster`s and backend-shaped `ShapedGlyph` IDs. Framewise also uses
-  this API to shape synthetic UI marker text, such as the overflow ellipsis.
+- `TextBackend::shape_text` shapes source text into immutable shared
+  `Rc<ShapedText>`, made of `ShapedCluster`s and backend-shaped `ShapedGlyph`
+  IDs. Framewise also uses this API to shape synthetic UI marker text, such as
+  the overflow ellipsis, and never mutates shaped output.
 - `TextBackend::line_metrics` supplies line height and baseline offset through
   `TextLineLayoutMetrics`.
 - `TextBackend::prepare_glyph` turns one visible laid-out glyph into an
@@ -66,10 +67,11 @@ movement. There is no `TextHandle` or `TextLayoutHandle` indirection, and there
 is no Framewise-side layout cache by default. Caching, if an application needs
 it, belongs above this owned value API.
 
-Drawing is a second step. `TextLayout::emit_glyphs(...)` walks the visible
-layout glyphs, passes their final glyph origins to `TextBackend::prepare_glyph`,
-and stores any returned `DrawGlyph`s in the `DrawCommands` glyph arena. The draw
-stream contains:
+Drawing is a second step. `TextLayout::emit_glyphs(...)` resolves visible glyph
+positions lazily from final line/cluster records plus shared shaped runs, passes
+their final glyph origins to `TextBackend::prepare_glyph`, and stores any
+returned `DrawGlyph`s in the `DrawCommands` glyph arena. The draw stream
+contains:
 
 ```rust
 DrawCmd::GlyphRun {
@@ -305,10 +307,10 @@ participates in wrapping normally.
 
 `OverflowX::Drop`, `OverflowX::Keep`, and ellipsis fitting also operate on whole
 clusters. Ellipsis fitting trims whole clusters before appending the Framewise
-owned ellipsis marker, shaped through `TextBackend::shape_text` and remapped to
-a zero-length byte range at the source truncation point. `OverflowY` operates on
-whole visual lines after hard breaks, wrapping, and horizontal overflow have been
-resolved.
+ellipsis marker, shaped through `TextBackend::shape_text`, stored as a shaped-run
+view, and remapped to a zero-length byte range at the source truncation point.
+`OverflowY` operates on whole visual lines after hard breaks, wrapping, and
+horizontal overflow have been resolved.
 
 Caret placement and hit-testing also resolve against cluster boundaries. A point
 inside a cluster maps to either the cluster start or cluster end boundary.

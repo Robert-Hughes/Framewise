@@ -47,6 +47,11 @@ pub(super) struct WorkingProcessedLine<G> {
 
 #[derive(Debug, Clone)]
 pub(super) struct WorkingCluster<G> {
+    /// Mutable layout-state overlay for one cluster.
+    ///
+    /// Normal shaped glyph data lives in `WorkingRun::shaped`; this source only
+    /// points at it. Wrapping, truncation, alignment, caret, and hit-testing
+    /// update or read cluster-level state here without mutating shaped glyphs.
     pub(super) source: WorkingClusterSource,
     pub(super) byte_start: usize,
     pub(super) byte_end: usize,
