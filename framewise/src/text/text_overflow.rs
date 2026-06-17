@@ -1,4 +1,6 @@
-use super::{EllipsisFallback, LayoutGlyph, TextBackend, TextStyle, WorkingCluster};
+use super::{
+    EllipsisFallback, LayoutGlyph, TextBackend, TextStyle, WorkingCluster, WorkingClusterSource,
+};
 use crate::types::Vec2;
 
 const ELLIPSIS_MARKER: &str = "\u{2026}";
@@ -9,7 +11,7 @@ pub(super) fn apply_ellipsis_x<B: TextBackend>(
     w: f32,
     style: TextStyle,
     fallback: EllipsisFallback,
-    line_baseline_y: f32,
+    _line_baseline_y: f32,
 ) -> Vec<WorkingCluster<B::ShapedGlyphId>> {
     let shaped = backend.shape_text(ELLIPSIS_MARKER, style);
     let ell_w = shaped
@@ -24,7 +26,7 @@ pub(super) fn apply_ellipsis_x<B: TextBackend>(
         for glyph in &cluster.glyphs {
             ell_glyphs.push(LayoutGlyph {
                 id: glyph.id,
-                origin: Vec2::new(pen_x + glyph.x, line_baseline_y + glyph.y),
+                origin: Vec2::new(pen_x + glyph.x, glyph.y),
                 advance: glyph.advance,
                 byte_start: insert_byte,
                 approx_ink_bounds: glyph.approx_ink_bounds,
@@ -33,6 +35,7 @@ pub(super) fn apply_ellipsis_x<B: TextBackend>(
         pen_x += cluster.advance;
     }
     let mut ell_cluster = WorkingCluster {
+        source: WorkingClusterSource::SyntheticGlyphs { glyphs: ell_glyphs },
         byte_start: insert_byte,
         byte_end: insert_byte,
         x: 0.0,
@@ -40,7 +43,7 @@ pub(super) fn apply_ellipsis_x<B: TextBackend>(
         is_hard_break: false,
         is_whitespace: false,
         is_soft_wrap_boundary: false,
-        glyphs: ell_glyphs,
+        glyphs_visible: true,
     };
 
     if ell_w > w {

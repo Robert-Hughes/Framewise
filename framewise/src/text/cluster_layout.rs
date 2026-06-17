@@ -1,6 +1,6 @@
 use super::{
-    LayoutGlyph, TextBackend, TextStyle, WorkingCluster, WorkingSourceLine, WrapClusterFallback,
-    WrapWordFallback,
+    LayoutGlyph, TextBackend, TextStyle, WorkingCluster, WorkingClusterSource, WorkingSourceLine,
+    WrapClusterFallback, WrapWordFallback,
 };
 use crate::types::Vec2;
 
@@ -31,13 +31,14 @@ pub(super) fn make_source_line<B: TextBackend>(
                 .iter()
                 .map(|glyph| LayoutGlyph {
                     id: glyph.id,
-                    origin: Vec2::new(x + glyph.x, baseline_y + glyph.y),
+                    origin: Vec2::new(glyph.x, glyph.y),
                     advance: glyph.advance,
                     byte_start,
                     approx_ink_bounds: glyph.approx_ink_bounds,
                 })
                 .collect();
             clusters.push(WorkingCluster {
+                source: WorkingClusterSource::SyntheticGlyphs { glyphs },
                 byte_start,
                 byte_end,
                 x,
@@ -45,7 +46,7 @@ pub(super) fn make_source_line<B: TextBackend>(
                 is_hard_break: false,
                 is_whitespace: shaped_cluster.is_whitespace,
                 is_soft_wrap_boundary: false,
-                glyphs,
+                glyphs_visible: true,
             });
         }
     }
@@ -53,6 +54,7 @@ pub(super) fn make_source_line<B: TextBackend>(
     if has_newline {
         let x = clusters.last().map(WorkingCluster::end_x).unwrap_or(0.0);
         clusters.push(WorkingCluster {
+            source: WorkingClusterSource::Empty,
             byte_start: segment_end,
             byte_end: segment_end + 1,
             x,
@@ -60,7 +62,7 @@ pub(super) fn make_source_line<B: TextBackend>(
             is_hard_break: true,
             is_whitespace: true,
             is_soft_wrap_boundary: false,
-            glyphs: Vec::new(),
+            glyphs_visible: false,
         });
     }
 

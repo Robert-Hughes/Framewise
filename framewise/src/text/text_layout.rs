@@ -4,14 +4,35 @@ use super::cluster_layout::{
 };
 use super::text_overflow::apply_ellipsis_x;
 use super::{
-    EllipsisFallback, LayoutGlyph, LineEndKind, LineMetrics, OverflowX, OverflowY, TextBackend,
-    TextBounds, TextCluster, TextLayout, TextLine, TextLineAlign, TextMetrics, TextStyle,
+    EllipsisFallback, LayoutGlyph, LineEndKind, LineMetrics, OverflowX, OverflowY, ShapedText,
+    TextBackend, TextBounds, TextCluster, TextLayout, TextLine, TextLineAlign, TextMetrics,
+    TextStyle,
 };
 use crate::{
     draw::DrawCommands,
     types::{Color, Rect, Vec2},
 };
 use std::hash::Hash;
+use std::rc::Rc;
+
+#[allow(dead_code)]
+pub(super) struct WorkingRun<G> {
+    pub(super) shaped: Rc<ShapedText<G>>,
+    pub(super) segment_start: usize,
+}
+
+#[derive(Debug, Clone)]
+pub(super) enum WorkingClusterSource<G> {
+    #[allow(dead_code)]
+    Shaped {
+        run_index: usize,
+        cluster_index: usize,
+    },
+    Empty,
+    SyntheticGlyphs {
+        glyphs: Vec<LayoutGlyph<G>>,
+    },
+}
 
 /// Mutable source-line representation used while applying wrapping and overflow.
 pub(super) struct WorkingSourceLine<G> {
@@ -32,6 +53,7 @@ pub(super) struct WorkingProcessedLine<G> {
 
 #[derive(Debug, Clone)]
 pub(super) struct WorkingCluster<G> {
+    pub(super) source: WorkingClusterSource<G>,
     pub(super) byte_start: usize,
     pub(super) byte_end: usize,
     pub(super) x: f32,
@@ -39,7 +61,7 @@ pub(super) struct WorkingCluster<G> {
     pub(super) is_hard_break: bool,
     pub(super) is_whitespace: bool,
     pub(super) is_soft_wrap_boundary: bool,
-    pub(super) glyphs: Vec<LayoutGlyph<G>>,
+    pub(super) glyphs_visible: bool,
 }
 
 impl<G> WorkingCluster<G> {
@@ -49,17 +71,12 @@ impl<G> WorkingCluster<G> {
 
     pub(super) fn shift_x(&mut self, dx: f32) {
         self.x += dx;
-        for glyph in &mut self.glyphs {
-            glyph.origin.x += dx;
-        }
     }
 
     pub(super) fn collapse_soft_wrap_boundary(&mut self) {
         self.advance = 0.0;
         self.is_soft_wrap_boundary = true;
-        for glyph in &mut self.glyphs {
-            glyph.advance = 0.0;
-        }
+        self.glyphs_visible = false;
     }
 }
 
@@ -207,6 +224,29 @@ fn translated_approx_ink<G>(
             line_height,
         )),
         None => None,
+    }
+}
+
+fn materialize_working_cluster_glyphs<G: Copy>(
+    cluster: &WorkingCluster<G>,
+    baseline_y: f32,
+) -> Vec<LayoutGlyph<G>> {
+    if !cluster.glyphs_visible {
+        return Vec::new();
+    }
+
+    match &cluster.source {
+        WorkingClusterSource::SyntheticGlyphs { glyphs } => glyphs
+            .iter()
+            .map(|glyph| LayoutGlyph {
+                id: glyph.id,
+                origin: Vec2::new(cluster.x + glyph.origin.x, baseline_y + glyph.origin.y),
+                advance: glyph.advance,
+                byte_start: cluster.byte_start,
+                approx_ink_bounds: glyph.approx_ink_bounds,
+            })
+            .collect(),
+        WorkingClusterSource::Empty | WorkingClusterSource::Shaped { .. } => Vec::new(),
     }
 }
 
@@ -447,13 +487,6 @@ impl<G: Copy + Eq + Hash> TextLayout<G> {
             let new_baseline_y = idx as f32 * line_height + baseline_offset;
             let y_top = idx as f32 * line_height;
 
-            for cluster in &mut line.clusters {
-                for glyph in &mut cluster.glyphs {
-                    let baseline_relative_y = glyph.origin.y - line.baseline_y;
-                    glyph.origin.y = (new_baseline_y + baseline_relative_y).round();
-                }
-            }
-
             let align_off = match bounds.max_width {
                 Some(w) => {
                     let logical_line_w = logical_cluster_line_width(&line.clusters);
@@ -478,7 +511,10 @@ impl<G: Copy + Eq + Hash> TextLayout<G> {
             let cluster_start = clusters.len();
             for cluster in line.clusters {
                 let cluster_glyph_start = glyphs.len();
-                glyphs.extend(cluster.glyphs);
+                glyphs.extend(materialize_working_cluster_glyphs(
+                    &cluster,
+                    new_baseline_y.round(),
+                ));
                 clusters.push(TextCluster {
                     byte_start: cluster.byte_start,
                     byte_end: cluster.byte_end,
