@@ -281,10 +281,6 @@ impl TextBackend for SampleTextBackend {
         shaped
     }
 
-    fn shape_ellipsis(&mut self, style: framewise::TextStyle) -> ShapedText<Self::ShapedGlyphId> {
-        self.shape_text_run("\u{2026}", style)
-    }
-
     fn prepare_glyph(
         &mut self,
         request: PrepareGlyphRequest<Self::ShapedGlyphId>,

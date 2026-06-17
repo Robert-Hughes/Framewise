@@ -273,13 +273,6 @@ mod tests {
             }
         }
 
-        fn shape_ellipsis(
-            &mut self,
-            style: crate::text::TextStyle,
-        ) -> ShapedText<Self::ShapedGlyphId> {
-            self.shape_text(".", style)
-        }
-
         fn prepare_glyph(
             &mut self,
             request: PrepareGlyphRequest<Self::ShapedGlyphId>,
@@ -330,13 +323,6 @@ mod tests {
                     }],
                 }],
             }
-        }
-
-        fn shape_ellipsis(
-            &mut self,
-            style: crate::text::TextStyle,
-        ) -> ShapedText<Self::ShapedGlyphId> {
-            self.shape_text(".", style)
         }
 
         fn prepare_glyph(

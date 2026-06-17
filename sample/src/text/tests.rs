@@ -17,16 +17,13 @@ mod tests {
     }
 
     #[test]
-    fn text_backend_shapes_ellipsis_and_prepares_glyphs() {
+    fn text_backend_shapes_text_and_prepares_glyphs() {
         let mut sys = sys();
         let style = style(FontId(1), 16.0, 500, TextFlow::single_line());
 
         let shaped = TextBackend::shape_text(&mut sys, "Hi", style);
         assert!(!shaped.clusters.is_empty());
         assert!(TextBackend::line_height(&mut sys, style) > 0.0);
-
-        let ellipsis = TextBackend::shape_ellipsis(&mut sys, style);
-        assert_eq!(ellipsis.clusters.len(), 1);
 
         let glyph = shaped.clusters[0].glyphs[0];
         let prepared = TextBackend::prepare_glyph(
@@ -250,6 +247,26 @@ mod tests {
         assert_eq!(first, second);
         assert_eq!(sys.shape_text_run_count, 1);
         assert_eq!(sys.shape_cache.len(), 1);
+    }
+
+    #[test]
+    fn overflow_ellipsis_uses_shape_text_cache() {
+        let mut sys = sys();
+        let flow = TextFlow {
+            overflow_x: framewise::OverflowX::Ellipsis {
+                fallback: framewise::EllipsisFallback::Drop,
+            },
+            overflow_y: framewise::OverflowY::Keep,
+            line_align: framewise::TextLineAlign::Start,
+        };
+        let style = style(FontId(1), 16.0, 400, flow);
+
+        let first = layout_text(&mut sys, "abcdef", style, TextBounds::width(40.0));
+        let second = layout_text(&mut sys, "abcdef", style, TextBounds::width(40.0));
+
+        assert_eq!(first.glyphs.last(), second.glyphs.last());
+        assert_eq!(sys.shape_text_run_count, 2);
+        assert_eq!(sys.shape_cache.len(), 2);
     }
 
     #[test]

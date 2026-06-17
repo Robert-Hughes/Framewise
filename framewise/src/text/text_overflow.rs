@@ -1,6 +1,8 @@
 use super::{EllipsisFallback, LayoutGlyph, OwnedCluster, TextBackend, TextStyle};
 use crate::types::Vec2;
 
+const ELLIPSIS_MARKER: &str = "\u{2026}";
+
 pub(super) fn apply_ellipsis_x<B: TextBackend>(
     backend: &mut B,
     clusters: Vec<OwnedCluster<B::ShapedGlyphId>>,
@@ -9,7 +11,7 @@ pub(super) fn apply_ellipsis_x<B: TextBackend>(
     fallback: EllipsisFallback,
     line_baseline_y: f32,
 ) -> Vec<OwnedCluster<B::ShapedGlyphId>> {
-    let shaped = backend.shape_ellipsis(style);
+    let shaped = backend.shape_text(ELLIPSIS_MARKER, style);
     let ell_w = shaped
         .clusters
         .iter()

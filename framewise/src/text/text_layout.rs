@@ -595,10 +595,6 @@ mod tests {
             super::super::ShapedText { clusters }
         }
 
-        fn shape_ellipsis(&mut self, style: TextStyle) -> super::super::ShapedText<u32> {
-            self.shape_text(".", style)
-        }
-
         fn prepare_glyph(&mut self, request: PrepareGlyphRequest<u32>) -> Option<DrawGlyph> {
             Some(DrawGlyph {
                 handle: PreparedGlyphHandle(request.glyph),

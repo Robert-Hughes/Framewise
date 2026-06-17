@@ -66,16 +66,16 @@ pub trait TextBackend {
     /// Distance between consecutive line tops for this style.
     fn line_height(&mut self, style: TextStyle) -> f32;
 
-    /// Shape source text into indivisible clusters.
+    /// Shape text into indivisible clusters.
     ///
     /// The backend must account for every source character in cluster byte
     /// ranges. Clusters should normally correspond to shaping clusters, and must
     /// not split combining marks, ligatures, or script-shaped units in a way
-    /// that would corrupt shaping.
+    /// that would corrupt shaping. Framewise may also use this API for
+    /// Framewise-owned synthetic UI marker text, such as an overflow ellipsis,
+    /// then remap those marker byte ranges internally to source text
+    /// coordinates.
     fn shape_text(&mut self, text: &str, style: TextStyle) -> ShapedText<Self::ShapedGlyphId>;
-
-    /// Shape the ellipsis marker used by overflow policies.
-    fn shape_ellipsis(&mut self, style: TextStyle) -> ShapedText<Self::ShapedGlyphId>;
 
     /// Prepare a laid-out glyph for rendering.
     ///

@@ -69,24 +69,6 @@ impl TextBackend for TestTextBackend {
         ShapedText { clusters }
     }
 
-    fn shape_ellipsis(&mut self, style: TextStyle) -> ShapedText<Self::ShapedGlyphId> {
-        ShapedText {
-            clusters: vec![ShapedCluster {
-                byte_start: 0,
-                byte_end: 0,
-                advance: 8.0,
-                is_whitespace: false,
-                glyphs: vec![ShapedGlyph {
-                    id: '\u{2026}' as u32,
-                    x: 0.0,
-                    y: 0.0,
-                    advance: 8.0,
-                    approx_ink_bounds: Some(crate::Rect::new(0.0, -style.size, 8.0, 16.0)),
-                }],
-            }],
-        }
-    }
-
     fn prepare_glyph(
         &mut self,
         request: PrepareGlyphRequest<Self::ShapedGlyphId>,

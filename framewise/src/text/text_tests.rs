@@ -185,10 +185,6 @@ impl TextBackend for ApproxInkBackend {
         }
     }
 
-    fn shape_ellipsis(&mut self, style: TextStyle) -> ShapedText<Self::ShapedGlyphId> {
-        self.shape_text(".", style)
-    }
-
     fn prepare_glyph(
         &mut self,
         request: PrepareGlyphRequest<Self::ShapedGlyphId>,

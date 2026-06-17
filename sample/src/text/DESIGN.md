@@ -34,7 +34,6 @@ The sample backend is responsible for:
 - maintaining Swash shape and scale contexts,
 - reporting `TextLineLayoutMetrics`, including line height and baseline offset,
 - shaping source text into `ShapedText`,
-- shaping the ellipsis marker,
 - preparing individual glyphs for drawing as `DrawGlyph`,
 - allocating and resolving `PreparedGlyphHandle`s,
 - maintaining the glyph cache and atlas.
@@ -94,8 +93,9 @@ into hard-break source lines, calls `shape_text` for each segment, and creates
 the hard-break layout clusters and line records itself. The sample backend does
 not need to manufacture hard-newline clusters.
 
-The ellipsis marker is shaped separately through `shape_ellipsis`, currently as
-the Unicode ellipsis character.
+Framewise owns overflow policy and chooses synthetic marker text such as the
+Unicode ellipsis. The sample backend shapes those markers through the same
+`shape_text` path as ordinary text, so the normal shaping cache applies.
 
 ## Glyph Preparation
 

@@ -40,7 +40,7 @@ Working notes, TODOs, open questions, and half-baked ideas.
 - Slider styling - two modes/enum variants for scrollbar vs. regular?
 - Consistency for styling of lines across all widgets - rather than separate width and colour, have a enum which is None or width+colour? Some kind of 'stroke' struct/enum?
 
-- Go through the spec_page, check/implement/test each widget/aspect to make better match the mock-up and add interactivity as we go
+- Go through the spec_page, check/implement/test each widget/aspect to make better match the mock-up and add interactivity as we go (https://claude.ai/design/p/1aab4e86-cbf2-497e-b379-44cf41de2b12?file=Framewise+Widgets.html)
   - Done 01 and 03
   - 02: the "prefixed" and "multiline" ones need updating
   - Add demo pages for each widget type (or possibly in groups?)
