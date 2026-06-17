@@ -13,15 +13,17 @@ use crate::{
 };
 use std::hash::Hash;
 
-pub(super) struct SourceLine<G> {
-    pub(super) clusters: Vec<OwnedCluster<G>>,
+/// Mutable source-line representation used while applying wrapping and overflow.
+pub(super) struct WorkingSourceLine<G> {
+    pub(super) clusters: Vec<WorkingCluster<G>>,
     pub(super) byte_start: usize,
     pub(super) byte_end: usize,
     pub(super) baseline_y: f32,
 }
 
-pub(super) struct ProcessedLine<G> {
-    pub(super) clusters: Vec<OwnedCluster<G>>,
+/// Mutable visual line representation before final block positioning.
+pub(super) struct WorkingProcessedLine<G> {
+    pub(super) clusters: Vec<WorkingCluster<G>>,
     pub(super) byte_start: usize,
     pub(super) byte_end: usize,
     pub(super) baseline_y: f32,
@@ -29,7 +31,7 @@ pub(super) struct ProcessedLine<G> {
 }
 
 #[derive(Debug, Clone)]
-pub(super) struct OwnedCluster<G> {
+pub(super) struct WorkingCluster<G> {
     pub(super) byte_start: usize,
     pub(super) byte_end: usize,
     pub(super) x: f32,
@@ -40,7 +42,7 @@ pub(super) struct OwnedCluster<G> {
     pub(super) glyphs: Vec<LayoutGlyph<G>>,
 }
 
-impl<G> OwnedCluster<G> {
+impl<G> WorkingCluster<G> {
     pub(super) fn end_x(&self) -> f32 {
         self.x + self.advance
     }
@@ -374,7 +376,7 @@ impl<G: Copy + Eq + Hash> TextLayout<G> {
                         LineEndKind::EndOfText
                     }
                 });
-                processed_lines.push(ProcessedLine {
+                processed_lines.push(WorkingProcessedLine {
                     clusters: sub_seg,
                     byte_start: sub_starts[idx],
                     byte_end: sub_starts[idx + 1],
@@ -426,7 +428,7 @@ impl<G: Copy + Eq + Hash> TextLayout<G> {
         }
 
         if processed_lines.is_empty() {
-            processed_lines.push(ProcessedLine {
+            processed_lines.push(WorkingProcessedLine {
                 clusters: Vec::new(),
                 byte_start: 0,
                 byte_end: text.len(),

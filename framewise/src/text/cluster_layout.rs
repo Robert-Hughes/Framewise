@@ -1,5 +1,5 @@
 use super::{
-    LayoutGlyph, OwnedCluster, SourceLine, TextBackend, TextStyle, WrapClusterFallback,
+    LayoutGlyph, TextBackend, TextStyle, WorkingCluster, WorkingSourceLine, WrapClusterFallback,
     WrapWordFallback,
 };
 use crate::types::Vec2;
@@ -15,7 +15,7 @@ pub(super) fn make_source_line<B: TextBackend>(
     line_idx: usize,
     line_height: f32,
     baseline_offset: f32,
-) -> SourceLine<B::ShapedGlyphId> {
+) -> WorkingSourceLine<B::ShapedGlyphId> {
     let segment = &text[segment_start..segment_end];
     let baseline_y = line_idx as f32 * line_height + baseline_offset;
     let mut clusters = Vec::new();
@@ -25,7 +25,7 @@ pub(super) fn make_source_line<B: TextBackend>(
         for shaped_cluster in &shaped.clusters {
             let byte_start = segment_start + shaped_cluster.byte_start;
             let byte_end = segment_start + shaped_cluster.byte_end;
-            let x = clusters.last().map(OwnedCluster::end_x).unwrap_or(0.0);
+            let x = clusters.last().map(WorkingCluster::end_x).unwrap_or(0.0);
             let glyphs = shaped_cluster
                 .glyphs
                 .iter()
@@ -37,7 +37,7 @@ pub(super) fn make_source_line<B: TextBackend>(
                     approx_ink_bounds: glyph.approx_ink_bounds,
                 })
                 .collect();
-            clusters.push(OwnedCluster {
+            clusters.push(WorkingCluster {
                 byte_start,
                 byte_end,
                 x,
@@ -51,8 +51,8 @@ pub(super) fn make_source_line<B: TextBackend>(
     }
 
     if has_newline {
-        let x = clusters.last().map(OwnedCluster::end_x).unwrap_or(0.0);
-        clusters.push(OwnedCluster {
+        let x = clusters.last().map(WorkingCluster::end_x).unwrap_or(0.0);
+        clusters.push(WorkingCluster {
             byte_start: segment_end,
             byte_end: segment_end + 1,
             x,
@@ -64,7 +64,7 @@ pub(super) fn make_source_line<B: TextBackend>(
         });
     }
 
-    SourceLine {
+    WorkingSourceLine {
         clusters,
         byte_start: segment_start,
         byte_end: if has_newline {
@@ -76,16 +76,16 @@ pub(super) fn make_source_line<B: TextBackend>(
     }
 }
 
-pub(super) fn logical_cluster_line_width<G>(clusters: &[OwnedCluster<G>]) -> f32 {
+pub(super) fn logical_cluster_line_width<G>(clusters: &[WorkingCluster<G>]) -> f32 {
     let start = logical_cluster_line_start(clusters);
     clusters
         .iter()
-        .map(OwnedCluster::end_x)
+        .map(WorkingCluster::end_x)
         .fold(start, f32::max)
         - start
 }
 
-pub(super) fn logical_cluster_line_start<G>(clusters: &[OwnedCluster<G>]) -> f32 {
+pub(super) fn logical_cluster_line_start<G>(clusters: &[WorkingCluster<G>]) -> f32 {
     clusters
         .iter()
         .map(|cluster| cluster.x)
@@ -94,7 +94,7 @@ pub(super) fn logical_cluster_line_start<G>(clusters: &[OwnedCluster<G>]) -> f32
 }
 
 pub(super) fn append_empty_after_terminal_soft_wrap_boundary<G>(
-    lines: &mut Vec<Vec<OwnedCluster<G>>>,
+    lines: &mut Vec<Vec<WorkingCluster<G>>>,
     source_byte_end: usize,
 ) {
     let has_terminal_boundary = lines
@@ -108,7 +108,7 @@ pub(super) fn append_empty_after_terminal_soft_wrap_boundary<G>(
     }
 }
 
-fn collapse_trailing_soft_wrap_space<G>(clusters: &mut [OwnedCluster<G>]) {
+fn collapse_trailing_soft_wrap_space<G>(clusters: &mut [WorkingCluster<G>]) {
     let has_non_whitespace_content = clusters
         .iter()
         .rev()
@@ -125,11 +125,11 @@ fn collapse_trailing_soft_wrap_space<G>(clusters: &mut [OwnedCluster<G>]) {
 }
 
 pub(super) fn wrap_clusters<G: Clone>(
-    clusters: Vec<OwnedCluster<G>>,
+    clusters: Vec<WorkingCluster<G>>,
     w: f32,
     fallback: WrapClusterFallback,
-) -> Vec<Vec<OwnedCluster<G>>> {
-    let mut lines: Vec<Vec<OwnedCluster<G>>> = Vec::new();
+) -> Vec<Vec<WorkingCluster<G>>> {
+    let mut lines: Vec<Vec<WorkingCluster<G>>> = Vec::new();
     if clusters.is_empty() {
         return vec![Vec::new()];
     }
@@ -142,7 +142,11 @@ pub(super) fn wrap_clusters<G: Clone>(
             let mut appended = false;
             if current_line.is_empty() {
                 if let Some(last_line) = lines.last_mut() {
-                    if last_line.last().map(|c: &OwnedCluster<G>| c.is_hard_break) != Some(true) {
+                    if last_line
+                        .last()
+                        .map(|c: &WorkingCluster<G>| c.is_hard_break)
+                        != Some(true)
+                    {
                         moved.shift_x(-moved.x);
                         last_line.push(moved.clone());
                         appended = true;
@@ -219,17 +223,17 @@ pub(super) fn wrap_clusters<G: Clone>(
 }
 
 pub(super) fn wrap_clusters_at_words<G: Clone>(
-    clusters: Vec<OwnedCluster<G>>,
+    clusters: Vec<WorkingCluster<G>>,
     w: f32,
     fallback: WrapWordFallback,
-) -> Vec<Vec<OwnedCluster<G>>> {
+) -> Vec<Vec<WorkingCluster<G>>> {
     if clusters.is_empty() {
         return vec![Vec::new()];
     }
 
     struct Seg<G> {
         is_space: bool,
-        clusters: Vec<OwnedCluster<G>>,
+        clusters: Vec<WorkingCluster<G>>,
         logical_w: f32,
     }
 
@@ -328,7 +332,7 @@ pub(super) fn wrap_clusters_at_words<G: Clone>(
                             current_line = wrapped.last().expect("wrapped is non-empty").clone();
                             current_logical_w = current_line
                                 .iter()
-                                .map(OwnedCluster::end_x)
+                                .map(WorkingCluster::end_x)
                                 .fold(0.0, f32::max);
                             wrapped_count = wrapped.iter().map(Vec::len).sum();
                         }

@@ -1,16 +1,16 @@
-use super::{EllipsisFallback, LayoutGlyph, OwnedCluster, TextBackend, TextStyle};
+use super::{EllipsisFallback, LayoutGlyph, TextBackend, TextStyle, WorkingCluster};
 use crate::types::Vec2;
 
 const ELLIPSIS_MARKER: &str = "\u{2026}";
 
 pub(super) fn apply_ellipsis_x<B: TextBackend>(
     backend: &mut B,
-    clusters: Vec<OwnedCluster<B::ShapedGlyphId>>,
+    clusters: Vec<WorkingCluster<B::ShapedGlyphId>>,
     w: f32,
     style: TextStyle,
     fallback: EllipsisFallback,
     line_baseline_y: f32,
-) -> Vec<OwnedCluster<B::ShapedGlyphId>> {
+) -> Vec<WorkingCluster<B::ShapedGlyphId>> {
     let shaped = backend.shape_text(ELLIPSIS_MARKER, style);
     let ell_w = shaped
         .clusters
@@ -32,7 +32,7 @@ pub(super) fn apply_ellipsis_x<B: TextBackend>(
         }
         pen_x += cluster.advance;
     }
-    let mut ell_cluster = OwnedCluster {
+    let mut ell_cluster = WorkingCluster {
         byte_start: insert_byte,
         byte_end: insert_byte,
         x: 0.0,
@@ -58,7 +58,7 @@ pub(super) fn apply_ellipsis_x<B: TextBackend>(
                 break;
             }
         }
-        let pen_x = trimmed.last().map(OwnedCluster::end_x).unwrap_or(0.0);
+        let pen_x = trimmed.last().map(WorkingCluster::end_x).unwrap_or(0.0);
         ell_cluster.shift_x(pen_x);
         trimmed.push(ell_cluster);
         trimmed
