@@ -15,7 +15,6 @@ use crate::{
 use std::hash::Hash;
 use std::rc::Rc;
 
-#[allow(dead_code)]
 pub(super) struct WorkingRun<G> {
     pub(super) shaped: Rc<ShapedText<G>>,
     pub(super) segment_start: usize,
@@ -23,7 +22,6 @@ pub(super) struct WorkingRun<G> {
 
 #[derive(Debug, Clone)]
 pub(super) enum WorkingClusterSource<G> {
-    #[allow(dead_code)]
     Shaped {
         run_index: usize,
         cluster_index: usize,
@@ -229,6 +227,7 @@ fn translated_approx_ink<G>(
 
 fn materialize_working_cluster_glyphs<G: Copy>(
     cluster: &WorkingCluster<G>,
+    runs: &[WorkingRun<G>],
     baseline_y: f32,
 ) -> Vec<LayoutGlyph<G>> {
     if !cluster.glyphs_visible {
@@ -236,6 +235,28 @@ fn materialize_working_cluster_glyphs<G: Copy>(
     }
 
     match &cluster.source {
+        WorkingClusterSource::Shaped {
+            run_index,
+            cluster_index,
+        } => {
+            let run = &runs[*run_index];
+            let shaped_cluster = &run.shaped.clusters[*cluster_index];
+            debug_assert_eq!(
+                cluster.byte_start,
+                run.segment_start + shaped_cluster.byte_start
+            );
+            shaped_cluster
+                .glyphs
+                .iter()
+                .map(|glyph| LayoutGlyph {
+                    id: glyph.id,
+                    origin: Vec2::new(cluster.x + glyph.x, baseline_y + glyph.y),
+                    advance: glyph.advance,
+                    byte_start: cluster.byte_start,
+                    approx_ink_bounds: glyph.approx_ink_bounds,
+                })
+                .collect()
+        }
         WorkingClusterSource::SyntheticGlyphs { glyphs } => glyphs
             .iter()
             .map(|glyph| LayoutGlyph {
@@ -246,7 +267,7 @@ fn materialize_working_cluster_glyphs<G: Copy>(
                 approx_ink_bounds: glyph.approx_ink_bounds,
             })
             .collect(),
-        WorkingClusterSource::Empty | WorkingClusterSource::Shaped { .. } => Vec::new(),
+        WorkingClusterSource::Empty => Vec::new(),
     }
 }
 
@@ -261,6 +282,7 @@ impl<G: Copy + Eq + Hash> TextLayout<G> {
         let line_metrics = backend.line_metrics(style);
         let line_height = line_metrics.line_height.round().max(1.0);
         let baseline_offset = line_metrics.baseline_offset.round();
+        let mut working_runs = Vec::new();
         let mut source_lines = Vec::new();
         let mut start_byte = 0;
 
@@ -268,6 +290,7 @@ impl<G: Copy + Eq + Hash> TextLayout<G> {
             if ch == '\n' {
                 source_lines.push(make_source_line(
                     backend,
+                    &mut working_runs,
                     text,
                     style,
                     start_byte,
@@ -283,6 +306,7 @@ impl<G: Copy + Eq + Hash> TextLayout<G> {
         if start_byte <= text.len() {
             source_lines.push(make_source_line(
                 backend,
+                &mut working_runs,
                 text,
                 style,
                 start_byte,
@@ -513,6 +537,7 @@ impl<G: Copy + Eq + Hash> TextLayout<G> {
                 let cluster_glyph_start = glyphs.len();
                 glyphs.extend(materialize_working_cluster_glyphs(
                     &cluster,
+                    &working_runs,
                     new_baseline_y.round(),
                 ));
                 clusters.push(TextCluster {

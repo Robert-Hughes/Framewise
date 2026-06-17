@@ -1,12 +1,12 @@
 use super::{
-    LayoutGlyph, TextBackend, TextStyle, WorkingCluster, WorkingClusterSource, WorkingSourceLine,
+    TextBackend, TextStyle, WorkingCluster, WorkingClusterSource, WorkingRun, WorkingSourceLine,
     WrapClusterFallback, WrapWordFallback,
 };
-use crate::types::Vec2;
 
 #[allow(clippy::too_many_arguments)]
 pub(super) fn make_source_line<B: TextBackend>(
     backend: &mut B,
+    runs: &mut Vec<WorkingRun<B::ShapedGlyphId>>,
     text: &str,
     style: TextStyle,
     segment_start: usize,
@@ -22,23 +22,20 @@ pub(super) fn make_source_line<B: TextBackend>(
 
     if !segment.is_empty() {
         let shaped = backend.shape_text(segment, style);
-        for shaped_cluster in &shaped.clusters {
+        let run_index = runs.len();
+        runs.push(WorkingRun {
+            shaped,
+            segment_start,
+        });
+        for (cluster_index, shaped_cluster) in runs[run_index].shaped.clusters.iter().enumerate() {
             let byte_start = segment_start + shaped_cluster.byte_start;
             let byte_end = segment_start + shaped_cluster.byte_end;
             let x = clusters.last().map(WorkingCluster::end_x).unwrap_or(0.0);
-            let glyphs = shaped_cluster
-                .glyphs
-                .iter()
-                .map(|glyph| LayoutGlyph {
-                    id: glyph.id,
-                    origin: Vec2::new(glyph.x, glyph.y),
-                    advance: glyph.advance,
-                    byte_start,
-                    approx_ink_bounds: glyph.approx_ink_bounds,
-                })
-                .collect();
             clusters.push(WorkingCluster {
-                source: WorkingClusterSource::SyntheticGlyphs { glyphs },
+                source: WorkingClusterSource::Shaped {
+                    run_index,
+                    cluster_index,
+                },
                 byte_start,
                 byte_end,
                 x,
