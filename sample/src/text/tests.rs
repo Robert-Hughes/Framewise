@@ -7,6 +7,7 @@ mod tests {
         Color, DrawCommands, DrawGlyph, FontId, LineHeight, PrepareGlyphRequest, Rect, TextBackend,
         TextBounds, TextFlow, TextLineAlign, TextStyle, Vec2,
     };
+    use std::rc::Rc;
 
     fn sys() -> SampleTextBackend {
         SampleTextBackend::new()
@@ -245,6 +246,7 @@ mod tests {
         let second = TextBackend::shape_text(&mut sys, "cached", style);
 
         assert_eq!(first, second);
+        assert!(Rc::ptr_eq(&first, &second));
         assert_eq!(sys.shape_text_run_count, 1);
         assert_eq!(sys.shape_cache.len(), 1);
     }

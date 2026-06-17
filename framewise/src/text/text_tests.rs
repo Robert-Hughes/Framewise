@@ -784,6 +784,26 @@ fn emit_glyphs_skips_backend_non_drawable_glyphs_and_offsets_origin() {
 }
 
 #[test]
+fn resolved_glyphs_match_emitted_layout_origins() {
+    let style = style(TextFlow::single_line());
+    let mut backend = TestTextBackend;
+    let layout = layout_text(&mut backend, "ab", style, TextBounds::UNBOUNDED);
+    let origin = Vec2::new(10.0, 20.0);
+    let mut commands = DrawCommands::new();
+
+    layout.emit_glyphs(&mut commands, &mut backend, origin, style, Color::BLACK, 0);
+
+    let resolved = layout.resolved_glyphs();
+    assert_eq!(resolved.len(), commands.glyphs().len());
+    for (resolved, emitted) in resolved.iter().zip(commands.glyphs()) {
+        assert_eq!(
+            emitted.top_left,
+            Vec2::new(origin.x + resolved.origin.x, origin.y + resolved.origin.y)
+        );
+    }
+}
+
+#[test]
 fn emit_glyphs_omits_empty_runs() {
     let style = style(TextFlow::single_line());
     let mut backend = TestTextBackend;
