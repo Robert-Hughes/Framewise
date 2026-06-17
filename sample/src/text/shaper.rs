@@ -44,16 +44,11 @@ impl SampleTextBackend {
         font_id: FontId,
         line_height_style: LineHeight,
     ) -> TextLineLayoutMetrics {
-        let font = self.fonts[font_id.0 as usize];
-
-        // For now, get metrics without variations - they should be similar enough
-        // TODO: Consider if we need to normalize coords for metrics
-        let metrics = font.metrics(&[]);
-        let units_per_em = metrics.units_per_em as f32;
-        let scale = size / units_per_em;
-        let ascent = metrics.ascent * scale;
-        let descent = (metrics.descent * scale).abs();
-        let line_gap = metrics.leading * scale;
+        let raw = self.raw_line_metrics[font_id.0 as usize];
+        let scale = size / raw.units_per_em;
+        let ascent = raw.ascent * scale;
+        let descent = (raw.descent * scale).abs();
+        let line_gap = raw.leading * scale;
 
         let line_height = match line_height_style {
             LineHeight::Normal => ascent + descent + line_gap,

@@ -55,8 +55,17 @@ pub(crate) struct ShapeCacheKey {
     opsz: i64,
 }
 
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct RawFontLineMetrics {
+    pub units_per_em: f32,
+    pub ascent: f32,
+    pub descent: f32,
+    pub leading: f32,
+}
+
 pub struct SampleTextBackend {
     pub fonts: Vec<FontRef<'static>>,
+    pub(crate) raw_line_metrics: Vec<RawFontLineMetrics>,
     pub font_opsz_ranges: Vec<(f32, f32)>, // (min, max) for each font's opsz axis
     pub font_has_wght: Vec<bool>,          // Whether each font has a wght axis
     pub font_has_opsz: Vec<bool>,          // Whether each font has an opsz axis
@@ -100,6 +109,21 @@ impl SampleTextBackend {
             .expect("failed to load Inter Tight variable font");
 
         let fonts = vec![jetbrains_mono, inter, inter_tight];
+
+        let raw_line_metrics = fonts
+            .iter()
+            .map(|font| {
+                // For now, get metrics without variations - they should be similar enough.
+                // TODO: Consider if we need to normalize coords for metrics.
+                let metrics = font.metrics(&[]);
+                RawFontLineMetrics {
+                    units_per_em: metrics.units_per_em as f32,
+                    ascent: metrics.ascent,
+                    descent: metrics.descent,
+                    leading: metrics.leading,
+                }
+            })
+            .collect();
 
         // Detect supported variation axes for each font
         let mut font_has_wght = Vec::new();
@@ -152,6 +176,7 @@ impl SampleTextBackend {
         let atlas_size = 1024;
         Self {
             fonts,
+            raw_line_metrics,
             font_opsz_ranges,
             font_has_wght,
             font_has_opsz,
