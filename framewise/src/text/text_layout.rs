@@ -13,6 +13,7 @@ use crate::{
     types::{Color, Rect, Vec2},
 };
 use std::hash::Hash;
+use std::marker::PhantomData;
 use std::rc::Rc;
 
 pub(super) struct WorkingRun<G> {
@@ -21,15 +22,12 @@ pub(super) struct WorkingRun<G> {
 }
 
 #[derive(Debug, Clone)]
-pub(super) enum WorkingClusterSource<G> {
+pub(super) enum WorkingClusterSource {
     Shaped {
         run_index: usize,
         cluster_index: usize,
     },
     Empty,
-    SyntheticGlyphs {
-        glyphs: Vec<LayoutGlyph<G>>,
-    },
 }
 
 /// Mutable source-line representation used while applying wrapping and overflow.
@@ -37,7 +35,6 @@ pub(super) struct WorkingSourceLine<G> {
     pub(super) clusters: Vec<WorkingCluster<G>>,
     pub(super) byte_start: usize,
     pub(super) byte_end: usize,
-    pub(super) baseline_y: f32,
 }
 
 /// Mutable visual line representation before final block positioning.
@@ -45,13 +42,12 @@ pub(super) struct WorkingProcessedLine<G> {
     pub(super) clusters: Vec<WorkingCluster<G>>,
     pub(super) byte_start: usize,
     pub(super) byte_end: usize,
-    pub(super) baseline_y: f32,
     pub(super) end_kind: LineEndKind,
 }
 
 #[derive(Debug, Clone)]
 pub(super) struct WorkingCluster<G> {
-    pub(super) source: WorkingClusterSource<G>,
+    pub(super) source: WorkingClusterSource,
     pub(super) byte_start: usize,
     pub(super) byte_end: usize,
     pub(super) x: f32,
@@ -60,6 +56,7 @@ pub(super) struct WorkingCluster<G> {
     pub(super) is_whitespace: bool,
     pub(super) is_soft_wrap_boundary: bool,
     pub(super) glyphs_visible: bool,
+    pub(super) _marker: PhantomData<G>,
 }
 
 impl<G> WorkingCluster<G> {
@@ -257,16 +254,6 @@ fn materialize_working_cluster_glyphs<G: Copy>(
                 })
                 .collect()
         }
-        WorkingClusterSource::SyntheticGlyphs { glyphs } => glyphs
-            .iter()
-            .map(|glyph| LayoutGlyph {
-                id: glyph.id,
-                origin: Vec2::new(cluster.x + glyph.origin.x, baseline_y + glyph.origin.y),
-                advance: glyph.advance,
-                byte_start: cluster.byte_start,
-                approx_ink_bounds: glyph.approx_ink_bounds,
-            })
-            .collect(),
         WorkingClusterSource::Empty => Vec::new(),
     }
 }
@@ -296,9 +283,6 @@ impl<G: Copy + Eq + Hash> TextLayout<G> {
                     start_byte,
                     idx,
                     true,
-                    source_lines.len(),
-                    line_height,
-                    baseline_offset,
                 ));
                 start_byte = idx + ch.len_utf8();
             }
@@ -312,9 +296,6 @@ impl<G: Copy + Eq + Hash> TextLayout<G> {
                 start_byte,
                 text.len(),
                 false,
-                source_lines.len(),
-                line_height,
-                baseline_offset,
             ));
         }
 
@@ -362,11 +343,11 @@ impl<G: Copy + Eq + Hash> TextLayout<G> {
                                     overflow_line_end_kind = Some(LineEndKind::EllipsisX);
                                     final_sublines.push(apply_ellipsis_x(
                                         backend,
+                                        &mut working_runs,
                                         seg,
                                         w,
                                         style,
                                         fallback,
-                                        line.baseline_y,
                                     ));
                                 }
                                 OverflowX::Keep => {
@@ -444,7 +425,6 @@ impl<G: Copy + Eq + Hash> TextLayout<G> {
                     clusters: sub_seg,
                     byte_start: sub_starts[idx],
                     byte_end: sub_starts[idx + 1],
-                    baseline_y: line.baseline_y,
                     end_kind,
                 });
             }
@@ -468,11 +448,11 @@ impl<G: Copy + Eq + Hash> TextLayout<G> {
                         let w = bounds.max_width.unwrap_or(f32::INFINITY);
                         processed_lines[last_idx].clusters = apply_ellipsis_x(
                             backend,
+                            &mut working_runs,
                             last_line_clusters,
                             w,
                             style,
                             fallback,
-                            processed_lines[last_idx].baseline_y,
                         );
                         processed_lines[last_idx].end_kind = LineEndKind::EllipsisY;
                         processed_lines.truncate(max_lines);
@@ -496,7 +476,6 @@ impl<G: Copy + Eq + Hash> TextLayout<G> {
                 clusters: Vec::new(),
                 byte_start: 0,
                 byte_end: text.len(),
-                baseline_y: baseline_offset,
                 end_kind: LineEndKind::EndOfText,
             });
         }

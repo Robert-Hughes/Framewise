@@ -1,41 +1,35 @@
 use super::{
-    EllipsisFallback, LayoutGlyph, TextBackend, TextStyle, WorkingCluster, WorkingClusterSource,
+    EllipsisFallback, TextBackend, TextStyle, WorkingCluster, WorkingClusterSource, WorkingRun,
 };
-use crate::types::Vec2;
+use std::marker::PhantomData;
 
 const ELLIPSIS_MARKER: &str = "\u{2026}";
 
 pub(super) fn apply_ellipsis_x<B: TextBackend>(
     backend: &mut B,
+    runs: &mut Vec<WorkingRun<B::ShapedGlyphId>>,
     clusters: Vec<WorkingCluster<B::ShapedGlyphId>>,
     w: f32,
     style: TextStyle,
     fallback: EllipsisFallback,
-    _line_baseline_y: f32,
 ) -> Vec<WorkingCluster<B::ShapedGlyphId>> {
     let shaped = backend.shape_text(ELLIPSIS_MARKER, style);
+    let run_index = runs.len();
     let ell_w = shaped
         .clusters
         .iter()
         .map(|cluster| cluster.advance)
         .sum::<f32>();
     let insert_byte = clusters.last().map(|cluster| cluster.byte_end).unwrap_or(0);
-    let mut ell_glyphs = Vec::new();
-    let mut pen_x = 0.0;
-    for cluster in &shaped.clusters {
-        for glyph in &cluster.glyphs {
-            ell_glyphs.push(LayoutGlyph {
-                id: glyph.id,
-                origin: Vec2::new(pen_x + glyph.x, glyph.y),
-                advance: glyph.advance,
-                byte_start: insert_byte,
-                approx_ink_bounds: glyph.approx_ink_bounds,
-            });
-        }
-        pen_x += cluster.advance;
-    }
+    runs.push(WorkingRun {
+        shaped,
+        segment_start: insert_byte,
+    });
     let mut ell_cluster = WorkingCluster {
-        source: WorkingClusterSource::SyntheticGlyphs { glyphs: ell_glyphs },
+        source: WorkingClusterSource::Shaped {
+            run_index,
+            cluster_index: 0,
+        },
         byte_start: insert_byte,
         byte_end: insert_byte,
         x: 0.0,
@@ -44,6 +38,7 @@ pub(super) fn apply_ellipsis_x<B: TextBackend>(
         is_whitespace: false,
         is_soft_wrap_boundary: false,
         glyphs_visible: true,
+        _marker: PhantomData,
     };
 
     if ell_w > w {

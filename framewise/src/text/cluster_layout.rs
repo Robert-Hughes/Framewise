@@ -2,8 +2,8 @@ use super::{
     TextBackend, TextStyle, WorkingCluster, WorkingClusterSource, WorkingRun, WorkingSourceLine,
     WrapClusterFallback, WrapWordFallback,
 };
+use std::marker::PhantomData;
 
-#[allow(clippy::too_many_arguments)]
 pub(super) fn make_source_line<B: TextBackend>(
     backend: &mut B,
     runs: &mut Vec<WorkingRun<B::ShapedGlyphId>>,
@@ -12,12 +12,8 @@ pub(super) fn make_source_line<B: TextBackend>(
     segment_start: usize,
     segment_end: usize,
     has_newline: bool,
-    line_idx: usize,
-    line_height: f32,
-    baseline_offset: f32,
 ) -> WorkingSourceLine<B::ShapedGlyphId> {
     let segment = &text[segment_start..segment_end];
-    let baseline_y = line_idx as f32 * line_height + baseline_offset;
     let mut clusters = Vec::new();
 
     if !segment.is_empty() {
@@ -44,6 +40,7 @@ pub(super) fn make_source_line<B: TextBackend>(
                 is_whitespace: shaped_cluster.is_whitespace,
                 is_soft_wrap_boundary: false,
                 glyphs_visible: true,
+                _marker: PhantomData,
             });
         }
     }
@@ -60,6 +57,7 @@ pub(super) fn make_source_line<B: TextBackend>(
             is_whitespace: true,
             is_soft_wrap_boundary: false,
             glyphs_visible: false,
+            _marker: PhantomData,
         });
     }
 
@@ -71,7 +69,6 @@ pub(super) fn make_source_line<B: TextBackend>(
         } else {
             segment_end
         },
-        baseline_y,
     }
 }
 
