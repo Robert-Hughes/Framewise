@@ -15,8 +15,7 @@ fn layout(text: &str, flow: TextFlow, bounds: TextBounds) -> TextLayout<u32> {
 
 fn visible(layout: &TextLayout<u32>) -> String {
     layout
-        .glyphs
-        .iter()
+        .iter_resolved_glyphs()
         .filter_map(|glyph| char::from_u32(glyph.id))
         .collect()
 }
@@ -34,11 +33,12 @@ fn line_width(text: &str, flow: TextFlow) -> f32 {
 }
 
 fn visual_lines(layout: &TextLayout<u32>) -> Vec<String> {
+    let glyphs = layout.resolved_glyphs();
     layout
         .lines
         .iter()
         .map(|line| {
-            layout.glyphs[line.glyph_start..line.glyph_end]
+            glyphs[line.glyph_start..line.glyph_end]
                 .iter()
                 .filter_map(|glyph| char::from_u32(glyph.id))
                 .collect()
@@ -414,7 +414,7 @@ fn overwide_whitespace_on_empty_line_uses_drop_fallbacks() {
         let layout = layout(" ", flow, TextBounds::width(1.0));
 
         assert_eq!(layout.metrics().line_count, 1);
-        assert_eq!(layout.glyphs.len(), 0);
+        assert_eq!(layout.resolved_glyphs().len(), 0);
         assert_eq!(layout.metrics().lines[0].logical_width, 0.0);
     }
 }
@@ -887,7 +887,7 @@ fn empty_text_prepare_registers_empty_run_with_matching_metrics() {
         prepared.metrics().logical_size.x,
         measured.metrics().logical_size.x
     );
-    assert_eq!(prepared.glyphs.len(), 0);
+    assert_eq!(prepared.resolved_glyphs().len(), 0);
 }
 
 #[test]
@@ -1002,7 +1002,7 @@ fn metrics_report_whitespace_logical_advance_without_ink() {
     let layout = layout("   ", TextFlow::single_line(), TextBounds::UNBOUNDED);
 
     assert_eq!(layout.metrics().logical_size.x, 24.0);
-    assert_eq!(layout.glyphs.len(), 0);
+    assert_eq!(layout.resolved_glyphs().len(), 0);
     assert_eq!(layout.metrics().approx_ink_bounds, Rect::ZERO);
 }
 
@@ -1010,7 +1010,7 @@ fn metrics_report_whitespace_logical_advance_without_ink() {
 fn drop_overflow_uses_logical_advance_not_ink_width_for_single_glyph() {
     let layout = layout("a", TextFlow::single_line(), TextBounds::width(7.0));
 
-    assert_eq!(layout.glyphs.len(), 0);
+    assert_eq!(layout.resolved_glyphs().len(), 0);
     assert!(layout.metrics().truncated_horizontal);
 }
 
@@ -1314,7 +1314,7 @@ fn test_overflow_x_keep_y_ellipsis_fallback_drop() {
     );
 
     assert!(layout.metrics().truncated_vertical);
-    assert_eq!(layout.glyphs.len(), 0);
+    assert_eq!(layout.resolved_glyphs().len(), 0);
 }
 
 #[test]
@@ -1355,7 +1355,7 @@ fn test_overflow_x_ellipsis_fallback_drop_y_keep() {
         TextBounds::width(0.0),
     );
 
-    assert_eq!(layout.glyphs.len(), 0);
+    assert_eq!(layout.resolved_glyphs().len(), 0);
     assert_eq!(layout.lines[0].end_kind, LineEndKind::EllipsisX);
 }
 

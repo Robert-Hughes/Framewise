@@ -21,7 +21,7 @@ impl<G: Copy> TextLayout<G> {
     ) where
         B: TextBackend<ShapedGlyphId = G>,
     {
-        let glyphs = self.glyphs.iter().filter_map(|glyph| {
+        let glyphs = self.iter_resolved_glyphs().filter_map(|glyph| {
             backend.prepare_glyph(PrepareGlyphRequest {
                 glyph: glyph.id,
                 style,

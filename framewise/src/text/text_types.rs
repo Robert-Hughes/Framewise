@@ -1,4 +1,6 @@
+use super::ShapedText;
 use crate::types::{Rect, Vec2};
+use std::rc::Rc;
 
 /// A lightweight application-owned font handle.
 ///
@@ -584,6 +586,18 @@ pub struct TextMetrics {
 /// collapsed to zero advance. Leading indentation remains visible unless one of
 /// those whitespace characters independently becomes a later boundary.
 #[derive(Debug, Clone, PartialEq)]
+pub enum TextClusterSource<G> {
+    Shaped {
+        run_index: usize,
+        cluster_index: usize,
+    },
+    Empty,
+    SyntheticGlyphs {
+        glyphs: Vec<LayoutGlyph<G>>,
+    },
+}
+
+#[derive(Debug, Clone, PartialEq)]
 pub struct TextLayout<G> {
     /// The block's measured logical geometry.
     pub metrics: TextMetrics,
@@ -592,9 +606,8 @@ pub struct TextLayout<G> {
     /// Owned text clusters used for wrapping, caret placement, hit-testing, and
     /// source byte mapping.
     pub clusters: Vec<TextCluster>,
-    /// Owned layout glyphs with final layout-space origins, before caller draw
-    /// origin is added.
-    pub glyphs: Vec<LayoutGlyph<G>>,
+    pub(crate) cluster_sources: Vec<TextClusterSource<G>>,
+    pub(crate) runs: Vec<Rc<ShapedText<G>>>,
 }
 
 /// One laid-out visual line in a Framewise-owned text layout.
@@ -604,6 +617,8 @@ pub struct TextLine {
     pub y_top: f32,
     /// Line height, and the vertical advance to the next line.
     pub height: f32,
+    /// Baseline Y offset in block-local coordinates.
+    pub baseline_y: f32,
     /// Range into the layout's `glyphs` vec: `[glyph_start, glyph_end)`.
     pub glyph_start: usize,
     pub glyph_end: usize,
@@ -645,6 +660,8 @@ pub struct TextCluster {
     pub is_whitespace: bool,
     /// True for a preserved whitespace cluster collapsed at a soft-wrap boundary.
     pub is_soft_wrap_boundary: bool,
+    /// False for collapsed/suppressed clusters that should not emit glyphs.
+    pub glyphs_visible: bool,
 }
 
 /// One glyph after Framewise line layout, before caller draw origin is added.

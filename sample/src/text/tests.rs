@@ -264,7 +264,10 @@ mod tests {
         let first = layout_text(&mut sys, "abcdef", style, TextBounds::width(40.0));
         let second = layout_text(&mut sys, "abcdef", style, TextBounds::width(40.0));
 
-        assert_eq!(first.glyphs.last(), second.glyphs.last());
+        assert_eq!(
+            first.resolved_glyphs().last(),
+            second.resolved_glyphs().last()
+        );
         assert_eq!(sys.shape_text_run_count, 2);
         assert_eq!(sys.shape_cache.len(), 2);
     }
@@ -415,7 +418,7 @@ mod tests {
         );
 
         assert!(!commands.glyphs().is_empty());
-        for (layout_glyph, draw_glyph) in layout.glyphs.iter().zip(commands.glyphs()) {
+        for (layout_glyph, draw_glyph) in layout.resolved_glyphs().iter().zip(commands.glyphs()) {
             let key = sys
                 .prepared_glyph_keys
                 .get(draw_glyph.handle.0 as usize)
@@ -505,7 +508,7 @@ mod tests {
         );
 
         assert!(layout
-            .glyphs
+            .resolved_glyphs()
             .iter()
             .all(|glyph| glyph.origin.y.fract() == 0.0));
         assert!(commands
@@ -546,7 +549,8 @@ mod tests {
         let origin = Vec2::new(12.25, 4.0);
         let (layout, commands) = emit(&mut sys, "Body copy", style, TextBounds::UNBOUNDED, origin);
 
-        let mut layout_glyphs = layout.glyphs.iter();
+        let resolved_glyphs = layout.resolved_glyphs();
+        let mut layout_glyphs = resolved_glyphs.iter();
         for draw_glyph in commands.glyphs() {
             let key = sys.prepared_glyph_keys[draw_glyph.handle.0 as usize];
             let layout_glyph = layout_glyphs
@@ -573,7 +577,8 @@ mod tests {
             origin,
         );
 
-        let mut layout_glyphs = layout.glyphs.iter();
+        let resolved_glyphs = layout.resolved_glyphs();
+        let mut layout_glyphs = resolved_glyphs.iter();
         for draw_glyph in commands.glyphs() {
             let key = sys.prepared_glyph_keys[draw_glyph.handle.0 as usize];
             let layout_glyph = layout_glyphs
@@ -637,8 +642,9 @@ mod tests {
         let style = style(FontId(1), 16.0, 400, flow);
         let layout = layout_text(&mut sys, "abcdef", style, TextBounds::width(40.0));
 
-        let last = layout.glyphs.last().expect("ellipsis glyph should exist");
-        let first = layout.glyphs.first().expect("text glyph should exist");
+        let resolved_glyphs = layout.resolved_glyphs();
+        let last = resolved_glyphs.last().expect("ellipsis glyph should exist");
+        let first = resolved_glyphs.first().expect("text glyph should exist");
         assert_eq!(last.origin.y, first.origin.y);
     }
 
