@@ -1,7 +1,8 @@
 use crate::text::{
-    PrepareGlyphRequest, ShapedCluster, ShapedGlyph, ShapedText, TextBackend, TextStyle,
+    PrepareGlyphRequest, ShapedCluster, ShapedGlyph, SharedShapedText, TextBackend, TextStyle,
 };
 use crate::{DrawGlyph, PreparedGlyphHandle};
+use std::rc::Rc;
 
 /// Deterministic text backend for unit tests.
 ///
@@ -27,7 +28,11 @@ impl TextBackend for TestTextBackend {
         16.0
     }
 
-    fn shape_text(&mut self, text: &str, style: TextStyle) -> ShapedText<Self::ShapedGlyphId> {
+    fn shape_text(
+        &mut self,
+        text: &str,
+        style: TextStyle,
+    ) -> SharedShapedText<Self::ShapedGlyphId> {
         let mut clusters: Vec<ShapedCluster<Self::ShapedGlyphId>> = Vec::new();
         for (byte_start, ch) in text.char_indices() {
             let byte_end = byte_start + ch.len_utf8();
@@ -66,7 +71,7 @@ impl TextBackend for TestTextBackend {
             });
         }
 
-        ShapedText { clusters }
+        Rc::new(crate::text::ShapedText { clusters })
     }
 
     fn prepare_glyph(

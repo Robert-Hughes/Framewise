@@ -497,13 +497,13 @@ mod tests {
             &mut self,
             text: &str,
             style: crate::text::TextStyle,
-        ) -> ShapedText<Self::ShapedGlyphId> {
+        ) -> crate::text::SharedShapedText<Self::ShapedGlyphId> {
             if text.is_empty() {
-                return ShapedText {
+                return std::rc::Rc::new(ShapedText {
                     clusters: Vec::new(),
-                };
+                });
             }
-            ShapedText {
+            std::rc::Rc::new(ShapedText {
                 clusters: vec![ShapedCluster {
                     byte_start: 0,
                     byte_end: text.len(),
@@ -517,7 +517,7 @@ mod tests {
                         approx_ink_bounds: Some(Rect::new(-4.0, 3.0, 18.0, 10.0)),
                     }],
                 }],
-            }
+            })
         }
 
         fn prepare_glyph(

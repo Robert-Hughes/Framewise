@@ -1,3 +1,11 @@
+use std::rc::Rc;
+
+/// Shared immutable shaping output returned by [`TextBackend`](super::TextBackend).
+///
+/// Layouts may hold references after the backend cache entry has been reused or
+/// evicted. Framewise treats the contents as immutable.
+pub type SharedShapedText<G> = Rc<ShapedText<G>>;
+
 /// Backend-to-Framewise shaped text output.
 ///
 /// This is a logical shaping result only. It contains no renderer resources and

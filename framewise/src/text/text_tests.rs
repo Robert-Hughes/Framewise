@@ -167,8 +167,12 @@ impl TextBackend for ApproxInkBackend {
         20.0
     }
 
-    fn shape_text(&mut self, text: &str, _style: TextStyle) -> ShapedText<Self::ShapedGlyphId> {
-        ShapedText {
+    fn shape_text(
+        &mut self,
+        text: &str,
+        _style: TextStyle,
+    ) -> SharedShapedText<Self::ShapedGlyphId> {
+        std::rc::Rc::new(ShapedText {
             clusters: vec![ShapedCluster {
                 byte_start: 0,
                 byte_end: text.len(),
@@ -182,7 +186,7 @@ impl TextBackend for ApproxInkBackend {
                     approx_ink_bounds: Some(Rect::new(-4.0, 3.0, 18.0, 10.0)),
                 }],
             }],
-        }
+        })
     }
 
     fn prepare_glyph(

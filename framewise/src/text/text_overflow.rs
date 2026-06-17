@@ -20,8 +20,8 @@ pub(super) fn apply_ellipsis_x<B: TextBackend>(
     let insert_byte = clusters.last().map(|cluster| cluster.byte_end).unwrap_or(0);
     let mut ell_glyphs = Vec::new();
     let mut pen_x = 0.0;
-    for cluster in shaped.clusters {
-        for glyph in cluster.glyphs {
+    for cluster in &shaped.clusters {
+        for glyph in &cluster.glyphs {
             ell_glyphs.push(LayoutGlyph {
                 id: glyph.id,
                 origin: Vec2::new(pen_x + glyph.x, line_baseline_y + glyph.y),

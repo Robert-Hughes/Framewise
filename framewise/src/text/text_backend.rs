@@ -1,4 +1,4 @@
-use super::{ShapedText, TextStyle};
+use super::{SharedShapedText, TextStyle};
 use crate::{draw::DrawGlyph, types::Vec2};
 use std::hash::Hash;
 
@@ -43,8 +43,10 @@ pub struct TextLineLayoutMetrics {
 /// selected overflow policy explicitly truncates content, such as `Drop`,
 /// ellipsis fitting, or a `Drop` fallback.
 ///
-/// Shaping and glyph preparation are intentionally separate. `shape_text` is
-/// used for stable logical layout and measurement. `prepare_glyph` is called
+/// Shaping and glyph preparation are intentionally separate. `shape_text`
+/// returns immutable shared shaping output used for stable logical layout and
+/// measurement; Framewise must not mutate it. Backend cache entries may outlive
+/// the cache through `Rc` references held by layouts. `prepare_glyph` is called
 /// later with the final draw origin included so the backend can choose subpixel
 /// bins, hinting, and renderer resources using absolute logical-pixel position.
 /// Returned [`DrawGlyph`] values may extend outside the logical layout bounds;
@@ -75,7 +77,8 @@ pub trait TextBackend {
     /// Framewise-owned synthetic UI marker text, such as an overflow ellipsis,
     /// then remap those marker byte ranges internally to source text
     /// coordinates.
-    fn shape_text(&mut self, text: &str, style: TextStyle) -> ShapedText<Self::ShapedGlyphId>;
+    fn shape_text(&mut self, text: &str, style: TextStyle)
+        -> SharedShapedText<Self::ShapedGlyphId>;
 
     /// Prepare a laid-out glyph for rendering.
     ///

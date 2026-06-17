@@ -575,7 +575,11 @@ mod tests {
             30.0
         }
 
-        fn shape_text(&mut self, text: &str, _style: TextStyle) -> super::super::ShapedText<u32> {
+        fn shape_text(
+            &mut self,
+            text: &str,
+            _style: TextStyle,
+        ) -> super::super::SharedShapedText<u32> {
             let clusters = text
                 .char_indices()
                 .map(|(byte_start, ch)| super::super::ShapedCluster {
@@ -592,7 +596,7 @@ mod tests {
                     }],
                 })
                 .collect();
-            super::super::ShapedText { clusters }
+            std::rc::Rc::new(super::super::ShapedText { clusters })
         }
 
         fn prepare_glyph(&mut self, request: PrepareGlyphRequest<u32>) -> Option<DrawGlyph> {

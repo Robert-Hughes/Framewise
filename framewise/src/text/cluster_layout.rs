@@ -22,13 +22,13 @@ pub(super) fn make_source_line<B: TextBackend>(
 
     if !segment.is_empty() {
         let shaped = backend.shape_text(segment, style);
-        for shaped_cluster in shaped.clusters {
+        for shaped_cluster in &shaped.clusters {
             let byte_start = segment_start + shaped_cluster.byte_start;
             let byte_end = segment_start + shaped_cluster.byte_end;
             let x = clusters.last().map(OwnedCluster::end_x).unwrap_or(0.0);
             let glyphs = shaped_cluster
                 .glyphs
-                .into_iter()
+                .iter()
                 .map(|glyph| LayoutGlyph {
                     id: glyph.id,
                     origin: Vec2::new(x + glyph.x, baseline_y + glyph.y),

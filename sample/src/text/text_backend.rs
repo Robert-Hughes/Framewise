@@ -34,10 +34,11 @@
 
 use crate::text::types::{GlyphInfo, GlyphKey, PreparedGlyphImage, PreparedGlyphResources};
 use framewise::{
-    DrawGlyph, PrepareGlyphRequest, PreparedGlyphHandle, ShapedText, TextBackend,
+    DrawGlyph, PrepareGlyphRequest, PreparedGlyphHandle, SharedShapedText, TextBackend,
     TextLineLayoutMetrics, Vec2,
 };
 use std::collections::HashMap;
+use std::rc::Rc;
 use swash::scale::ScaleContext;
 use swash::shape::ShapeContext;
 use swash::FontRef;
@@ -71,7 +72,7 @@ pub struct SampleTextBackend {
     pub font_has_opsz: Vec<bool>,          // Whether each font has an opsz axis
     pub shape_context: ShapeContext,
     pub scale_context: ScaleContext,
-    pub(crate) shape_cache: HashMap<ShapeCacheKey, ShapedText<u16>>,
+    pub(crate) shape_cache: HashMap<ShapeCacheKey, SharedShapedText<u16>>,
     #[cfg(test)]
     pub(crate) shape_text_run_count: usize,
     // Atlas data
@@ -226,6 +227,12 @@ impl SampleTextBackend {
     }
 }
 
+impl Default for SampleTextBackend {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 fn quantize_float_key(value: f32) -> i64 {
     if !value.is_finite() {
         return if value.is_sign_negative() {
@@ -263,21 +270,21 @@ impl TextBackend for SampleTextBackend {
         &mut self,
         text: &str,
         style: framewise::TextStyle,
-    ) -> ShapedText<Self::ShapedGlyphId> {
+    ) -> SharedShapedText<Self::ShapedGlyphId> {
         // Cache whole hard-line segments: sample shaping depends on text plus
         // font/variation inputs, not Framewise layout bounds, wrapping,
         // alignment, overflow, or final draw origin. The final origin is still
         // handled by prepare_glyph for subpixel bins and atlas resources.
         let key = self.shape_cache_key(text, style);
         if let Some(shaped) = self.shape_cache.get(&key) {
-            return shaped.clone();
+            return Rc::clone(shaped);
         }
 
-        let shaped = self.shape_text_run(text, style);
+        let shaped = Rc::new(self.shape_text_run(text, style));
         if self.shape_cache.len() >= MAX_SHAPE_CACHE_ENTRIES {
             self.shape_cache.clear();
         }
-        self.shape_cache.insert(key, shaped.clone());
+        self.shape_cache.insert(key, Rc::clone(&shaped));
         shaped
     }
 
