@@ -125,16 +125,36 @@ pub(super) fn wrap_clusters(
     w: f32,
     fallback: WrapClusterFallback,
 ) -> Vec<Vec<WorkingCluster>> {
+    let mut lines = Vec::new();
     if clusters.is_empty() {
-        return vec![Vec::new()];
+        lines.push(Vec::new());
+        return lines;
+    }
+
+    let cluster_count = clusters.len();
+    let estimated_lines =
+        estimated_wrapped_line_count(cluster_count, logical_cluster_line_width(&clusters), w);
+    lines.reserve(estimated_lines);
+    wrap_clusters_into(clusters, w, fallback, &mut lines);
+    lines
+}
+
+fn wrap_clusters_into(
+    clusters: Vec<WorkingCluster>,
+    w: f32,
+    fallback: WrapClusterFallback,
+    lines: &mut Vec<Vec<WorkingCluster>>,
+) -> usize {
+    if clusters.is_empty() {
+        return 0;
     }
     let cluster_count = clusters.len();
     let estimated_lines =
         estimated_wrapped_line_count(cluster_count, logical_cluster_line_width(&clusters), w);
     let estimated_line_cap = estimated_clusters_per_line(cluster_count, estimated_lines);
-    let mut lines: Vec<Vec<WorkingCluster>> = Vec::with_capacity(estimated_lines);
     let mut current_line = Vec::with_capacity(estimated_line_cap);
     let mut current_line_start_x = clusters[0].x;
+    let mut wrapped_count = 0;
 
     for cluster in clusters {
         if cluster.is_hard_break {
@@ -149,6 +169,7 @@ pub(super) fn wrap_clusters(
                     }
                 }
             }
+            wrapped_count += 1;
             if !appended {
                 moved.shift_x(-current_line_start_x);
                 current_line.push(moved);
@@ -165,12 +186,14 @@ pub(super) fn wrap_clusters(
             let mut moved = cluster;
             moved.shift_x(rel_start_x - moved.x);
             current_line.push(moved);
+            wrapped_count += 1;
         } else if cluster.is_whitespace && !current_line.is_empty() {
             let next_line_start_x = cluster.x + cluster.advance;
             let mut moved = cluster;
             moved.shift_x(rel_start_x - moved.x);
             moved.collapse_soft_wrap_boundary();
             current_line.push(moved);
+            wrapped_count += 1;
             lines.push(current_line);
             current_line = Vec::with_capacity(estimated_line_cap);
             current_line_start_x = next_line_start_x;
@@ -180,6 +203,7 @@ pub(super) fn wrap_clusters(
                     let mut moved = cluster;
                     moved.shift_x(rel_start_x - moved.x);
                     current_line.push(moved);
+                    wrapped_count += 1;
                     lines.push(current_line);
                     current_line = Vec::with_capacity(estimated_line_cap);
                     current_line_start_x += rel_end_x;
@@ -196,6 +220,7 @@ pub(super) fn wrap_clusters(
                 let mut moved = cluster;
                 moved.shift_x(-moved.x);
                 current_line.push(moved);
+                wrapped_count += 1;
             } else {
                 match fallback {
                     WrapClusterFallback::Keep => {
@@ -203,6 +228,7 @@ pub(super) fn wrap_clusters(
                         let mut moved = cluster;
                         moved.shift_x(-moved.x);
                         current_line.push(moved);
+                        wrapped_count += 1;
                         lines.push(current_line);
                         current_line = Vec::with_capacity(estimated_line_cap);
                         current_line_start_x += advance;
@@ -215,7 +241,7 @@ pub(super) fn wrap_clusters(
     if !current_line.is_empty() {
         lines.push(current_line);
     }
-    lines
+    wrapped_count
 }
 
 pub(super) fn wrap_clusters_at_words(
@@ -326,12 +352,13 @@ pub(super) fn wrap_clusters_at_words(
                 match fallback {
                     WrapWordFallback::WrapCluster { fallback } => {
                         let seg_len = seg.clusters.len();
-                        let mut wrapped = wrap_clusters(seg.clusters, w, fallback);
-                        let mut wrapped_count = 0;
-                        if let Some(last) = wrapped.pop() {
-                            wrapped_count =
-                                wrapped.iter().map(Vec::len).sum::<usize>() + last.len();
-                            lines.extend(wrapped);
+                        let appended_start = lines.len();
+                        let wrapped_count =
+                            wrap_clusters_into(seg.clusters, w, fallback, &mut lines);
+                        if lines.len() > appended_start {
+                            let last = lines
+                                .pop()
+                                .expect("appended wrapped lines should contain a final line");
                             current_line = last;
                             current_logical_w = current_line
                                 .iter()
