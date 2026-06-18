@@ -20,6 +20,24 @@ impl<G: Copy> TextLayout<G> {
     ) where
         B: TextBackend<ShapedGlyphToken = G>,
     {
+        let visible_glyph_count = self
+            .lines
+            .iter()
+            .flat_map(|line| line.clusters.iter())
+            .filter(|cluster| cluster.glyphs_visible)
+            .map(|cluster| match cluster.source {
+                WorkingClusterSource::Shaped {
+                    run_index,
+                    cluster_index,
+                } => self.runs[run_index].shaped.clusters[cluster_index]
+                    .glyphs
+                    .len(),
+                WorkingClusterSource::Empty => 0,
+            })
+            .sum::<usize>();
+        commands.reserve_glyphs(visible_glyph_count);
+        commands.reserve_commands(1);
+
         let glyph_run_start = commands.glyph_run_start();
 
         for line in &self.lines {

@@ -20,6 +20,7 @@ pub(super) fn apply_ellipsis_x<B: TextBackend>(
         .map(|cluster| cluster.advance)
         .sum::<f32>();
     let insert_byte = clusters.last().map(|cluster| cluster.byte_end).unwrap_or(0);
+    runs.reserve(1);
     runs.push(WorkingRun {
         shaped,
         segment_start: insert_byte,
@@ -46,7 +47,7 @@ pub(super) fn apply_ellipsis_x<B: TextBackend>(
         }
     } else {
         let limit = w - ell_w;
-        let mut trimmed = Vec::new();
+        let mut trimmed = Vec::with_capacity(clusters.len().saturating_add(1));
         for cluster in clusters {
             if cluster.end_x() <= limit {
                 trimmed.push(cluster);

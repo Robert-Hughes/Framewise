@@ -153,8 +153,9 @@ impl<G: Copy + Eq + Hash> TextLayout<G> {
         let line_metrics = backend.line_metrics(style);
         let line_height = line_metrics.line_height.round().max(1.0);
         let baseline_offset = line_metrics.baseline_offset.round();
-        let mut working_runs = Vec::new();
-        let mut source_lines = Vec::new();
+        let source_line_count = text.as_bytes().iter().filter(|&&b| b == b'\n').count() + 1;
+        let mut working_runs = Vec::with_capacity(source_line_count);
+        let mut source_lines = Vec::with_capacity(source_line_count);
         let mut start_byte = 0;
 
         for (idx, ch) in text.char_indices() {
@@ -193,7 +194,7 @@ impl<G: Copy + Eq + Hash> TextLayout<G> {
         };
 
         let mut truncated_horizontal = false;
-        let mut processed_lines = Vec::new();
+        let mut processed_lines = Vec::with_capacity(source_line_count);
 
         for line in source_lines {
             let mut seg = line.clusters;
@@ -236,7 +237,7 @@ impl<G: Copy + Eq + Hash> TextLayout<G> {
                                 }
                                 OverflowX::Keep => {
                                     overflow_line_end_kind = Some(LineEndKind::OverflowKeep);
-                                    let mut out = Vec::new();
+                                    let mut out = Vec::with_capacity(seg.len());
                                     for cluster in seg {
                                         let end_x = cluster.end_x();
                                         out.push(cluster);
@@ -248,7 +249,7 @@ impl<G: Copy + Eq + Hash> TextLayout<G> {
                                 }
                                 OverflowX::Drop => {
                                     overflow_line_end_kind = Some(LineEndKind::OverflowDrop);
-                                    let mut out = Vec::new();
+                                    let mut out = Vec::with_capacity(seg.len());
                                     for cluster in seg {
                                         if cluster.end_x() <= w {
                                             out.push(cluster);
@@ -270,8 +271,9 @@ impl<G: Copy + Eq + Hash> TextLayout<G> {
             }
 
             append_empty_after_terminal_soft_wrap_boundary(&mut final_sublines, line.byte_end);
+            processed_lines.reserve(final_sublines.len());
 
-            let mut sub_starts = Vec::new();
+            let mut sub_starts = Vec::with_capacity(final_sublines.len() + 1);
             let mut previous_end = line.byte_start;
             for (idx, sub_seg) in final_sublines.iter().enumerate() {
                 let byte_start = if idx == 0 {
@@ -364,7 +366,7 @@ impl<G: Copy + Eq + Hash> TextLayout<G> {
             ));
         }
 
-        let mut lines = Vec::new();
+        let mut lines = Vec::with_capacity(processed_lines.len());
         let mut block_width = 0.0_f32;
         let mut block_ink: Option<Rect> = None;
 

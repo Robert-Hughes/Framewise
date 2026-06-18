@@ -17,6 +17,7 @@ pub(super) fn make_source_line<B: TextBackend>(
 
     if !segment.is_empty() {
         let shaped = backend.shape_text(segment, style);
+        clusters.reserve(shaped.clusters.len() + usize::from(has_newline));
         let run_index = runs.len();
         runs.push(WorkingRun {
             shaped,
@@ -41,6 +42,8 @@ pub(super) fn make_source_line<B: TextBackend>(
                 glyphs_visible: true,
             });
         }
+    } else if has_newline {
+        clusters.reserve(1);
     }
 
     if has_newline {
@@ -122,11 +125,15 @@ pub(super) fn wrap_clusters(
     w: f32,
     fallback: WrapClusterFallback,
 ) -> Vec<Vec<WorkingCluster>> {
-    let mut lines: Vec<Vec<WorkingCluster>> = Vec::new();
     if clusters.is_empty() {
         return vec![Vec::new()];
     }
-    let mut current_line = Vec::new();
+    let cluster_count = clusters.len();
+    let estimated_lines =
+        estimated_wrapped_line_count(cluster_count, logical_cluster_line_width(&clusters), w);
+    let estimated_line_cap = estimated_clusters_per_line(cluster_count, estimated_lines);
+    let mut lines: Vec<Vec<WorkingCluster>> = Vec::with_capacity(estimated_lines);
+    let mut current_line = Vec::with_capacity(estimated_line_cap);
     let mut current_line_start_x = clusters[0].x;
 
     for cluster in clusters {
@@ -146,7 +153,7 @@ pub(super) fn wrap_clusters(
                 moved.shift_x(-current_line_start_x);
                 current_line.push(moved);
                 lines.push(current_line);
-                current_line = Vec::new();
+                current_line = Vec::with_capacity(estimated_line_cap);
             }
             continue;
         }
@@ -165,7 +172,7 @@ pub(super) fn wrap_clusters(
             moved.collapse_soft_wrap_boundary();
             current_line.push(moved);
             lines.push(current_line);
-            current_line = Vec::new();
+            current_line = Vec::with_capacity(estimated_line_cap);
             current_line_start_x = next_line_start_x;
         } else if current_line.is_empty() {
             match fallback {
@@ -174,7 +181,7 @@ pub(super) fn wrap_clusters(
                     moved.shift_x(rel_start_x - moved.x);
                     current_line.push(moved);
                     lines.push(current_line);
-                    current_line = Vec::new();
+                    current_line = Vec::with_capacity(estimated_line_cap);
                     current_line_start_x += rel_end_x;
                 }
                 WrapClusterFallback::Drop => break,
@@ -182,7 +189,7 @@ pub(super) fn wrap_clusters(
         } else {
             collapse_trailing_soft_wrap_space(&mut current_line);
             lines.push(current_line);
-            current_line = Vec::new();
+            current_line = Vec::with_capacity(estimated_line_cap);
             current_line_start_x = cluster.x;
 
             if cluster.advance <= w {
@@ -197,7 +204,7 @@ pub(super) fn wrap_clusters(
                         moved.shift_x(-moved.x);
                         current_line.push(moved);
                         lines.push(current_line);
-                        current_line = Vec::new();
+                        current_line = Vec::with_capacity(estimated_line_cap);
                         current_line_start_x += advance;
                     }
                     WrapClusterFallback::Drop => break,
@@ -226,7 +233,12 @@ pub(super) fn wrap_clusters_at_words(
         logical_w: f32,
     }
 
-    let mut segments: Vec<Seg> = Vec::new();
+    let input_cluster_count = clusters.len();
+    let logical_w = logical_cluster_line_width(&clusters);
+    let estimated_lines = estimated_wrapped_line_count(input_cluster_count, logical_w, w);
+    let estimated_line_cap = estimated_clusters_per_line(input_cluster_count, estimated_lines);
+
+    let mut segments: Vec<Seg> = Vec::with_capacity(input_cluster_count);
     for cluster in clusters {
         let is_space = cluster.is_whitespace || cluster.is_hard_break;
         if !is_space {
@@ -271,8 +283,8 @@ pub(super) fn wrap_clusters_at_words(
         };
     }
 
-    let mut lines = Vec::new();
-    let mut current_line = Vec::new();
+    let mut lines = Vec::with_capacity(estimated_lines);
+    let mut current_line = Vec::with_capacity(estimated_line_cap);
     let mut current_logical_w = 0.0;
 
     for seg in segments {
@@ -292,7 +304,7 @@ pub(super) fn wrap_clusters_at_words(
                     current_line.push(cluster);
                 }
                 lines.push(current_line);
-                current_line = Vec::new();
+                current_line = Vec::with_capacity(estimated_line_cap);
                 current_logical_w = 0.0;
                 continue;
             }
@@ -300,7 +312,7 @@ pub(super) fn wrap_clusters_at_words(
             if !current_line.is_empty() {
                 collapse_trailing_soft_wrap_space(&mut current_line);
                 lines.push(current_line);
-                current_line = Vec::new();
+                current_line = Vec::with_capacity(estimated_line_cap);
                 current_logical_w = 0.0;
             }
 
@@ -314,16 +326,17 @@ pub(super) fn wrap_clusters_at_words(
                 match fallback {
                     WrapWordFallback::WrapCluster { fallback } => {
                         let seg_len = seg.clusters.len();
-                        let wrapped = wrap_clusters(seg.clusters, w, fallback);
+                        let mut wrapped = wrap_clusters(seg.clusters, w, fallback);
                         let mut wrapped_count = 0;
-                        if !wrapped.is_empty() {
-                            lines.extend(wrapped[..wrapped.len() - 1].to_vec());
-                            current_line = wrapped.last().expect("wrapped is non-empty").clone();
+                        if let Some(last) = wrapped.pop() {
+                            wrapped_count =
+                                wrapped.iter().map(Vec::len).sum::<usize>() + last.len();
+                            lines.extend(wrapped);
+                            current_line = last;
                             current_logical_w = current_line
                                 .iter()
                                 .map(WorkingCluster::end_x)
                                 .fold(0.0, f32::max);
-                            wrapped_count = wrapped.iter().map(Vec::len).sum();
                         }
                         if fallback == WrapClusterFallback::Drop && wrapped_count < seg_len {
                             break;
@@ -338,7 +351,7 @@ pub(super) fn wrap_clusters_at_words(
                             }
                         }
                         lines.push(current_line);
-                        current_line = Vec::new();
+                        current_line = Vec::with_capacity(estimated_line_cap);
                         break;
                     }
                     WrapWordFallback::Keep => {
@@ -350,7 +363,7 @@ pub(super) fn wrap_clusters_at_words(
                             }
                         }
                         lines.push(current_line);
-                        current_line = Vec::new();
+                        current_line = Vec::with_capacity(estimated_line_cap);
                         break;
                     }
                 }
@@ -361,4 +374,16 @@ pub(super) fn wrap_clusters_at_words(
         lines.push(current_line);
     }
     lines
+}
+
+fn estimated_wrapped_line_count(cluster_count: usize, logical_w: f32, max_w: f32) -> usize {
+    if cluster_count == 0 || !max_w.is_finite() || max_w <= 0.0 {
+        return 1;
+    }
+
+    ((logical_w / max_w).ceil() as usize).clamp(1, cluster_count)
+}
+
+fn estimated_clusters_per_line(cluster_count: usize, line_count: usize) -> usize {
+    cluster_count.div_ceil(line_count.max(1)).max(1)
 }

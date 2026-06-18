@@ -401,15 +401,36 @@ impl Renderer {
         Vec<ShapeData>,
         Vec<RenderCommand>,
     ) {
-        let mut quad_verts: Vec<Vertex> = Vec::new();
-        let mut text_verts: Vec<TextVertex> = Vec::new();
-        let mut aa_shapes: Vec<ShapeData> = Vec::new();
-        let mut render_cmds = Vec::new();
+        let estimated_quad_vertices = cmds
+            .iter()
+            .map(|cmd| match cmd {
+                DrawCmd::FillRect {
+                    anti_alias: false, ..
+                } => 6,
+                DrawCmd::StrokeRect {
+                    anti_alias: false, ..
+                } => 24,
+                DrawCmd::StrokeLine {
+                    anti_alias: false, ..
+                } => 6,
+                DrawCmd::FillCircle {
+                    anti_alias: false, ..
+                } => CIRCLE_SEGS * 3,
+                DrawCmd::StrokeCircle {
+                    anti_alias: false, ..
+                } => CIRCLE_SEGS * 6,
+                _ => 0,
+            })
+            .sum();
+        let mut quad_verts: Vec<Vertex> = Vec::with_capacity(estimated_quad_vertices);
+        let mut text_verts: Vec<TextVertex> = Vec::with_capacity(glyphs.len().saturating_mul(6));
+        let mut aa_shapes: Vec<ShapeData> = Vec::with_capacity(cmds.len());
+        let mut render_cmds = Vec::with_capacity(cmds.len() + 1);
 
         let mut current_quad_start = 0;
         let mut current_text_start = 0;
         let mut current_aa_start = 0;
-        let mut clip_stack: Vec<Rect> = Vec::new();
+        let mut clip_stack: Vec<Rect> = Vec::with_capacity(4);
 
         let flush_quads = |quad_verts_len: u32,
                            current_quad_start: &mut u32,

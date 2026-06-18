@@ -172,6 +172,14 @@ impl DrawCommands {
         self.glyphs.len()
     }
 
+    pub(crate) fn reserve_glyphs(&mut self, additional: usize) {
+        self.glyphs.reserve(additional);
+    }
+
+    pub(crate) fn reserve_commands(&mut self, additional: usize) {
+        self.cmds.reserve(additional);
+    }
+
     pub(crate) fn push_glyph(&mut self, glyph: DrawGlyph) {
         self.glyphs.push(glyph);
     }
