@@ -1,3 +1,5 @@
+use framewise::PreparedGlyphToken;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct GlyphBaseKey {
     pub font_id: u16,
@@ -13,17 +15,12 @@ pub struct SampleShapedGlyphToken(pub u32);
 pub type SampleGlyphToken = SampleShapedGlyphToken;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct AtlasRect {
-    pub x: u32,
-    pub y: u32,
-    pub w: u32,
-    pub h: u32,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct RasterizedGlyphSlot {
-    pub atlas_rect: AtlasRect,
-    /// where the bitmap lives inside the atlas texture
+    /// Packed atlas source rectangle for the sample renderer.
+    ///
+    /// The token format assumes one atlas texture and `u16` x/y/w/h lanes.
+    pub token: PreparedGlyphToken,
+    /// Screen-placement offsets from the glyph origin/baseline.
     pub left: i32, // x offset from glyph origin to bitmap left edge
     pub top: i32, // y offset from glyph origin/baseline to bitmap top edge
 }
@@ -66,4 +63,3 @@ pub fn decode_prepared_glyph_token(token: PreparedGlyphToken) -> (u16, u16, u16,
         token.0 as u16,
     )
 }
-use framewise::PreparedGlyphToken;

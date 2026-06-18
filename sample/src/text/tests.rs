@@ -1,6 +1,5 @@
 #[cfg(test)]
 mod tests {
-    use crate::text::pack_prepared_glyph_token;
     use crate::text::types::{decode_prepared_glyph_token, GlyphSubpixelSlot, SampleGlyphToken};
     use crate::text::SampleTextBackend;
     use framewise::{
@@ -498,12 +497,7 @@ mod tests {
         else {
             return None;
         };
-        Some(pack_prepared_glyph_token(
-            slot.atlas_rect.x as u16,
-            slot.atlas_rect.y as u16,
-            slot.atlas_rect.w as u16,
-            slot.atlas_rect.h as u16,
-        ))
+        Some(slot.token)
     }
 
     #[test]

@@ -32,10 +32,7 @@
 //!   By rendering pixel-aligned quads with pre-shifted subpixel glyphs, we map every font pixel 1-to-1 with screen
 //!   pixels for maximum crispness.
 
-use crate::text::pack_prepared_glyph_token;
-use crate::text::types::{
-    CachedGlyph, GlyphBaseKey, GlyphSubpixelSlot, SampleGlyphToken, SampleShapedGlyphToken,
-};
+use crate::text::types::{CachedGlyph, GlyphBaseKey, SampleGlyphToken, SampleShapedGlyphToken};
 use framewise::{
     DrawGlyph, PrepareGlyphRequest, SharedShapedText, TextBackend, TextLineLayoutMetrics, Vec2,
 };
@@ -253,8 +250,18 @@ pub(crate) fn glyph_opsz_key(opsz: f32) -> u16 {
     opsz as u16
 }
 
-fn subpixel_bin(x: f32) -> u8 {
-    ((x * 4.0).round() as i32).rem_euclid(4) as u8
+#[derive(Debug, Clone, Copy, PartialEq)]
+struct SubpixelPlacement {
+    subpixel_x: u8,
+    quantized_x: f32,
+}
+
+fn subpixel_placement(x: f32) -> SubpixelPlacement {
+    let fixed_x = (x * 4.0).round() as i32;
+    SubpixelPlacement {
+        subpixel_x: fixed_x.rem_euclid(4) as u8,
+        quantized_x: fixed_x as f32 * 0.25,
+    }
 }
 
 impl TextBackend for SampleTextBackend {
@@ -294,29 +301,14 @@ impl TextBackend for SampleTextBackend {
         &mut self,
         request: PrepareGlyphRequest<Self::ShapedGlyphToken>,
     ) -> Option<DrawGlyph> {
-        let subpixel_x = subpixel_bin(request.glyph_origin.x);
-        self.ensure_glyph_slot(request.glyph, subpixel_x);
-        let slot = self
-            .glyph_cache
-            .get(request.glyph.0 as usize)?
-            .subpixels
-            .get(subpixel_x as usize)?;
-        let GlyphSubpixelSlot::Loaded(info) = slot else {
-            return None;
-        };
+        let placement = subpixel_placement(request.glyph_origin.x);
+        let slot = self.prepared_glyph_slot(request.glyph, placement.subpixel_x)?;
 
-        let quantized_x = (request.glyph_origin.x * 4.0).round() / 4.0;
-        let x = u16::try_from(info.atlas_rect.x).expect("glyph atlas x exceeds u16 token limit");
-        let y = u16::try_from(info.atlas_rect.y).expect("glyph atlas y exceeds u16 token limit");
-        let w =
-            u16::try_from(info.atlas_rect.w).expect("glyph atlas width exceeds u16 token limit");
-        let h =
-            u16::try_from(info.atlas_rect.h).expect("glyph atlas height exceeds u16 token limit");
         Some(DrawGlyph {
-            token: pack_prepared_glyph_token(x, y, w, h),
+            token: slot.token,
             top_left: Vec2::new(
-                quantized_x.floor() + info.left as f32,
-                request.glyph_origin.y.round() - info.top as f32,
+                placement.quantized_x.floor() + slot.left as f32,
+                request.glyph_origin.y.round() - slot.top as f32,
             ),
         })
     }

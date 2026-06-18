@@ -1,24 +1,32 @@
+use crate::text::pack_prepared_glyph_token;
 use crate::text::types::{
-    AtlasRect, GlyphBaseKey, GlyphSubpixelSlot, RasterizedGlyphSlot, SampleShapedGlyphToken,
+    GlyphBaseKey, GlyphSubpixelSlot, RasterizedGlyphSlot, SampleShapedGlyphToken,
 };
 use crate::text::SampleTextBackend;
 use swash::scale::{Render, Source, StrikeWith};
 use zeno::{Format, Vector};
 
 impl SampleTextBackend {
-    pub fn ensure_glyph_slot(&mut self, token: SampleShapedGlyphToken, subpixel_x: u8) {
+    pub fn prepared_glyph_slot(
+        &mut self,
+        token: SampleShapedGlyphToken,
+        subpixel_x: u8,
+    ) -> Option<RasterizedGlyphSlot> {
         let glyph_index = token.0 as usize;
         let slot_index = subpixel_x as usize;
-        if !matches!(
+        if matches!(
             self.glyph_cache[glyph_index].subpixels[slot_index],
             GlyphSubpixelSlot::Unloaded
         ) {
-            return;
+            let key = self.glyph_cache[glyph_index].key;
+            let slot = self.rasterize_glyph_slot(key, subpixel_x);
+            self.glyph_cache[glyph_index].subpixels[slot_index] = slot;
         }
 
-        let key = self.glyph_cache[glyph_index].key;
-        let slot = self.rasterize_glyph_slot(key, subpixel_x);
-        self.glyph_cache[glyph_index].subpixels[slot_index] = slot;
+        match self.glyph_cache[glyph_index].subpixels[slot_index] {
+            GlyphSubpixelSlot::Loaded(slot) => Some(slot),
+            GlyphSubpixelSlot::Empty | GlyphSubpixelSlot::Unloaded => None,
+        }
     }
 
     fn rasterize_glyph_slot(&mut self, key: GlyphBaseKey, subpixel_x: u8) -> GlyphSubpixelSlot {
@@ -99,10 +107,12 @@ impl SampleTextBackend {
         }
 
         self.atlas_dirty = true;
-        GlyphSubpixelSlot::Loaded(RasterizedGlyphSlot {
-            atlas_rect: AtlasRect { x, y, w, h },
-            left,
-            top,
-        })
+        let token = pack_prepared_glyph_token(
+            u16::try_from(x).expect("glyph atlas x exceeds u16 token limit"),
+            u16::try_from(y).expect("glyph atlas y exceeds u16 token limit"),
+            u16::try_from(w).expect("glyph atlas width exceeds u16 token limit"),
+            u16::try_from(h).expect("glyph atlas height exceeds u16 token limit"),
+        );
+        GlyphSubpixelSlot::Loaded(RasterizedGlyphSlot { token, left, top })
     }
 }

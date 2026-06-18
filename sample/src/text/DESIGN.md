@@ -142,10 +142,11 @@ itself.
 In the sample, a `SampleGlyphToken` is a compact index into `glyph_cache`.
 `shape_text` interns each `GlyphBaseKey` once on shape-cache misses.
 `prepare_glyph` adds only the origin-dependent horizontal subpixel bin, lazily
-loads the corresponding cached subpixel slot, and packs the slot's atlas
-rectangle into `PreparedGlyphToken`. The sample token format stores x/y/w/h as
-four `u16` lanes, so it assumes one atlas texture and source rectangles no
-larger than `u16::MAX`.
+loads the corresponding cached subpixel slot, and returns its packed
+`PreparedGlyphToken`. Rasterisation packs each atlas source rectangle once when
+the slot is loaded. The sample token format stores x/y/w/h as four `u16` lanes,
+so it assumes one atlas texture and source rectangles no larger than
+`u16::MAX`.
 
 ## Metrics
 
