@@ -29,9 +29,9 @@ pub struct AtlasRect {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct GlyphInfo {
-    pub atlas_rect: AtlasRect,
-    pub left: i32,
-    pub top: i32,
+    pub atlas_rect: AtlasRect, /// where the bitmap lives inside the atlas texture
+    pub left: i32, // x offset from glyph origin to bitmap left edge
+    pub top: i32, // y offset from glyph origin/baseline to bitmap top edge
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
