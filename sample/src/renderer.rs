@@ -432,15 +432,16 @@ impl Renderer {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn process_commands(
         cmds: &[DrawCmd],
         glyphs: &[DrawGlyph],
         window_size: (u32, u32),
         text_backend: &mut crate::text::SampleTextBackend,
-        mut quad_verts: &mut Vec<Vertex>,
-        mut text_instances: &mut Vec<TextGlyphInstance>,
+        quad_verts: &mut Vec<Vertex>,
+        text_instances: &mut Vec<TextGlyphInstance>,
         aa_shapes: &mut Vec<ShapeData>,
-        mut render_cmds: &mut Vec<RenderCommand>,
+        render_cmds: &mut Vec<RenderCommand>,
         clip_stack: &mut Vec<Rect>,
     ) {
         let estimated_quad_vertices = cmds
@@ -523,12 +524,12 @@ impl Renderer {
                         flush_quads(
                             quad_verts.len() as u32,
                             &mut current_quad_start,
-                            &mut render_cmds,
+                            render_cmds,
                         );
                         flush_text(
                             text_instances.len() as u32,
                             &mut current_text_start,
-                            &mut render_cmds,
+                            render_cmds,
                         );
                         aa_shapes.push(ShapeData {
                             p0: [rect.x, rect.y],
@@ -543,14 +544,10 @@ impl Renderer {
                         flush_text(
                             text_instances.len() as u32,
                             &mut current_text_start,
-                            &mut render_cmds,
+                            render_cmds,
                         );
-                        flush_aa(
-                            aa_shapes.len() as u32,
-                            &mut current_aa_start,
-                            &mut render_cmds,
-                        );
-                        push_filled_rect(&mut quad_verts, *rect, *color, *z, window_size);
+                        flush_aa(aa_shapes.len() as u32, &mut current_aa_start, render_cmds);
+                        push_filled_rect(quad_verts, *rect, *color, *z, window_size);
                     }
                 }
                 DrawCmd::StrokeRect {
@@ -564,12 +561,12 @@ impl Renderer {
                         flush_quads(
                             quad_verts.len() as u32,
                             &mut current_quad_start,
-                            &mut render_cmds,
+                            render_cmds,
                         );
                         flush_text(
                             text_instances.len() as u32,
                             &mut current_text_start,
-                            &mut render_cmds,
+                            render_cmds,
                         );
                         aa_shapes.push(ShapeData {
                             p0: [rect.x, rect.y],
@@ -584,14 +581,10 @@ impl Renderer {
                         flush_text(
                             text_instances.len() as u32,
                             &mut current_text_start,
-                            &mut render_cmds,
+                            render_cmds,
                         );
-                        flush_aa(
-                            aa_shapes.len() as u32,
-                            &mut current_aa_start,
-                            &mut render_cmds,
-                        );
-                        push_stroked_rect(&mut quad_verts, *rect, *color, *width, *z, window_size);
+                        flush_aa(aa_shapes.len() as u32, &mut current_aa_start, render_cmds);
+                        push_stroked_rect(quad_verts, *rect, *color, *width, *z, window_size);
                     }
                 }
                 DrawCmd::StrokeLine {
@@ -606,12 +599,12 @@ impl Renderer {
                         flush_quads(
                             quad_verts.len() as u32,
                             &mut current_quad_start,
-                            &mut render_cmds,
+                            render_cmds,
                         );
                         flush_text(
                             text_instances.len() as u32,
                             &mut current_text_start,
-                            &mut render_cmds,
+                            render_cmds,
                         );
                         aa_shapes.push(ShapeData {
                             p0: [p0.x, p0.y],
@@ -626,22 +619,10 @@ impl Renderer {
                         flush_text(
                             text_instances.len() as u32,
                             &mut current_text_start,
-                            &mut render_cmds,
+                            render_cmds,
                         );
-                        flush_aa(
-                            aa_shapes.len() as u32,
-                            &mut current_aa_start,
-                            &mut render_cmds,
-                        );
-                        push_stroke_line(
-                            &mut quad_verts,
-                            *p0,
-                            *p1,
-                            *color,
-                            *width,
-                            *z,
-                            window_size,
-                        );
+                        flush_aa(aa_shapes.len() as u32, &mut current_aa_start, render_cmds);
+                        push_stroke_line(quad_verts, *p0, *p1, *color, *width, *z, window_size);
                     }
                 }
                 DrawCmd::FillCircle {
@@ -655,12 +636,12 @@ impl Renderer {
                         flush_quads(
                             quad_verts.len() as u32,
                             &mut current_quad_start,
-                            &mut render_cmds,
+                            render_cmds,
                         );
                         flush_text(
                             text_instances.len() as u32,
                             &mut current_text_start,
-                            &mut render_cmds,
+                            render_cmds,
                         );
                         aa_shapes.push(ShapeData {
                             p0: [center.x, center.y],
@@ -675,21 +656,10 @@ impl Renderer {
                         flush_text(
                             text_instances.len() as u32,
                             &mut current_text_start,
-                            &mut render_cmds,
+                            render_cmds,
                         );
-                        flush_aa(
-                            aa_shapes.len() as u32,
-                            &mut current_aa_start,
-                            &mut render_cmds,
-                        );
-                        push_filled_circle(
-                            &mut quad_verts,
-                            *center,
-                            *radius,
-                            *color,
-                            *z,
-                            window_size,
-                        );
+                        flush_aa(aa_shapes.len() as u32, &mut current_aa_start, render_cmds);
+                        push_filled_circle(quad_verts, *center, *radius, *color, *z, window_size);
                     }
                 }
                 DrawCmd::StrokeCircle {
@@ -704,12 +674,12 @@ impl Renderer {
                         flush_quads(
                             quad_verts.len() as u32,
                             &mut current_quad_start,
-                            &mut render_cmds,
+                            render_cmds,
                         );
                         flush_text(
                             text_instances.len() as u32,
                             &mut current_text_start,
-                            &mut render_cmds,
+                            render_cmds,
                         );
                         aa_shapes.push(ShapeData {
                             p0: [center.x, center.y],
@@ -724,15 +694,11 @@ impl Renderer {
                         flush_text(
                             text_instances.len() as u32,
                             &mut current_text_start,
-                            &mut render_cmds,
+                            render_cmds,
                         );
-                        flush_aa(
-                            aa_shapes.len() as u32,
-                            &mut current_aa_start,
-                            &mut render_cmds,
-                        );
+                        flush_aa(aa_shapes.len() as u32, &mut current_aa_start, render_cmds);
                         push_stroked_circle(
-                            &mut quad_verts,
+                            quad_verts,
                             *center,
                             *radius,
                             *color,
@@ -750,16 +716,12 @@ impl Renderer {
                     flush_quads(
                         quad_verts.len() as u32,
                         &mut current_quad_start,
-                        &mut render_cmds,
+                        render_cmds,
                     );
-                    flush_aa(
-                        aa_shapes.len() as u32,
-                        &mut current_aa_start,
-                        &mut render_cmds,
-                    );
+                    flush_aa(aa_shapes.len() as u32, &mut current_aa_start, render_cmds);
                     if let Some(run_glyphs) = glyphs.get(glyph_range.clone()) {
                         push_glyph_run(
-                            &mut text_instances,
+                            text_instances,
                             run_glyphs,
                             *color,
                             *z,
@@ -772,18 +734,14 @@ impl Renderer {
                     flush_quads(
                         quad_verts.len() as u32,
                         &mut current_quad_start,
-                        &mut render_cmds,
+                        render_cmds,
                     );
                     flush_text(
                         text_instances.len() as u32,
                         &mut current_text_start,
-                        &mut render_cmds,
+                        render_cmds,
                     );
-                    flush_aa(
-                        aa_shapes.len() as u32,
-                        &mut current_aa_start,
-                        &mut render_cmds,
-                    );
+                    flush_aa(aa_shapes.len() as u32, &mut current_aa_start, render_cmds);
 
                     let new_clip = if let Some(current) = clip_stack.last() {
                         current.intersect(rect)
@@ -797,18 +755,14 @@ impl Renderer {
                     flush_quads(
                         quad_verts.len() as u32,
                         &mut current_quad_start,
-                        &mut render_cmds,
+                        render_cmds,
                     );
                     flush_text(
                         text_instances.len() as u32,
                         &mut current_text_start,
-                        &mut render_cmds,
+                        render_cmds,
                     );
-                    flush_aa(
-                        aa_shapes.len() as u32,
-                        &mut current_aa_start,
-                        &mut render_cmds,
-                    );
+                    flush_aa(aa_shapes.len() as u32, &mut current_aa_start, render_cmds);
 
                     clip_stack.pop();
                     let new_clip = clip_stack.last().copied().unwrap_or_else(|| {
@@ -822,18 +776,14 @@ impl Renderer {
         flush_quads(
             quad_verts.len() as u32,
             &mut current_quad_start,
-            &mut render_cmds,
+            render_cmds,
         );
         flush_text(
             text_instances.len() as u32,
             &mut current_text_start,
-            &mut render_cmds,
+            render_cmds,
         );
-        flush_aa(
-            aa_shapes.len() as u32,
-            &mut current_aa_start,
-            &mut render_cmds,
-        );
+        flush_aa(aa_shapes.len() as u32, &mut current_aa_start, render_cmds);
     }
 
     /// Convert a list of `DrawCmd`s into vertices and render them.
