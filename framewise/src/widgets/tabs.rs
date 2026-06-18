@@ -381,7 +381,7 @@ mod tests {
     use super::raw::TabsSpec;
     use super::*;
     use crate::test_utils::TestTextBackend;
-    use crate::{DrawGlyph, PreparedGlyphHandle};
+    use crate::{DrawGlyph, PreparedGlyphToken};
 
     fn make_spec<'a>(items: &'a [&'a str]) -> TabsSpec<'a> {
         TabsSpec {
@@ -463,35 +463,35 @@ mod tests {
             cmds.glyphs(),
             vec![
                 DrawGlyph {
-                    handle: PreparedGlyphHandle(84),
+                    token: PreparedGlyphToken(84),
                     top_left: Vec2 { x: 18.0, y: 23.0 }
                 },
                 DrawGlyph {
-                    handle: PreparedGlyphHandle(97),
+                    token: PreparedGlyphToken(97),
                     top_left: Vec2 { x: 26.0, y: 23.0 }
                 },
                 DrawGlyph {
-                    handle: PreparedGlyphHandle(98),
+                    token: PreparedGlyphToken(98),
                     top_left: Vec2 { x: 34.0, y: 23.0 }
                 },
                 DrawGlyph {
-                    handle: PreparedGlyphHandle(49),
+                    token: PreparedGlyphToken(49),
                     top_left: Vec2 { x: 42.0, y: 23.0 }
                 },
                 DrawGlyph {
-                    handle: PreparedGlyphHandle(84),
+                    token: PreparedGlyphToken(84),
                     top_left: Vec2 { x: 86.0, y: 23.0 }
                 },
                 DrawGlyph {
-                    handle: PreparedGlyphHandle(97),
+                    token: PreparedGlyphToken(97),
                     top_left: Vec2 { x: 94.0, y: 23.0 }
                 },
                 DrawGlyph {
-                    handle: PreparedGlyphHandle(98),
+                    token: PreparedGlyphToken(98),
                     top_left: Vec2 { x: 102.0, y: 23.0 }
                 },
                 DrawGlyph {
-                    handle: PreparedGlyphHandle(50),
+                    token: PreparedGlyphToken(50),
                     top_left: Vec2 { x: 110.0, y: 23.0 }
                 }
             ]
@@ -574,35 +574,35 @@ mod tests {
             cmds.glyphs(),
             vec![
                 DrawGlyph {
-                    handle: PreparedGlyphHandle(84),
+                    token: PreparedGlyphToken(84),
                     top_left: Vec2 { x: 18.0, y: 23.0 }
                 },
                 DrawGlyph {
-                    handle: PreparedGlyphHandle(97),
+                    token: PreparedGlyphToken(97),
                     top_left: Vec2 { x: 26.0, y: 23.0 }
                 },
                 DrawGlyph {
-                    handle: PreparedGlyphHandle(98),
+                    token: PreparedGlyphToken(98),
                     top_left: Vec2 { x: 34.0, y: 23.0 }
                 },
                 DrawGlyph {
-                    handle: PreparedGlyphHandle(49),
+                    token: PreparedGlyphToken(49),
                     top_left: Vec2 { x: 42.0, y: 23.0 }
                 },
                 DrawGlyph {
-                    handle: PreparedGlyphHandle(84),
+                    token: PreparedGlyphToken(84),
                     top_left: Vec2 { x: 86.0, y: 23.0 }
                 },
                 DrawGlyph {
-                    handle: PreparedGlyphHandle(97),
+                    token: PreparedGlyphToken(97),
                     top_left: Vec2 { x: 94.0, y: 23.0 }
                 },
                 DrawGlyph {
-                    handle: PreparedGlyphHandle(98),
+                    token: PreparedGlyphToken(98),
                     top_left: Vec2 { x: 102.0, y: 23.0 }
                 },
                 DrawGlyph {
-                    handle: PreparedGlyphHandle(50),
+                    token: PreparedGlyphToken(50),
                     top_left: Vec2 { x: 110.0, y: 23.0 }
                 }
             ]

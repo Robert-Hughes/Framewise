@@ -1,7 +1,7 @@
 use super::*;
 use crate::{
     test_utils::TestTextBackend, Color, DrawCmd, DrawCommands, DrawGlyph, FontId,
-    PrepareGlyphRequest, PreparedGlyphHandle, Rect, Vec2,
+    PrepareGlyphRequest, PreparedGlyphToken, Rect, Vec2,
 };
 
 fn style(flow: TextFlow) -> TextStyle {
@@ -216,7 +216,7 @@ impl TextBackend for ApproxInkBackend {
         request: PrepareGlyphRequest<Self::ShapedGlyphToken>,
     ) -> Option<DrawGlyph> {
         Some(DrawGlyph {
-            handle: PreparedGlyphHandle(request.glyph),
+            token: PreparedGlyphToken(request.glyph as u64),
             top_left: request.glyph_origin,
         })
     }

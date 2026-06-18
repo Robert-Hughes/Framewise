@@ -21,7 +21,7 @@ The boundary is:
   `TextLayout` over the shared shaped runs,
 - `TextLayout::emit_glyphs` later calls the backend's `prepare_glyph` for each
   visible drawable layout glyph,
-- the renderer resolves the returned `PreparedGlyphHandle`s to atlas data.
+- the renderer decodes each returned `PreparedGlyphToken` to atlas data.
 
 There is no sample run table for prepared text layouts, no `TextHandle`, and no
 `DrawCmd::Text`.
@@ -41,7 +41,7 @@ The sample backend is responsible for:
 - reporting `TextLineLayoutMetrics`, including line height and baseline offset,
 - shaping source text into `ShapedText`,
 - preparing individual glyphs for drawing as `DrawGlyph`,
-- allocating and resolving `PreparedGlyphHandle`s,
+- returning packed renderer-ready `PreparedGlyphToken`s,
 - maintaining the glyph cache and atlas.
 
 Baseline offset should come from font ascent, not from `style.size`. The sample
@@ -117,32 +117,35 @@ returning an unknown result.
 `prepare_glyph` receives a `PrepareGlyphRequest`. The request contains the
 backend-shaped glyph token and the final glyph origin after Framewise layout and
 caller draw origin have both been applied. The token already carries the
-origin-independent glyph resource identity: font, raw glyph index, size, weight,
-and optical size.
+origin-independent glyph resource identity as an interned `SampleGlyphToken`.
+That token indexes the sample backend's append-only glyph cache entry, whose
+base identity is font, raw glyph index, size, weight, and optical size.
 
 The backend uses the final origin for horizontal subpixel bin selection. It then
-looks up or rasterizes the glyph for the selected font, size, weight, optical
-size, and subpixel bin.
+indexes the cached glyph directly and looks up or rasterizes the selected
+subpixel slot.
 
 `prepare_glyph` returns `Option<DrawGlyph>`. It returns `None` for spaces,
 newlines, zero-area glyphs, or failed rasterisation. For drawable glyphs,
 `DrawGlyph::top_left` includes glyph bearing and bitmap placement. It is the
 final bitmap top-left, not the baseline origin or cluster position.
 
-The renderer later resolves `DrawGlyph::handle` to atlas UVs and image size, and
+The renderer later decodes `DrawGlyph::token` to atlas UVs and image size, and
 draws the bitmap at `DrawGlyph::top_left` without scaling.
 
-## Atlas And Handles
+## Atlas And Tokens
 
-`PreparedGlyphHandle` is an opaque renderer-ready glyph resource handle. It is
-not a source character, not a cluster, not a text run, and not a font glyph ID by
+`PreparedGlyphToken` is an opaque renderer-ready glyph resource token. It is not
+a source character, not a cluster, not a text run, and not a font glyph ID by
 itself.
 
-In the sample, a `SampleGlyphToken` stores font ID, raw glyph index, size,
-weight, and optical size. `prepare_glyph` adds only the origin-dependent
-horizontal subpixel bin to form a `GlyphKey`. The backend maps each `GlyphKey`
-to a stable `PreparedGlyphHandle`, stores glyph pixels in the atlas, and
-resolves handles back to atlas rectangles for the renderer.
+In the sample, a `SampleGlyphToken` is a compact index into `glyph_cache`.
+`shape_text` interns each `GlyphBaseKey` once on shape-cache misses.
+`prepare_glyph` adds only the origin-dependent horizontal subpixel bin, lazily
+loads the corresponding cached subpixel slot, and packs the slot's atlas
+rectangle into `PreparedGlyphToken`. The sample token format stores x/y/w/h as
+four `u16` lanes, so it assumes one atlas texture and source rectangles no
+larger than `u16::MAX`.
 
 ## Metrics
 
@@ -153,7 +156,7 @@ metrics when building visual lines, caret geometry, and text block metrics.
 `TextMetrics::logical_size` is suitable for widget sizing.
 `TextMetrics::approx_ink_bounds` is approximate and conservative in layout
 coordinates. Exact drawn bounds require emitted `DrawGlyph`s plus the resolved
-atlas image sizes for their `PreparedGlyphHandle`s. Final raster ink may depend
+atlas image sizes from their `PreparedGlyphToken`s. Final raster ink may depend
 on draw origin, subpixel bin, hinting, rasterisation mode, and backend resource
 details.
 
@@ -164,8 +167,8 @@ details.
 - Every source character in a shaped segment must be accounted for by shaped
   cluster byte ranges.
 - `prepare_glyph` may skip non-drawable glyphs by returning `None`.
-- `PreparedGlyphHandle` must remain valid for the renderer resource lifetime
-  expected by the sample renderer.
+- `glyph_cache` entries must remain append-only and stable while cached shaped
+  text can reference their `SampleGlyphToken` indices.
 - `DrawGlyph::top_left` is the final bitmap top-left.
 - Framewise owns wrapping, overflow, line records, caret semantics, and
   hit-testing.

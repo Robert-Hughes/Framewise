@@ -10,6 +10,7 @@ mod tests;
 
 pub use text_backend::SampleTextBackend;
 #[cfg(test)]
-pub use types::GlyphKey;
+pub use types::GlyphBaseKey;
 #[allow(unused_imports)]
-pub use types::{PreparedGlyphResources, SampleGlyphToken};
+pub use types::SampleGlyphToken;
+pub use types::{decode_prepared_glyph_token, pack_prepared_glyph_token};

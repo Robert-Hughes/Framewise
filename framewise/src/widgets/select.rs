@@ -568,7 +568,7 @@ mod tests {
     use super::*;
     use crate::test_utils::TestTextBackend;
     use crate::types::Vec2;
-    use crate::{DrawGlyph, PreparedGlyphHandle};
+    use crate::{DrawGlyph, PreparedGlyphToken};
 
     fn select_dummy<'a>(spec: SelectSpec<'a>) -> (raw::SelectResult, DrawCommands) {
         let mut cmds = DrawCommands::new();
@@ -631,35 +631,35 @@ mod tests {
             cmds.glyphs(),
             vec![
                 DrawGlyph {
-                    handle: PreparedGlyphHandle(79),
+                    token: PreparedGlyphToken(79),
                     top_left: Vec2 { x: 10.0, y: 19.0 }
                 },
                 DrawGlyph {
-                    handle: PreparedGlyphHandle(112),
+                    token: PreparedGlyphToken(112),
                     top_left: Vec2 { x: 18.0, y: 19.0 }
                 },
                 DrawGlyph {
-                    handle: PreparedGlyphHandle(116),
+                    token: PreparedGlyphToken(116),
                     top_left: Vec2 { x: 26.0, y: 19.0 }
                 },
                 DrawGlyph {
-                    handle: PreparedGlyphHandle(105),
+                    token: PreparedGlyphToken(105),
                     top_left: Vec2 { x: 34.0, y: 19.0 }
                 },
                 DrawGlyph {
-                    handle: PreparedGlyphHandle(111),
+                    token: PreparedGlyphToken(111),
                     top_left: Vec2 { x: 42.0, y: 19.0 }
                 },
                 DrawGlyph {
-                    handle: PreparedGlyphHandle(110),
+                    token: PreparedGlyphToken(110),
                     top_left: Vec2 { x: 50.0, y: 19.0 }
                 },
                 DrawGlyph {
-                    handle: PreparedGlyphHandle(49),
+                    token: PreparedGlyphToken(49),
                     top_left: Vec2 { x: 66.0, y: 19.0 }
                 },
                 DrawGlyph {
-                    handle: PreparedGlyphHandle(118),
+                    token: PreparedGlyphToken(118),
                     top_left: Vec2 { x: 162.0, y: 17.0 }
                 }
             ]
@@ -783,119 +783,119 @@ mod tests {
             cmds.glyphs(),
             vec![
                 DrawGlyph {
-                    handle: PreparedGlyphHandle(79),
+                    token: PreparedGlyphToken(79),
                     top_left: Vec2 { x: 10.0, y: 19.0 }
                 },
                 DrawGlyph {
-                    handle: PreparedGlyphHandle(112),
+                    token: PreparedGlyphToken(112),
                     top_left: Vec2 { x: 18.0, y: 19.0 }
                 },
                 DrawGlyph {
-                    handle: PreparedGlyphHandle(116),
+                    token: PreparedGlyphToken(116),
                     top_left: Vec2 { x: 26.0, y: 19.0 }
                 },
                 DrawGlyph {
-                    handle: PreparedGlyphHandle(105),
+                    token: PreparedGlyphToken(105),
                     top_left: Vec2 { x: 34.0, y: 19.0 }
                 },
                 DrawGlyph {
-                    handle: PreparedGlyphHandle(111),
+                    token: PreparedGlyphToken(111),
                     top_left: Vec2 { x: 42.0, y: 19.0 }
                 },
                 DrawGlyph {
-                    handle: PreparedGlyphHandle(110),
+                    token: PreparedGlyphToken(110),
                     top_left: Vec2 { x: 50.0, y: 19.0 }
                 },
                 DrawGlyph {
-                    handle: PreparedGlyphHandle(49),
+                    token: PreparedGlyphToken(49),
                     top_left: Vec2 { x: 66.0, y: 19.0 }
                 },
                 DrawGlyph {
-                    handle: PreparedGlyphHandle(118),
+                    token: PreparedGlyphToken(118),
                     top_left: Vec2 { x: 162.0, y: 17.0 }
                 },
                 DrawGlyph {
-                    handle: PreparedGlyphHandle(79),
+                    token: PreparedGlyphToken(79),
                     top_left: Vec2 { x: 12.0, y: 52.0 }
                 },
                 DrawGlyph {
-                    handle: PreparedGlyphHandle(112),
+                    token: PreparedGlyphToken(112),
                     top_left: Vec2 { x: 20.0, y: 52.0 }
                 },
                 DrawGlyph {
-                    handle: PreparedGlyphHandle(116),
+                    token: PreparedGlyphToken(116),
                     top_left: Vec2 { x: 28.0, y: 52.0 }
                 },
                 DrawGlyph {
-                    handle: PreparedGlyphHandle(105),
+                    token: PreparedGlyphToken(105),
                     top_left: Vec2 { x: 36.0, y: 52.0 }
                 },
                 DrawGlyph {
-                    handle: PreparedGlyphHandle(111),
+                    token: PreparedGlyphToken(111),
                     top_left: Vec2 { x: 44.0, y: 52.0 }
                 },
                 DrawGlyph {
-                    handle: PreparedGlyphHandle(110),
+                    token: PreparedGlyphToken(110),
                     top_left: Vec2 { x: 52.0, y: 52.0 }
                 },
                 DrawGlyph {
-                    handle: PreparedGlyphHandle(49),
+                    token: PreparedGlyphToken(49),
                     top_left: Vec2 { x: 68.0, y: 52.0 }
                 },
                 DrawGlyph {
-                    handle: PreparedGlyphHandle(79),
+                    token: PreparedGlyphToken(79),
                     top_left: Vec2 { x: 12.0, y: 78.0 }
                 },
                 DrawGlyph {
-                    handle: PreparedGlyphHandle(112),
+                    token: PreparedGlyphToken(112),
                     top_left: Vec2 { x: 20.0, y: 78.0 }
                 },
                 DrawGlyph {
-                    handle: PreparedGlyphHandle(116),
+                    token: PreparedGlyphToken(116),
                     top_left: Vec2 { x: 28.0, y: 78.0 }
                 },
                 DrawGlyph {
-                    handle: PreparedGlyphHandle(105),
+                    token: PreparedGlyphToken(105),
                     top_left: Vec2 { x: 36.0, y: 78.0 }
                 },
                 DrawGlyph {
-                    handle: PreparedGlyphHandle(111),
+                    token: PreparedGlyphToken(111),
                     top_left: Vec2 { x: 44.0, y: 78.0 }
                 },
                 DrawGlyph {
-                    handle: PreparedGlyphHandle(110),
+                    token: PreparedGlyphToken(110),
                     top_left: Vec2 { x: 52.0, y: 78.0 }
                 },
                 DrawGlyph {
-                    handle: PreparedGlyphHandle(50),
+                    token: PreparedGlyphToken(50),
                     top_left: Vec2 { x: 68.0, y: 78.0 }
                 },
                 DrawGlyph {
-                    handle: PreparedGlyphHandle(79),
+                    token: PreparedGlyphToken(79),
                     top_left: Vec2 { x: 12.0, y: 104.0 }
                 },
                 DrawGlyph {
-                    handle: PreparedGlyphHandle(112),
+                    token: PreparedGlyphToken(112),
                     top_left: Vec2 { x: 20.0, y: 104.0 }
                 },
                 DrawGlyph {
-                    handle: PreparedGlyphHandle(116),
+                    token: PreparedGlyphToken(116),
                     top_left: Vec2 { x: 28.0, y: 104.0 }
                 },
                 DrawGlyph {
-                    handle: PreparedGlyphHandle(105),
+                    token: PreparedGlyphToken(105),
                     top_left: Vec2 { x: 36.0, y: 104.0 }
                 },
                 DrawGlyph {
-                    handle: PreparedGlyphHandle(111),
+                    token: PreparedGlyphToken(111),
                     top_left: Vec2 { x: 44.0, y: 104.0 }
                 },
                 DrawGlyph {
-                    handle: PreparedGlyphHandle(110),
+                    token: PreparedGlyphToken(110),
                     top_left: Vec2 { x: 52.0, y: 104.0 }
                 },
                 DrawGlyph {
-                    handle: PreparedGlyphHandle(51),
+                    token: PreparedGlyphToken(51),
                     top_left: Vec2 { x: 68.0, y: 104.0 }
                 }
             ]

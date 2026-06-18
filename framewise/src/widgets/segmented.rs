@@ -405,7 +405,7 @@ mod tests {
     use super::raw::SegmentedSpec;
     use super::*;
     use crate::test_utils::TestTextBackend;
-    use crate::{DrawGlyph, PreparedGlyphHandle};
+    use crate::{DrawGlyph, PreparedGlyphToken};
 
     fn segmented_dummy<'a>(
         spec: SegmentedSpec<'a>,
@@ -487,11 +487,11 @@ mod tests {
             cmds.glyphs(),
             vec![
                 DrawGlyph {
-                    handle: PreparedGlyphHandle(65),
+                    token: PreparedGlyphToken(65),
                     top_left: Vec2 { x: 14.0, y: 19.0 }
                 },
                 DrawGlyph {
-                    handle: PreparedGlyphHandle(66),
+                    token: PreparedGlyphToken(66),
                     top_left: Vec2 { x: 50.0, y: 19.0 }
                 }
             ]
@@ -582,11 +582,11 @@ mod tests {
             cmds.glyphs(),
             vec![
                 DrawGlyph {
-                    handle: PreparedGlyphHandle(65),
+                    token: PreparedGlyphToken(65),
                     top_left: Vec2 { x: 14.0, y: 19.0 }
                 },
                 DrawGlyph {
-                    handle: PreparedGlyphHandle(66),
+                    token: PreparedGlyphToken(66),
                     top_left: Vec2 { x: 50.0, y: 19.0 }
                 }
             ]

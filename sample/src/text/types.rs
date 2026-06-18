@@ -1,7 +1,5 @@
-use framewise::PreparedGlyphHandle;
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct SampleGlyphToken {
+pub struct GlyphBaseKey {
     pub font_id: u16,
     pub glyph_index: u16,
     pub size: u32,   // store size as u32 (size * 10.0 as u32) for hashing
@@ -10,14 +8,9 @@ pub struct SampleGlyphToken {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct GlyphKey {
-    pub font_id: u16,
-    pub glyph_index: u16,
-    pub size: u32,
-    pub weight: u16,
-    pub opsz: u16,
-    pub subpixel_x: u8,
-}
+pub struct SampleShapedGlyphToken(pub u32);
+
+pub type SampleGlyphToken = SampleShapedGlyphToken;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct AtlasRect {
@@ -28,17 +21,49 @@ pub struct AtlasRect {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct GlyphInfo {
-    pub atlas_rect: AtlasRect, /// where the bitmap lives inside the atlas texture
+pub struct RasterizedGlyphSlot {
+    pub atlas_rect: AtlasRect,
+    /// where the bitmap lives inside the atlas texture
     pub left: i32, // x offset from glyph origin to bitmap left edge
     pub top: i32, // y offset from glyph origin/baseline to bitmap top edge
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct PreparedGlyphImage {
-    pub atlas_rect: AtlasRect,
+pub enum GlyphSubpixelSlot {
+    Unloaded,
+    Empty,
+    Loaded(RasterizedGlyphSlot),
 }
 
-pub trait PreparedGlyphResources {
-    fn resolve_glyph(&self, handle: PreparedGlyphHandle) -> Option<PreparedGlyphImage>;
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct CachedGlyph {
+    pub key: GlyphBaseKey,
+    pub subpixels: [GlyphSubpixelSlot; 4],
 }
+
+impl CachedGlyph {
+    pub fn unloaded(key: GlyphBaseKey) -> Self {
+        Self {
+            key,
+            subpixels: [GlyphSubpixelSlot::Unloaded; 4],
+        }
+    }
+}
+
+/// Pack a sample single-atlas source rectangle into a prepared glyph token.
+///
+/// The sample format stores x/y/w/h as four `u16` lanes and therefore assumes a
+/// single atlas texture whose source rectangles fit in `u16::MAX`.
+pub fn pack_prepared_glyph_token(x: u16, y: u16, w: u16, h: u16) -> PreparedGlyphToken {
+    PreparedGlyphToken(((x as u64) << 48) | ((y as u64) << 32) | ((w as u64) << 16) | h as u64)
+}
+
+pub fn decode_prepared_glyph_token(token: PreparedGlyphToken) -> (u16, u16, u16, u16) {
+    (
+        (token.0 >> 48) as u16,
+        (token.0 >> 32) as u16,
+        (token.0 >> 16) as u16,
+        token.0 as u16,
+    )
+}
+use framewise::PreparedGlyphToken;

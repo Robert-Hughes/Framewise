@@ -534,7 +534,7 @@ impl<G: Copy> Iterator for ResolvedGlyphIter<'_, G> {
 mod tests {
     use super::*;
     use crate::{
-        CaretPosition, DrawGlyph, FontId, PrepareGlyphRequest, PreparedGlyphHandle, TextFlow,
+        CaretPosition, DrawGlyph, FontId, PrepareGlyphRequest, PreparedGlyphToken, TextFlow,
         TextLineLayoutMetrics,
     };
 
@@ -581,7 +581,7 @@ mod tests {
 
         fn prepare_glyph(&mut self, request: PrepareGlyphRequest<u32>) -> Option<DrawGlyph> {
             Some(DrawGlyph {
-                handle: PreparedGlyphHandle(request.glyph),
+                token: PreparedGlyphToken(request.glyph as u64),
                 top_left: request.glyph_origin,
             })
         }

@@ -1,4 +1,3 @@
-use crate::text::PreparedGlyphResources;
 use bytemuck::{Pod, Zeroable};
 use framewise::{Color, DrawCmd, DrawCommands, DrawGlyph, Rect};
 use wgpu::util::DeviceExt;
@@ -1302,28 +1301,25 @@ fn push_glyph_run(
     let atlas_size = text_backend.atlas_size as f32;
 
     for glyph in glyphs {
-        let Some(image) = text_backend.resolve_glyph(glyph.handle) else {
-            continue;
-        };
-        let src = image.atlas_rect;
-        if src.w == 0 || src.h == 0 {
+        let (src_x, src_y, src_w, src_h) = crate::text::decode_prepared_glyph_token(glyph.token);
+        if src_w == 0 || src_h == 0 {
             continue;
         }
 
         let gx = glyph.top_left.x;
         let gy = glyph.top_left.y;
-        let gw = src.w as f32;
-        let gh = src.h as f32;
+        let gw = src_w as f32;
+        let gh = src_h as f32;
 
         let tl_pos = to_clip(gx, gy, sw, sh);
         let tr_pos = to_clip(gx + gw, gy, sw, sh);
         let bl_pos = to_clip(gx, gy + gh, sw, sh);
         let br_pos = to_clip(gx + gw, gy + gh, sw, sh);
 
-        let u0 = src.x as f32 / atlas_size;
-        let v0 = src.y as f32 / atlas_size;
-        let u1 = (src.x + src.w) as f32 / atlas_size;
-        let v1 = (src.y + src.h) as f32 / atlas_size;
+        let u0 = src_x as f32 / atlas_size;
+        let v0 = src_y as f32 / atlas_size;
+        let u1 = (src_x + src_w) as f32 / atlas_size;
+        let v1 = (src_y + src_h) as f32 / atlas_size;
 
         verts.push(TextVertex {
             pos: tl_pos,
@@ -1368,30 +1364,19 @@ fn push_glyph_run(
 #[cfg(test)]
 mod tests {
     use super::push_glyph_run;
-    use crate::text::{GlyphKey, SampleTextBackend};
+    use crate::text::{pack_prepared_glyph_token, SampleTextBackend};
     use framewise::{Color, DrawCommands, DrawGlyph, Vec2};
 
     #[test]
     fn glyph_run_vertices_use_draw_glyph_top_left_and_resolved_atlas_size() {
         let mut text_backend = SampleTextBackend::new();
-        let key = GlyphKey {
-            font_id: 1,
-            glyph_index: 43,
-            size: 140,
-            weight: 400,
-            opsz: 14,
-            subpixel_x: 0,
-        };
-        let handle = text_backend.prepare_glyph_handle(key);
-        let image = text_backend.glyph_cache.get(&key).unwrap();
-        assert!(image.atlas_rect.w > 0);
-        assert!(image.atlas_rect.h > 0);
+        let token = pack_prepared_glyph_token(3, 5, 11, 13);
 
         let mut verts = Vec::new();
         push_glyph_run(
             &mut verts,
             &[DrawGlyph {
-                handle,
+                token,
                 top_left: Vec2::new(25.0, 11.0),
             }],
             Color::from_srgb_u8(10, 20, 30, 255),
@@ -1403,31 +1388,18 @@ mod tests {
         assert_eq!(verts.len(), 6);
         assert_eq!(clip_x_to_pixels(verts[0].pos[0], 200), 25.0);
         assert_eq!(clip_y_to_pixels(verts[0].pos[1], 100), 11.0);
-        assert_eq!(
-            clip_x_to_pixels(verts[5].pos[0], 200),
-            25.0 + image.atlas_rect.w as f32
-        );
-        assert_eq!(
-            clip_y_to_pixels(verts[5].pos[1], 100),
-            11.0 + image.atlas_rect.h as f32
-        );
+        assert_eq!(clip_x_to_pixels(verts[5].pos[0], 200), 36.0);
+        assert_eq!(clip_y_to_pixels(verts[5].pos[1], 100), 24.0);
     }
 
     #[test]
     fn process_commands_draws_glyph_runs_from_arena() {
         let mut text_backend = SampleTextBackend::new();
-        let handle = text_backend.prepare_glyph_handle(GlyphKey {
-            font_id: 1,
-            glyph_index: 43,
-            size: 140,
-            weight: 400,
-            opsz: 14,
-            subpixel_x: 0,
-        });
+        let token = pack_prepared_glyph_token(3, 5, 11, 13);
         let mut cmds = DrawCommands::new();
         cmds.push_glyph_run(
             [DrawGlyph {
-                handle,
+                token,
                 top_left: Vec2::new(4.0, 8.0),
             }],
             Color::from_srgb_u8(0, 0, 0, 255),

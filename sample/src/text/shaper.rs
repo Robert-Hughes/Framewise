@@ -1,5 +1,5 @@
 use crate::text::text_backend::{glyph_opsz_key, glyph_size_key};
-use crate::text::types::SampleGlyphToken;
+use crate::text::types::{GlyphBaseKey, SampleGlyphToken};
 use crate::text::SampleTextBackend;
 use framewise::{
     cluster_approx_ink_bounds, FontId, LineHeight, Rect, ShapedCluster, ShapedGlyph, ShapedText,
@@ -78,7 +78,7 @@ impl SampleTextBackend {
         let opsz = self.opsz_for_size(size, font_id);
         let letter_spacing_px = size * style.letter_spacing;
         let font = self.fonts[font_id.0 as usize];
-        let base_style_key = SampleGlyphToken {
+        let base_style_key = GlyphBaseKey {
             font_id: font_id.0,
             glyph_index: 0,
             size: glyph_size_key(size),
@@ -101,65 +101,91 @@ impl SampleTextBackend {
             scaler = scaler.variations(&vars);
         }
 
-        let mut shaper = shaper.build();
-        let mut scaler = scaler.build();
-        shaper.add_str(text);
+        let clusters = {
+            let mut shaper = shaper.build();
+            let mut scaler = scaler.build();
+            shaper.add_str(text);
 
-        let mut clusters = Vec::new();
-        let mut pen_x = 0.0_f32;
-        shaper.shape_with(|cluster| {
-            let source = cluster.source.to_range();
-            let source_text = &text[source.clone()];
-            let byte_start = cluster.source.start as usize;
-            let byte_end = cluster.source.end as usize;
-            let is_whitespace = source_text.chars().all(char::is_whitespace);
-            let cluster_x = pen_x;
-            let mut cluster_advance = 0.0;
-            let mut glyphs = Vec::new();
+            let mut clusters = Vec::new();
+            let mut pen_x = 0.0_f32;
+            shaper.shape_with(|cluster| {
+                let source = cluster.source.to_range();
+                let source_text = &text[source.clone()];
+                let byte_start = cluster.source.start as usize;
+                let byte_end = cluster.source.end as usize;
+                let is_whitespace = source_text.chars().all(char::is_whitespace);
+                let cluster_x = pen_x;
+                let mut cluster_advance = 0.0;
+                let mut glyphs = Vec::new();
 
-            for glyph in cluster.glyphs {
-                let advance = glyph.advance + letter_spacing_px;
-                let token = SampleGlyphToken {
-                    glyph_index: glyph.id,
-                    ..base_style_key
-                };
-                glyphs.push(ShapedGlyph {
-                    token,
-                    x: pen_x - cluster_x + glyph.x,
-                    y: glyph.y,
-                    advance,
-                    approx_ink_bounds: if is_whitespace {
-                        Rect::ZERO
-                    } else {
-                        outline_approx_ink_bounds(&mut scaler, glyph.id)
-                            .unwrap_or_else(|| conservative_approx_ink_bounds(style, advance))
-                    },
+                for glyph in cluster.glyphs {
+                    let advance = glyph.advance + letter_spacing_px;
+                    let token = GlyphBaseKey {
+                        glyph_index: glyph.id,
+                        ..base_style_key
+                    };
+                    glyphs.push(ShapedGlyph {
+                        token,
+                        x: pen_x - cluster_x + glyph.x,
+                        y: glyph.y,
+                        advance,
+                        approx_ink_bounds: if is_whitespace {
+                            Rect::ZERO
+                        } else {
+                            outline_approx_ink_bounds(&mut scaler, glyph.id)
+                                .unwrap_or_else(|| conservative_approx_ink_bounds(style, advance))
+                        },
+                    });
+                    pen_x += advance;
+                    cluster_advance += advance;
+                }
+
+                if glyphs.is_empty() {
+                    glyphs.push(ShapedGlyph {
+                        token: base_style_key,
+                        x: 0.0,
+                        y: 0.0,
+                        advance: 0.0,
+                        approx_ink_bounds: Rect::ZERO,
+                    });
+                }
+
+                let approx_ink_bounds = cluster_approx_ink_bounds(&glyphs);
+                clusters.push(ShapedCluster {
+                    byte_start,
+                    byte_end,
+                    advance: cluster_advance,
+                    is_whitespace,
+                    approx_ink_bounds,
+                    glyphs,
                 });
-                pen_x += advance;
-                cluster_advance += advance;
-            }
-
-            if glyphs.is_empty() {
-                glyphs.push(ShapedGlyph {
-                    token: base_style_key,
-                    x: 0.0,
-                    y: 0.0,
-                    advance: 0.0,
-                    approx_ink_bounds: Rect::ZERO,
-                });
-            }
-
-            let approx_ink_bounds = cluster_approx_ink_bounds(&glyphs);
-            clusters.push(ShapedCluster {
-                byte_start,
-                byte_end,
-                advance: cluster_advance,
-                is_whitespace,
-                approx_ink_bounds,
-                glyphs,
             });
-        });
+            clusters
+        };
 
-        ShapedText { clusters }
+        //TODO: this is a bit weird copying everythign again
+        ShapedText {
+            clusters: clusters
+                .into_iter()
+                .map(|cluster: ShapedCluster<GlyphBaseKey>| ShapedCluster {
+                    byte_start: cluster.byte_start,
+                    byte_end: cluster.byte_end,
+                    advance: cluster.advance,
+                    is_whitespace: cluster.is_whitespace,
+                    approx_ink_bounds: cluster.approx_ink_bounds,
+                    glyphs: cluster
+                        .glyphs
+                        .into_iter()
+                        .map(|glyph| ShapedGlyph {
+                            token: self.intern_glyph(glyph.token),
+                            x: glyph.x,
+                            y: glyph.y,
+                            advance: glyph.advance,
+                            approx_ink_bounds: glyph.approx_ink_bounds,
+                        })
+                        .collect(),
+                })
+                .collect(),
+        }
     }
 }

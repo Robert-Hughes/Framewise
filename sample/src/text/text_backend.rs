@@ -32,12 +32,12 @@
 //!   By rendering pixel-aligned quads with pre-shifted subpixel glyphs, we map every font pixel 1-to-1 with screen
 //!   pixels for maximum crispness.
 
+use crate::text::pack_prepared_glyph_token;
 use crate::text::types::{
-    GlyphInfo, GlyphKey, PreparedGlyphImage, PreparedGlyphResources, SampleGlyphToken,
+    CachedGlyph, GlyphBaseKey, GlyphSubpixelSlot, SampleGlyphToken, SampleShapedGlyphToken,
 };
 use framewise::{
-    DrawGlyph, PrepareGlyphRequest, PreparedGlyphHandle, SharedShapedText, TextBackend,
-    TextLineLayoutMetrics, Vec2,
+    DrawGlyph, PrepareGlyphRequest, SharedShapedText, TextBackend, TextLineLayoutMetrics, Vec2,
 };
 use std::collections::HashMap;
 use std::rc::Rc;
@@ -77,10 +77,10 @@ pub struct SampleTextBackend {
     pub(crate) shape_cache: HashMap<ShapeCacheKey, SharedShapedText<SampleGlyphToken>>,
     #[cfg(test)]
     pub(crate) shape_text_run_count: usize,
-    // Atlas data
-    pub glyph_cache: HashMap<GlyphKey, GlyphInfo>,
-    pub prepared_glyph_keys: Vec<GlyphKey>,
-    pub prepared_glyph_handles: HashMap<GlyphKey, PreparedGlyphHandle>,
+    // ShapedGlyphToken indexes into this vector and may be stored inside cached
+    // ShapedText. Keep entries append-only/stable while shaped text can exist.
+    pub glyph_cache: Vec<CachedGlyph>,
+    pub glyph_index: HashMap<GlyphBaseKey, SampleShapedGlyphToken>,
     pub atlas_data: Vec<u8>,
     pub atlas_size: u32,
 
@@ -188,9 +188,8 @@ impl SampleTextBackend {
             shape_cache: HashMap::new(),
             #[cfg(test)]
             shape_text_run_count: 0,
-            glyph_cache: HashMap::new(),
-            prepared_glyph_keys: Vec::new(),
-            prepared_glyph_handles: HashMap::new(),
+            glyph_cache: Vec::new(),
+            glyph_index: HashMap::new(),
             atlas_data: vec![0; (atlas_size * atlas_size) as usize],
             atlas_size,
             current_x: 0,
@@ -216,16 +215,15 @@ impl SampleTextBackend {
         }
     }
 
-    pub fn prepare_glyph_handle(&mut self, key: GlyphKey) -> PreparedGlyphHandle {
-        if let Some(handle) = self.prepared_glyph_handles.get(&key) {
-            return *handle;
+    pub fn intern_glyph(&mut self, key: GlyphBaseKey) -> SampleShapedGlyphToken {
+        if let Some(token) = self.glyph_index.get(&key) {
+            return *token;
         }
 
-        self.ensure_glyph(key);
-        let handle = PreparedGlyphHandle(self.prepared_glyph_keys.len() as u32);
-        self.prepared_glyph_keys.push(key);
-        self.prepared_glyph_handles.insert(key, handle);
-        handle
+        let token = SampleShapedGlyphToken(self.glyph_cache.len() as u32);
+        self.glyph_cache.push(CachedGlyph::unloaded(key));
+        self.glyph_index.insert(key, token);
+        token
     }
 }
 
@@ -257,16 +255,6 @@ pub(crate) fn glyph_opsz_key(opsz: f32) -> u16 {
 
 fn subpixel_bin(x: f32) -> u8 {
     ((x * 4.0).round() as i32).rem_euclid(4) as u8
-}
-
-impl PreparedGlyphResources for SampleTextBackend {
-    fn resolve_glyph(&self, handle: PreparedGlyphHandle) -> Option<PreparedGlyphImage> {
-        let key = self.prepared_glyph_keys.get(handle.0 as usize)?;
-        let info = self.glyph_cache.get(key)?;
-        Some(PreparedGlyphImage {
-            atlas_rect: info.atlas_rect,
-        })
-    }
 }
 
 impl TextBackend for SampleTextBackend {
@@ -307,24 +295,25 @@ impl TextBackend for SampleTextBackend {
         request: PrepareGlyphRequest<Self::ShapedGlyphToken>,
     ) -> Option<DrawGlyph> {
         let subpixel_x = subpixel_bin(request.glyph_origin.x);
-        let key = GlyphKey {
-            font_id: request.glyph.font_id,
-            glyph_index: request.glyph.glyph_index,
-            size: request.glyph.size,
-            weight: request.glyph.weight,
-            opsz: request.glyph.opsz,
-            subpixel_x,
+        self.ensure_glyph_slot(request.glyph, subpixel_x);
+        let slot = self
+            .glyph_cache
+            .get(request.glyph.0 as usize)?
+            .subpixels
+            .get(subpixel_x as usize)?;
+        let GlyphSubpixelSlot::Loaded(info) = slot else {
+            return None;
         };
 
-        let handle = self.prepare_glyph_handle(key);
-        let info = self.glyph_cache.get(&key)?;
-        if info.atlas_rect.w == 0 || info.atlas_rect.h == 0 {
-            return None;
-        }
-
         let quantized_x = (request.glyph_origin.x * 4.0).round() / 4.0;
+        let x = u16::try_from(info.atlas_rect.x).expect("glyph atlas x exceeds u16 token limit");
+        let y = u16::try_from(info.atlas_rect.y).expect("glyph atlas y exceeds u16 token limit");
+        let w =
+            u16::try_from(info.atlas_rect.w).expect("glyph atlas width exceeds u16 token limit");
+        let h =
+            u16::try_from(info.atlas_rect.h).expect("glyph atlas height exceeds u16 token limit");
         Some(DrawGlyph {
-            handle,
+            token: pack_prepared_glyph_token(x, y, w, h),
             top_left: Vec2::new(
                 quantized_x.floor() + info.left as f32,
                 request.glyph_origin.y.round() - info.top as f32,

@@ -1,20 +1,21 @@
 use crate::types::{Color, Rect, Vec2};
 use std::ops::Range;
 
-/// An opaque backend/renderer-owned handle to a renderer-ready glyph resource.
+/// An opaque backend/renderer-owned token for a renderer-ready glyph resource.
 ///
 /// Framewise never inspects this value. It is not a character, text cluster,
 /// font glyph id, or layout glyph id.
 ///
-/// It represents something backend-specific, such as font face, glyph id, size,
-/// weight, optical size, subpixel bin, and raster mode.
+/// It represents something backend-specific, such as an atlas rect, atlas entry
+/// index, font face, glyph id, size, weight, optical size, subpixel bin, and
+/// raster mode.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct PreparedGlyphHandle(pub u32);
+pub struct PreparedGlyphToken(pub u64);
 
 /// A single prepared glyph blit emitted into a draw command glyph arena.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct DrawGlyph {
-    pub handle: PreparedGlyphHandle,
+    pub token: PreparedGlyphToken,
 
     /// Final top-left position of the prepared glyph bitmap in draw-list coordinates.
     ///
@@ -22,7 +23,7 @@ pub struct DrawGlyph {
     /// the bitmap/blit position after glyph bearings, layout position, line
     /// baseline, alignment, and caller draw origin have all been applied.
     ///
-    /// The renderer resolves `handle` to atlas/resource data, including bitmap
+    /// The renderer resolves `token` to atlas/resource data, including bitmap
     /// size and UVs, and performs a no-scale blit at this position.
     pub top_left: Vec2,
 }
@@ -248,7 +249,7 @@ mod tests {
 
     fn glyph(handle: u32, x: f32) -> DrawGlyph {
         DrawGlyph {
-            handle: PreparedGlyphHandle(handle),
+            token: PreparedGlyphToken(handle as u64),
             top_left: Vec2::new(x, 2.0),
         }
     }

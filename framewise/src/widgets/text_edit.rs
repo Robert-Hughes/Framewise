@@ -1794,7 +1794,7 @@ mod tests {
     use super::raw::TextEditSpec;
     use super::*;
 
-    use crate::{test_utils::TestTextBackend, DrawGlyph, PreparedGlyphHandle};
+    use crate::{test_utils::TestTextBackend, DrawGlyph, PreparedGlyphToken};
 
     #[test]
     fn test_builder_defaults_from_theme_fills_unset_style() {
@@ -1889,7 +1889,7 @@ mod tests {
         items
             .iter()
             .map(|(ch, x, y)| DrawGlyph {
-                handle: PreparedGlyphHandle(*ch as u32),
+                token: PreparedGlyphToken(*ch as u64),
                 top_left: Vec2::new(*x, *y),
             })
             .collect()

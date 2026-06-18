@@ -36,7 +36,7 @@ pub mod widgets;
 pub mod test_utils;
 // ── Public re-exports ─────────────────────────────────────────────────────────
 
-pub use draw::{DrawCmd, DrawCommands, DrawGlyph, PreparedGlyphHandle};
+pub use draw::{DrawCmd, DrawCommands, DrawGlyph, PreparedGlyphToken};
 pub use input::Input;
 pub use layout::{Align, AxisBound, IntrinsicSize, LayoutSpace, Placement, Placement2D, Size};
 pub use layouts::{

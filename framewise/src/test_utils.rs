@@ -2,7 +2,7 @@ use crate::text::{
     cluster_approx_ink_bounds, PrepareGlyphRequest, ShapedCluster, ShapedGlyph, SharedShapedText,
     TextBackend, TextStyle,
 };
-use crate::{DrawGlyph, PreparedGlyphHandle};
+use crate::{DrawGlyph, PreparedGlyphToken};
 use std::rc::Rc;
 
 /// Deterministic text backend for unit tests.
@@ -87,7 +87,7 @@ impl TextBackend for TestTextBackend {
         }
 
         Some(DrawGlyph {
-            handle: PreparedGlyphHandle(request.glyph),
+            token: PreparedGlyphToken(request.glyph as u64),
             top_left: request.glyph_origin,
         })
     }

@@ -1,14 +1,27 @@
-use crate::text::types::{AtlasRect, GlyphInfo, GlyphKey};
+use crate::text::types::{
+    AtlasRect, GlyphBaseKey, GlyphSubpixelSlot, RasterizedGlyphSlot, SampleShapedGlyphToken,
+};
 use crate::text::SampleTextBackend;
 use swash::scale::{Render, Source, StrikeWith};
 use zeno::{Format, Vector};
 
 impl SampleTextBackend {
-    pub fn ensure_glyph(&mut self, key: GlyphKey) {
-        if self.glyph_cache.contains_key(&key) {
+    pub fn ensure_glyph_slot(&mut self, token: SampleShapedGlyphToken, subpixel_x: u8) {
+        let glyph_index = token.0 as usize;
+        let slot_index = subpixel_x as usize;
+        if !matches!(
+            self.glyph_cache[glyph_index].subpixels[slot_index],
+            GlyphSubpixelSlot::Unloaded
+        ) {
             return;
         }
 
+        let key = self.glyph_cache[glyph_index].key;
+        let slot = self.rasterize_glyph_slot(key, subpixel_x);
+        self.glyph_cache[glyph_index].subpixels[slot_index] = slot;
+    }
+
+    fn rasterize_glyph_slot(&mut self, key: GlyphBaseKey, subpixel_x: u8) -> GlyphSubpixelSlot {
         let font = self.fonts[key.font_id as usize];
         let size = key.size as f32 / 10.0;
 
@@ -31,7 +44,7 @@ impl SampleTextBackend {
 
         // Calculate horizontal subpixel offset:
         // subpixel_x is 0, 1, 2, or 3 representing 0.0, 0.25, 0.50, 0.75
-        let offset_x = key.subpixel_x as f32 * 0.25;
+        let offset_x = subpixel_x as f32 * 0.25;
         let offset = Vector::new(offset_x, 0.0);
 
         let image = Render::new(&[
@@ -53,20 +66,7 @@ impl SampleTextBackend {
             ),
             _ => {
                 // Empty glyph (like space) or failed render
-                self.glyph_cache.insert(
-                    key,
-                    GlyphInfo {
-                        atlas_rect: AtlasRect {
-                            x: 0,
-                            y: 0,
-                            w: 0,
-                            h: 0,
-                        },
-                        left: 0,
-                        top: 0,
-                    },
-                );
-                return;
+                return GlyphSubpixelSlot::Empty;
             }
         };
 
@@ -99,13 +99,10 @@ impl SampleTextBackend {
         }
 
         self.atlas_dirty = true;
-        self.glyph_cache.insert(
-            key,
-            GlyphInfo {
-                atlas_rect: AtlasRect { x, y, w, h },
-                left,
-                top,
-            },
-        );
+        GlyphSubpixelSlot::Loaded(RasterizedGlyphSlot {
+            atlas_rect: AtlasRect { x, y, w, h },
+            left,
+            top,
+        })
     }
 }

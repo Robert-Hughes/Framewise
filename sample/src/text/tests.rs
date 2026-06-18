@@ -1,6 +1,7 @@
 #[cfg(test)]
 mod tests {
-    use crate::text::types::PreparedGlyphResources;
+    use crate::text::pack_prepared_glyph_token;
+    use crate::text::types::{decode_prepared_glyph_token, GlyphSubpixelSlot, SampleGlyphToken};
     use crate::text::SampleTextBackend;
     use framewise::{
         text::{layout_text, measure_text},
@@ -62,8 +63,8 @@ mod tests {
             );
         }
 
-        assert!(sys.glyph_cache.keys().any(|key| key.font_id == 0));
-        assert!(sys.glyph_cache.keys().any(|key| key.font_id == 1));
+        assert!(sys.glyph_cache.iter().any(|glyph| glyph.key.font_id == 0));
+        assert!(sys.glyph_cache.iter().any(|glyph| glyph.key.font_id == 1));
     }
 
     #[test]
@@ -96,10 +97,10 @@ mod tests {
             );
         }
 
-        assert!(sys.glyph_cache.keys().any(|key| key.weight == 400));
-        assert!(sys.glyph_cache.keys().any(|key| key.weight == 700));
-        assert!(sys.glyph_cache.keys().any(|key| key.opsz == 14));
-        assert!(sys.glyph_cache.keys().any(|key| key.opsz == 32));
+        assert!(sys.glyph_cache.iter().any(|glyph| glyph.key.weight == 400));
+        assert!(sys.glyph_cache.iter().any(|glyph| glyph.key.weight == 700));
+        assert!(sys.glyph_cache.iter().any(|glyph| glyph.key.opsz == 14));
+        assert!(sys.glyph_cache.iter().any(|glyph| glyph.key.opsz == 32));
     }
 
     #[test]
@@ -152,7 +153,8 @@ mod tests {
 
         let keys: Vec<_> = sys
             .glyph_cache
-            .keys()
+            .iter()
+            .map(|glyph| glyph.key)
             .filter(|key| key.font_id == 0)
             .collect();
         assert!(!keys.is_empty());
@@ -204,12 +206,12 @@ mod tests {
 
         assert!(sys
             .glyph_cache
-            .keys()
-            .any(|key| key.font_id == 0 && key.weight == 400));
+            .iter()
+            .any(|glyph| glyph.key.font_id == 0 && glyph.key.weight == 400));
         assert!(sys
             .glyph_cache
-            .keys()
-            .any(|key| key.font_id == 0 && key.weight == 700));
+            .iter()
+            .any(|glyph| glyph.key.font_id == 0 && glyph.key.weight == 700));
     }
 
     #[test]
@@ -408,13 +410,14 @@ mod tests {
         layout.emit_glyphs(&mut commands, &mut sys, origin, framewise::Color::BLACK, 0);
 
         assert!(!commands.glyphs().is_empty());
-        for (layout_glyph, draw_glyph) in layout.resolved_glyphs().iter().zip(commands.glyphs()) {
-            let key = sys
-                .prepared_glyph_keys
-                .get(draw_glyph.handle.0 as usize)
-                .expect("emitted glyph handle should resolve to a prepared key");
+        for layout_glyph in layout
+            .resolved_glyphs()
+            .iter()
+            .zip(commands.glyphs())
+            .map(|(l, _)| l)
+        {
             let expected = subpixel_bin(origin.x + layout_glyph.origin.x);
-            assert_eq!(key.subpixel_x, expected);
+            assert_loaded_subpixel(&sys, layout_glyph.id, expected);
         }
     }
 
@@ -454,23 +457,53 @@ mod tests {
         })
     }
 
-    fn raster_ink_bounds_for_glyphs(
-        glyphs: &[DrawGlyph],
-        resources: &impl PreparedGlyphResources,
-    ) -> Rect {
+    fn raster_ink_bounds_for_glyphs(glyphs: &[DrawGlyph]) -> Rect {
         glyphs
             .iter()
             .filter_map(|glyph| {
-                let image = resources.resolve_glyph(glyph.handle)?;
+                let (_, _, w, h) = decode_prepared_glyph_token(glyph.token);
+                if w == 0 || h == 0 {
+                    return None;
+                }
                 Some(Rect::new(
                     glyph.top_left.x,
                     glyph.top_left.y,
-                    image.atlas_rect.w as f32,
-                    image.atlas_rect.h as f32,
+                    w as f32,
+                    h as f32,
                 ))
             })
             .fold(None, union_rect)
             .unwrap_or(Rect::ZERO)
+    }
+
+    fn assert_loaded_subpixel(sys: &SampleTextBackend, token: SampleGlyphToken, subpixel_x: u8) {
+        assert!(
+            matches!(
+                sys.glyph_cache[token.0 as usize].subpixels[subpixel_x as usize],
+                GlyphSubpixelSlot::Loaded(_)
+            ),
+            "expected glyph token {:?} subpixel slot {} to be loaded",
+            token,
+            subpixel_x
+        );
+    }
+
+    fn packed_slot_token(
+        sys: &SampleTextBackend,
+        token: SampleGlyphToken,
+        subpixel_x: u8,
+    ) -> Option<framewise::PreparedGlyphToken> {
+        let GlyphSubpixelSlot::Loaded(slot) =
+            sys.glyph_cache[token.0 as usize].subpixels[subpixel_x as usize]
+        else {
+            return None;
+        };
+        Some(pack_prepared_glyph_token(
+            slot.atlas_rect.x as u16,
+            slot.atlas_rect.y as u16,
+            slot.atlas_rect.w as u16,
+            slot.atlas_rect.h as u16,
+        ))
     }
 
     #[test]
@@ -518,7 +551,7 @@ mod tests {
         for (x, expected) in [(10.0, 0), (10.25, 1), (10.5, 2), (10.75, 3)] {
             let shaped = TextBackend::shape_text(&mut sys, "A", style);
             let glyph = shaped.clusters[0].glyphs[0];
-            let draw = TextBackend::prepare_glyph(
+            TextBackend::prepare_glyph(
                 &mut sys,
                 PrepareGlyphRequest {
                     glyph: glyph.token,
@@ -526,11 +559,7 @@ mod tests {
                 },
             )
             .expect("A should prepare");
-            let key = sys
-                .prepared_glyph_keys
-                .get(draw.handle.0 as usize)
-                .expect("prepared handle should resolve");
-            assert_eq!(key.subpixel_x, expected);
+            assert_loaded_subpixel(&sys, glyph.token, expected);
         }
     }
 
@@ -544,15 +573,15 @@ mod tests {
         let resolved_glyphs = layout.resolved_glyphs();
         let mut layout_glyphs = resolved_glyphs.iter();
         for draw_glyph in commands.glyphs() {
-            let key = sys.prepared_glyph_keys[draw_glyph.handle.0 as usize];
             let layout_glyph = layout_glyphs
                 .by_ref()
-                .find(|glyph| glyph.id.glyph_index == key.glyph_index)
+                .find(|glyph| {
+                    let expected = subpixel_bin(origin.x + glyph.origin.x);
+                    packed_slot_token(&sys, glyph.id, expected) == Some(draw_glyph.token)
+                })
                 .expect("emitted glyph should come from layout glyphs");
-            assert_eq!(
-                key.subpixel_x,
-                subpixel_bin(origin.x + layout_glyph.origin.x)
-            );
+            let expected = subpixel_bin(origin.x + layout_glyph.origin.x);
+            assert_loaded_subpixel(&sys, layout_glyph.id, expected);
         }
     }
 
@@ -572,15 +601,15 @@ mod tests {
         let resolved_glyphs = layout.resolved_glyphs();
         let mut layout_glyphs = resolved_glyphs.iter();
         for draw_glyph in commands.glyphs() {
-            let key = sys.prepared_glyph_keys[draw_glyph.handle.0 as usize];
             let layout_glyph = layout_glyphs
                 .by_ref()
-                .find(|glyph| glyph.id.glyph_index == key.glyph_index)
+                .find(|glyph| {
+                    let expected = subpixel_bin(origin.x + glyph.origin.x);
+                    packed_slot_token(&sys, glyph.id, expected) == Some(draw_glyph.token)
+                })
                 .expect("emitted glyph should come from layout glyphs");
-            assert_eq!(
-                key.subpixel_x,
-                subpixel_bin(origin.x + layout_glyph.origin.x)
-            );
+            let expected = subpixel_bin(origin.x + layout_glyph.origin.x);
+            assert_loaded_subpixel(&sys, layout_glyph.id, expected);
         }
     }
 
@@ -661,7 +690,7 @@ mod tests {
         assert!(layout.metrics().approx_ink_bounds.w > 0.0);
         assert!(layout.metrics().approx_ink_bounds.h > 0.0);
 
-        let raster_bounds = raster_ink_bounds_for_glyphs(commands.glyphs(), &sys);
+        let raster_bounds = raster_ink_bounds_for_glyphs(commands.glyphs());
         assert!(raster_bounds.w > 0.0);
         assert!(raster_bounds.h > 0.0);
     }

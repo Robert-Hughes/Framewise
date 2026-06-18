@@ -533,7 +533,7 @@ pub struct TextMetrics {
     /// atlas/resource dimensions, and backend-specific preparation.
     ///
     /// Exact drawn bounds can only be derived from emitted `DrawGlyph`s plus the
-    /// resolved image sizes for their `PreparedGlyphHandle`s. `measure_text`
+    /// resolved image sizes for their `PreparedGlyphToken`s. `measure_text`
     /// does not promise exact pixel ink bounds. Callers that require strict
     /// pixel containment should clip, add padding, or use a future ink-fitting
     /// policy rather than assuming that input bounds contain all rendered

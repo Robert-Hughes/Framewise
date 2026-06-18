@@ -239,7 +239,7 @@ mod tests {
     use super::*;
     use crate::{
         focus::FocusSystem, test_utils::TestTextBackend, text::FontId, DrawGlyph,
-        PreparedGlyphHandle, Vec2,
+        PreparedGlyphToken, Vec2,
     };
 
     #[test]
@@ -309,7 +309,7 @@ mod tests {
         assert_eq!(
             cmds.glyphs(),
             vec![DrawGlyph {
-                handle: PreparedGlyphHandle(75),
+                token: PreparedGlyphToken(75),
                 top_left: Vec2 { x: 11.0, y: 21.0 }
             }]
         );
