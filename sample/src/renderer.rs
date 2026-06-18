@@ -1,6 +1,5 @@
 use bytemuck::{Pod, Zeroable};
 use framewise::{Color, DrawCmd, DrawCommands, DrawGlyph, Rect};
-use wgpu::util::DeviceExt;
 
 // ── Vertex layout ─────────────────────────────────────────────────────────────
 
@@ -105,6 +104,19 @@ pub struct Renderer {
 
     aa_bind_group_layout: wgpu::BindGroupLayout,
     globals_buf: wgpu::Buffer,
+
+    quad_verts: Vec<Vertex>,
+    text_verts: Vec<TextVertex>,
+    aa_shapes: Vec<ShapeData>,
+    render_cmds: Vec<RenderCommand>,
+    clip_stack: Vec<Rect>,
+
+    quad_vbuf: Option<wgpu::Buffer>,
+    quad_vbuf_capacity: u64,
+    text_vbuf: Option<wgpu::Buffer>,
+    text_vbuf_capacity: u64,
+    aa_sbuf: Option<wgpu::Buffer>,
+    aa_sbuf_capacity: u64,
 }
 
 struct DepthTarget {
@@ -387,6 +399,17 @@ impl Renderer {
             depth_target: None,
             aa_bind_group_layout,
             globals_buf,
+            quad_verts: Vec::new(),
+            text_verts: Vec::new(),
+            aa_shapes: Vec::new(),
+            render_cmds: Vec::new(),
+            clip_stack: Vec::new(),
+            quad_vbuf: None,
+            quad_vbuf_capacity: 0,
+            text_vbuf: None,
+            text_vbuf_capacity: 0,
+            aa_sbuf: None,
+            aa_sbuf_capacity: 0,
         }
     }
 
@@ -395,11 +418,11 @@ impl Renderer {
         glyphs: &[DrawGlyph],
         window_size: (u32, u32),
         text_backend: &mut crate::text::SampleTextBackend,
-    ) -> (
-        Vec<Vertex>,
-        Vec<TextVertex>,
-        Vec<ShapeData>,
-        Vec<RenderCommand>,
+        mut quad_verts: &mut Vec<Vertex>,
+        mut text_verts: &mut Vec<TextVertex>,
+        aa_shapes: &mut Vec<ShapeData>,
+        mut render_cmds: &mut Vec<RenderCommand>,
+        clip_stack: &mut Vec<Rect>,
     ) {
         let estimated_quad_vertices = cmds
             .iter()
@@ -422,15 +445,21 @@ impl Renderer {
                 _ => 0,
             })
             .sum();
-        let mut quad_verts: Vec<Vertex> = Vec::with_capacity(estimated_quad_vertices);
-        let mut text_verts: Vec<TextVertex> = Vec::with_capacity(glyphs.len().saturating_mul(6));
-        let mut aa_shapes: Vec<ShapeData> = Vec::with_capacity(cmds.len());
-        let mut render_cmds = Vec::with_capacity(cmds.len() + 1);
+        quad_verts.clear();
+        text_verts.clear();
+        aa_shapes.clear();
+        render_cmds.clear();
+        clip_stack.clear();
+
+        quad_verts.reserve(estimated_quad_vertices);
+        text_verts.reserve(glyphs.len().saturating_mul(6));
+        aa_shapes.reserve(cmds.len());
+        render_cmds.reserve(cmds.len() + 1);
+        clip_stack.reserve(4);
 
         let mut current_quad_start = 0;
         let mut current_text_start = 0;
         let mut current_aa_start = 0;
-        let mut clip_stack: Vec<Rect> = Vec::with_capacity(4);
 
         let flush_quads = |quad_verts_len: u32,
                            current_quad_start: &mut u32,
@@ -784,8 +813,6 @@ impl Renderer {
             &mut current_aa_start,
             &mut render_cmds,
         );
-
-        (quad_verts, text_verts, aa_shapes, render_cmds)
     }
 
     /// Convert a list of `DrawCmd`s into vertices and render them.
@@ -823,40 +850,40 @@ impl Renderer {
             text_backend.atlas_dirty = false;
         }
 
-        let (quad_verts, text_verts, aa_shapes, render_cmds) = Self::process_commands(
+        Self::process_commands(
             draw_commands.commands(),
             draw_commands.glyphs(),
             window_size,
             text_backend,
+            &mut self.quad_verts,
+            &mut self.text_verts,
+            &mut self.aa_shapes,
+            &mut self.render_cmds,
+            &mut self.clip_stack,
         );
 
-        if quad_verts.is_empty() && text_verts.is_empty() && aa_shapes.is_empty() {
+        if self.quad_verts.is_empty() && self.text_verts.is_empty() && self.aa_shapes.is_empty() {
             return;
         }
 
-        let quad_vbuf = if !quad_verts.is_empty() {
-            Some(
-                device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                    label: Some("quad_vbuf"),
-                    contents: bytemuck::cast_slice(&quad_verts),
-                    usage: wgpu::BufferUsages::VERTEX,
-                }),
-            )
-        } else {
-            None
-        };
-
-        let text_vbuf = if !text_verts.is_empty() {
-            Some(
-                device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                    label: Some("text_vbuf"),
-                    contents: bytemuck::cast_slice(&text_verts),
-                    usage: wgpu::BufferUsages::VERTEX,
-                }),
-            )
-        } else {
-            None
-        };
+        upload_slice(
+            device,
+            queue,
+            &mut self.quad_vbuf,
+            &mut self.quad_vbuf_capacity,
+            &self.quad_verts,
+            wgpu::BufferUsages::VERTEX,
+            "quad_vbuf",
+        );
+        upload_slice(
+            device,
+            queue,
+            &mut self.text_vbuf,
+            &mut self.text_vbuf_capacity,
+            &self.text_verts,
+            wgpu::BufferUsages::VERTEX,
+            "text_vbuf",
+        );
 
         // Write Globals Uniform
         let globals = Globals {
@@ -865,36 +892,37 @@ impl Renderer {
         };
         queue.write_buffer(&self.globals_buf, 0, bytemuck::bytes_of(&globals));
 
-        // Create ShapeData storage buffer
-        let aa_sbuf = if !aa_shapes.is_empty() {
-            Some(
-                device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                    label: Some("aa_sbuf"),
-                    contents: bytemuck::cast_slice(&aa_shapes),
-                    usage: wgpu::BufferUsages::STORAGE,
-                }),
-            )
-        } else {
-            None
-        };
+        upload_slice(
+            device,
+            queue,
+            &mut self.aa_sbuf,
+            &mut self.aa_sbuf_capacity,
+            &self.aa_shapes,
+            wgpu::BufferUsages::STORAGE,
+            "aa_sbuf",
+        );
 
         // Create bind group for AA
-        let aa_bind_group = aa_sbuf.as_ref().map(|sbuf| {
-            device.create_bind_group(&wgpu::BindGroupDescriptor {
-                label: Some("aa_bind_group"),
-                layout: &self.aa_bind_group_layout,
-                entries: &[
-                    wgpu::BindGroupEntry {
-                        binding: 0,
-                        resource: sbuf.as_entire_binding(),
-                    },
-                    wgpu::BindGroupEntry {
-                        binding: 1,
-                        resource: self.globals_buf.as_entire_binding(),
-                    },
-                ],
-            })
-        });
+        let aa_bind_group = self
+            .aa_sbuf
+            .as_ref()
+            .filter(|_| !self.aa_shapes.is_empty())
+            .map(|sbuf| {
+                device.create_bind_group(&wgpu::BindGroupDescriptor {
+                    label: Some("aa_bind_group"),
+                    layout: &self.aa_bind_group_layout,
+                    entries: &[
+                        wgpu::BindGroupEntry {
+                            binding: 0,
+                            resource: sbuf.as_entire_binding(),
+                        },
+                        wgpu::BindGroupEntry {
+                            binding: 1,
+                            resource: self.globals_buf.as_entire_binding(),
+                        },
+                    ],
+                })
+            });
 
         let depth_view = &self.ensure_depth_target(device, window_size).view;
 
@@ -931,24 +959,24 @@ impl Renderer {
 
         let mut last_pipeline = 0; // 1 = quads, 2 = text, 3 = aa
 
-        for rc in render_cmds {
+        for rc in &self.render_cmds {
             match rc {
                 RenderCommand::DrawQuads(range) => {
                     if last_pipeline != 1 {
                         pass.set_pipeline(&self.quad_pipeline);
-                        pass.set_vertex_buffer(0, quad_vbuf.as_ref().unwrap().slice(..));
+                        pass.set_vertex_buffer(0, self.quad_vbuf.as_ref().unwrap().slice(..));
                         last_pipeline = 1;
                     }
-                    pass.draw(range, 0..1);
+                    pass.draw(range.clone(), 0..1);
                 }
                 RenderCommand::DrawText(range) => {
                     if last_pipeline != 2 {
                         pass.set_pipeline(&self.text_pipeline);
                         pass.set_bind_group(0, &self.atlas_bind_group, &[]);
-                        pass.set_vertex_buffer(0, text_vbuf.as_ref().unwrap().slice(..));
+                        pass.set_vertex_buffer(0, self.text_vbuf.as_ref().unwrap().slice(..));
                         last_pipeline = 2;
                     }
-                    pass.draw(range, 0..1);
+                    pass.draw(range.clone(), 0..1);
                 }
                 RenderCommand::DrawAA(range) => {
                     if last_pipeline != 3 {
@@ -956,7 +984,7 @@ impl Renderer {
                         pass.set_bind_group(0, aa_bind_group.as_ref().unwrap(), &[]);
                         last_pipeline = 3;
                     }
-                    pass.draw(0..6, range);
+                    pass.draw(0..6, range.clone());
                 }
                 RenderCommand::SetScissor(r) => {
                     let x = r.x.max(0.0) as u32;
@@ -1022,6 +1050,60 @@ impl Renderer {
 }
 
 // ── Geometry helpers ──────────────────────────────────────────────────────────
+
+fn upload_slice<T: Pod>(
+    device: &wgpu::Device,
+    queue: &wgpu::Queue,
+    buffer: &mut Option<wgpu::Buffer>,
+    current_capacity_bytes: &mut u64,
+    data: &[T],
+    usage: wgpu::BufferUsages,
+    label: &str,
+) {
+    let bytes = bytemuck::cast_slice(data);
+    if bytes.is_empty() {
+        return;
+    }
+
+    ensure_buffer_capacity(
+        device,
+        buffer,
+        current_capacity_bytes,
+        bytes.len() as u64,
+        usage | wgpu::BufferUsages::COPY_DST,
+        label,
+    );
+
+    queue.write_buffer(
+        buffer
+            .as_ref()
+            .expect("buffer should exist after capacity check"),
+        0,
+        bytes,
+    );
+}
+
+fn ensure_buffer_capacity(
+    device: &wgpu::Device,
+    buffer: &mut Option<wgpu::Buffer>,
+    current_capacity_bytes: &mut u64,
+    required_bytes: u64,
+    usage: wgpu::BufferUsages,
+    label: &str,
+) {
+    if required_bytes == 0 || required_bytes <= *current_capacity_bytes {
+        return;
+    }
+
+    let new_capacity = required_bytes.next_power_of_two();
+    *buffer = Some(device.create_buffer(&wgpu::BufferDescriptor {
+        label: Some(label),
+        size: new_capacity,
+        usage,
+        mapped_at_creation: false,
+    }));
+    *current_capacity_bytes = new_capacity;
+}
 
 fn depth_stencil_state() -> wgpu::DepthStencilState {
     wgpu::DepthStencilState {
@@ -1427,11 +1509,21 @@ mod tests {
             3,
         );
 
-        let (_, text_verts, _, render_cmds) = super::Renderer::process_commands(
+        let mut quad_verts = Vec::new();
+        let mut text_verts = Vec::new();
+        let mut aa_shapes = Vec::new();
+        let mut render_cmds = Vec::new();
+        let mut clip_stack = Vec::new();
+        super::Renderer::process_commands(
             cmds.commands(),
             cmds.glyphs(),
             (100, 100),
             &mut text_backend,
+            &mut quad_verts,
+            &mut text_verts,
+            &mut aa_shapes,
+            &mut render_cmds,
+            &mut clip_stack,
         );
 
         assert_eq!(text_verts.len(), 6);
@@ -1495,8 +1587,22 @@ mod tests {
             DrawCmd::PopClip,
         ];
 
-        let (quad_verts, text_verts, aa_shapes, render_cmds) =
-            Renderer::process_commands(&cmds, &[], (800, 600), &mut text_backend);
+        let mut quad_verts = Vec::new();
+        let mut text_verts = Vec::new();
+        let mut aa_shapes = Vec::new();
+        let mut render_cmds = Vec::new();
+        let mut clip_stack = Vec::new();
+        Renderer::process_commands(
+            &cmds,
+            &[],
+            (800, 600),
+            &mut text_backend,
+            &mut quad_verts,
+            &mut text_verts,
+            &mut aa_shapes,
+            &mut render_cmds,
+            &mut clip_stack,
+        );
 
         // Expect:
         // - 3 non-AA rects total -> 3 * 6 = 18 quad_verts
