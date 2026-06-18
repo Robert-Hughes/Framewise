@@ -11,4 +11,5 @@ mod tests;
 pub use text_backend::SampleTextBackend;
 #[cfg(test)]
 pub use types::GlyphKey;
-pub use types::PreparedGlyphResources;
+#[allow(unused_imports)]
+pub use types::{PreparedGlyphResources, SampleGlyphToken};

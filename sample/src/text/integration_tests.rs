@@ -35,7 +35,6 @@ mod integration_tests {
                 &mut cmds,
                 &mut text_backend,
                 body_rect.top_left(),
-                body_style,
                 Color::from_srgb_u8(0, 0, 0, 255),
                 0,
             );

@@ -1378,9 +1378,9 @@ mod tests {
             font_id: 1,
             glyph_index: 43,
             size: 140,
-            subpixel_x: 0,
             weight: 400,
             opsz: 14,
+            subpixel_x: 0,
         };
         let handle = text_backend.prepare_glyph_handle(key);
         let image = text_backend.glyph_cache.get(&key).unwrap();
@@ -1420,9 +1420,9 @@ mod tests {
             font_id: 1,
             glyph_index: 43,
             size: 140,
-            subpixel_x: 0,
             weight: 400,
             opsz: 14,
+            subpixel_x: 0,
         });
         let mut cmds = DrawCommands::new();
         cmds.push_glyph_run(

@@ -1,3 +1,5 @@
+use crate::text::text_backend::{glyph_opsz_key, glyph_size_key};
+use crate::text::types::SampleGlyphToken;
 use crate::text::SampleTextBackend;
 use framewise::{
     cluster_approx_ink_bounds, FontId, LineHeight, Rect, ShapedCluster, ShapedGlyph, ShapedText,
@@ -64,7 +66,7 @@ impl SampleTextBackend {
             baseline_offset: ascent,
         }
     }
-    pub fn shape_text_run(&mut self, text: &str, style: TextStyle) -> ShapedText<u16> {
+    pub fn shape_text_run(&mut self, text: &str, style: TextStyle) -> ShapedText<SampleGlyphToken> {
         #[cfg(test)]
         {
             self.shape_text_run_count += 1;
@@ -76,6 +78,13 @@ impl SampleTextBackend {
         let opsz = self.opsz_for_size(size, font_id);
         let letter_spacing_px = size * style.letter_spacing;
         let font = self.fonts[font_id.0 as usize];
+        let base_style_key = SampleGlyphToken {
+            font_id: font_id.0,
+            glyph_index: 0,
+            size: glyph_size_key(size),
+            weight,
+            opsz: glyph_opsz_key(opsz),
+        };
 
         let mut vars = Vec::new();
         if self.font_has_wght[font_id.0 as usize] {
@@ -110,8 +119,12 @@ impl SampleTextBackend {
 
             for glyph in cluster.glyphs {
                 let advance = glyph.advance + letter_spacing_px;
+                let token = SampleGlyphToken {
+                    glyph_index: glyph.id,
+                    ..base_style_key
+                };
                 glyphs.push(ShapedGlyph {
-                    id: glyph.id,
+                    id: token,
                     x: pen_x - cluster_x + glyph.x,
                     y: glyph.y,
                     advance,
@@ -128,7 +141,7 @@ impl SampleTextBackend {
 
             if glyphs.is_empty() {
                 glyphs.push(ShapedGlyph {
-                    id: 0,
+                    id: base_style_key,
                     x: 0.0,
                     y: 0.0,
                     advance: 0.0,

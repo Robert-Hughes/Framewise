@@ -29,7 +29,7 @@ fn warm_text_caches(
         let layout = layout_text(backend, BENCH_TEXT, style, bounds);
 
         let mut commands = DrawCommands::new();
-        layout.emit_glyphs(&mut commands, backend, origin, style, Color::WHITE, 0);
+        layout.emit_glyphs(&mut commands, backend, origin, Color::WHITE, 0);
 
         black_box(metrics.logical_size);
         black_box(commands.len());
@@ -55,7 +55,7 @@ fn bench_text_hot_path(c: &mut Criterion) {
                 let metrics = measure_text(&mut backend, black_box(BENCH_TEXT), style, bounds);
                 let layout = layout_text(&mut backend, black_box(BENCH_TEXT), style, bounds);
 
-                layout.emit_glyphs(&mut commands, &mut backend, origin, style, Color::WHITE, 0);
+                layout.emit_glyphs(&mut commands, &mut backend, origin, Color::WHITE, 0);
 
                 black_box(metrics.logical_size);
                 black_box(commands.len());

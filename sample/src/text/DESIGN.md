@@ -15,8 +15,8 @@ resources needed to make that layout drawable.
 
 The boundary is:
 
-- the sample backend returns `ShapedText` containing shaped clusters and shaped
-  glyph IDs,
+- the sample backend returns `ShapedText` containing shaped clusters and opaque
+  shaped glyph tokens,
 - Framewise converts that into private working line/cluster records stored by
   `TextLayout` over the shared shaped runs,
 - `TextLayout::emit_glyphs` later calls the backend's `prepare_glyph` for each
@@ -90,7 +90,7 @@ Swash emits shaped clusters. The sample maps each Swash cluster to
 - source byte range,
 - advance,
 - whitespace classification,
-- shaped `ShapedGlyph` IDs,
+- shaped `ShapedGlyph` tokens,
 - shaped glyph offsets and advances,
 - mandatory approximate raster-independent glyph ink bounds,
 - cluster approximate ink bounds computed from those glyph bounds.
@@ -115,8 +115,10 @@ returning an unknown result.
 ## Glyph Preparation
 
 `prepare_glyph` receives a `PrepareGlyphRequest`. The request contains the
-backend-shaped glyph ID, the `TextStyle`, and the final glyph origin after
-Framewise layout and caller draw origin have both been applied.
+backend-shaped glyph token and the final glyph origin after Framewise layout and
+caller draw origin have both been applied. The token already carries the
+origin-independent glyph resource identity: font, raw glyph index, size, weight,
+and optical size.
 
 The backend uses the final origin for horizontal subpixel bin selection. It then
 looks up or rasterizes the glyph for the selected font, size, weight, optical
@@ -136,10 +138,11 @@ draws the bitmap at `DrawGlyph::top_left` without scaling.
 not a source character, not a cluster, not a text run, and not a font glyph ID by
 itself.
 
-In the sample, a `GlyphKey` combines font ID, glyph index, size, weight, optical
-size, and horizontal subpixel bin. The backend maps each `GlyphKey` to a stable
-`PreparedGlyphHandle`, stores glyph pixels in the atlas, and resolves handles
-back to atlas rectangles for the renderer.
+In the sample, a `SampleGlyphToken` stores font ID, raw glyph index, size,
+weight, and optical size. `prepare_glyph` adds only the origin-dependent
+horizontal subpixel bin to form a `GlyphKey`. The backend maps each `GlyphKey`
+to a stable `PreparedGlyphHandle`, stores glyph pixels in the atlas, and
+resolves handles back to atlas rectangles for the renderer.
 
 ## Metrics
 

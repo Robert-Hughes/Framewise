@@ -5,7 +5,7 @@ use super::{
 
 pub(super) fn make_source_line<B: TextBackend>(
     backend: &mut B,
-    runs: &mut Vec<WorkingRun<B::ShapedGlyphId>>,
+    runs: &mut Vec<WorkingRun<B::ShapedGlyphToken>>,
     text: &str,
     style: TextStyle,
     segment_start: usize,

@@ -1153,7 +1153,6 @@ pub mod raw {
                 cmds,
                 text_backend,
                 Vec2::new(text_rect.x, text_rect.y),
-                text_style,
                 spec.style.text_color,
                 spec.layer.get_z(),
             );
@@ -1854,7 +1853,6 @@ mod tests {
 
         TextEditSpec {
             rect: Rect::new(0.0, 0.0, 200.0, 30.0),
-            style,
             placeholder: None,
             clip_rect: None,
             error: false,
@@ -1865,6 +1863,7 @@ mod tests {
             wrap: false,
             vertical_align: Align::Center,
             line_align: TextLineAlign::Start,
+            style,
         }
     }
 

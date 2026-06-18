@@ -6,7 +6,7 @@ const ELLIPSIS_MARKER: &str = "\u{2026}";
 
 pub(super) fn apply_ellipsis_x<B: TextBackend>(
     backend: &mut B,
-    runs: &mut Vec<WorkingRun<B::ShapedGlyphId>>,
+    runs: &mut Vec<WorkingRun<B::ShapedGlyphToken>>,
     clusters: Vec<WorkingCluster>,
     w: f32,
     style: TextStyle,

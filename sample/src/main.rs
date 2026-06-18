@@ -199,7 +199,6 @@ impl App {
             &mut cmds,
             text_backend,
             framewise::Vec2::new(cx, cy),
-            style,
             Color::from_srgb_u8(140, 140, 150, 255),
             0,
         );

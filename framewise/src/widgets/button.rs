@@ -89,7 +89,6 @@ pub mod raw {
             cmds,
             text_backend,
             Vec2::new(text_rect.x, text_rect.y),
-            style.text_style,
             color,
             z,
         );
@@ -489,7 +488,7 @@ mod tests {
     }
 
     impl TextBackend for PlacementTextSys {
-        type ShapedGlyphId = u32;
+        type ShapedGlyphToken = u32;
 
         fn line_height(&mut self, _style: crate::text::TextStyle) -> f32 {
             20.0
@@ -499,7 +498,7 @@ mod tests {
             &mut self,
             text: &str,
             style: crate::text::TextStyle,
-        ) -> crate::text::SharedShapedText<Self::ShapedGlyphId> {
+        ) -> crate::text::SharedShapedText<Self::ShapedGlyphToken> {
             if text.is_empty() {
                 return std::rc::Rc::new(ShapedText {
                     clusters: Vec::new(),
@@ -526,7 +525,7 @@ mod tests {
 
         fn prepare_glyph(
             &mut self,
-            request: PrepareGlyphRequest<Self::ShapedGlyphId>,
+            request: PrepareGlyphRequest<Self::ShapedGlyphToken>,
         ) -> Option<DrawGlyph> {
             self.prepared_rect = Some(Rect::new(
                 request.glyph_origin.x,

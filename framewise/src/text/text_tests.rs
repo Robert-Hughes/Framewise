@@ -181,7 +181,7 @@ fn assert_line_ranges(layout: &TextLayout<u32>, ranges: &[(usize, usize)]) {
 struct ApproxInkBackend;
 
 impl TextBackend for ApproxInkBackend {
-    type ShapedGlyphId = u32;
+    type ShapedGlyphToken = u32;
 
     fn line_height(&mut self, _style: TextStyle) -> f32 {
         20.0
@@ -191,7 +191,7 @@ impl TextBackend for ApproxInkBackend {
         &mut self,
         text: &str,
         _style: TextStyle,
-    ) -> SharedShapedText<Self::ShapedGlyphId> {
+    ) -> SharedShapedText<Self::ShapedGlyphToken> {
         let glyphs = vec![ShapedGlyph {
             id: 1,
             x: 2.0,
@@ -213,7 +213,7 @@ impl TextBackend for ApproxInkBackend {
 
     fn prepare_glyph(
         &mut self,
-        request: PrepareGlyphRequest<Self::ShapedGlyphId>,
+        request: PrepareGlyphRequest<Self::ShapedGlyphToken>,
     ) -> Option<DrawGlyph> {
         Some(DrawGlyph {
             handle: PreparedGlyphHandle(request.glyph),
@@ -805,7 +805,6 @@ fn emit_glyphs_skips_backend_non_drawable_glyphs_and_offsets_origin() {
         &mut commands,
         &mut backend,
         Vec2::new(10.0, 20.0),
-        style,
         Color::BLACK,
         3,
     );
@@ -831,7 +830,7 @@ fn resolved_glyphs_match_emitted_layout_origins() {
     let origin = Vec2::new(10.0, 20.0);
     let mut commands = DrawCommands::new();
 
-    layout.emit_glyphs(&mut commands, &mut backend, origin, style, Color::BLACK, 0);
+    layout.emit_glyphs(&mut commands, &mut backend, origin, Color::BLACK, 0);
 
     let resolved = layout.resolved_glyphs();
     assert_eq!(resolved.len(), commands.glyphs().len());
@@ -850,14 +849,7 @@ fn emit_glyphs_omits_empty_runs() {
     let layout = layout_text(&mut backend, "   ", style, TextBounds::UNBOUNDED);
     let mut commands = DrawCommands::new();
 
-    layout.emit_glyphs(
-        &mut commands,
-        &mut backend,
-        Vec2::ZERO,
-        style,
-        Color::BLACK,
-        0,
-    );
+    layout.emit_glyphs(&mut commands, &mut backend, Vec2::ZERO, Color::BLACK, 0);
 
     assert!(commands.commands().is_empty());
     assert!(commands.glyphs().is_empty());

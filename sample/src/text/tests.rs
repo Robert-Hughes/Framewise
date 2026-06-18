@@ -31,7 +31,6 @@ mod tests {
             &mut sys,
             PrepareGlyphRequest {
                 glyph: glyph.id,
-                style,
                 glyph_origin: Vec2::new(12.25 + glyph.x, 18.0 + glyph.y),
             },
         );
@@ -58,7 +57,6 @@ mod tests {
                 &mut framewise::DrawCommands::new(),
                 &mut sys,
                 rect.top_left(),
-                style,
                 framewise::Color::BLACK,
                 0,
             );
@@ -93,7 +91,6 @@ mod tests {
                 &mut framewise::DrawCommands::new(),
                 &mut sys,
                 rect.top_left(),
-                style,
                 framewise::Color::BLACK,
                 0,
             );
@@ -149,7 +146,6 @@ mod tests {
             &mut framewise::DrawCommands::new(),
             &mut sys,
             rect.top_left(),
-            style,
             framewise::Color::BLACK,
             0,
         );
@@ -201,7 +197,6 @@ mod tests {
                 &mut framewise::DrawCommands::new(),
                 &mut sys,
                 rect.top_left(),
-                style,
                 framewise::Color::BLACK,
                 0,
             );
@@ -410,14 +405,7 @@ mod tests {
         let mut commands = framewise::DrawCommands::new();
         let origin = Vec2::new(12.25, 0.0);
 
-        layout.emit_glyphs(
-            &mut commands,
-            &mut sys,
-            origin,
-            style,
-            framewise::Color::BLACK,
-            0,
-        );
+        layout.emit_glyphs(&mut commands, &mut sys, origin, framewise::Color::BLACK, 0);
 
         assert!(!commands.glyphs().is_empty());
         for (layout_glyph, draw_glyph) in layout.resolved_glyphs().iter().zip(commands.glyphs()) {
@@ -440,10 +428,13 @@ mod tests {
         style: TextStyle,
         bounds: TextBounds,
         origin: Vec2,
-    ) -> (framewise::TextLayout<u16>, DrawCommands) {
+    ) -> (
+        framewise::TextLayout<crate::text::SampleGlyphToken>,
+        DrawCommands,
+    ) {
         let layout = layout_text(sys, text, style, bounds);
         let mut commands = DrawCommands::new();
-        layout.emit_glyphs(&mut commands, sys, origin, style, Color::BLACK, 0);
+        layout.emit_glyphs(&mut commands, sys, origin, Color::BLACK, 0);
         (layout, commands)
     }
 
@@ -531,7 +522,6 @@ mod tests {
                 &mut sys,
                 PrepareGlyphRequest {
                     glyph: glyph.id,
-                    style,
                     glyph_origin: Vec2::new(x, 20.0),
                 },
             )
@@ -557,7 +547,7 @@ mod tests {
             let key = sys.prepared_glyph_keys[draw_glyph.handle.0 as usize];
             let layout_glyph = layout_glyphs
                 .by_ref()
-                .find(|glyph| glyph.id == key.glyph_index)
+                .find(|glyph| glyph.id.glyph_index == key.glyph_index)
                 .expect("emitted glyph should come from layout glyphs");
             assert_eq!(
                 key.subpixel_x,
@@ -585,7 +575,7 @@ mod tests {
             let key = sys.prepared_glyph_keys[draw_glyph.handle.0 as usize];
             let layout_glyph = layout_glyphs
                 .by_ref()
-                .find(|glyph| glyph.id == key.glyph_index)
+                .find(|glyph| glyph.id.glyph_index == key.glyph_index)
                 .expect("emitted glyph should come from layout glyphs");
             assert_eq!(
                 key.subpixel_x,

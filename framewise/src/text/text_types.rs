@@ -715,7 +715,7 @@ impl WorkingCluster {
 /// One glyph after Framewise line layout, before caller draw origin is added.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct LayoutGlyph<G> {
-    /// Backend-shaped glyph identifier.
+    /// Opaque backend glyph token produced during shaping.
     pub id: G,
     /// Final layout-space glyph origin before caller draw origin is added.
     pub origin: Vec2,

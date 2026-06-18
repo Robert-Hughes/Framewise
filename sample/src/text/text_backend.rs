@@ -32,7 +32,9 @@
 //!   By rendering pixel-aligned quads with pre-shifted subpixel glyphs, we map every font pixel 1-to-1 with screen
 //!   pixels for maximum crispness.
 
-use crate::text::types::{GlyphInfo, GlyphKey, PreparedGlyphImage, PreparedGlyphResources};
+use crate::text::types::{
+    GlyphInfo, GlyphKey, PreparedGlyphImage, PreparedGlyphResources, SampleGlyphToken,
+};
 use framewise::{
     DrawGlyph, PrepareGlyphRequest, PreparedGlyphHandle, SharedShapedText, TextBackend,
     TextLineLayoutMetrics, Vec2,
@@ -72,7 +74,7 @@ pub struct SampleTextBackend {
     pub font_has_opsz: Vec<bool>,          // Whether each font has an opsz axis
     pub shape_context: ShapeContext,
     pub scale_context: ScaleContext,
-    pub(crate) shape_cache: HashMap<ShapeCacheKey, SharedShapedText<u16>>,
+    pub(crate) shape_cache: HashMap<ShapeCacheKey, SharedShapedText<SampleGlyphToken>>,
     #[cfg(test)]
     pub(crate) shape_text_run_count: usize,
     // Atlas data
@@ -245,6 +247,18 @@ fn quantize_float_key(value: f32) -> i64 {
     (value * FLOAT_KEY_SCALE).round() as i64
 }
 
+pub(crate) fn glyph_size_key(size: f32) -> u32 {
+    (size * 10.0) as u32
+}
+
+pub(crate) fn glyph_opsz_key(opsz: f32) -> u16 {
+    opsz as u16
+}
+
+fn subpixel_bin(x: f32) -> u8 {
+    ((x * 4.0).round() as i32).rem_euclid(4) as u8
+}
+
 impl PreparedGlyphResources for SampleTextBackend {
     fn resolve_glyph(&self, handle: PreparedGlyphHandle) -> Option<PreparedGlyphImage> {
         let key = self.prepared_glyph_keys.get(handle.0 as usize)?;
@@ -256,7 +270,7 @@ impl PreparedGlyphResources for SampleTextBackend {
 }
 
 impl TextBackend for SampleTextBackend {
-    type ShapedGlyphId = u16;
+    type ShapedGlyphToken = SampleGlyphToken;
 
     fn line_metrics(&mut self, style: framewise::TextStyle) -> TextLineLayoutMetrics {
         self.line_layout_metrics(style.size, style.font, style.line_height)
@@ -270,7 +284,7 @@ impl TextBackend for SampleTextBackend {
         &mut self,
         text: &str,
         style: framewise::TextStyle,
-    ) -> SharedShapedText<Self::ShapedGlyphId> {
+    ) -> SharedShapedText<Self::ShapedGlyphToken> {
         // Cache whole hard-line segments: sample shaping depends on text plus
         // font/variation inputs, not Framewise layout bounds, wrapping,
         // alignment, overflow, or final draw origin. The final origin is still
@@ -290,18 +304,16 @@ impl TextBackend for SampleTextBackend {
 
     fn prepare_glyph(
         &mut self,
-        request: PrepareGlyphRequest<Self::ShapedGlyphId>,
+        request: PrepareGlyphRequest<Self::ShapedGlyphToken>,
     ) -> Option<DrawGlyph> {
-        let style = request.style;
-        let subpixel_x = ((request.glyph_origin.x * 4.0).round() as i32).rem_euclid(4) as u8;
-        let opsz = self.opsz_for_size(style.size, style.font) as u16;
+        let subpixel_x = subpixel_bin(request.glyph_origin.x);
         let key = GlyphKey {
-            font_id: style.font.0,
-            glyph_index: request.glyph,
-            size: (style.size * 10.0) as u32,
+            font_id: request.glyph.font_id,
+            glyph_index: request.glyph.glyph_index,
+            size: request.glyph.size,
+            weight: request.glyph.weight,
+            opsz: request.glyph.opsz,
             subpixel_x,
-            weight: style.weight,
-            opsz,
         };
 
         let handle = self.prepare_glyph_handle(key);

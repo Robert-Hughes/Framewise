@@ -1,13 +1,22 @@
 use framewise::PreparedGlyphHandle;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct SampleGlyphToken {
+    pub font_id: u16,
+    pub glyph_index: u16,
+    pub size: u32,   // store size as u32 (size * 10.0 as u32) for hashing
+    pub weight: u16, // 100-900, variable font weight axis
+    pub opsz: u16,   // optical size axis value (typically matches size in pt)
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct GlyphKey {
     pub font_id: u16,
     pub glyph_index: u16,
-    pub size: u32, // store size as u32 (size * 10.0 as u32) for hashing
+    pub size: u32,
+    pub weight: u16,
+    pub opsz: u16,
     pub subpixel_x: u8,
-    pub weight: u16, // 100-900, variable font weight axis
-    pub opsz: u16,   // optical size axis value (typically matches size in pt)
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

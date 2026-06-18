@@ -151,7 +151,6 @@ pub mod raw {
             cmds,
             text_backend,
             Vec2::new(text_rect.x, text_rect.y),
-            spec.style.text_style,
             tint(text_color),
             spec.layer.get_z(),
         );

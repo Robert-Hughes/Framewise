@@ -102,7 +102,6 @@ pub fn react_layout_violation<T: TextBackend>(
                 cmds,
                 text_backend,
                 crate::types::Vec2::new(fallback_rect.x, fallback_rect.y),
-                style,
                 color,
                 z,
             );

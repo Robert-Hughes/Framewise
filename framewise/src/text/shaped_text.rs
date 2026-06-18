@@ -10,7 +10,8 @@ pub type SharedShapedText<G> = Rc<ShapedText<G>>;
 /// Backend-to-Framewise shaped text output.
 ///
 /// This is a logical shaping result only. It contains no renderer resources and
-/// no final line layout.
+/// no final line layout. Framewise stores backend glyph tokens inside clusters
+/// and later returns them to the same backend during glyph preparation.
 #[derive(Debug, Clone, PartialEq)]
 pub struct ShapedText<G> {
     /// Shaped clusters in source order.
@@ -32,14 +33,19 @@ pub struct ShapedCluster<G> {
     /// This is the union of visible glyph ink bounds translated by each shaped
     /// glyph's cluster-local offset. `Rect::ZERO` means known no visible ink.
     pub approx_ink_bounds: Rect,
-    /// Glyphs belonging to this cluster.
+    /// Glyph tokens and metrics belonging to this cluster.
     pub glyphs: Vec<ShapedGlyph<G>>,
 }
 
 /// One shaped glyph inside a cluster.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct ShapedGlyph<G> {
-    /// Backend-shaped glyph identifier.
+    /// Opaque backend glyph token produced during shaping.
+    ///
+    /// Framewise stores this value and returns it to the same backend during
+    /// glyph preparation. Production backends should include any
+    /// origin-independent resource identity needed to prepare or rasterise the
+    /// glyph efficiently.
     pub id: G,
     /// Position relative to the cluster/glyph run before Framewise wrapping and
     /// final line placement.

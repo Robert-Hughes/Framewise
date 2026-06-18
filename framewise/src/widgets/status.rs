@@ -95,7 +95,6 @@ pub mod raw {
             cmds,
             text_backend,
             Vec2::new(text_rect.x, text_rect.y),
-            s.text_style,
             s.text,
             spec.layer.get_z(),
         );

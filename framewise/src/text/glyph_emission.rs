@@ -1,4 +1,4 @@
-use super::{PrepareGlyphRequest, TextBackend, TextLayout, TextStyle, WorkingClusterSource};
+use super::{PrepareGlyphRequest, TextBackend, TextLayout, WorkingClusterSource};
 use crate::{
     draw::DrawCommands,
     types::{Color, Vec2},
@@ -15,11 +15,10 @@ impl<G: Copy> TextLayout<G> {
         commands: &mut DrawCommands,
         backend: &mut B,
         origin: Vec2,
-        style: TextStyle,
         color: Color,
         z: u32,
     ) where
-        B: TextBackend<ShapedGlyphId = G>,
+        B: TextBackend<ShapedGlyphToken = G>,
     {
         let glyph_run_start = commands.glyph_run_start();
 
@@ -42,7 +41,6 @@ impl<G: Copy> TextLayout<G> {
                             );
                             if let Some(draw_glyph) = backend.prepare_glyph(PrepareGlyphRequest {
                                 glyph: glyph.id,
-                                style,
                                 glyph_origin,
                             }) {
                                 commands.push_glyph(draw_glyph);

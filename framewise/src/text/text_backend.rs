@@ -5,10 +5,13 @@ use std::hash::Hash;
 /// Request for a backend-owned glyph preparation/rasterisation step.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct PrepareGlyphRequest<G> {
-    /// Backend-shaped glyph identifier to prepare.
+    /// Opaque backend glyph token produced during shaping.
+    ///
+    /// The token must contain any origin-independent information required by
+    /// the backend to identify the glyph resource, such as raw glyph id, font
+    /// face, quantised size, weight, optical size, raster mode, or equivalent
+    /// backend-specific data.
     pub glyph: G,
-    /// Text style used when this glyph was shaped and laid out.
-    pub style: TextStyle,
 
     /// Final logical-pixel origin of the shaped glyph.
     ///
@@ -46,13 +49,20 @@ pub struct TextLineLayoutMetrics {
 /// Shaping and glyph preparation are intentionally separate. `shape_text`
 /// returns immutable shared shaping output used for stable logical layout and
 /// measurement; Framewise must not mutate it. Backend cache entries may outlive
-/// the cache through `Rc` references held by layouts. `prepare_glyph` is called
-/// later with the final draw origin included so the backend can choose subpixel
-/// bins, hinting, and renderer resources using absolute logical-pixel position.
-/// Returned [`DrawGlyph`] values may extend outside the logical layout bounds;
-/// callers that require hard pixel containment should clip or add padding.
+/// the cache through `Rc` references held by layouts.
+///
+/// A shaped glyph token is opaque to Framewise. It is produced by the backend
+/// during shaping and later returned to the same backend during glyph
+/// preparation. The token should include all origin-independent information
+/// needed to identify the glyph resource. `prepare_glyph` receives that token
+/// plus the final draw origin, and should only need to add origin-dependent
+/// choices such as subpixel binning before looking up or preparing renderer
+/// resources. Returned [`DrawGlyph`] values may extend outside the logical
+/// layout bounds; callers that require hard pixel containment should clip or add
+/// padding.
 pub trait TextBackend {
-    type ShapedGlyphId: Copy + Eq + Hash;
+    /// Opaque backend glyph token stored by Framewise after shaping.
+    type ShapedGlyphToken: Copy + Eq + Hash;
 
     /// Backend-provided vertical metrics for laying out one text line.
     ///
@@ -68,7 +78,7 @@ pub trait TextBackend {
     /// Distance between consecutive line tops for this style.
     fn line_height(&mut self, style: TextStyle) -> f32;
 
-    /// Shape text into indivisible clusters.
+    /// Shape text into indivisible clusters containing backend glyph tokens.
     ///
     /// The backend must account for every source character in cluster byte
     /// ranges. Clusters should normally correspond to shaping clusters, and must
@@ -76,15 +86,20 @@ pub trait TextBackend {
     /// that would corrupt shaping. Framewise may also use this API for
     /// Framewise-owned marker text, such as an overflow ellipsis, then remap
     /// those marker byte ranges internally to source text coordinates.
-    fn shape_text(&mut self, text: &str, style: TextStyle)
-        -> SharedShapedText<Self::ShapedGlyphId>;
+    fn shape_text(
+        &mut self,
+        text: &str,
+        style: TextStyle,
+    ) -> SharedShapedText<Self::ShapedGlyphToken>;
 
-    /// Prepare a laid-out glyph for rendering.
+    /// Prepare a laid-out glyph token for rendering.
     ///
     /// The backend may return `None` for non-drawable glyphs such as spaces,
-    /// newlines, zero-area glyphs, or failed rasterisation.
+    /// newlines, zero-area glyphs, or failed rasterisation. The request includes
+    /// the shaped token and final glyph origin; origin-independent style and
+    /// resource identity should already be carried by the token.
     fn prepare_glyph(
         &mut self,
-        request: PrepareGlyphRequest<Self::ShapedGlyphId>,
+        request: PrepareGlyphRequest<Self::ShapedGlyphToken>,
     ) -> Option<DrawGlyph>;
 }

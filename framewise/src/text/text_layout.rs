@@ -29,7 +29,7 @@ pub fn layout_text<B: TextBackend>(
     text: &str,
     style: TextStyle,
     bounds: TextBounds,
-) -> TextLayout<B::ShapedGlyphId> {
+) -> TextLayout<B::ShapedGlyphToken> {
     TextLayout::from_backend(backend, text, style, bounds)
 }
 
@@ -71,7 +71,7 @@ pub fn layout_text_in_rect<B: TextBackend>(
     text: &str,
     style: TextStyle,
     rect: Rect,
-) -> TextLayout<B::ShapedGlyphId> {
+) -> TextLayout<B::ShapedGlyphToken> {
     layout_text(
         backend,
         text,
@@ -108,16 +108,9 @@ pub fn emit_text_in_rect<B: TextBackend>(
     rect: Rect,
     color: Color,
     z: u32,
-) -> TextLayout<B::ShapedGlyphId> {
+) -> TextLayout<B::ShapedGlyphToken> {
     let layout = layout_text_in_rect(backend, text, style, rect);
-    layout.emit_glyphs(
-        commands,
-        backend,
-        Vec2::new(rect.x, rect.y),
-        style,
-        color,
-        z,
-    );
+    layout.emit_glyphs(commands, backend, Vec2::new(rect.x, rect.y), color, z);
     layout
 }
 
@@ -150,7 +143,7 @@ fn working_cluster_ink<G: Copy>(
 }
 
 impl<G: Copy + Eq + Hash> TextLayout<G> {
-    fn from_backend<B: TextBackend<ShapedGlyphId = G>>(
+    fn from_backend<B: TextBackend<ShapedGlyphToken = G>>(
         backend: &mut B,
         text: &str,
         style: TextStyle,
@@ -548,7 +541,7 @@ mod tests {
     struct BaselineBackend;
 
     impl TextBackend for BaselineBackend {
-        type ShapedGlyphId = u32;
+        type ShapedGlyphToken = u32;
 
         fn line_metrics(&mut self, _style: TextStyle) -> TextLineLayoutMetrics {
             TextLineLayoutMetrics {

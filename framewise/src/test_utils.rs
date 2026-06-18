@@ -23,7 +23,7 @@ impl TestTextBackend {
 }
 
 impl TextBackend for TestTextBackend {
-    type ShapedGlyphId = u32;
+    type ShapedGlyphToken = u32;
 
     fn line_height(&mut self, _style: TextStyle) -> f32 {
         16.0
@@ -33,8 +33,8 @@ impl TextBackend for TestTextBackend {
         &mut self,
         text: &str,
         style: TextStyle,
-    ) -> SharedShapedText<Self::ShapedGlyphId> {
-        let mut clusters: Vec<ShapedCluster<Self::ShapedGlyphId>> = Vec::new();
+    ) -> SharedShapedText<Self::ShapedGlyphToken> {
+        let mut clusters: Vec<ShapedCluster<Self::ShapedGlyphToken>> = Vec::new();
         for (byte_start, ch) in text.char_indices() {
             let byte_end = byte_start + ch.len_utf8();
             let advance = Self::glyph_width(ch);
@@ -80,7 +80,7 @@ impl TextBackend for TestTextBackend {
 
     fn prepare_glyph(
         &mut self,
-        request: PrepareGlyphRequest<Self::ShapedGlyphId>,
+        request: PrepareGlyphRequest<Self::ShapedGlyphToken>,
     ) -> Option<DrawGlyph> {
         if char::from_u32(request.glyph).is_some_and(char::is_whitespace) {
             return None;

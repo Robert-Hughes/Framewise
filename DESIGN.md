@@ -41,7 +41,9 @@ The backend boundary is deliberately narrow:
 
 - `TextBackend::shape_text` shapes source text into immutable shared
   `Rc<ShapedText>`, made of `ShapedCluster`s and backend-shaped `ShapedGlyph`
-  IDs. Each shaped glyph carries mandatory best-effort approximate ink bounds,
+  tokens. Each shaped glyph token is opaque to Framewise and should carry the
+  origin-independent resource identity the backend needs later for preparation.
+  Each shaped glyph also carries mandatory best-effort approximate ink bounds,
   and each shaped cluster carries the union of those bounds in
   cluster/baseline-local coordinates. Framewise also uses this API to shape
   marker text, such as the overflow ellipsis, and never mutates shaped output.
@@ -77,14 +79,15 @@ API.
 Framewise text layout has exactly two conversion boundaries:
 
 1. Backend shaping output -> Framewise working layout representation. The
-   backend returns cached immutable `ShapedText`. Framewise converts shaped runs
-   into its own working lines/clusters exactly once. These working clusters
-   store source byte ranges, logical x/advance, visibility, wrapping state, and
-   source references into shaped runs.
+   backend returns cached immutable `ShapedText` containing backend glyph
+   tokens. Framewise converts shaped runs into its own working lines/clusters
+   exactly once. These working clusters store source byte ranges, logical
+   x/advance, visibility, wrapping state, and source references into shaped
+   runs.
 2. Framewise working layout representation -> draw commands. When emitting
    text, Framewise resolves final glyph origins from line baseline, cluster x,
-   and shaped glyph offsets, then asks the backend to prepare glyphs and appends
-   `DrawGlyph`s into `DrawCommands`.
+   and shaped glyph offsets, then returns those tokens to the backend with final
+   origins so it can prepare glyphs and append `DrawGlyph`s into `DrawCommands`.
 
 Between those boundaries, layout mutates and moves the same working cluster
 objects and derives metrics, caret positions, and hit-test results. It should
@@ -95,8 +98,8 @@ and they are not public API records. Some working records are stored inside
 
 Drawing is a second step. `TextLayout::emit_glyphs(...)` resolves visible glyph
 positions lazily from final line/cluster records plus shared shaped runs, passes
-their final glyph origins to `TextBackend::prepare_glyph`, and stores any
-returned `DrawGlyph`s in the `DrawCommands` glyph arena. The draw stream
+their shaped tokens and final glyph origins to `TextBackend::prepare_glyph`, and
+stores any returned `DrawGlyph`s in the `DrawCommands` glyph arena. The draw stream
 contains:
 
 ```rust
@@ -299,7 +302,7 @@ visually trailing wrap space without turning Framewise into a
 whitespace-collapsing text engine.
 
 This behaviour is implemented by Framewise's text layout module. The backend
-supplies shaped clusters and glyph IDs; it does not implement the soft-wrap
+supplies shaped clusters and glyph tokens; it does not implement the soft-wrap
 boundary policy.
 
 ---
