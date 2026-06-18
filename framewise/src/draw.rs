@@ -167,6 +167,29 @@ impl DrawCommands {
         }
     }
 
+    pub(crate) fn glyph_run_start(&self) -> usize {
+        self.glyphs.len()
+    }
+
+    pub(crate) fn push_glyph(&mut self, glyph: DrawGlyph) {
+        self.glyphs.push(glyph);
+    }
+
+    pub(crate) fn finish_glyph_run(&mut self, start: usize, color: Color, z: u32) -> Option<usize> {
+        let end = self.glyphs.len();
+        if start == end {
+            return None;
+        }
+
+        let index = self.cmds.len();
+        self.cmds.push(DrawCmd::GlyphRun {
+            glyphs: start..end,
+            color,
+            z,
+        });
+        Some(index)
+    }
+
     pub fn commands(&self) -> &[DrawCmd] {
         &self.cmds
     }

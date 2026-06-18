@@ -41,8 +41,10 @@ The backend boundary is deliberately narrow:
 
 - `TextBackend::shape_text` shapes source text into immutable shared
   `Rc<ShapedText>`, made of `ShapedCluster`s and backend-shaped `ShapedGlyph`
-  IDs. Framewise also uses this API to shape synthetic UI marker text, such as
-  the overflow ellipsis, and never mutates shaped output.
+  IDs. Each shaped glyph carries mandatory best-effort approximate ink bounds,
+  and each shaped cluster carries the union of those bounds in
+  cluster/baseline-local coordinates. Framewise also uses this API to shape
+  marker text, such as the overflow ellipsis, and never mutates shaped output.
 - `TextBackend::line_metrics` supplies line height and baseline offset through
   `TextLineLayoutMetrics`.
 - `TextBackend::prepare_glyph` turns one visible laid-out glyph into an
@@ -61,11 +63,15 @@ let layout = layout_text(text_backend, text, style, bounds);
 let metrics = layout.metrics();
 ```
 
-It returns an owned `TextLayout<G>`. Widgets query that layout directly for
-metrics, caret geometry, hit-testing, insertion byte conversion, and caret
-movement. There is no `TextHandle` or `TextLayoutHandle` indirection, and there
-is no Framewise-side layout cache by default. Caching, if an application needs
-it, belongs above this owned value API.
+It returns an owned `TextLayout<G>`. The layout stores private final line and
+cluster records plus shared shaped runs; it does not store a permanent flat
+glyph vector. Widgets query that layout directly for metrics, caret geometry,
+hit-testing, insertion byte conversion, caret movement, and draw emission.
+Resolved glyphs are produced only when explicitly materialised for
+tests/debugging or emitted for drawing. There is no `TextHandle` or
+`TextLayoutHandle` indirection, and there is no Framewise-side layout cache by
+default. Caching, if an application needs it, belongs above this owned value
+API.
 
 Drawing is a second step. `TextLayout::emit_glyphs(...)` resolves visible glyph
 positions lazily from final line/cluster records plus shared shaped runs, passes
@@ -90,7 +96,8 @@ text baseline origin, cluster position, or unadjusted glyph origin.
 Measurement reports stable logical layout geometry. `measure_text(...)` and
 `TextLayout::metrics()` produce `TextMetrics`, whose `logical_size` is suitable
 for widget sizing. `TextMetrics::approx_ink_bounds` is an approximate,
-conservative layout-coordinate estimate, not exact final raster ink. Exact
+conservative layout-coordinate estimate calculated from mandatory backend
+best-effort glyph ink estimates; `Rect::ZERO` means known no visible ink. Exact
 drawn ink requires emitted `DrawGlyph`s plus image sizes resolved from their
 `PreparedGlyphHandle`s. Final raster bounds may depend on draw origin, subpixel
 binning, hinting, rasterisation mode, atlas placement, and backend-specific

@@ -139,12 +139,13 @@ pub mod raw {
         });
 
         let text_color = if state.checked { s.active_text } else { s.text };
-        let ty = r.y + (h - layout.metrics.logical_size.y) * 0.5;
+        let metrics = layout.metrics();
+        let ty = r.y + (h - metrics.logical_size.y) * 0.5;
         let text_rect = Rect::new(
             r.x + pad_x,
             ty,
-            layout.metrics.logical_size.x,
-            layout.metrics.logical_size.y,
+            metrics.logical_size.x,
+            metrics.logical_size.y,
         );
         layout.emit_glyphs(
             cmds,

@@ -17,8 +17,8 @@ The boundary is:
 
 - the sample backend returns `ShapedText` containing shaped clusters and shaped
   glyph IDs,
-- Framewise converts that into `TextLayout`, line records, layout clusters, and
-  layout glyphs,
+- Framewise converts that into `TextLayout`, with private final line/cluster
+  records over the shared shaped runs,
 - `TextLayout::emit_glyphs` later calls the backend's `prepare_glyph` for each
   visible drawable layout glyph,
 - the renderer resolves the returned `PreparedGlyphHandle`s to atlas data.
@@ -86,18 +86,25 @@ Swash emits shaped clusters. The sample maps each Swash cluster to
 - whitespace classification,
 - shaped `ShapedGlyph` IDs,
 - shaped glyph offsets and advances,
-- approximate raster-independent ink bounds where available.
+- mandatory approximate raster-independent glyph ink bounds,
+- cluster approximate ink bounds computed from those glyph bounds.
 
 Hard newlines are handled before backend shaping. Framewise splits source text
 into hard-break source lines, calls `shape_text` for each segment, and creates
 the hard-break layout clusters and line records itself. The sample backend does
 not need to manufacture hard-newline clusters.
 
-Framewise owns overflow policy and chooses synthetic marker text such as the
-Unicode ellipsis. The sample backend shapes those markers through the same
+Framewise owns overflow policy and chooses marker text such as the Unicode
+ellipsis. The sample backend shapes those markers through the same
 `shape_text` path as ordinary text, so the normal shaping cache applies. Cache
 entries are `Rc<ShapedText<_>>`: a cache hit clones the `Rc`, while layouts can
 hold immutable shaped data even if the backend later evicts or clears its cache.
+
+The sample normally derives approximate glyph ink from Swash outline bounds.
+Whitespace and empty placeholders use `Rect::ZERO`. If outline bounds are not
+available for a visible glyph, the sample synthesizes a conservative
+raster-independent rectangle from the glyph advance and style size rather than
+returning an unknown result.
 
 ## Glyph Preparation
 

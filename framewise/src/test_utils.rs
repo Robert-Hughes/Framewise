@@ -1,5 +1,6 @@
 use crate::text::{
-    PrepareGlyphRequest, ShapedCluster, ShapedGlyph, SharedShapedText, TextBackend, TextStyle,
+    cluster_approx_ink_bounds, PrepareGlyphRequest, ShapedCluster, ShapedGlyph, SharedShapedText,
+    TextBackend, TextStyle,
 };
 use crate::{DrawGlyph, PreparedGlyphHandle};
 use std::rc::Rc;
@@ -45,8 +46,9 @@ impl TextBackend for TestTextBackend {
                         x: 0.0,
                         y: -4.0,
                         advance: 0.0,
-                        approx_ink_bounds: Some(crate::Rect::new(0.0, -4.0, 8.0, 4.0)),
+                        approx_ink_bounds: crate::Rect::new(0.0, -4.0, 8.0, 4.0),
                     });
+                    previous.approx_ink_bounds = cluster_approx_ink_bounds(&previous.glyphs);
                     continue;
                 }
             }
@@ -59,14 +61,16 @@ impl TextBackend for TestTextBackend {
                     x: 0.0,
                     y: 0.0,
                     advance,
-                    approx_ink_bounds: Some(crate::Rect::new(0.0, -style.size, advance, 16.0)),
+                    approx_ink_bounds: crate::Rect::new(0.0, -style.size, advance, 16.0),
                 }]
             };
+            let approx_ink_bounds = cluster_approx_ink_bounds(&glyphs);
             clusters.push(ShapedCluster {
                 byte_start,
                 byte_end,
                 advance,
                 is_whitespace,
+                approx_ink_bounds,
                 glyphs,
             });
         }

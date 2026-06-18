@@ -1,3 +1,4 @@
+use crate::types::Rect;
 use std::rc::Rc;
 
 /// Shared immutable shaping output returned by [`TextBackend`](super::TextBackend).
@@ -26,6 +27,11 @@ pub struct ShapedCluster<G> {
     pub advance: f32,
     /// True for Unicode whitespace clusters.
     pub is_whitespace: bool,
+    /// Approximate raster-independent ink bounds in cluster/baseline-local coordinates.
+    ///
+    /// This is the union of visible glyph ink bounds translated by each shaped
+    /// glyph's cluster-local offset. `Rect::ZERO` means known no visible ink.
+    pub approx_ink_bounds: Rect,
     /// Glyphs belonging to this cluster.
     pub glyphs: Vec<ShapedGlyph<G>>,
 }
@@ -50,8 +56,37 @@ pub struct ShapedGlyph<G> {
     /// depend on final draw origin, subpixel bins, hinting, atlas allocation, or
     /// renderer resource size.
     ///
-    /// `Some(Rect::ZERO)` means the glyph is known to draw no ink. `None` means
-    /// the backend cannot provide an estimate and Framewise may fall back to a
-    /// conservative logical approximation.
-    pub approx_ink_bounds: Option<crate::types::Rect>,
+    /// `Rect::ZERO` means the glyph is known to draw no ink. Backends that
+    /// cannot get outline bounds must synthesize a conservative
+    /// raster-independent estimate for visible glyphs.
+    pub approx_ink_bounds: Rect,
+}
+
+pub fn union_approx_ink_bounds(acc: Option<Rect>, rect: Rect) -> Option<Rect> {
+    if rect.w <= 0.0 || rect.h <= 0.0 {
+        return acc;
+    }
+
+    Some(match acc {
+        Some(existing) => {
+            let left = existing.x.min(rect.x);
+            let top = existing.y.min(rect.y);
+            let right = existing.right().max(rect.right());
+            let bottom = existing.bottom().max(rect.bottom());
+            Rect::from_ltrb(left, top, right, bottom)
+        }
+        None => rect,
+    })
+}
+
+pub fn cluster_approx_ink_bounds<G>(glyphs: &[ShapedGlyph<G>]) -> Rect {
+    glyphs
+        .iter()
+        .filter_map(|glyph| {
+            let rect = glyph.approx_ink_bounds;
+            (rect.w > 0.0 && rect.h > 0.0)
+                .then(|| Rect::new(glyph.x + rect.x, glyph.y + rect.y, rect.w, rect.h))
+        })
+        .fold(None, union_approx_ink_bounds)
+        .unwrap_or(Rect::ZERO)
 }

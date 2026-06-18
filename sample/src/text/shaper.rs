@@ -1,7 +1,7 @@
 use crate::text::SampleTextBackend;
 use framewise::{
-    FontId, LineHeight, Rect, ShapedCluster, ShapedGlyph, ShapedText, TextLineLayoutMetrics,
-    TextStyle,
+    cluster_approx_ink_bounds, FontId, LineHeight, Rect, ShapedCluster, ShapedGlyph, ShapedText,
+    TextLineLayoutMetrics, TextStyle,
 };
 use swash::scale::Scaler;
 
@@ -18,6 +18,10 @@ fn outline_approx_ink_bounds(scaler: &mut Scaler<'_>, glyph_id: u16) -> Option<R
         bounds.width(),
         bounds.height(),
     ))
+}
+
+fn conservative_approx_ink_bounds(style: TextStyle, advance: f32) -> Rect {
+    Rect::new(0.0, -style.size, advance.max(0.0), style.size * 1.2)
 }
 
 impl SampleTextBackend {
@@ -112,9 +116,10 @@ impl SampleTextBackend {
                     y: glyph.y,
                     advance,
                     approx_ink_bounds: if is_whitespace {
-                        Some(Rect::ZERO)
+                        Rect::ZERO
                     } else {
                         outline_approx_ink_bounds(&mut scaler, glyph.id)
+                            .unwrap_or_else(|| conservative_approx_ink_bounds(style, advance))
                     },
                 });
                 pen_x += advance;
@@ -127,15 +132,17 @@ impl SampleTextBackend {
                     x: 0.0,
                     y: 0.0,
                     advance: 0.0,
-                    approx_ink_bounds: Some(Rect::ZERO),
+                    approx_ink_bounds: Rect::ZERO,
                 });
             }
 
+            let approx_ink_bounds = cluster_approx_ink_bounds(&glyphs);
             clusters.push(ShapedCluster {
                 byte_start,
                 byte_end,
                 advance: cluster_advance,
                 is_whitespace,
+                approx_ink_bounds,
                 glyphs,
             });
         });

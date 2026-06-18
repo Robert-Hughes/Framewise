@@ -102,14 +102,14 @@ pub mod raw {
             layout.caret_position_at_insertion_byte(start_byte)
         };
         let caret_geom = layout.caret_geom(visual_position);
-        let current_line_idx = layout
-            .metrics
+        let metrics = layout.metrics();
+        let current_line_idx = metrics
             .lines
             .iter()
             .rposition(|line| start_byte >= line.byte_start)
             .unwrap_or(0);
 
-        let line_len = layout.metrics.lines.len();
+        let line_len = metrics.lines.len();
         let (target_line_idx, target_clamped) = match direction {
             VerticalCaretDirection::Up => (
                 current_line_idx.saturating_sub(line_count),
@@ -133,7 +133,7 @@ pub mod raw {
             };
         }
 
-        let target_line = &layout.metrics.lines[target_line_idx];
+        let target_line = &metrics.lines[target_line_idx];
         let pos = Vec2::new(caret_geom.x, target_line.y_top + target_line.height * 0.5);
         let new_caret = layout.hit_test_caret(pos);
         let byte = layout
@@ -561,9 +561,9 @@ pub mod raw {
                             };
                             let caret_geom = layout.caret_geom(visual_caret);
                             let caret_mid_y = caret_geom.y_top + caret_geom.height * 0.5;
-                            let current_line_idx =
-                                visual_line_index_at_y(&layout.metrics, caret_mid_y);
-                            let line = &layout.metrics.lines[current_line_idx];
+                            let metrics = layout.metrics();
+                            let current_line_idx = visual_line_index_at_y(metrics, caret_mid_y);
+                            let line = &metrics.lines[current_line_idx];
                             let line_mid_y = line.y_top + line.height * 0.5;
                             caret = layout.hit_test_caret(Vec2::new(line.logical_x, line_mid_y));
                             caret_byte = layout.caret_insertion_byte(caret).min(state.value.len());
@@ -603,9 +603,9 @@ pub mod raw {
                             };
                             let caret_geom = layout.caret_geom(visual_caret);
                             let caret_mid_y = caret_geom.y_top + caret_geom.height * 0.5;
-                            let current_line_idx =
-                                visual_line_index_at_y(&layout.metrics, caret_mid_y);
-                            let line = &layout.metrics.lines[current_line_idx];
+                            let metrics = layout.metrics();
+                            let current_line_idx = visual_line_index_at_y(metrics, caret_mid_y);
+                            let line = &metrics.lines[current_line_idx];
                             let line_mid_y = line.y_top + line.height * 0.5;
                             let end_cluster = layout.hit_test_cluster(Vec2::new(
                                 line.logical_x + line.logical_width + 1.0,
@@ -624,7 +624,7 @@ pub mod raw {
                                 };
                                 let line_end_geom = layout.caret_geom(line_end_caret);
                                 let line_end_idx = visual_line_index_at_y(
-                                    &layout.metrics,
+                                    metrics,
                                     line_end_geom.y_top + line_end_geom.height * 0.5,
                                 );
                                 if line_end_idx == current_line_idx {
@@ -1106,7 +1106,7 @@ pub mod raw {
                     let start = sel.min(caret_byte);
                     let end = sel.max(caret_byte);
 
-                    for line in &layout.metrics.lines {
+                    for line in &layout.metrics().lines {
                         let line_sel_start = start.max(line.byte_start);
                         let line_sel_end = end.min(line.byte_end);
 

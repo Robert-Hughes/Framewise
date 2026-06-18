@@ -172,19 +172,21 @@ impl TextBackend for ApproxInkBackend {
         text: &str,
         _style: TextStyle,
     ) -> SharedShapedText<Self::ShapedGlyphId> {
+        let glyphs = vec![ShapedGlyph {
+            id: 1,
+            x: 2.0,
+            y: -12.0,
+            advance: 30.0,
+            approx_ink_bounds: Rect::new(-4.0, 3.0, 18.0, 10.0),
+        }];
         std::rc::Rc::new(ShapedText {
             clusters: vec![ShapedCluster {
                 byte_start: 0,
                 byte_end: text.len(),
                 advance: 30.0,
                 is_whitespace: false,
-                glyphs: vec![ShapedGlyph {
-                    id: 1,
-                    x: 2.0,
-                    y: -12.0,
-                    advance: 30.0,
-                    approx_ink_bounds: Some(Rect::new(-4.0, 3.0, 18.0, 10.0)),
-                }],
+                approx_ink_bounds: cluster_approx_ink_bounds(&glyphs),
+                glyphs,
             }],
         })
     }

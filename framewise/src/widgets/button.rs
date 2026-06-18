@@ -478,7 +478,9 @@ mod tests {
 
     use crate::test_utils::TestTextBackend;
     use crate::text::FontId;
-    use crate::text::{PrepareGlyphRequest, ShapedCluster, ShapedGlyph, ShapedText};
+    use crate::text::{
+        cluster_approx_ink_bounds, PrepareGlyphRequest, ShapedCluster, ShapedGlyph, ShapedText,
+    };
     use crate::theme;
     use crate::{DrawGlyph, PreparedGlyphHandle};
 
@@ -503,19 +505,21 @@ mod tests {
                     clusters: Vec::new(),
                 });
             }
+            let glyphs = vec![ShapedGlyph {
+                id: 1,
+                x: 0.0,
+                y: -style.size.round(),
+                advance: 30.0,
+                approx_ink_bounds: Rect::new(-4.0, 3.0, 18.0, 10.0),
+            }];
             std::rc::Rc::new(ShapedText {
                 clusters: vec![ShapedCluster {
                     byte_start: 0,
                     byte_end: text.len(),
                     advance: 30.0,
                     is_whitespace: false,
-                    glyphs: vec![ShapedGlyph {
-                        id: 1,
-                        x: 0.0,
-                        y: -style.size.round(),
-                        advance: 30.0,
-                        approx_ink_bounds: Some(Rect::new(-4.0, 3.0, 18.0, 10.0)),
-                    }],
+                    approx_ink_bounds: cluster_approx_ink_bounds(&glyphs),
+                    glyphs,
                 }],
             })
         }

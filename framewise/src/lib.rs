@@ -45,11 +45,11 @@ pub use layouts::{
     RowLayoutParams, RowState, SplitRow, SplitRowState, WrapLayout, WrapState,
 };
 pub use text::{
-    CaretGeom, CaretPosition, ContentPlacement, EllipsisFallback, FontId, FontRole, LineEndKind,
-    LineHeight, LineMetrics, OverflowX, OverflowY, PrepareGlyphRequest, ShapedCluster, ShapedGlyph,
-    ShapedText, SharedShapedText, TextBackend, TextBounds, TextContentBasis, TextContentPlacement,
-    TextFlow, TextLayout, TextLineAlign, TextLineLayoutMetrics, TextMetrics, TextStyle,
-    WrapClusterFallback, WrapWordFallback,
+    cluster_approx_ink_bounds, CaretGeom, CaretPosition, ContentPlacement, EllipsisFallback,
+    FontId, FontRole, LineEndKind, LineHeight, LineMetrics, OverflowX, OverflowY,
+    PrepareGlyphRequest, ShapedCluster, ShapedGlyph, ShapedText, SharedShapedText, TextBackend,
+    TextBounds, TextContentBasis, TextContentPlacement, TextFlow, TextLayout, TextLineAlign,
+    TextLineLayoutMetrics, TextMetrics, TextStyle, WrapClusterFallback, WrapWordFallback,
 };
 pub use theme::Theme;
 pub use types::{ClipRect, Color, Layer, Rect, Vec2};

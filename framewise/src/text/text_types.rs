@@ -591,82 +591,59 @@ pub struct TextMetrics {
 /// At a soft-wrap boundary, exactly one preserved whitespace character may be
 /// collapsed to zero advance. Leading indentation remains visible unless one of
 /// those whitespace characters independently becomes a later boundary.
-#[derive(Debug, Clone, PartialEq)]
-pub enum TextClusterSource<G> {
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub(crate) enum LayoutClusterSource {
     Shaped {
         run_index: usize,
         cluster_index: usize,
     },
     Empty,
-    SyntheticGlyphs {
-        glyphs: Vec<LayoutGlyph<G>>,
-    },
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct TextLayout<G> {
     /// The block's measured logical geometry.
-    pub metrics: TextMetrics,
+    pub(crate) metrics: TextMetrics,
     /// Final visual line records in block-local coordinates.
-    pub lines: Vec<TextLine>,
+    pub(crate) lines: Vec<LayoutLine>,
     /// Final text clusters used for wrapping, caret placement, hit-testing, and
     /// source byte mapping.
-    pub clusters: Vec<TextCluster>,
-    pub(crate) cluster_sources: Vec<TextClusterSource<G>>,
+    pub(crate) clusters: Vec<LayoutCluster>,
     pub(crate) runs: Vec<Rc<ShapedText<G>>>,
 }
 
-/// One laid-out visual line in a Framewise-owned text layout.
 #[derive(Debug, Clone, PartialEq)]
-pub struct TextLine {
-    /// Top edge of the line in block-local coordinates.
+pub(crate) struct LayoutLine {
     pub y_top: f32,
-    /// Line height, and the vertical advance to the next line.
-    pub height: f32,
-    /// Baseline Y offset in block-local coordinates.
     pub baseline_y: f32,
-    /// Range into the layout's `glyphs` vec: `[glyph_start, glyph_end)`.
+    pub height: f32,
+    /// Logical range in the resolved glyph stream: `[glyph_start, glyph_end)`.
     pub glyph_start: usize,
     pub glyph_end: usize,
-    /// Range into the layout's `clusters` vec: `[cluster_start, cluster_end)`.
     pub cluster_start: usize,
     pub cluster_end: usize,
-    /// Byte range of the original string mapped to this line:
-    /// `[byte_start, byte_end)`.
     pub byte_start: usize,
     pub byte_end: usize,
-    /// Logical advance width of the line.
     pub logical_width: f32,
-    /// Approximate/conservative ink width of the line.
-    pub ink_width: f32,
-    /// X offset of the line's logical start in block-local coordinates.
+    pub approx_ink_width: f32,
     pub logical_x: f32,
-    /// X offset of the line's approximate ink start in block-local coordinates.
-    pub ink_x: f32,
-    /// The semantic reason this visual line ends here.
+    pub approx_ink_x: f32,
     pub end_kind: LineEndKind,
 }
 
-/// One indivisible laid-out cluster in a Framewise-owned text layout.
 #[derive(Debug, Clone, PartialEq)]
-pub struct TextCluster {
-    /// Byte range of the original string represented by this cluster.
+pub(crate) struct LayoutCluster {
+    pub source: LayoutClusterSource,
     pub byte_start: usize,
     pub byte_end: usize,
-    /// Range into the layout's `glyphs` vec: `[glyph_start, glyph_end)`.
+    /// Logical range in the resolved glyph stream: `[glyph_start, glyph_end)`.
     pub glyph_start: usize,
     pub glyph_end: usize,
-    /// Logical leading edge in block-local coordinates.
     pub x: f32,
-    /// Logical advance used by wrapping, caret placement, and hit-testing.
     pub advance: f32,
-    /// True for explicit hard line break clusters.
     pub is_hard_break: bool,
-    /// True for Unicode whitespace clusters.
     pub is_whitespace: bool,
-    /// True for a preserved whitespace cluster collapsed at a soft-wrap boundary.
     pub is_soft_wrap_boundary: bool,
-    /// False for collapsed/suppressed clusters that should not emit glyphs.
     pub glyphs_visible: bool,
 }
 
@@ -682,7 +659,7 @@ pub struct LayoutGlyph<G> {
     /// Source byte index of the cluster that produced this glyph.
     pub byte_start: usize,
     /// Approximate raster-independent ink bounds relative to this glyph origin.
-    pub approx_ink_bounds: Option<Rect>,
+    pub approx_ink_bounds: Rect,
 }
 
 /// A visual caret anchor in prepared text.

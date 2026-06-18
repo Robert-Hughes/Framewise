@@ -1,4 +1,4 @@
-use super::{CaretGeom, CaretPosition, TextCluster, TextLayout};
+use super::{CaretGeom, CaretPosition, LayoutCluster, TextLayout};
 use crate::types::Vec2;
 
 impl<G> TextLayout<G> {
@@ -252,7 +252,7 @@ impl<G> TextLayout<G> {
         self.caret_position_for_movement_target(target_byte)
             .unwrap_or_else(|| self.caret_position_at_insertion_byte(target_byte))
     }
-    fn find_caret_cluster(&self, position: CaretPosition) -> Option<(usize, &TextCluster)> {
+    fn find_caret_cluster(&self, position: CaretPosition) -> Option<(usize, &LayoutCluster)> {
         let cluster_byte_index = match position {
             CaretPosition::BeforeCluster { cluster_byte_index }
             | CaretPosition::AfterCluster { cluster_byte_index } => cluster_byte_index,

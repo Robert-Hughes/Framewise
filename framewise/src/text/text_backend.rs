@@ -74,9 +74,8 @@ pub trait TextBackend {
     /// ranges. Clusters should normally correspond to shaping clusters, and must
     /// not split combining marks, ligatures, or script-shaped units in a way
     /// that would corrupt shaping. Framewise may also use this API for
-    /// Framewise-owned synthetic UI marker text, such as an overflow ellipsis,
-    /// then remap those marker byte ranges internally to source text
-    /// coordinates.
+    /// Framewise-owned marker text, such as an overflow ellipsis, then remap
+    /// those marker byte ranges internally to source text coordinates.
     fn shape_text(&mut self, text: &str, style: TextStyle)
         -> SharedShapedText<Self::ShapedGlyphId>;
 
