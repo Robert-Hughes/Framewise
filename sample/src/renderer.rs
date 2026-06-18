@@ -30,28 +30,32 @@ impl Vertex {
     }
 }
 
-/// One GPU vertex for text: 2D clip-space position + atlas UV + RGBA colour + depth.
+/// One GPU instance per text glyph.
 #[repr(C)]
 #[derive(Copy, Clone, Pod, Zeroable)]
-pub struct TextVertex {
-    pub pos: [f32; 2],
-    pub uv: [f32; 2],
+pub struct TextGlyphInstance {
+    pub dst_pos: [f32; 2],
+    pub dst_size: [f32; 2],
+    pub src_pos: [f32; 2],
+    pub src_size: [f32; 2],
     pub color: [f32; 4],
     pub z: f32,
 }
 
-impl TextVertex {
-    const ATTRIBS: [wgpu::VertexAttribute; 4] = wgpu::vertex_attr_array![
+impl TextGlyphInstance {
+    const ATTRIBS: [wgpu::VertexAttribute; 6] = wgpu::vertex_attr_array![
         0 => Float32x2,
         1 => Float32x2,
-        2 => Float32x4,
-        3 => Float32,
+        2 => Float32x2,
+        3 => Float32x2,
+        4 => Float32x4,
+        5 => Float32,
     ];
 
     pub fn desc() -> wgpu::VertexBufferLayout<'static> {
         wgpu::VertexBufferLayout {
-            array_stride: std::mem::size_of::<TextVertex>() as wgpu::BufferAddress,
-            step_mode: wgpu::VertexStepMode::Vertex,
+            array_stride: std::mem::size_of::<TextGlyphInstance>() as wgpu::BufferAddress,
+            step_mode: wgpu::VertexStepMode::Instance,
             attributes: &Self::ATTRIBS,
         }
     }
@@ -80,7 +84,8 @@ pub const SHAPE_TYPE_STROKE_RECT: u32 = 5;
 #[derive(Copy, Clone, Pod, Zeroable)]
 struct Globals {
     window_size: [f32; 2],
-    _pad: [f32; 2],
+    atlas_size: f32,
+    _pad: f32,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -106,15 +111,15 @@ pub struct Renderer {
     globals_buf: wgpu::Buffer,
 
     quad_verts: Vec<Vertex>,
-    text_verts: Vec<TextVertex>,
+    text_instances: Vec<TextGlyphInstance>,
     aa_shapes: Vec<ShapeData>,
     render_cmds: Vec<RenderCommand>,
     clip_stack: Vec<Rect>,
 
     quad_vbuf: Option<wgpu::Buffer>,
     quad_vbuf_capacity: u64,
-    text_vbuf: Option<wgpu::Buffer>,
-    text_vbuf_capacity: u64,
+    text_instance_buf: Option<wgpu::Buffer>,
+    text_instance_buf_capacity: u64,
     aa_sbuf: Option<wgpu::Buffer>,
     aa_sbuf_capacity: u64,
 }
@@ -217,6 +222,16 @@ impl Renderer {
                         ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
                         count: None,
                     },
+                    wgpu::BindGroupLayoutEntry {
+                        binding: 2,
+                        visibility: wgpu::ShaderStages::VERTEX,
+                        ty: wgpu::BindingType::Buffer {
+                            ty: wgpu::BufferBindingType::Uniform,
+                            has_dynamic_offset: false,
+                            min_binding_size: None,
+                        },
+                        count: None,
+                    },
                 ],
             });
 
@@ -238,7 +253,7 @@ impl Renderer {
             vertex: wgpu::VertexState {
                 module: &text_shader,
                 entry_point: Some("vs_main"),
-                buffers: &[TextVertex::desc()],
+                buffers: &[TextGlyphInstance::desc()],
                 compilation_options: Default::default(),
             },
             fragment: Some(wgpu::FragmentState {
@@ -382,6 +397,10 @@ impl Renderer {
                     binding: 1,
                     resource: wgpu::BindingResource::Sampler(&atlas_sampler),
                 },
+                wgpu::BindGroupEntry {
+                    binding: 2,
+                    resource: globals_buf.as_entire_binding(),
+                },
             ],
         });
 
@@ -400,14 +419,14 @@ impl Renderer {
             aa_bind_group_layout,
             globals_buf,
             quad_verts: Vec::new(),
-            text_verts: Vec::new(),
+            text_instances: Vec::new(),
             aa_shapes: Vec::new(),
             render_cmds: Vec::new(),
             clip_stack: Vec::new(),
             quad_vbuf: None,
             quad_vbuf_capacity: 0,
-            text_vbuf: None,
-            text_vbuf_capacity: 0,
+            text_instance_buf: None,
+            text_instance_buf_capacity: 0,
             aa_sbuf: None,
             aa_sbuf_capacity: 0,
         }
@@ -419,7 +438,7 @@ impl Renderer {
         window_size: (u32, u32),
         text_backend: &mut crate::text::SampleTextBackend,
         mut quad_verts: &mut Vec<Vertex>,
-        mut text_verts: &mut Vec<TextVertex>,
+        mut text_instances: &mut Vec<TextGlyphInstance>,
         aa_shapes: &mut Vec<ShapeData>,
         mut render_cmds: &mut Vec<RenderCommand>,
         clip_stack: &mut Vec<Rect>,
@@ -446,13 +465,13 @@ impl Renderer {
             })
             .sum();
         quad_verts.clear();
-        text_verts.clear();
+        text_instances.clear();
         aa_shapes.clear();
         render_cmds.clear();
         clip_stack.clear();
 
         quad_verts.reserve(estimated_quad_vertices);
-        text_verts.reserve(glyphs.len().saturating_mul(6));
+        text_instances.reserve(glyphs.len());
         aa_shapes.reserve(cmds.len());
         render_cmds.reserve(cmds.len() + 1);
         clip_stack.reserve(4);
@@ -472,12 +491,14 @@ impl Renderer {
             }
         };
 
-        let flush_text = |text_verts_len: u32,
+        let flush_text = |text_instances_len: u32,
                           current_text_start: &mut u32,
                           render_cmds: &mut Vec<RenderCommand>| {
-            if text_verts_len > *current_text_start {
-                render_cmds.push(RenderCommand::DrawText(*current_text_start..text_verts_len));
-                *current_text_start = text_verts_len;
+            if text_instances_len > *current_text_start {
+                render_cmds.push(RenderCommand::DrawText(
+                    *current_text_start..text_instances_len,
+                ));
+                *current_text_start = text_instances_len;
             }
         };
 
@@ -505,7 +526,7 @@ impl Renderer {
                             &mut render_cmds,
                         );
                         flush_text(
-                            text_verts.len() as u32,
+                            text_instances.len() as u32,
                             &mut current_text_start,
                             &mut render_cmds,
                         );
@@ -520,7 +541,7 @@ impl Renderer {
                         });
                     } else {
                         flush_text(
-                            text_verts.len() as u32,
+                            text_instances.len() as u32,
                             &mut current_text_start,
                             &mut render_cmds,
                         );
@@ -546,7 +567,7 @@ impl Renderer {
                             &mut render_cmds,
                         );
                         flush_text(
-                            text_verts.len() as u32,
+                            text_instances.len() as u32,
                             &mut current_text_start,
                             &mut render_cmds,
                         );
@@ -561,7 +582,7 @@ impl Renderer {
                         });
                     } else {
                         flush_text(
-                            text_verts.len() as u32,
+                            text_instances.len() as u32,
                             &mut current_text_start,
                             &mut render_cmds,
                         );
@@ -588,7 +609,7 @@ impl Renderer {
                             &mut render_cmds,
                         );
                         flush_text(
-                            text_verts.len() as u32,
+                            text_instances.len() as u32,
                             &mut current_text_start,
                             &mut render_cmds,
                         );
@@ -603,7 +624,7 @@ impl Renderer {
                         });
                     } else {
                         flush_text(
-                            text_verts.len() as u32,
+                            text_instances.len() as u32,
                             &mut current_text_start,
                             &mut render_cmds,
                         );
@@ -637,7 +658,7 @@ impl Renderer {
                             &mut render_cmds,
                         );
                         flush_text(
-                            text_verts.len() as u32,
+                            text_instances.len() as u32,
                             &mut current_text_start,
                             &mut render_cmds,
                         );
@@ -652,7 +673,7 @@ impl Renderer {
                         });
                     } else {
                         flush_text(
-                            text_verts.len() as u32,
+                            text_instances.len() as u32,
                             &mut current_text_start,
                             &mut render_cmds,
                         );
@@ -686,7 +707,7 @@ impl Renderer {
                             &mut render_cmds,
                         );
                         flush_text(
-                            text_verts.len() as u32,
+                            text_instances.len() as u32,
                             &mut current_text_start,
                             &mut render_cmds,
                         );
@@ -701,7 +722,7 @@ impl Renderer {
                         });
                     } else {
                         flush_text(
-                            text_verts.len() as u32,
+                            text_instances.len() as u32,
                             &mut current_text_start,
                             &mut render_cmds,
                         );
@@ -738,7 +759,7 @@ impl Renderer {
                     );
                     if let Some(run_glyphs) = glyphs.get(glyph_range.clone()) {
                         push_glyph_run(
-                            &mut text_verts,
+                            &mut text_instances,
                             run_glyphs,
                             *color,
                             *z,
@@ -754,7 +775,7 @@ impl Renderer {
                         &mut render_cmds,
                     );
                     flush_text(
-                        text_verts.len() as u32,
+                        text_instances.len() as u32,
                         &mut current_text_start,
                         &mut render_cmds,
                     );
@@ -779,7 +800,7 @@ impl Renderer {
                         &mut render_cmds,
                     );
                     flush_text(
-                        text_verts.len() as u32,
+                        text_instances.len() as u32,
                         &mut current_text_start,
                         &mut render_cmds,
                     );
@@ -804,7 +825,7 @@ impl Renderer {
             &mut render_cmds,
         );
         flush_text(
-            text_verts.len() as u32,
+            text_instances.len() as u32,
             &mut current_text_start,
             &mut render_cmds,
         );
@@ -856,13 +877,14 @@ impl Renderer {
             window_size,
             text_backend,
             &mut self.quad_verts,
-            &mut self.text_verts,
+            &mut self.text_instances,
             &mut self.aa_shapes,
             &mut self.render_cmds,
             &mut self.clip_stack,
         );
 
-        if self.quad_verts.is_empty() && self.text_verts.is_empty() && self.aa_shapes.is_empty() {
+        if self.quad_verts.is_empty() && self.text_instances.is_empty() && self.aa_shapes.is_empty()
+        {
             return;
         }
 
@@ -878,17 +900,18 @@ impl Renderer {
         upload_slice(
             device,
             queue,
-            &mut self.text_vbuf,
-            &mut self.text_vbuf_capacity,
-            &self.text_verts,
+            &mut self.text_instance_buf,
+            &mut self.text_instance_buf_capacity,
+            &self.text_instances,
             wgpu::BufferUsages::VERTEX,
-            "text_vbuf",
+            "text_instance_buf",
         );
 
         // Write Globals Uniform
         let globals = Globals {
             window_size: [window_size.0 as f32, window_size.1 as f32],
-            _pad: [0.0; 2],
+            atlas_size: text_backend.atlas_size as f32,
+            _pad: 0.0,
         };
         queue.write_buffer(&self.globals_buf, 0, bytemuck::bytes_of(&globals));
 
@@ -973,10 +996,13 @@ impl Renderer {
                     if last_pipeline != 2 {
                         pass.set_pipeline(&self.text_pipeline);
                         pass.set_bind_group(0, &self.atlas_bind_group, &[]);
-                        pass.set_vertex_buffer(0, self.text_vbuf.as_ref().unwrap().slice(..));
+                        pass.set_vertex_buffer(
+                            0,
+                            self.text_instance_buf.as_ref().unwrap().slice(..),
+                        );
                         last_pipeline = 2;
                     }
-                    pass.draw(range.clone(), 0..1);
+                    pass.draw(0..6, range.clone());
                 }
                 RenderCommand::DrawAA(range) => {
                     if last_pipeline != 3 {
@@ -1390,18 +1416,17 @@ fn push_stroked_circle(
     }
 }
 
-/// Generate vertices for a range of prepared glyph arena entries.
+/// Generate instances for a range of prepared glyph arena entries.
 fn push_glyph_run(
-    verts: &mut Vec<TextVertex>,
+    instances: &mut Vec<TextGlyphInstance>,
     glyphs: &[DrawGlyph],
     color: Color,
     z: u32,
-    text_backend: &crate::text::SampleTextBackend,
-    (sw, sh): (u32, u32),
+    _text_backend: &crate::text::SampleTextBackend,
+    _window_size: (u32, u32),
 ) {
     let c = color_arr(color);
     let z = z_to_depth(z);
-    let atlas_size = text_backend.atlas_size as f32;
 
     for glyph in glyphs {
         let (src_x, src_y, src_w, src_h) = crate::text::decode_prepared_glyph_token(glyph.token);
@@ -1414,50 +1439,11 @@ fn push_glyph_run(
         let gw = src_w as f32;
         let gh = src_h as f32;
 
-        let tl_pos = to_clip(gx, gy, sw, sh);
-        let tr_pos = to_clip(gx + gw, gy, sw, sh);
-        let bl_pos = to_clip(gx, gy + gh, sw, sh);
-        let br_pos = to_clip(gx + gw, gy + gh, sw, sh);
-
-        let u0 = src_x as f32 / atlas_size;
-        let v0 = src_y as f32 / atlas_size;
-        let u1 = (src_x + src_w) as f32 / atlas_size;
-        let v1 = (src_y + src_h) as f32 / atlas_size;
-
-        verts.push(TextVertex {
-            pos: tl_pos,
-            uv: [u0, v0],
-            color: c,
-            z,
-        });
-        verts.push(TextVertex {
-            pos: bl_pos,
-            uv: [u0, v1],
-            color: c,
-            z,
-        });
-        verts.push(TextVertex {
-            pos: tr_pos,
-            uv: [u1, v0],
-            color: c,
-            z,
-        });
-
-        verts.push(TextVertex {
-            pos: tr_pos,
-            uv: [u1, v0],
-            color: c,
-            z,
-        });
-        verts.push(TextVertex {
-            pos: bl_pos,
-            uv: [u0, v1],
-            color: c,
-            z,
-        });
-        verts.push(TextVertex {
-            pos: br_pos,
-            uv: [u1, v1],
+        instances.push(TextGlyphInstance {
+            dst_pos: [gx, gy],
+            dst_size: [gw, gh],
+            src_pos: [src_x as f32, src_y as f32],
+            src_size: [gw, gh],
             color: c,
             z,
         });
@@ -1471,13 +1457,13 @@ mod tests {
     use framewise::{Color, DrawCommands, DrawGlyph, Vec2};
 
     #[test]
-    fn glyph_run_vertices_use_draw_glyph_top_left_and_resolved_atlas_size() {
-        let mut text_backend = SampleTextBackend::new();
+    fn glyph_run_instances_use_draw_glyph_top_left_and_resolved_atlas_rect() {
+        let text_backend = SampleTextBackend::new();
         let token = pack_prepared_glyph_token(3, 5, 11, 13);
 
-        let mut verts = Vec::new();
+        let mut instances = Vec::new();
         push_glyph_run(
-            &mut verts,
+            &mut instances,
             &[DrawGlyph {
                 token,
                 top_left: Vec2::new(25.0, 11.0),
@@ -1488,11 +1474,11 @@ mod tests {
             (200, 100),
         );
 
-        assert_eq!(verts.len(), 6);
-        assert_eq!(clip_x_to_pixels(verts[0].pos[0], 200), 25.0);
-        assert_eq!(clip_y_to_pixels(verts[0].pos[1], 100), 11.0);
-        assert_eq!(clip_x_to_pixels(verts[5].pos[0], 200), 36.0);
-        assert_eq!(clip_y_to_pixels(verts[5].pos[1], 100), 24.0);
+        assert_eq!(instances.len(), 1);
+        assert_eq!(instances[0].dst_pos, [25.0, 11.0]);
+        assert_eq!(instances[0].dst_size, [11.0, 13.0]);
+        assert_eq!(instances[0].src_pos, [3.0, 5.0]);
+        assert_eq!(instances[0].src_size, [11.0, 13.0]);
     }
 
     #[test]
@@ -1510,7 +1496,7 @@ mod tests {
         );
 
         let mut quad_verts = Vec::new();
-        let mut text_verts = Vec::new();
+        let mut text_instances = Vec::new();
         let mut aa_shapes = Vec::new();
         let mut render_cmds = Vec::new();
         let mut clip_stack = Vec::new();
@@ -1520,15 +1506,15 @@ mod tests {
             (100, 100),
             &mut text_backend,
             &mut quad_verts,
-            &mut text_verts,
+            &mut text_instances,
             &mut aa_shapes,
             &mut render_cmds,
             &mut clip_stack,
         );
 
-        assert_eq!(text_verts.len(), 6);
+        assert_eq!(text_instances.len(), 1);
         assert!(
-            matches!(render_cmds.as_slice(), [super::RenderCommand::DrawText(range)] if range == &(0..6))
+            matches!(render_cmds.as_slice(), [super::RenderCommand::DrawText(range)] if range == &(0..1))
         );
     }
 
@@ -1588,7 +1574,7 @@ mod tests {
         ];
 
         let mut quad_verts = Vec::new();
-        let mut text_verts = Vec::new();
+        let mut text_instances = Vec::new();
         let mut aa_shapes = Vec::new();
         let mut render_cmds = Vec::new();
         let mut clip_stack = Vec::new();
@@ -1598,7 +1584,7 @@ mod tests {
             (800, 600),
             &mut text_backend,
             &mut quad_verts,
-            &mut text_verts,
+            &mut text_instances,
             &mut aa_shapes,
             &mut render_cmds,
             &mut clip_stack,
@@ -1607,8 +1593,8 @@ mod tests {
         // Expect:
         // - 3 non-AA rects total -> 3 * 6 = 18 quad_verts
         assert_eq!(quad_verts.len(), 18);
-        // - 0 text_verts
-        assert_eq!(text_verts.len(), 0);
+        // - 0 text_instances
+        assert_eq!(text_instances.len(), 0);
         // - 2 AA shapes total (Line and Circle)
         assert_eq!(aa_shapes.len(), 2);
 
@@ -1627,13 +1613,5 @@ mod tests {
         assert!(matches!(render_cmds[3], RenderCommand::DrawAA(ref r) if r == &(1..2)));
         assert!(matches!(render_cmds[4], RenderCommand::DrawQuads(ref r) if r == &(12..18)));
         assert!(matches!(render_cmds[5], RenderCommand::SetScissor(_)));
-    }
-
-    fn clip_x_to_pixels(x: f32, width: u32) -> f32 {
-        ((x + 1.0) * 0.5 * width as f32).round()
-    }
-
-    fn clip_y_to_pixels(y: f32, height: u32) -> f32 {
-        ((1.0 - y) * 0.5 * height as f32).round()
     }
 }
