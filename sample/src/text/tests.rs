@@ -30,7 +30,7 @@ mod tests {
         let prepared = TextBackend::prepare_glyph(
             &mut sys,
             PrepareGlyphRequest {
-                glyph: glyph.id,
+                glyph: glyph.token,
                 glyph_origin: Vec2::new(12.25 + glyph.x, 18.0 + glyph.y),
             },
         );
@@ -521,7 +521,7 @@ mod tests {
             let draw = TextBackend::prepare_glyph(
                 &mut sys,
                 PrepareGlyphRequest {
-                    glyph: glyph.id,
+                    glyph: glyph.token,
                     glyph_origin: Vec2::new(x, 20.0),
                 },
             )

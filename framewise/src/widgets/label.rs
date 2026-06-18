@@ -258,7 +258,7 @@ mod tests {
                 });
             }
             let glyphs = vec![ShapedGlyph {
-                id: 1,
+                token: 1,
                 x: 0.0,
                 y: -style.size.round(),
                 advance: 30.0,
@@ -312,7 +312,7 @@ mod tests {
                 });
             }
             let glyphs = vec![ShapedGlyph {
-                id: 1,
+                token: 1,
                 x: 0.0,
                 y: -style.size.round(),
                 advance: 1.0,

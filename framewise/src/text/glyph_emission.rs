@@ -40,7 +40,7 @@ impl<G: Copy> TextLayout<G> {
                                 origin.y + line.baseline_y + glyph.y,
                             );
                             if let Some(draw_glyph) = backend.prepare_glyph(PrepareGlyphRequest {
-                                glyph: glyph.id,
+                                glyph: glyph.token,
                                 glyph_origin,
                             }) {
                                 commands.push_glyph(draw_glyph);

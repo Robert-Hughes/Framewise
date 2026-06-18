@@ -124,7 +124,7 @@ impl SampleTextBackend {
                     ..base_style_key
                 };
                 glyphs.push(ShapedGlyph {
-                    id: token,
+                    token,
                     x: pen_x - cluster_x + glyph.x,
                     y: glyph.y,
                     advance,
@@ -141,7 +141,7 @@ impl SampleTextBackend {
 
             if glyphs.is_empty() {
                 glyphs.push(ShapedGlyph {
-                    id: base_style_key,
+                    token: base_style_key,
                     x: 0.0,
                     y: 0.0,
                     advance: 0.0,

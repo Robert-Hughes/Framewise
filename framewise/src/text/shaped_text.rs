@@ -46,7 +46,7 @@ pub struct ShapedGlyph<G> {
     /// glyph preparation. Production backends should include any
     /// origin-independent resource identity needed to prepare or rasterise the
     /// glyph efficiently.
-    pub id: G,
+    pub token: G,
     /// Position relative to the cluster/glyph run before Framewise wrapping and
     /// final line placement.
     pub x: f32,

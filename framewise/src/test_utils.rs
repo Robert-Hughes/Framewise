@@ -42,7 +42,7 @@ impl TextBackend for TestTextBackend {
                 if let Some(previous) = clusters.last_mut() {
                     previous.byte_end = byte_end;
                     previous.glyphs.push(ShapedGlyph {
-                        id: ch as u32,
+                        token: ch as u32,
                         x: 0.0,
                         y: -4.0,
                         advance: 0.0,
@@ -57,7 +57,7 @@ impl TextBackend for TestTextBackend {
                 Vec::new()
             } else {
                 vec![ShapedGlyph {
-                    id: ch as u32,
+                    token: ch as u32,
                     x: 0.0,
                     y: 0.0,
                     advance,

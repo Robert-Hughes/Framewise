@@ -193,7 +193,7 @@ impl TextBackend for ApproxInkBackend {
         _style: TextStyle,
     ) -> SharedShapedText<Self::ShapedGlyphToken> {
         let glyphs = vec![ShapedGlyph {
-            id: 1,
+            token: 1,
             x: 2.0,
             y: -12.0,
             advance: 30.0,

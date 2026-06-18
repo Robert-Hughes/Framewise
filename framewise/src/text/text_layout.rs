@@ -511,7 +511,7 @@ impl<G: Copy> Iterator for ResolvedGlyphIter<'_, G> {
                     if let Some(glyph) = shaped_cluster.glyphs.get(self.glyph_index) {
                         self.glyph_index += 1;
                         return Some(LayoutGlyph {
-                            id: glyph.id,
+                            id: glyph.token,
                             origin: Vec2::new(cluster.x + glyph.x, line.baseline_y + glyph.y),
                             advance: glyph.advance,
                             byte_start: cluster.byte_start,
@@ -567,7 +567,7 @@ mod tests {
                     advance: 8.0,
                     is_whitespace: ch.is_whitespace(),
                     glyphs: vec![crate::ShapedGlyph {
-                        id: ch as u32,
+                        token: ch as u32,
                         x: 0.0,
                         y: 0.0,
                         advance: 8.0,
