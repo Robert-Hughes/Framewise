@@ -560,11 +560,32 @@ pub struct TextMetrics {
 
 /// The geometry for a laid-out piece of text.
 ///
-/// `TextLayout` keeps final line and cluster records as an overlay over shared
-/// immutable shaped runs. It does not store a flat glyph vector; final glyph
-/// positions are resolved from line baselines, cluster positions, and shaped
-/// glyph offsets only for approximate ink bounds, glyph emission, or explicit
-/// materialisation through [`TextLayout::resolved_glyphs`].
+/// Framewise text layout uses two conversion boundaries:
+///
+/// 1. Backend shaping output -> Framewise working layout representation.
+///    The backend returns cached immutable [`ShapedText`]. Framewise converts
+///    shaped runs into its own working lines/clusters exactly once. These
+///    working clusters store source byte ranges, logical x/advance, visibility,
+///    wrapping state, and source references into shaped runs.
+/// 2. Framewise working layout representation -> draw commands. When emitting
+///    text, Framewise resolves final glyph origins from line baseline, cluster
+///    x, and shaped glyph offsets, then asks the backend to prepare glyphs and
+///    appends `DrawGlyph`s into `DrawCommands`.
+///
+/// Between those boundaries, layout mutates or moves the same working cluster
+/// objects and derives metrics/caret/hit-test results. It should not copy
+/// clusters into another intermediate representation.
+///
+/// `Working*` types are Framewise-owned layout-space records. They are not
+/// backend shaping output, and they are not public API records. "Working" does
+/// not mean "discarded before `TextLayout`"; some working records are stored
+/// privately inside `TextLayout` after finalisation.
+///
+/// `TextLayout` keeps final working line and cluster records as an overlay over
+/// shared immutable shaped runs. It does not store a flat glyph vector; final
+/// glyph positions are resolved from line baselines, cluster positions, and
+/// shaped glyph offsets only for approximate ink bounds, glyph emission, or
+/// explicit materialisation through [`TextLayout::resolved_glyphs`].
 ///
 /// All positions are in block-local coordinates: the origin is the text block's
 /// top-left corner, with y increasing downward. Callers translate the layout to
@@ -592,7 +613,7 @@ pub struct TextMetrics {
 /// collapsed to zero advance. Leading indentation remains visible unless one of
 /// those whitespace characters independently becomes a later boundary.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub(crate) enum LayoutClusterSource {
+pub(crate) enum WorkingClusterSource {
     Shaped {
         run_index: usize,
         cluster_index: usize,
@@ -604,24 +625,30 @@ pub(crate) enum LayoutClusterSource {
 pub struct TextLayout<G> {
     /// The block's measured logical geometry.
     pub(crate) metrics: TextMetrics,
-    /// Final visual line records in block-local coordinates.
-    pub(crate) lines: Vec<LayoutLine>,
-    /// Final text clusters used for wrapping, caret placement, hit-testing, and
-    /// source byte mapping.
-    pub(crate) clusters: Vec<LayoutCluster>,
-    pub(crate) runs: Vec<Rc<ShapedText<G>>>,
+    /// Final Framewise-owned visual line records in block-local coordinates.
+    pub(crate) lines: Vec<WorkingProcessedLine>,
+    pub(crate) runs: Vec<WorkingRun<G>>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub(crate) struct LayoutLine {
+pub(crate) struct WorkingRun<G> {
+    pub(crate) shaped: Rc<ShapedText<G>>,
+    pub(crate) segment_start: usize,
+}
+
+/// Temporary hard-line grouping before wrapping.
+pub(crate) struct WorkingSourceLine {
+    pub(crate) clusters: Vec<WorkingCluster>,
+    pub(crate) byte_start: usize,
+    pub(crate) byte_end: usize,
+}
+
+/// Framewise-owned visual line after wrapping/truncation/finalisation.
+#[derive(Debug, Clone, PartialEq)]
+pub(crate) struct WorkingProcessedLine {
     pub y_top: f32,
     pub baseline_y: f32,
     pub height: f32,
-    /// Logical range in the resolved glyph stream: `[glyph_start, glyph_end)`.
-    pub glyph_start: usize,
-    pub glyph_end: usize,
-    pub cluster_start: usize,
-    pub cluster_end: usize,
     pub byte_start: usize,
     pub byte_end: usize,
     pub logical_width: f32,
@@ -629,22 +656,60 @@ pub(crate) struct LayoutLine {
     pub logical_x: f32,
     pub approx_ink_x: f32,
     pub end_kind: LineEndKind,
+    pub clusters: Vec<WorkingCluster>,
 }
 
+impl WorkingProcessedLine {
+    pub(crate) fn pending(
+        clusters: Vec<WorkingCluster>,
+        byte_start: usize,
+        byte_end: usize,
+        end_kind: LineEndKind,
+    ) -> Self {
+        Self {
+            y_top: 0.0,
+            baseline_y: 0.0,
+            height: 0.0,
+            byte_start,
+            byte_end,
+            logical_width: 0.0,
+            approx_ink_width: 0.0,
+            logical_x: 0.0,
+            approx_ink_x: 0.0,
+            end_kind,
+            clusters,
+        }
+    }
+}
+
+/// Framewise-owned mutable layout cluster overlay over `ShapedText`.
 #[derive(Debug, Clone, PartialEq)]
-pub(crate) struct LayoutCluster {
-    pub source: LayoutClusterSource,
+pub(crate) struct WorkingCluster {
+    pub source: WorkingClusterSource,
     pub byte_start: usize,
     pub byte_end: usize,
-    /// Logical range in the resolved glyph stream: `[glyph_start, glyph_end)`.
-    pub glyph_start: usize,
-    pub glyph_end: usize,
     pub x: f32,
     pub advance: f32,
     pub is_hard_break: bool,
     pub is_whitespace: bool,
     pub is_soft_wrap_boundary: bool,
     pub glyphs_visible: bool,
+}
+
+impl WorkingCluster {
+    pub(crate) fn end_x(&self) -> f32 {
+        self.x + self.advance
+    }
+
+    pub(crate) fn shift_x(&mut self, dx: f32) {
+        self.x += dx;
+    }
+
+    pub(crate) fn collapse_soft_wrap_boundary(&mut self) {
+        self.advance = 0.0;
+        self.is_soft_wrap_boundary = true;
+        self.glyphs_visible = false;
+    }
 }
 
 /// One glyph after Framewise line layout, before caller draw origin is added.

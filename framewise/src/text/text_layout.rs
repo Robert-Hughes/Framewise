@@ -4,81 +4,15 @@ use super::cluster_layout::{
 };
 use super::text_overflow::apply_ellipsis_x;
 use super::{
-    union_approx_ink_bounds, EllipsisFallback, LayoutCluster, LayoutClusterSource, LayoutGlyph,
-    LayoutLine, LineEndKind, LineMetrics, OverflowX, OverflowY, ShapedText, TextBackend,
-    TextBounds, TextLayout, TextLineAlign, TextMetrics, TextStyle,
+    union_approx_ink_bounds, EllipsisFallback, LayoutGlyph, LineEndKind, LineMetrics, OverflowX,
+    OverflowY, TextBackend, TextBounds, TextLayout, TextLineAlign, TextMetrics, TextStyle,
+    WorkingCluster, WorkingClusterSource, WorkingProcessedLine, WorkingRun,
 };
 use crate::{
     draw::DrawCommands,
     types::{Color, Rect, Vec2},
 };
 use std::hash::Hash;
-use std::marker::PhantomData;
-use std::rc::Rc;
-
-pub(super) struct WorkingRun<G> {
-    pub(super) shaped: Rc<ShapedText<G>>,
-    pub(super) segment_start: usize,
-}
-
-#[derive(Debug, Clone)]
-pub(super) enum WorkingClusterSource {
-    Shaped {
-        run_index: usize,
-        cluster_index: usize,
-    },
-    Empty,
-}
-
-/// Mutable source-line representation used while applying wrapping and overflow.
-pub(super) struct WorkingSourceLine<G> {
-    pub(super) clusters: Vec<WorkingCluster<G>>,
-    pub(super) byte_start: usize,
-    pub(super) byte_end: usize,
-}
-
-/// Mutable visual line representation before final block positioning.
-pub(super) struct WorkingProcessedLine<G> {
-    pub(super) clusters: Vec<WorkingCluster<G>>,
-    pub(super) byte_start: usize,
-    pub(super) byte_end: usize,
-    pub(super) end_kind: LineEndKind,
-}
-
-#[derive(Debug, Clone)]
-pub(super) struct WorkingCluster<G> {
-    /// Mutable layout-state overlay for one cluster.
-    ///
-    /// Normal shaped glyph data lives in `WorkingRun::shaped`; this source only
-    /// points at it. Wrapping, truncation, alignment, caret, and hit-testing
-    /// update or read cluster-level state here without mutating shaped glyphs.
-    pub(super) source: WorkingClusterSource,
-    pub(super) byte_start: usize,
-    pub(super) byte_end: usize,
-    pub(super) x: f32,
-    pub(super) advance: f32,
-    pub(super) is_hard_break: bool,
-    pub(super) is_whitespace: bool,
-    pub(super) is_soft_wrap_boundary: bool,
-    pub(super) glyphs_visible: bool,
-    pub(super) _marker: PhantomData<G>,
-}
-
-impl<G> WorkingCluster<G> {
-    pub(super) fn end_x(&self) -> f32 {
-        self.x + self.advance
-    }
-
-    pub(super) fn shift_x(&mut self, dx: f32) {
-        self.x += dx;
-    }
-
-    pub(super) fn collapse_soft_wrap_boundary(&mut self) {
-        self.advance = 0.0;
-        self.is_soft_wrap_boundary = true;
-        self.glyphs_visible = false;
-    }
-}
 
 /// Lay out `text` with Framewise-owned text layout policy.
 ///
@@ -188,7 +122,7 @@ pub fn emit_text_in_rect<B: TextBackend>(
 }
 
 fn working_cluster_ink<G: Copy>(
-    cluster: &WorkingCluster<G>,
+    cluster: &WorkingCluster,
     runs: &[WorkingRun<G>],
     baseline_y: f32,
 ) -> Option<Rect> {
@@ -212,35 +146,6 @@ fn working_cluster_ink<G: Copy>(
                 .then(|| Rect::new(cluster.x + rect.x, baseline_y + rect.y, rect.w, rect.h))
         }
         WorkingClusterSource::Empty => None,
-    }
-}
-
-fn working_visible_glyph_count<G>(cluster: &WorkingCluster<G>, runs: &[WorkingRun<G>]) -> usize {
-    if !cluster.glyphs_visible {
-        return 0;
-    }
-
-    match &cluster.source {
-        WorkingClusterSource::Shaped {
-            run_index,
-            cluster_index,
-        } => runs[*run_index].shaped.clusters[*cluster_index]
-            .glyphs
-            .len(),
-        WorkingClusterSource::Empty => 0,
-    }
-}
-
-fn finish_cluster_source(source: WorkingClusterSource) -> LayoutClusterSource {
-    match source {
-        WorkingClusterSource::Shaped {
-            run_index,
-            cluster_index,
-        } => LayoutClusterSource::Shaped {
-            run_index,
-            cluster_index,
-        },
-        WorkingClusterSource::Empty => LayoutClusterSource::Empty,
     }
 }
 
@@ -407,12 +312,12 @@ impl<G: Copy + Eq + Hash> TextLayout<G> {
                         LineEndKind::EndOfText
                     }
                 });
-                processed_lines.push(WorkingProcessedLine {
-                    clusters: sub_seg,
-                    byte_start: sub_starts[idx],
-                    byte_end: sub_starts[idx + 1],
+                processed_lines.push(WorkingProcessedLine::pending(
+                    sub_seg,
+                    sub_starts[idx],
+                    sub_starts[idx + 1],
                     end_kind,
-                });
+                ));
             }
         }
 
@@ -458,23 +363,22 @@ impl<G: Copy + Eq + Hash> TextLayout<G> {
         }
 
         if processed_lines.is_empty() {
-            processed_lines.push(WorkingProcessedLine {
-                clusters: Vec::new(),
-                byte_start: 0,
-                byte_end: text.len(),
-                end_kind: LineEndKind::EndOfText,
-            });
+            processed_lines.push(WorkingProcessedLine::pending(
+                Vec::new(),
+                0,
+                text.len(),
+                LineEndKind::EndOfText,
+            ));
         }
 
-        let mut clusters = Vec::new();
         let mut lines = Vec::new();
-        let mut glyph_count = 0usize;
         let mut block_width = 0.0_f32;
         let mut block_ink: Option<Rect> = None;
 
         for (idx, mut line) in processed_lines.into_iter().enumerate() {
-            let new_baseline_y = idx as f32 * line_height + baseline_offset;
-            let y_top = idx as f32 * line_height;
+            line.y_top = idx as f32 * line_height;
+            line.baseline_y = line.y_top + baseline_offset;
+            line.height = line_height;
 
             let align_off = match bounds.max_width {
                 Some(w) => {
@@ -496,31 +400,13 @@ impl<G: Copy + Eq + Hash> TextLayout<G> {
             let logical_line_w = logical_cluster_line_width(&line.clusters);
             block_width = block_width.max(logical_line_w);
 
-            let glyph_start = glyph_count;
-            let cluster_start = clusters.len();
             let mut line_ink = None;
-            for cluster in line.clusters {
+            for cluster in &line.clusters {
                 let line_ink_from_cluster =
-                    working_cluster_ink(&cluster, &working_runs, new_baseline_y);
+                    working_cluster_ink(cluster, &working_runs, line.baseline_y);
                 line_ink = line_ink_from_cluster
                     .into_iter()
                     .fold(line_ink, union_approx_ink_bounds);
-                let cluster_glyph_start = glyph_count;
-                glyph_count += working_visible_glyph_count(&cluster, &working_runs);
-                let source = finish_cluster_source(cluster.source);
-                clusters.push(LayoutCluster {
-                    source,
-                    byte_start: cluster.byte_start,
-                    byte_end: cluster.byte_end,
-                    glyph_start: cluster_glyph_start,
-                    glyph_end: glyph_count,
-                    x: cluster.x,
-                    advance: cluster.advance,
-                    is_hard_break: cluster.is_hard_break,
-                    is_whitespace: cluster.is_whitespace,
-                    is_soft_wrap_boundary: cluster.is_soft_wrap_boundary,
-                    glyphs_visible: cluster.glyphs_visible,
-                });
             }
 
             block_ink = line_ink
@@ -529,22 +415,12 @@ impl<G: Copy + Eq + Hash> TextLayout<G> {
             let (approx_ink_x, approx_ink_width) =
                 line_ink.map_or((align_off, 0.0), |rect| (rect.x, rect.w));
 
-            lines.push(LayoutLine {
-                y_top,
-                height: line_height,
-                baseline_y: new_baseline_y,
-                glyph_start,
-                glyph_end: glyph_count,
-                cluster_start,
-                cluster_end: clusters.len(),
-                byte_start: line.byte_start,
-                byte_end: line.byte_end,
-                logical_width: logical_line_w,
-                approx_ink_width,
-                logical_x: align_off,
-                approx_ink_x,
-                end_kind: line.end_kind,
-            });
+            line.logical_width = logical_line_w;
+            line.approx_ink_width = approx_ink_width;
+            line.logical_x = align_off;
+            line.approx_ink_x = approx_ink_x;
+
+            lines.push(line);
         }
 
         let metrics_lines = lines
@@ -574,11 +450,7 @@ impl<G: Copy + Eq + Hash> TextLayout<G> {
         Self {
             metrics,
             lines,
-            clusters,
-            runs: working_runs
-                .into_iter()
-                .map(|working_run| working_run.shaped)
-                .collect(),
+            runs: working_runs,
         }
     }
 
@@ -608,23 +480,15 @@ struct ResolvedGlyphIter<'a, G> {
     layout: &'a TextLayout<G>,
     line_index: usize,
     cluster_index: usize,
-    cluster_end: usize,
     glyph_index: usize,
 }
 
 impl<'a, G> ResolvedGlyphIter<'a, G> {
     fn line(layout: &'a TextLayout<G>, line_index: usize) -> Self {
-        let (cluster_index, cluster_end) = layout
-            .lines
-            .get(line_index)
-            .map(|line| (line.cluster_start, line.cluster_end))
-            .unwrap_or((0, 0));
-
         Self {
             layout,
             line_index,
-            cluster_index,
-            cluster_end,
+            cluster_index: 0,
             glyph_index: 0,
         }
     }
@@ -636,8 +500,8 @@ impl<G: Copy> Iterator for ResolvedGlyphIter<'_, G> {
     fn next(&mut self) -> Option<Self::Item> {
         let line = self.layout.lines.get(self.line_index)?;
 
-        while self.cluster_index < self.cluster_end {
-            let cluster = &self.layout.clusters[self.cluster_index];
+        while self.cluster_index < line.clusters.len() {
+            let cluster = &line.clusters[self.cluster_index];
             if !cluster.glyphs_visible {
                 self.cluster_index += 1;
                 self.glyph_index = 0;
@@ -645,11 +509,12 @@ impl<G: Copy> Iterator for ResolvedGlyphIter<'_, G> {
             }
 
             match cluster.source {
-                LayoutClusterSource::Shaped {
+                WorkingClusterSource::Shaped {
                     run_index,
                     cluster_index,
                 } => {
-                    let shaped_cluster = &self.layout.runs[run_index].clusters[cluster_index];
+                    let shaped_cluster =
+                        &self.layout.runs[run_index].shaped.clusters[cluster_index];
                     if let Some(glyph) = shaped_cluster.glyphs.get(self.glyph_index) {
                         self.glyph_index += 1;
                         return Some(LayoutGlyph {
@@ -661,7 +526,7 @@ impl<G: Copy> Iterator for ResolvedGlyphIter<'_, G> {
                         });
                     }
                 }
-                LayoutClusterSource::Empty => {}
+                WorkingClusterSource::Empty => {}
             }
 
             self.cluster_index += 1;

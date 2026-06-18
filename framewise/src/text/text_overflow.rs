@@ -1,18 +1,17 @@
 use super::{
     EllipsisFallback, TextBackend, TextStyle, WorkingCluster, WorkingClusterSource, WorkingRun,
 };
-use std::marker::PhantomData;
 
 const ELLIPSIS_MARKER: &str = "\u{2026}";
 
 pub(super) fn apply_ellipsis_x<B: TextBackend>(
     backend: &mut B,
     runs: &mut Vec<WorkingRun<B::ShapedGlyphId>>,
-    clusters: Vec<WorkingCluster<B::ShapedGlyphId>>,
+    clusters: Vec<WorkingCluster>,
     w: f32,
     style: TextStyle,
     fallback: EllipsisFallback,
-) -> Vec<WorkingCluster<B::ShapedGlyphId>> {
+) -> Vec<WorkingCluster> {
     let shaped = backend.shape_text(ELLIPSIS_MARKER, style);
     let run_index = runs.len();
     let ell_w = shaped
@@ -38,7 +37,6 @@ pub(super) fn apply_ellipsis_x<B: TextBackend>(
         is_whitespace: false,
         is_soft_wrap_boundary: false,
         glyphs_visible: true,
-        _marker: PhantomData,
     };
 
     if ell_w > w {

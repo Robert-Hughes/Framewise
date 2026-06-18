@@ -17,14 +17,20 @@ The boundary is:
 
 - the sample backend returns `ShapedText` containing shaped clusters and shaped
   glyph IDs,
-- Framewise converts that into `TextLayout`, with private final line/cluster
-  records over the shared shaped runs,
+- Framewise converts that into private working line/cluster records stored by
+  `TextLayout` over the shared shaped runs,
 - `TextLayout::emit_glyphs` later calls the backend's `prepare_glyph` for each
   visible drawable layout glyph,
 - the renderer resolves the returned `PreparedGlyphHandle`s to atlas data.
 
 There is no sample run table for prepared text layouts, no `TextHandle`, and no
 `DrawCmd::Text`.
+
+Framewise keeps this as a two-conversion pipeline: backend-owned cached
+`ShapedText` becomes Framewise-owned working layout records once, and those
+working records become backend-prepared `DrawGlyph`s when commands are emitted.
+Between those steps, Framewise mutates or moves the same clusters for wrapping,
+overflow, alignment, metrics, caret geometry, and hit-testing.
 
 ## Backend Responsibilities
 

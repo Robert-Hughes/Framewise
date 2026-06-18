@@ -22,10 +22,22 @@ fn visible(layout: &TextLayout<u32>) -> String {
 
 fn line_source(text: &str, layout: &TextLayout<u32>, line_idx: usize) -> String {
     let line = &layout.lines[line_idx];
-    layout.clusters[line.cluster_start..line.cluster_end]
+    line.clusters
         .iter()
         .map(|cluster| &text[cluster.byte_start..cluster.byte_end])
         .collect()
+}
+
+fn total_clusters(layout: &TextLayout<u32>) -> usize {
+    layout.lines.iter().map(|line| line.clusters.len()).sum()
+}
+
+fn first_cluster(layout: &TextLayout<u32>) -> &WorkingCluster {
+    layout
+        .lines
+        .iter()
+        .find_map(|line| line.clusters.first())
+        .expect("layout should contain a cluster")
 }
 
 fn line_width(text: &str, flow: TextFlow) -> f32 {
@@ -33,17 +45,25 @@ fn line_width(text: &str, flow: TextFlow) -> f32 {
 }
 
 fn visual_lines(layout: &TextLayout<u32>) -> Vec<String> {
-    let glyphs = layout.resolved_glyphs();
     layout
         .lines
         .iter()
-        .map(|line| {
-            glyphs[line.glyph_start..line.glyph_end]
-                .iter()
+        .enumerate()
+        .map(|(line_idx, _)| {
+            layout
+                .iter_resolved_line_glyphs(line_idx)
                 .filter_map(|glyph| char::from_u32(glyph.id))
                 .collect()
         })
         .collect()
+}
+
+fn line_visible_glyph_count(layout: &TextLayout<u32>, line_idx: usize) -> usize {
+    layout.iter_resolved_line_glyphs(line_idx).count()
+}
+
+fn flattened_clusters(layout: &TextLayout<u32>) -> impl Iterator<Item = &WorkingCluster> {
+    layout.lines.iter().flat_map(|line| line.clusters.iter())
 }
 
 fn wrap_word_keep() -> TextFlow {
@@ -387,7 +407,7 @@ fn wrap_cluster_keep_moves_overwide_cluster_to_new_line_before_fallback() {
         (layout.lines[1].byte_start, layout.lines[1].byte_end),
         (3, 4)
     );
-    assert_eq!(layout.clusters[layout.lines[1].cluster_start].x, 0.0);
+    assert_eq!(layout.lines[1].clusters[0].x, 0.0);
 }
 
 #[test]
@@ -403,7 +423,7 @@ fn wrap_word_keep_moves_overlong_word_to_new_line_before_fallback() {
         (layout.lines[1].byte_start, layout.lines[1].byte_end),
         (3, 9)
     );
-    assert_eq!(layout.clusters[layout.lines[1].cluster_start].x, 0.0);
+    assert_eq!(layout.lines[1].clusters[0].x, 0.0);
 }
 
 #[test]
@@ -431,7 +451,7 @@ fn overwide_whitespace_on_empty_line_uses_keep_fallbacks() {
         let layout = layout(" ", flow, TextBounds::width(1.0));
 
         assert_eq!(layout.metrics().line_count, 1);
-        assert_eq!(layout.clusters.len(), 1);
+        assert_eq!(total_clusters(&layout), 1);
         assert_eq!(layout.metrics().lines[0].logical_width, 8.0);
     }
 }
@@ -456,7 +476,13 @@ fn soft_wrap_boundary_space_collapses_between_words() {
     );
     assert_eq!(layout.lines[0].end_kind, LineEndKind::SoftWrapWhitespace);
     assert_eq!(layout.lines[0].logical_width, 40.0);
-    assert!(layout.clusters[layout.lines[0].cluster_end - 1].is_soft_wrap_boundary);
+    assert!(
+        layout.lines[0]
+            .clusters
+            .last()
+            .unwrap()
+            .is_soft_wrap_boundary
+    );
 }
 
 #[test]
@@ -476,7 +502,13 @@ fn trailing_boundary_space_creates_empty_line_under_word_wrap() {
     assert_eq!(layout.lines[1].end_kind, LineEndKind::EndOfText);
     assert_eq!(layout.lines[0].logical_width, 40.0);
     assert_eq!(layout.lines[1].logical_width, 0.0);
-    assert!(layout.clusters[layout.lines[0].cluster_end - 1].is_soft_wrap_boundary);
+    assert!(
+        layout.lines[0]
+            .clusters
+            .last()
+            .unwrap()
+            .is_soft_wrap_boundary
+    );
 }
 
 #[test]
@@ -545,7 +577,13 @@ fn leading_spaces_are_preserved_and_only_overflowing_spaces_collapse() {
         (6, 11)
     );
     assert_eq!(six_spaces.lines[0].logical_width, 40.0);
-    assert!(six_spaces.clusters[six_spaces.lines[0].cluster_end - 1].is_soft_wrap_boundary);
+    assert!(
+        six_spaces.lines[0]
+            .clusters
+            .last()
+            .unwrap()
+            .is_soft_wrap_boundary
+    );
 }
 
 #[test]
@@ -719,7 +757,7 @@ fn horizontal_alignment_affects_line_offsets() {
         let layout = layout("hi", flow, TextBounds::width(96.0));
 
         assert_close(layout.lines[0].logical_x, expected_x, "logical_x");
-        assert_close(layout.clusters[0].x, expected_x, "cluster x");
+        assert_close(first_cluster(&layout).x, expected_x, "cluster x");
     }
 }
 
@@ -871,7 +909,7 @@ fn test_word_wrap_preserves_spaces() {
     let text = "hello there";
     let layout = layout(text, TextFlow::wrapped(), TextBounds::width(500.0));
 
-    assert_eq!(layout.clusters.len(), text.chars().count());
+    assert_eq!(total_clusters(&layout), text.chars().count());
     assert_eq!(line_source(text, &layout, 0), text);
 }
 
@@ -917,12 +955,9 @@ fn wrap_cluster_keep_does_not_split_combining_mark_cluster() {
     let text = "e\u{0301}x";
     let layout = layout(text, wrap_cluster_keep(), TextBounds::width(4.0));
 
-    assert_eq!(layout.clusters[0].byte_start, 0);
-    assert_eq!(layout.clusters[0].byte_end, "e\u{0301}".len());
-    assert_eq!(
-        layout.clusters[0].glyph_end - layout.clusters[0].glyph_start,
-        2
-    );
+    assert_eq!(first_cluster(&layout).byte_start, 0);
+    assert_eq!(first_cluster(&layout).byte_end, "e\u{0301}".len());
+    assert_eq!(line_visible_glyph_count(&layout, 0), 2);
 }
 
 #[test]
@@ -950,18 +985,12 @@ fn hit_test_cannot_target_a_line_made_from_half_a_cluster() {
 }
 
 #[test]
-fn line_records_include_cluster_ranges() {
+fn line_records_own_clusters() {
     let layout = layout("ab cd", wrap_word_cluster_drop(), TextBounds::width(16.1));
 
-    assert!(layout
-        .lines
-        .iter()
-        .all(|line| line.cluster_start <= line.cluster_end));
-    assert!(layout
-        .lines
-        .iter()
-        .all(|line| line.glyph_start <= line.glyph_end));
-    assert_eq!(layout.lines[0].cluster_start, 0);
+    assert_eq!(layout.lines.len(), layout.metrics().line_count as usize);
+    assert!(layout.lines.iter().all(|line| !line.clusters.is_empty()));
+    assert_eq!(total_clusters(&layout), 5);
 }
 
 #[test]
@@ -1351,7 +1380,7 @@ fn test_overflow_x_keep_y_ellipsis_fallback_keep() {
     );
 
     assert!(layout.metrics().truncated_vertical);
-    assert!(!layout.clusters.is_empty());
+    assert!(total_clusters(&layout) > 0);
 }
 
 #[test]
@@ -1491,7 +1520,13 @@ fn soft_wrap_collapses_fitted_boundary_space_before_next_word() {
     let layout = layout("hello world", flow, TextBounds::width(wrap_w));
 
     assert_eq!(layout.lines[0].logical_width, line_width("hello", flow));
-    assert!(layout.clusters[layout.lines[0].cluster_end - 1].is_soft_wrap_boundary);
+    assert!(
+        layout.lines[0]
+            .clusters
+            .last()
+            .unwrap()
+            .is_soft_wrap_boundary
+    );
 }
 
 #[test]
@@ -1545,7 +1580,13 @@ fn whitespace_that_wraps_from_non_empty_line_does_not_use_wrap_word_keep_fallbac
 
     assert_eq!(layout.metrics().line_count, 2);
     assert_eq!(layout.lines[0].logical_width, 40.0);
-    assert!(layout.clusters[layout.lines[0].cluster_end - 1].is_soft_wrap_boundary);
+    assert!(
+        layout.lines[0]
+            .clusters
+            .last()
+            .unwrap()
+            .is_soft_wrap_boundary
+    );
 }
 
 #[test]
@@ -1554,7 +1595,13 @@ fn whitespace_that_wraps_from_non_empty_line_does_not_use_wrap_cluster_keep_fall
 
     assert_eq!(layout.metrics().line_count, 2);
     assert_eq!(layout.lines[0].logical_width, 40.0);
-    assert!(layout.clusters[layout.lines[0].cluster_end - 1].is_soft_wrap_boundary);
+    assert!(
+        layout.lines[0]
+            .clusters
+            .last()
+            .unwrap()
+            .is_soft_wrap_boundary
+    );
 }
 
 #[test]
@@ -1600,7 +1647,7 @@ fn overwide_whitespace_on_empty_line_uses_wrap_word_cluster_drop_fallback() {
 
     assert_eq!(layout.metrics().line_count, 1);
     assert_eq!(layout.metrics().lines[0].logical_width, 0.0);
-    assert!(layout.clusters.is_empty());
+    assert_eq!(total_clusters(&layout), 0);
 }
 
 #[test]
@@ -1609,7 +1656,7 @@ fn overwide_whitespace_on_empty_line_uses_wrap_word_cluster_keep_fallback() {
 
     assert_eq!(layout.metrics().line_count, 1);
     assert_eq!(layout.metrics().lines[0].logical_width, 8.0);
-    assert_eq!(layout.clusters.len(), 1);
+    assert_eq!(total_clusters(&layout), 1);
 }
 
 #[test]
@@ -1618,7 +1665,7 @@ fn overwide_whitespace_on_empty_line_uses_wrap_word_drop_fallback() {
 
     assert_eq!(layout.metrics().line_count, 1);
     assert_eq!(layout.metrics().lines[0].logical_width, 0.0);
-    assert!(layout.clusters.is_empty());
+    assert_eq!(total_clusters(&layout), 0);
 }
 
 #[test]
@@ -1627,7 +1674,7 @@ fn overwide_whitespace_on_empty_line_uses_wrap_word_keep_fallback() {
 
     assert_eq!(layout.metrics().line_count, 1);
     assert_eq!(layout.metrics().lines[0].logical_width, 8.0);
-    assert_eq!(layout.clusters.len(), 1);
+    assert_eq!(total_clusters(&layout), 1);
 }
 
 #[test]

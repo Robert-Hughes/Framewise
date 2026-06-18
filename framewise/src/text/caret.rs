@@ -1,4 +1,4 @@
-use super::{CaretGeom, CaretPosition, LayoutCluster, TextLayout};
+use super::{CaretGeom, CaretPosition, TextLayout, WorkingCluster};
 use crate::types::Vec2;
 
 impl<G> TextLayout<G> {
@@ -14,7 +14,7 @@ impl<G> TextLayout<G> {
     /// If the boundary whitespace is terminal, `AfterCluster` is on the
     /// following empty visual line created for editor feedback.
     pub fn caret_geom(&self, position: CaretPosition) -> CaretGeom {
-        let Some((cluster_idx, cluster)) = self.find_caret_cluster(position) else {
+        let Some((line_idx, _, cluster)) = self.find_caret_cluster(position) else {
             let line = self
                 .lines
                 .first()
@@ -26,7 +26,6 @@ impl<G> TextLayout<G> {
             };
         };
 
-        let line_idx = self.line_index_for_cluster(cluster_idx).unwrap_or(0);
         let line = &self.lines[line_idx];
         let (x, y_top, height) = match position {
             CaretPosition::BeforeCluster { .. } => (cluster.x, line.y_top, line.height),
@@ -34,8 +33,8 @@ impl<G> TextLayout<G> {
                 if cluster.is_hard_break || cluster.is_soft_wrap_boundary =>
             {
                 let next_line = self.lines.get(line_idx + 1).unwrap_or(line);
-                let next_clusters = &self.clusters[next_line.cluster_start..next_line.cluster_end];
-                let next_x = next_clusters
+                let next_x = next_line
+                    .clusters
                     .first()
                     .map(|cluster| cluster.x)
                     .unwrap_or(next_line.logical_x);
@@ -75,7 +74,7 @@ impl<G> TextLayout<G> {
             .position(|line| pos.y < line.y_top + line.height)
             .unwrap_or_else(|| self.lines.len().saturating_sub(1));
         let line = &self.lines[line_idx];
-        let clusters = &self.clusters[line.cluster_start..line.cluster_end];
+        let clusters = &line.clusters;
         if clusters.is_empty() {
             return self.empty_line_caret_position(line_idx);
         }
@@ -123,7 +122,7 @@ impl<G> TextLayout<G> {
             .position(|line| pos.y < line.y_top + line.height)
             .unwrap_or_else(|| self.lines.len().saturating_sub(1));
         let line = &self.lines[line_idx];
-        let clusters = &self.clusters[line.cluster_start..line.cluster_end];
+        let clusters = &line.clusters;
         if clusters.is_empty() {
             return 0;
         }
@@ -147,7 +146,7 @@ impl<G> TextLayout<G> {
     /// `AfterCluster` returns its `byte_end`; `EmptyText` returns `0`.
     pub fn caret_insertion_byte(&self, position: CaretPosition) -> usize {
         match self.find_caret_cluster(position) {
-            Some((_, cluster)) => match position {
+            Some((_, _, cluster)) => match position {
                 CaretPosition::BeforeCluster { .. } => cluster.byte_start,
                 CaretPosition::AfterCluster { .. } => cluster.byte_end,
                 CaretPosition::EmptyText => 0,
@@ -166,11 +165,12 @@ impl<G> TextLayout<G> {
     /// prepared text's end. Empty text returns `EmptyText` for every requested
     /// byte index.
     pub fn caret_position_at_insertion_byte(&self, byte_index: usize) -> CaretPosition {
-        if self.clusters.is_empty() {
+        if self.first_cluster().is_none() {
             return CaretPosition::EmptyText;
         }
 
-        for (idx, cluster) in self.clusters.iter().enumerate() {
+        let mut clusters = self.iter_clusters().peekable();
+        while let Some((_, _, cluster)) = clusters.next() {
             if byte_index <= cluster.byte_start || byte_index < cluster.byte_end {
                 return CaretPosition::BeforeCluster {
                     cluster_byte_index: cluster.byte_start,
@@ -178,7 +178,7 @@ impl<G> TextLayout<G> {
             }
 
             if byte_index == cluster.byte_end {
-                if let Some(next) = self.clusters.get(idx + 1) {
+                if let Some((_, _, next)) = clusters.peek() {
                     if next.byte_start == byte_index {
                         return CaretPosition::BeforeCluster {
                             cluster_byte_index: next.byte_start,
@@ -191,7 +191,7 @@ impl<G> TextLayout<G> {
             }
         }
 
-        let last = self.clusters.last().expect("clusters is non-empty");
+        let last = self.last_cluster().expect("clusters is non-empty");
         CaretPosition::AfterCluster {
             cluster_byte_index: last.byte_start,
         }
@@ -209,14 +209,18 @@ impl<G> TextLayout<G> {
         let byte_index = self.caret_insertion_byte(position);
         if let CaretPosition::BeforeCluster { cluster_byte_index } = position {
             if let Some(cluster) = self
-                .clusters
-                .iter()
+                .iter_clusters()
+                .map(|(_, _, cluster)| cluster)
                 .find(|cluster| cluster.byte_start == cluster_byte_index)
             {
-                if let Some(previous) = self.clusters.iter().rev().find(|previous| {
-                    previous.byte_end == cluster.byte_start
-                        && (previous.is_hard_break || previous.is_soft_wrap_boundary)
-                }) {
+                if let Some(previous) = self
+                    .iter_clusters_rev()
+                    .find(|(_, _, previous)| {
+                        previous.byte_end == cluster.byte_start
+                            && (previous.is_hard_break || previous.is_soft_wrap_boundary)
+                    })
+                    .map(|(_, _, previous)| previous)
+                {
                     return CaretPosition::AfterCluster {
                         cluster_byte_index: previous.byte_start,
                     };
@@ -242,8 +246,7 @@ impl<G> TextLayout<G> {
         let byte_index = self.caret_insertion_byte(position);
         let Some(target_byte) = self.next_insertion_boundary(byte_index) else {
             return self
-                .clusters
-                .last()
+                .last_cluster()
                 .map(|cluster| CaretPosition::AfterCluster {
                     cluster_byte_index: cluster.byte_start,
                 })
@@ -252,46 +255,36 @@ impl<G> TextLayout<G> {
         self.caret_position_for_movement_target(target_byte)
             .unwrap_or_else(|| self.caret_position_at_insertion_byte(target_byte))
     }
-    fn find_caret_cluster(&self, position: CaretPosition) -> Option<(usize, &LayoutCluster)> {
+    fn find_caret_cluster(
+        &self,
+        position: CaretPosition,
+    ) -> Option<(usize, usize, &WorkingCluster)> {
         let cluster_byte_index = match position {
             CaretPosition::BeforeCluster { cluster_byte_index }
             | CaretPosition::AfterCluster { cluster_byte_index } => cluster_byte_index,
             CaretPosition::EmptyText => return None,
         };
 
-        self.clusters
-            .iter()
-            .enumerate()
-            .find(|(_, cluster)| cluster.byte_start == cluster_byte_index)
+        self.iter_clusters()
+            .find(|(_, _, cluster)| cluster.byte_start == cluster_byte_index)
             .or_else(|| {
-                self.clusters.iter().enumerate().find(|(_, cluster)| {
+                self.iter_clusters().find(|(_, _, cluster)| {
                     cluster_byte_index <= cluster.byte_start
                         || cluster_byte_index < cluster.byte_end
                 })
             })
-            .or_else(|| self.clusters.iter().enumerate().next_back())
-    }
-
-    fn line_index_for_cluster(&self, cluster_idx: usize) -> Option<usize> {
-        self.lines
-            .iter()
-            .position(|line| cluster_idx >= line.cluster_start && cluster_idx < line.cluster_end)
+            .or_else(|| self.iter_clusters().next_back())
     }
 
     fn empty_line_caret_position(&self, line_idx: usize) -> CaretPosition {
-        if self.clusters.is_empty() {
+        if self.first_cluster().is_none() {
             return CaretPosition::EmptyText;
         }
 
         self.lines
             .get(..line_idx)
-            .and_then(|lines| {
-                lines
-                    .iter()
-                    .rev()
-                    .find(|line| line.cluster_end > line.cluster_start)
-            })
-            .and_then(|line| self.clusters.get(line.cluster_end - 1))
+            .and_then(|lines| lines.iter().rev().find(|line| !line.clusters.is_empty()))
+            .and_then(|line| line.clusters.last())
             .map(|cluster| CaretPosition::AfterCluster {
                 cluster_byte_index: cluster.byte_start,
             })
@@ -299,23 +292,23 @@ impl<G> TextLayout<G> {
     }
 
     fn previous_insertion_boundary(&self, byte_index: usize) -> Option<usize> {
-        self.clusters
-            .iter()
+        self.iter_clusters()
+            .map(|(_, _, cluster)| cluster)
             .flat_map(|cluster| [cluster.byte_start, cluster.byte_end])
             .filter(|byte| *byte < byte_index)
             .max()
     }
 
     fn next_insertion_boundary(&self, byte_index: usize) -> Option<usize> {
-        self.clusters
-            .iter()
+        self.iter_clusters()
+            .map(|(_, _, cluster)| cluster)
             .flat_map(|cluster| [cluster.byte_start, cluster.byte_end])
             .filter(|byte| *byte > byte_index)
             .min()
     }
 
     fn caret_position_for_movement_target(&self, target_byte: usize) -> Option<CaretPosition> {
-        if let Some(cluster) = self.clusters.iter().find(|cluster| {
+        if let Some((_, _, cluster)) = self.iter_clusters().find(|(_, _, cluster)| {
             (cluster.is_hard_break || cluster.is_soft_wrap_boundary)
                 && cluster.byte_end == target_byte
         }) {
@@ -324,7 +317,7 @@ impl<G> TextLayout<G> {
             });
         }
 
-        if let Some(cluster) = self.clusters.iter().find(|cluster| {
+        if let Some((_, _, cluster)) = self.iter_clusters().find(|(_, _, cluster)| {
             (cluster.is_hard_break || cluster.is_soft_wrap_boundary)
                 && cluster.byte_start == target_byte
         }) {
@@ -334,5 +327,39 @@ impl<G> TextLayout<G> {
         }
 
         None
+    }
+
+    fn iter_clusters(&self) -> impl DoubleEndedIterator<Item = (usize, usize, &WorkingCluster)> {
+        self.lines.iter().enumerate().flat_map(|(line_idx, line)| {
+            line.clusters
+                .iter()
+                .enumerate()
+                .map(move |(cluster_idx, cluster)| (line_idx, cluster_idx, cluster))
+        })
+    }
+
+    fn iter_clusters_rev(&self) -> impl Iterator<Item = (usize, usize, &WorkingCluster)> {
+        self.lines
+            .iter()
+            .enumerate()
+            .rev()
+            .flat_map(|(line_idx, line)| {
+                line.clusters
+                    .iter()
+                    .enumerate()
+                    .rev()
+                    .map(move |(cluster_idx, cluster)| (line_idx, cluster_idx, cluster))
+            })
+    }
+
+    fn first_cluster(&self) -> Option<&WorkingCluster> {
+        self.lines.iter().find_map(|line| line.clusters.first())
+    }
+
+    fn last_cluster(&self) -> Option<&WorkingCluster> {
+        self.lines
+            .iter()
+            .rev()
+            .find_map(|line| line.clusters.last())
     }
 }

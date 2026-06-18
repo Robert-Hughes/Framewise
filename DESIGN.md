@@ -63,15 +63,35 @@ let layout = layout_text(text_backend, text, style, bounds);
 let metrics = layout.metrics();
 ```
 
-It returns an owned `TextLayout<G>`. The layout stores private final line and
-cluster records plus shared shaped runs; it does not store a permanent flat
-glyph vector. Widgets query that layout directly for metrics, caret geometry,
-hit-testing, insertion byte conversion, caret movement, and draw emission.
-Resolved glyphs are produced only when explicitly materialised for
+It returns an owned `TextLayout<G>`. The layout stores private final
+Framewise-owned working line records, each with its own working clusters, plus
+shared shaped runs. It does not store a permanent flat glyph vector or a flat
+final cluster vector. Widgets query that layout directly for metrics, caret
+geometry, hit-testing, insertion byte conversion, caret movement, and draw
+emission. Resolved glyphs are produced only when explicitly materialised for
 tests/debugging or emitted for drawing. There is no `TextHandle` or
 `TextLayoutHandle` indirection, and there is no Framewise-side layout cache by
 default. Caching, if an application needs it, belongs above this owned value
 API.
+
+Framewise text layout has exactly two conversion boundaries:
+
+1. Backend shaping output -> Framewise working layout representation. The
+   backend returns cached immutable `ShapedText`. Framewise converts shaped runs
+   into its own working lines/clusters exactly once. These working clusters
+   store source byte ranges, logical x/advance, visibility, wrapping state, and
+   source references into shaped runs.
+2. Framewise working layout representation -> draw commands. When emitting
+   text, Framewise resolves final glyph origins from line baseline, cluster x,
+   and shaped glyph offsets, then asks the backend to prepare glyphs and appends
+   `DrawGlyph`s into `DrawCommands`.
+
+Between those boundaries, layout mutates and moves the same working cluster
+objects and derives metrics, caret positions, and hit-test results. It should
+not copy clusters into another intermediate representation. `Working*` types
+are Framewise-owned layout-space records. They are not backend shaping output,
+and they are not public API records. Some working records are stored inside
+`TextLayout` after finalisation.
 
 Drawing is a second step. `TextLayout::emit_glyphs(...)` resolves visible glyph
 positions lazily from final line/cluster records plus shared shaped runs, passes
@@ -953,7 +973,7 @@ Text rendering is notoriously complex (shaping, hinting, atlas caching) and is a
 
 To draw text, the widget building pass must have access to a `TextBackend` provided by the application.
 
-- **Layout pass:** The widget calls `layout_text(...)` or `measure_text(...)`. Framewise asks the backend to shape text and provide line metrics, then builds an owned `TextLayout` containing line, cluster, glyph, caret, hit-test, and metrics data.
+- **Layout pass:** The widget calls `layout_text(...)` or `measure_text(...)`. Framewise asks the backend to shape text and provide line metrics, then builds an owned `TextLayout` containing nested working line/cluster state plus caret, hit-test, and metrics data.
 - **Emission pass:** The widget calls `TextLayout::emit_glyphs(...)`. Framewise asks the backend to prepare each visible drawable layout glyph at its final glyph origin. Returned `DrawGlyph`s are appended to the `DrawCommands` glyph arena and referenced by `DrawCmd::GlyphRun`.
 - **Render pass:** The renderer reads each glyph run, resolves every `PreparedGlyphHandle` through backend/application resource tables, and draws each prepared bitmap at `DrawGlyph::top_left`.
 

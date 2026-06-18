@@ -2,7 +2,6 @@ use super::{
     TextBackend, TextStyle, WorkingCluster, WorkingClusterSource, WorkingRun, WorkingSourceLine,
     WrapClusterFallback, WrapWordFallback,
 };
-use std::marker::PhantomData;
 
 pub(super) fn make_source_line<B: TextBackend>(
     backend: &mut B,
@@ -12,7 +11,7 @@ pub(super) fn make_source_line<B: TextBackend>(
     segment_start: usize,
     segment_end: usize,
     has_newline: bool,
-) -> WorkingSourceLine<B::ShapedGlyphId> {
+) -> WorkingSourceLine {
     let segment = &text[segment_start..segment_end];
     let mut clusters = Vec::new();
 
@@ -40,7 +39,6 @@ pub(super) fn make_source_line<B: TextBackend>(
                 is_whitespace: shaped_cluster.is_whitespace,
                 is_soft_wrap_boundary: false,
                 glyphs_visible: true,
-                _marker: PhantomData,
             });
         }
     }
@@ -57,7 +55,6 @@ pub(super) fn make_source_line<B: TextBackend>(
             is_whitespace: true,
             is_soft_wrap_boundary: false,
             glyphs_visible: false,
-            _marker: PhantomData,
         });
     }
 
@@ -72,7 +69,7 @@ pub(super) fn make_source_line<B: TextBackend>(
     }
 }
 
-pub(super) fn logical_cluster_line_width<G>(clusters: &[WorkingCluster<G>]) -> f32 {
+pub(super) fn logical_cluster_line_width(clusters: &[WorkingCluster]) -> f32 {
     let start = logical_cluster_line_start(clusters);
     clusters
         .iter()
@@ -81,7 +78,7 @@ pub(super) fn logical_cluster_line_width<G>(clusters: &[WorkingCluster<G>]) -> f
         - start
 }
 
-pub(super) fn logical_cluster_line_start<G>(clusters: &[WorkingCluster<G>]) -> f32 {
+pub(super) fn logical_cluster_line_start(clusters: &[WorkingCluster]) -> f32 {
     clusters
         .iter()
         .map(|cluster| cluster.x)
@@ -89,8 +86,8 @@ pub(super) fn logical_cluster_line_start<G>(clusters: &[WorkingCluster<G>]) -> f
         .unwrap_or(0.0)
 }
 
-pub(super) fn append_empty_after_terminal_soft_wrap_boundary<G>(
-    lines: &mut Vec<Vec<WorkingCluster<G>>>,
+pub(super) fn append_empty_after_terminal_soft_wrap_boundary(
+    lines: &mut Vec<Vec<WorkingCluster>>,
     source_byte_end: usize,
 ) {
     let has_terminal_boundary = lines
@@ -104,7 +101,7 @@ pub(super) fn append_empty_after_terminal_soft_wrap_boundary<G>(
     }
 }
 
-fn collapse_trailing_soft_wrap_space<G>(clusters: &mut [WorkingCluster<G>]) {
+fn collapse_trailing_soft_wrap_space(clusters: &mut [WorkingCluster]) {
     let has_non_whitespace_content = clusters
         .iter()
         .rev()
@@ -120,12 +117,12 @@ fn collapse_trailing_soft_wrap_space<G>(clusters: &mut [WorkingCluster<G>]) {
     }
 }
 
-pub(super) fn wrap_clusters<G: Clone>(
-    clusters: Vec<WorkingCluster<G>>,
+pub(super) fn wrap_clusters(
+    clusters: Vec<WorkingCluster>,
     w: f32,
     fallback: WrapClusterFallback,
-) -> Vec<Vec<WorkingCluster<G>>> {
-    let mut lines: Vec<Vec<WorkingCluster<G>>> = Vec::new();
+) -> Vec<Vec<WorkingCluster>> {
+    let mut lines: Vec<Vec<WorkingCluster>> = Vec::new();
     if clusters.is_empty() {
         return vec![Vec::new()];
     }
@@ -138,11 +135,7 @@ pub(super) fn wrap_clusters<G: Clone>(
             let mut appended = false;
             if current_line.is_empty() {
                 if let Some(last_line) = lines.last_mut() {
-                    if last_line
-                        .last()
-                        .map(|c: &WorkingCluster<G>| c.is_hard_break)
-                        != Some(true)
-                    {
+                    if last_line.last().map(|c: &WorkingCluster| c.is_hard_break) != Some(true) {
                         moved.shift_x(-moved.x);
                         last_line.push(moved.clone());
                         appended = true;
@@ -218,22 +211,22 @@ pub(super) fn wrap_clusters<G: Clone>(
     lines
 }
 
-pub(super) fn wrap_clusters_at_words<G: Clone>(
-    clusters: Vec<WorkingCluster<G>>,
+pub(super) fn wrap_clusters_at_words(
+    clusters: Vec<WorkingCluster>,
     w: f32,
     fallback: WrapWordFallback,
-) -> Vec<Vec<WorkingCluster<G>>> {
+) -> Vec<Vec<WorkingCluster>> {
     if clusters.is_empty() {
         return vec![Vec::new()];
     }
 
-    struct Seg<G> {
+    struct Seg {
         is_space: bool,
-        clusters: Vec<WorkingCluster<G>>,
+        clusters: Vec<WorkingCluster>,
         logical_w: f32,
     }
 
-    let mut segments: Vec<Seg<G>> = Vec::new();
+    let mut segments: Vec<Seg> = Vec::new();
     for cluster in clusters {
         let is_space = cluster.is_whitespace || cluster.is_hard_break;
         if !is_space {

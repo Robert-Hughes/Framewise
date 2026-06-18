@@ -1,4 +1,4 @@
-use super::{LayoutClusterSource, PrepareGlyphRequest, TextBackend, TextLayout, TextStyle};
+use super::{PrepareGlyphRequest, TextBackend, TextLayout, TextStyle, WorkingClusterSource};
 use crate::{
     draw::DrawCommands,
     types::{Color, Vec2},
@@ -24,17 +24,17 @@ impl<G: Copy> TextLayout<G> {
         let glyph_run_start = commands.glyph_run_start();
 
         for line in &self.lines {
-            for cluster in &self.clusters[line.cluster_start..line.cluster_end] {
+            for cluster in &line.clusters {
                 if !cluster.glyphs_visible {
                     continue;
                 }
 
                 match cluster.source {
-                    LayoutClusterSource::Shaped {
+                    WorkingClusterSource::Shaped {
                         run_index,
                         cluster_index,
                     } => {
-                        let shaped_cluster = &self.runs[run_index].clusters[cluster_index];
+                        let shaped_cluster = &self.runs[run_index].shaped.clusters[cluster_index];
                         for glyph in &shaped_cluster.glyphs {
                             let glyph_origin = Vec2::new(
                                 origin.x + cluster.x + glyph.x,
@@ -49,7 +49,7 @@ impl<G: Copy> TextLayout<G> {
                             }
                         }
                     }
-                    LayoutClusterSource::Empty => {}
+                    WorkingClusterSource::Empty => {}
                 }
             }
         }
