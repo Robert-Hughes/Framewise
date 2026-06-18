@@ -628,6 +628,7 @@ pub struct TextLayout<G> {
     /// Final Framewise-owned visual line records in block-local coordinates.
     pub(crate) lines: Vec<WorkingProcessedLine>,
     pub(crate) runs: Vec<WorkingRun<G>>,
+    pub(crate) visible_glyph_count: usize,
 }
 
 #[derive(Debug, Clone, PartialEq)]

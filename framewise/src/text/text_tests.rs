@@ -62,6 +62,13 @@ fn line_visible_glyph_count(layout: &TextLayout<u32>, line_idx: usize) -> usize 
     layout.iter_resolved_line_glyphs(line_idx).count()
 }
 
+fn assert_visible_glyph_count_matches_resolved(layout: &TextLayout<u32>) {
+    assert_eq!(
+        layout.visible_glyph_count,
+        layout.iter_resolved_glyphs().count()
+    );
+}
+
 fn flattened_clusters(layout: &TextLayout<u32>) -> impl Iterator<Item = &WorkingCluster> {
     layout.lines.iter().flat_map(|line| line.clusters.iter())
 }
@@ -840,6 +847,36 @@ fn resolved_glyphs_match_emitted_layout_origins() {
             Vec2::new(origin.x + resolved.origin.x, origin.y + resolved.origin.y)
         );
     }
+}
+
+#[test]
+fn visible_glyph_count_excludes_hard_breaks() {
+    let layout = layout("a\nb", TextFlow::single_line(), TextBounds::UNBOUNDED);
+
+    assert_eq!(layout.visible_glyph_count, 2);
+    assert_visible_glyph_count_matches_resolved(&layout);
+}
+
+#[test]
+fn visible_glyph_count_excludes_dropped_overflow_clusters() {
+    let layout = layout("abcdef", drop_x_drop_y(), TextBounds::width(16.1));
+
+    assert_eq!(visible(&layout), "ab");
+    assert_eq!(layout.visible_glyph_count, 2);
+    assert_visible_glyph_count_matches_resolved(&layout);
+}
+
+#[test]
+fn visible_glyph_count_includes_visible_ellipsis_glyphs() {
+    let layout = layout(
+        "abc",
+        ellipsis_x_keep_y(EllipsisFallback::Drop),
+        TextBounds::width(16.1),
+    );
+
+    assert_eq!(visible(&layout), "a\u{2026}");
+    assert_eq!(layout.visible_glyph_count, 2);
+    assert_visible_glyph_count_matches_resolved(&layout);
 }
 
 #[test]

@@ -369,6 +369,7 @@ impl<G: Copy + Eq + Hash> TextLayout<G> {
         let mut lines = Vec::with_capacity(processed_lines.len());
         let mut block_width = 0.0_f32;
         let mut block_ink: Option<Rect> = None;
+        let mut visible_glyph_count = 0;
 
         for (idx, mut line) in processed_lines.into_iter().enumerate() {
             line.y_top = idx as f32 * line_height;
@@ -397,6 +398,19 @@ impl<G: Copy + Eq + Hash> TextLayout<G> {
 
             let mut line_ink = None;
             for cluster in &line.clusters {
+                if cluster.glyphs_visible {
+                    if let WorkingClusterSource::Shaped {
+                        run_index,
+                        cluster_index,
+                    } = cluster.source
+                    {
+                        visible_glyph_count += working_runs[run_index].shaped.clusters
+                            [cluster_index]
+                            .glyphs
+                            .len();
+                    }
+                }
+
                 let line_ink_from_cluster =
                     working_cluster_ink(cluster, &working_runs, line.baseline_y);
                 line_ink = line_ink_from_cluster
@@ -446,6 +460,7 @@ impl<G: Copy + Eq + Hash> TextLayout<G> {
             metrics,
             lines,
             runs: working_runs,
+            visible_glyph_count,
         }
     }
 
