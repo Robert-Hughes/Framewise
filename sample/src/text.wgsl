@@ -50,6 +50,7 @@ fn vs_main(in: VertexInput, @builtin(vertex_index) vertex_index: u32) -> VertexO
 
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
+    // The atlas stores coverage in the red channel.
     let coverage = textureSample(t_atlas, s_atlas, in.uv).r;
     return vec4<f32>(in.color.rgb, in.color.a * coverage);
 }
