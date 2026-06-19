@@ -342,6 +342,7 @@ impl<G: Copy + Eq + Hash> TextLayout<G> {
                             fallback,
                         );
                         processed_lines[last_idx].end_kind = LineEndKind::EllipsisY;
+                        processed_lines[last_idx].invalidate_logical_geometry();
                         processed_lines.truncate(max_lines);
                     } else {
                         match fallback {
@@ -379,7 +380,12 @@ impl<G: Copy + Eq + Hash> TextLayout<G> {
 
             let align_off = match bounds.max_width {
                 Some(w) => {
-                    let logical_line_w = logical_cluster_line_width(&line.clusters);
+                    if !line.logical_geometry_valid {
+                        line.logical_x = logical_cluster_line_start(&line.clusters);
+                        line.logical_width = logical_cluster_line_width(&line.clusters);
+                        line.logical_geometry_valid = true;
+                    }
+                    let logical_line_w = line.logical_width;
                     match flow.line_align {
                         TextLineAlign::Start => 0.0,
                         TextLineAlign::Center => ((w - logical_line_w) * 0.5).max(0.0),
@@ -388,13 +394,19 @@ impl<G: Copy + Eq + Hash> TextLayout<G> {
                 }
                 None => 0.0,
             };
+            if !line.logical_geometry_valid {
+                line.logical_x = logical_cluster_line_start(&line.clusters);
+                line.logical_width = logical_cluster_line_width(&line.clusters);
+                line.logical_geometry_valid = true;
+            }
             if align_off != 0.0 {
                 for cluster in &mut line.clusters {
                     cluster.shift_x(align_off);
                 }
+                line.logical_x += align_off;
             }
 
-            let logical_line_w = logical_cluster_line_width(&line.clusters);
+            let logical_line_w = line.logical_width;
             block_width = block_width.max(logical_line_w);
 
             let mut line_ink = None;
@@ -425,9 +437,7 @@ impl<G: Copy + Eq + Hash> TextLayout<G> {
             let (approx_ink_x, approx_ink_width) =
                 line_ink.map_or((align_off, 0.0), |rect| (rect.x, rect.w));
 
-            line.logical_width = logical_line_w;
             line.approx_ink_width = approx_ink_width;
-            line.logical_x = align_off;
             line.approx_ink_x = approx_ink_x;
 
             lines.push(line);

@@ -105,10 +105,109 @@ fn collapse_trailing_soft_wrap_space(clusters: &mut [WorkingCluster]) {
     }
 }
 
+struct WorkingLineBuffer {
+    clusters: Vec<WorkingCluster>,
+    logical_start: f32,
+    logical_width: f32,
+}
+
+impl WorkingLineBuffer {
+    fn with_capacity(capacity: usize) -> Self {
+        Self {
+            clusters: Vec::with_capacity(capacity),
+            logical_start: 0.0,
+            logical_width: 0.0,
+        }
+    }
+
+    fn is_empty(&self) -> bool {
+        self.clusters.is_empty()
+    }
+
+    fn clear_with_capacity(&mut self, capacity: usize) {
+        self.clusters = Vec::with_capacity(capacity);
+        self.logical_start = 0.0;
+        self.logical_width = 0.0;
+    }
+
+    fn push_at(&mut self, mut cluster: WorkingCluster, x: f32) {
+        cluster.x = x;
+        self.push_rebased(cluster);
+    }
+
+    fn push_rebased(&mut self, cluster: WorkingCluster) {
+        if self.clusters.is_empty() {
+            self.logical_start = cluster.x;
+            self.logical_width = cluster.end_x() - cluster.x;
+        } else {
+            let end_x = cluster.end_x();
+            if cluster.x < self.logical_start {
+                self.logical_width = self.logical_width.max(end_x - cluster.x);
+                self.logical_start = cluster.x;
+            } else {
+                self.logical_width = self.logical_width.max(end_x - self.logical_start);
+            }
+        }
+        self.clusters.push(cluster);
+    }
+
+    fn extend_segment_rebased(
+        &mut self,
+        segment: &mut Vec<WorkingCluster>,
+        segment_start_x: f32,
+        line_x: f32,
+        collapse_as_boundary: bool,
+    ) {
+        for mut cluster in segment.drain(..) {
+            let relative_x = cluster.x - segment_start_x;
+            cluster.x = line_x + relative_x;
+            if collapse_as_boundary {
+                cluster.collapse_soft_wrap_boundary();
+            }
+            self.push_rebased(cluster);
+        }
+    }
+
+    fn collapse_trailing_soft_wrap_space(&mut self) {
+        let previous_width = self.logical_width;
+        collapse_trailing_soft_wrap_space(&mut self.clusters);
+        if self
+            .clusters
+            .last()
+            .is_some_and(|cluster| cluster.is_soft_wrap_boundary)
+        {
+            self.refresh_geometry();
+        } else {
+            self.logical_width = previous_width;
+        }
+    }
+
+    fn take_clusters(&mut self) -> Vec<WorkingCluster> {
+        self.logical_start = 0.0;
+        self.logical_width = 0.0;
+        std::mem::take(&mut self.clusters)
+    }
+
+    fn logical_start(&self) -> f32 {
+        self.logical_start
+    }
+
+    fn logical_width(&self) -> f32 {
+        self.logical_width
+    }
+
+    fn refresh_geometry(&mut self) {
+        self.logical_start = logical_cluster_line_start(&self.clusters);
+        self.logical_width = logical_cluster_line_width(&self.clusters);
+    }
+}
+
 struct PendingWrappedLine {
     clusters: Vec<WorkingCluster>,
     byte_start: usize,
     end_kind: LineEndKind,
+    logical_start: f32,
+    logical_width: f32,
 }
 
 fn first_cluster_byte_start(clusters: &[WorkingCluster], fallback: usize) -> usize {
@@ -164,7 +263,13 @@ impl<'a> WrappedLineEmitter<'a> {
         }
     }
 
-    fn emit_line(&mut self, clusters: Vec<WorkingCluster>, end_kind: LineEndKind) {
+    fn emit_line_with_geometry(
+        &mut self,
+        clusters: Vec<WorkingCluster>,
+        end_kind: LineEndKind,
+        logical_start: f32,
+        logical_width: f32,
+    ) {
         let byte_start = if let Some(previous) = &self.pending {
             first_cluster_byte_start(&clusters, previous_pending_byte_end(previous))
         } else {
@@ -172,11 +277,13 @@ impl<'a> WrappedLineEmitter<'a> {
         };
 
         if let Some(previous) = self.pending.take() {
-            self.out.push(WorkingProcessedLine::pending(
+            self.out.push(WorkingProcessedLine::pending_with_geometry(
                 previous.clusters,
                 previous.byte_start,
                 byte_start,
                 previous.end_kind,
+                previous.logical_start,
+                previous.logical_width,
             ));
         }
 
@@ -184,16 +291,31 @@ impl<'a> WrappedLineEmitter<'a> {
             clusters,
             byte_start,
             end_kind,
+            logical_start,
+            logical_width,
         });
     }
 
-    fn emit_default_line(
+    fn emit_line(&mut self, clusters: Vec<WorkingCluster>, end_kind: LineEndKind) {
+        let logical_start = logical_cluster_line_start(&clusters);
+        let logical_width = logical_cluster_line_width(&clusters);
+        self.emit_line_with_geometry(clusters, end_kind, logical_start, logical_width);
+    }
+
+    fn emit_buffer(&mut self, line: &mut WorkingLineBuffer, end_kind: LineEndKind) {
+        let logical_start = line.logical_start();
+        let logical_width = line.logical_width();
+        let clusters = line.take_clusters();
+        self.emit_line_with_geometry(clusters, end_kind, logical_start, logical_width);
+    }
+
+    fn emit_default_buffer(
         &mut self,
-        clusters: Vec<WorkingCluster>,
+        line: &mut WorkingLineBuffer,
         has_following_visual_line: bool,
     ) {
-        let end_kind = default_wrapped_line_end_kind(&clusters, has_following_visual_line);
-        self.emit_line(clusters, end_kind);
+        let end_kind = default_wrapped_line_end_kind(&line.clusters, has_following_visual_line);
+        self.emit_buffer(line, end_kind);
     }
 
     fn append_terminal_empty_line_if_needed(&mut self) {
@@ -218,11 +340,13 @@ impl<'a> WrappedLineEmitter<'a> {
             if last.end_kind == LineEndKind::SoftWrapNonWhitespace {
                 last.end_kind = default_wrapped_line_end_kind(&last.clusters, false);
             }
-            self.out.push(WorkingProcessedLine::pending(
+            self.out.push(WorkingProcessedLine::pending_with_geometry(
                 last.clusters,
                 last.byte_start,
                 self.source_byte_end,
                 last.end_kind,
+                last.logical_start,
+                last.logical_width,
             ));
         }
     }
@@ -244,138 +368,80 @@ pub(super) fn wrap_clusters_into_processed_lines(
     }
 
     let cluster_count = clusters.len();
-    let estimated_lines =
-        estimated_wrapped_line_count(cluster_count, logical_cluster_line_width(&clusters), w);
+    let logical_w = logical_cluster_line_width(&clusters);
+    let estimated_lines = estimated_wrapped_line_count(cluster_count, logical_w, w);
     emitter.out.reserve(estimated_lines);
     let estimated_line_cap = estimated_clusters_per_line(cluster_count, estimated_lines);
-    let mut current_line = Vec::with_capacity(estimated_line_cap);
-    let mut current_line_start_x = clusters[0].x;
-
-    for cluster in clusters {
-        if cluster.is_hard_break {
-            let mut moved = cluster;
-            let mut appended = false;
-            if current_line.is_empty() {
-                if let Some(last_line) = emitter.pending_line_mut() {
-                    if last_line
-                        .clusters
-                        .last()
-                        .map(|c: &WorkingCluster| c.is_hard_break)
-                        != Some(true)
-                    {
-                        moved.shift_x(-moved.x);
-                        last_line.clusters.push(moved.clone());
-                        last_line.end_kind = LineEndKind::HardNewline;
-                        appended = true;
-                    }
-                }
-            }
-            if !appended {
-                moved.shift_x(-current_line_start_x);
-                current_line.push(moved);
-                emitter.emit_line(current_line, LineEndKind::HardNewline);
-                current_line = Vec::with_capacity(estimated_line_cap);
-            }
-            continue;
-        }
-
-        let rel_start_x = cluster.x - current_line_start_x;
-        let rel_end_x = rel_start_x + cluster.advance;
-
-        if rel_end_x <= w {
-            let mut moved = cluster;
-            moved.shift_x(rel_start_x - moved.x);
-            current_line.push(moved);
-        } else if cluster.is_whitespace && !current_line.is_empty() {
-            let next_line_start_x = cluster.x + cluster.advance;
-            let mut moved = cluster;
-            moved.shift_x(rel_start_x - moved.x);
-            moved.collapse_soft_wrap_boundary();
-            current_line.push(moved);
-            emitter.emit_default_line(current_line, true);
-            current_line = Vec::with_capacity(estimated_line_cap);
-            current_line_start_x = next_line_start_x;
-        } else if current_line.is_empty() {
-            match fallback {
-                WrapClusterFallback::Keep => {
-                    let mut moved = cluster;
-                    moved.shift_x(rel_start_x - moved.x);
-                    current_line.push(moved);
-                    emitter.emit_default_line(current_line, true);
-                    current_line = Vec::with_capacity(estimated_line_cap);
-                    current_line_start_x += rel_end_x;
-                }
-                WrapClusterFallback::Drop => break,
-            }
-        } else {
-            collapse_trailing_soft_wrap_space(&mut current_line);
-            emitter.emit_default_line(current_line, true);
-            current_line = Vec::with_capacity(estimated_line_cap);
-            current_line_start_x = cluster.x;
-
-            if cluster.advance <= w {
-                let mut moved = cluster;
-                moved.shift_x(-moved.x);
-                current_line.push(moved);
-            } else {
-                match fallback {
-                    WrapClusterFallback::Keep => {
-                        let advance = cluster.advance;
-                        let mut moved = cluster;
-                        moved.shift_x(-moved.x);
-                        current_line.push(moved);
-                        emitter.emit_default_line(current_line, true);
-                        current_line = Vec::with_capacity(estimated_line_cap);
-                        current_line_start_x += advance;
-                    }
-                    WrapClusterFallback::Drop => break,
-                }
-            }
-        }
-    }
-    if !current_line.is_empty() {
-        emitter.emit_default_line(current_line, false);
+    let result = wrap_clusters_into_processed_lines_open_tail(
+        clusters,
+        w,
+        fallback,
+        estimated_line_cap,
+        &mut emitter,
+    );
+    if let Some(mut open_line) = result.open_line {
+        emitter.emit_default_buffer(&mut open_line, false);
     }
     emitter.append_terminal_empty_line_if_needed();
     emitter.finish();
 }
 
-fn wrap_clusters_into(
+struct ClusterWrapResult {
+    open_line: Option<WorkingLineBuffer>,
+    wrapped_count: usize,
+}
+
+fn append_hard_break_to_pending(
+    emitter: &mut WrappedLineEmitter<'_>,
+    mut cluster: WorkingCluster,
+) -> bool {
+    if let Some(last_line) = emitter.pending_line_mut() {
+        if last_line
+            .clusters
+            .last()
+            .map(|c: &WorkingCluster| c.is_hard_break)
+            != Some(true)
+        {
+            cluster.x = 0.0;
+            last_line.clusters.push(cluster);
+            last_line.end_kind = LineEndKind::HardNewline;
+            last_line.logical_start = logical_cluster_line_start(&last_line.clusters);
+            last_line.logical_width = logical_cluster_line_width(&last_line.clusters);
+            return true;
+        }
+    }
+    false
+}
+
+fn wrap_clusters_into_processed_lines_open_tail(
     clusters: Vec<WorkingCluster>,
     w: f32,
     fallback: WrapClusterFallback,
-    lines: &mut Vec<Vec<WorkingCluster>>,
-) -> usize {
+    estimated_line_cap: usize,
+    emitter: &mut WrappedLineEmitter<'_>,
+) -> ClusterWrapResult {
     if clusters.is_empty() {
-        return 0;
+        return ClusterWrapResult {
+            open_line: None,
+            wrapped_count: 0,
+        };
     }
-    let cluster_count = clusters.len();
-    let estimated_lines =
-        estimated_wrapped_line_count(cluster_count, logical_cluster_line_width(&clusters), w);
-    let estimated_line_cap = estimated_clusters_per_line(cluster_count, estimated_lines);
-    let mut current_line = Vec::with_capacity(estimated_line_cap);
+    let mut current_line = WorkingLineBuffer::with_capacity(estimated_line_cap);
     let mut current_line_start_x = clusters[0].x;
     let mut wrapped_count = 0;
 
     for cluster in clusters {
         if cluster.is_hard_break {
-            let mut moved = cluster;
             let mut appended = false;
-            if current_line.is_empty() {
-                if let Some(last_line) = lines.last_mut() {
-                    if last_line.last().map(|c: &WorkingCluster| c.is_hard_break) != Some(true) {
-                        moved.shift_x(-moved.x);
-                        last_line.push(moved.clone());
-                        appended = true;
-                    }
-                }
+            if current_line.is_empty() && append_hard_break_to_pending(emitter, cluster.clone()) {
+                appended = true;
             }
             wrapped_count += 1;
             if !appended {
-                moved.shift_x(-current_line_start_x);
-                current_line.push(moved);
-                lines.push(current_line);
-                current_line = Vec::with_capacity(estimated_line_cap);
+                let x = cluster.x - current_line_start_x;
+                current_line.push_at(cluster, x);
+                emitter.emit_buffer(&mut current_line, LineEndKind::HardNewline);
+                current_line.clear_with_capacity(estimated_line_cap);
             }
             continue;
         }
@@ -384,65 +450,50 @@ fn wrap_clusters_into(
         let rel_end_x = rel_start_x + cluster.advance;
 
         if rel_end_x <= w {
-            let mut moved = cluster;
-            moved.shift_x(rel_start_x - moved.x);
-            current_line.push(moved);
+            current_line.push_at(cluster, rel_start_x);
             wrapped_count += 1;
         } else if cluster.is_whitespace && !current_line.is_empty() {
             let next_line_start_x = cluster.x + cluster.advance;
             let mut moved = cluster;
-            moved.shift_x(rel_start_x - moved.x);
             moved.collapse_soft_wrap_boundary();
-            current_line.push(moved);
+            current_line.push_at(moved, rel_start_x);
             wrapped_count += 1;
-            lines.push(current_line);
-            current_line = Vec::with_capacity(estimated_line_cap);
+            emitter.emit_default_buffer(&mut current_line, true);
+            current_line.clear_with_capacity(estimated_line_cap);
             current_line_start_x = next_line_start_x;
         } else if current_line.is_empty() {
             match fallback {
                 WrapClusterFallback::Keep => {
-                    let mut moved = cluster;
-                    moved.shift_x(rel_start_x - moved.x);
-                    current_line.push(moved);
+                    current_line.push_at(cluster, rel_start_x);
                     wrapped_count += 1;
-                    lines.push(current_line);
-                    current_line = Vec::with_capacity(estimated_line_cap);
-                    current_line_start_x += rel_end_x;
                 }
                 WrapClusterFallback::Drop => break,
             }
         } else {
-            collapse_trailing_soft_wrap_space(&mut current_line);
-            lines.push(current_line);
-            current_line = Vec::with_capacity(estimated_line_cap);
+            current_line.collapse_trailing_soft_wrap_space();
+            emitter.emit_default_buffer(&mut current_line, true);
+            current_line.clear_with_capacity(estimated_line_cap);
             current_line_start_x = cluster.x;
 
             if cluster.advance <= w {
-                let mut moved = cluster;
-                moved.shift_x(-moved.x);
-                current_line.push(moved);
+                current_line.push_at(cluster, 0.0);
                 wrapped_count += 1;
             } else {
                 match fallback {
                     WrapClusterFallback::Keep => {
-                        let advance = cluster.advance;
-                        let mut moved = cluster;
-                        moved.shift_x(-moved.x);
-                        current_line.push(moved);
+                        current_line.push_at(cluster, 0.0);
                         wrapped_count += 1;
-                        lines.push(current_line);
-                        current_line = Vec::with_capacity(estimated_line_cap);
-                        current_line_start_x += advance;
                     }
                     WrapClusterFallback::Drop => break,
                 }
             }
         }
     }
-    if !current_line.is_empty() {
-        lines.push(current_line);
+    let open_line = (!current_line.is_empty()).then_some(current_line);
+    ClusterWrapResult {
+        open_line,
+        wrapped_count,
     }
-    wrapped_count
 }
 
 pub(super) fn wrap_clusters_at_words_into_processed_lines(
@@ -470,35 +521,39 @@ pub(super) fn wrap_clusters_at_words_into_processed_lines(
         w,
         fallback,
         estimated_line_cap,
-        current_line: Vec::with_capacity(estimated_line_cap),
-        current_logical_w: 0.0,
+        current_line: WorkingLineBuffer::with_capacity(estimated_line_cap),
         emitter,
     };
     let mut segment = Vec::new();
     let mut segment_is_space = false;
+    let mut segment_geometry = SegmentGeometry::default();
 
     for cluster in clusters {
         let is_space = cluster.is_whitespace || cluster.is_hard_break;
         if segment.is_empty() {
             segment_is_space = is_space;
+            segment_geometry = SegmentGeometry::from_cluster(&cluster);
             segment.push(cluster);
             continue;
         }
 
         let continues_segment = !segment_is_space && !is_space;
         if continues_segment {
+            segment_geometry.push(&cluster);
             segment.push(cluster);
         } else {
-            if !state.flush_segment(&mut segment, segment_is_space) {
+            if !state.flush_segment(&mut segment, segment_is_space, segment_geometry) {
                 state.finish_emitter();
                 return;
             }
             segment_is_space = is_space;
+            segment_geometry = SegmentGeometry::from_cluster(&cluster);
             segment.push(cluster);
         }
     }
 
-    if !segment.is_empty() && !state.flush_segment(&mut segment, segment_is_space) {
+    if !segment.is_empty() && !state.flush_segment(&mut segment, segment_is_space, segment_geometry)
+    {
         state.finish_emitter();
         return;
     }
@@ -506,20 +561,31 @@ pub(super) fn wrap_clusters_at_words_into_processed_lines(
     state.finish();
 }
 
-fn append_segment_to_line(
-    line: &mut Vec<WorkingCluster>,
-    segment: &mut Vec<WorkingCluster>,
-    line_x: f32,
-    collapse_as_boundary: bool,
-) {
-    let segment_start_x = logical_cluster_line_start(segment);
-    for mut cluster in segment.drain(..) {
-        let relative_x = cluster.x - segment_start_x;
-        cluster.shift_x(line_x + relative_x - cluster.x);
-        if collapse_as_boundary {
-            cluster.collapse_soft_wrap_boundary();
+#[derive(Clone, Copy, Default)]
+struct SegmentGeometry {
+    logical_start: f32,
+    logical_width: f32,
+    has_hard_break: bool,
+}
+
+impl SegmentGeometry {
+    fn from_cluster(cluster: &WorkingCluster) -> Self {
+        Self {
+            logical_start: cluster.x,
+            logical_width: cluster.advance,
+            has_hard_break: cluster.is_hard_break,
         }
-        line.push(cluster);
+    }
+
+    fn push(&mut self, cluster: &WorkingCluster) {
+        let end_x = cluster.end_x();
+        if cluster.x < self.logical_start {
+            self.logical_width = self.logical_width.max(end_x - cluster.x);
+            self.logical_start = cluster.x;
+        } else {
+            self.logical_width = self.logical_width.max(end_x - self.logical_start);
+        }
+        self.has_hard_break |= cluster.is_hard_break;
     }
 }
 
@@ -527,32 +593,36 @@ struct WordWrapState<'a> {
     w: f32,
     fallback: WrapWordFallback,
     estimated_line_cap: usize,
-    current_line: Vec<WorkingCluster>,
-    current_logical_w: f32,
+    current_line: WorkingLineBuffer,
     emitter: WrappedLineEmitter<'a>,
 }
 
 impl WordWrapState<'_> {
-    fn flush_segment(&mut self, segment: &mut Vec<WorkingCluster>, segment_is_space: bool) -> bool {
-        let segment_start_x = logical_cluster_line_start(segment);
-        let segment_logical_w = logical_cluster_line_width(segment);
-        let is_hard_break = segment.iter().any(|cluster| cluster.is_hard_break);
-        if is_hard_break || self.current_logical_w + segment_logical_w <= self.w {
-            append_segment_to_line(
-                &mut self.current_line,
+    fn flush_segment(
+        &mut self,
+        segment: &mut Vec<WorkingCluster>,
+        segment_is_space: bool,
+        segment_geometry: SegmentGeometry,
+    ) -> bool {
+        let segment_start_x = segment_geometry.logical_start;
+        let segment_logical_w = segment_geometry.logical_width;
+        if segment_geometry.has_hard_break
+            || self.current_line.logical_width() + segment_logical_w <= self.w
+        {
+            self.current_line.extend_segment_rebased(
                 segment,
-                self.current_logical_w,
+                segment_start_x,
+                self.current_line.logical_width(),
                 false,
             );
-            self.current_logical_w += segment_logical_w;
             return true;
         }
 
         if segment_is_space && !self.current_line.is_empty() {
-            append_segment_to_line(
-                &mut self.current_line,
+            self.current_line.extend_segment_rebased(
                 segment,
-                self.current_logical_w,
+                segment_start_x,
+                self.current_line.logical_width(),
                 true,
             );
             self.emit_current_line(true);
@@ -560,48 +630,41 @@ impl WordWrapState<'_> {
         }
 
         if !self.current_line.is_empty() {
-            collapse_trailing_soft_wrap_space(&mut self.current_line);
+            self.current_line.collapse_trailing_soft_wrap_space();
             self.emit_current_line(true);
         }
 
         if segment_logical_w <= self.w {
-            append_segment_to_line(
-                &mut self.current_line,
+            self.current_line.extend_segment_rebased(
                 segment,
-                self.current_logical_w,
+                segment_start_x,
+                self.current_line.logical_width(),
                 false,
             );
-            self.current_logical_w += segment_logical_w;
             return true;
         }
 
-        for cluster in segment.iter_mut() {
-            cluster.shift_x(-segment_start_x);
-        }
         let seg_len = segment.len();
         let seg_clusters = std::mem::take(segment);
         match self.fallback {
             WrapWordFallback::WrapCluster { fallback } => {
-                let mut wrapped_lines = Vec::new();
-                let wrapped_count =
-                    wrap_clusters_into(seg_clusters, self.w, fallback, &mut wrapped_lines);
-                if let Some(last) = wrapped_lines.pop() {
-                    for line in wrapped_lines {
-                        self.emitter.emit_default_line(line, true);
-                    }
-                    self.current_line = last;
-                    self.current_logical_w = self
-                        .current_line
-                        .iter()
-                        .map(WorkingCluster::end_x)
-                        .fold(0.0, f32::max);
-                }
-                fallback != WrapClusterFallback::Drop || wrapped_count >= seg_len
+                let result = wrap_clusters_into_processed_lines_open_tail(
+                    seg_clusters,
+                    self.w,
+                    fallback,
+                    self.estimated_line_cap,
+                    &mut self.emitter,
+                );
+                self.current_line = result
+                    .open_line
+                    .unwrap_or_else(|| WorkingLineBuffer::with_capacity(self.estimated_line_cap));
+                fallback != WrapClusterFallback::Drop || result.wrapped_count >= seg_len
             }
             WrapWordFallback::Drop => {
                 for cluster in seg_clusters {
-                    if cluster.end_x() <= self.w {
-                        self.current_line.push(cluster);
+                    let x = cluster.x - segment_start_x;
+                    if x + cluster.advance <= self.w {
+                        self.current_line.push_at(cluster, x);
                     } else {
                         break;
                     }
@@ -611,8 +674,9 @@ impl WordWrapState<'_> {
             }
             WrapWordFallback::Keep => {
                 for cluster in seg_clusters {
-                    let end_x = cluster.end_x();
-                    self.current_line.push(cluster);
+                    let x = cluster.x - segment_start_x;
+                    let end_x = x + cluster.advance;
+                    self.current_line.push_at(cluster, x);
                     if end_x > self.w {
                         break;
                     }
@@ -624,19 +688,16 @@ impl WordWrapState<'_> {
     }
 
     fn emit_current_line(&mut self, has_following_visual_line: bool) {
-        let line = std::mem::replace(
-            &mut self.current_line,
-            Vec::with_capacity(self.estimated_line_cap),
-        );
         self.emitter
-            .emit_default_line(line, has_following_visual_line);
-        self.current_logical_w = 0.0;
+            .emit_default_buffer(&mut self.current_line, has_following_visual_line);
+        self.current_line
+            .clear_with_capacity(self.estimated_line_cap);
     }
 
     fn finish(mut self) {
         if !self.current_line.is_empty() {
-            let line = std::mem::take(&mut self.current_line);
-            self.emitter.emit_default_line(line, false);
+            self.emitter
+                .emit_default_buffer(&mut self.current_line, false);
         }
         self.finish_emitter();
     }

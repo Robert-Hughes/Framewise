@@ -1881,6 +1881,56 @@ fn test_wrap_word_fallback_wrap_cluster_fallback_keep_y_keep() {
 }
 
 #[test]
+fn oversized_word_cluster_fallback_drop_stops_after_unfittable_cluster() {
+    let layout = layout("abc", wrap_word_cluster_drop(), TextBounds::width(0.0));
+
+    assert_eq!(visual_lines(&layout), [""]);
+    assert_line_ranges(&layout, &[(0, 3)]);
+    assert_eq!(total_clusters(&layout), 0);
+}
+
+#[test]
+fn oversized_word_cluster_fallback_open_tail_accepts_following_space() {
+    let layout = layout("abcde f", wrap_word_cluster_drop(), TextBounds::width(16.1));
+
+    assert_eq!(visual_lines(&layout), ["ab", "cd", "e", "f"]);
+    assert_line_ranges(&layout, &[(0, 2), (2, 4), (4, 6), (6, 7)]);
+    assert!(
+        layout.lines[2]
+            .clusters
+            .last()
+            .unwrap()
+            .is_soft_wrap_boundary
+    );
+}
+
+#[test]
+fn oversized_word_cluster_fallback_terminal_space_creates_empty_line() {
+    let layout = layout("abcdef ", wrap_word_cluster_drop(), TextBounds::width(16.1));
+
+    assert_eq!(visual_lines(&layout), ["ab", "cd", "ef", ""]);
+    assert_line_ranges(&layout, &[(0, 2), (2, 4), (4, 7), (7, 7)]);
+    assert_eq!(layout.lines[2].end_kind, LineEndKind::SoftWrapWhitespace);
+    assert_eq!(layout.lines[3].end_kind, LineEndKind::EndOfText);
+}
+
+#[test]
+fn oversized_word_cluster_fallback_drop_splits_at_byte_ranges() {
+    let layout = layout("abcdef", wrap_word_cluster_drop(), TextBounds::width(16.1));
+
+    assert_eq!(visual_lines(&layout), ["ab", "cd", "ef"]);
+    assert_line_ranges(&layout, &[(0, 2), (2, 4), (4, 6)]);
+}
+
+#[test]
+fn oversized_word_cluster_fallback_keep_splits_at_byte_ranges() {
+    let layout = layout("abcdef", wrap_word_cluster_keep(), TextBounds::width(16.1));
+
+    assert_eq!(visual_lines(&layout), ["ab", "cd", "ef"]);
+    assert_line_ranges(&layout, &[(0, 2), (2, 4), (4, 6)]);
+}
+
+#[test]
 fn label_wrap_word_cluster_keep_uses_widget_width() {
     assert_eq!(
         card_label_glyph_counts_by_line(

@@ -656,6 +656,7 @@ pub(crate) struct WorkingProcessedLine {
     pub approx_ink_width: f32,
     pub logical_x: f32,
     pub approx_ink_x: f32,
+    pub(crate) logical_geometry_valid: bool,
     pub end_kind: LineEndKind,
     pub clusters: Vec<WorkingCluster>,
 }
@@ -677,9 +678,40 @@ impl WorkingProcessedLine {
             approx_ink_width: 0.0,
             logical_x: 0.0,
             approx_ink_x: 0.0,
+            logical_geometry_valid: false,
             end_kind,
             clusters,
         }
+    }
+
+    pub(crate) fn pending_with_geometry(
+        clusters: Vec<WorkingCluster>,
+        byte_start: usize,
+        byte_end: usize,
+        end_kind: LineEndKind,
+        logical_x: f32,
+        logical_width: f32,
+    ) -> Self {
+        Self {
+            y_top: 0.0,
+            baseline_y: 0.0,
+            height: 0.0,
+            byte_start,
+            byte_end,
+            logical_width,
+            approx_ink_width: 0.0,
+            logical_x,
+            approx_ink_x: 0.0,
+            logical_geometry_valid: true,
+            end_kind,
+            clusters,
+        }
+    }
+
+    pub(crate) fn invalidate_logical_geometry(&mut self) {
+        self.logical_x = 0.0;
+        self.logical_width = 0.0;
+        self.logical_geometry_valid = false;
     }
 }
 
