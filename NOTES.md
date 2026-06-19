@@ -4,11 +4,12 @@ Working notes, TODOs, open questions, and half-baked ideas.
 
 ## Current Work
 
+
 - Text Edit
   - auto-sizing to height of text (like VS Code commit message)
-    - use existing auto-sizing layout stuff?
-    - what about width?
     - can use intrinsic size calculation, if we pass the remaining available LayoutSpace as a 'hint' to the calc_intrinsic_size (maybe rename to something better?) then text edit can auto height if it has a max width!
+    - after layout changes, do a review pass to make sure things are consistent/not left over from old intrinsic naming etc.
+    - add auto-sizing width & height to demo page (width up to a max, then wraps)
 
   - Copy/paste integration with the OS (apparently not working!)
   - caret cursor when mouse is over a text_edit
@@ -396,6 +397,7 @@ The "App-Managed State" option would require either a trait layer (so the widget
 - Early-out from widget functions if it's offscreen or completely clipped
 - Resizing window is v. slow
 - Large text edits get very slow!
+  - especially clicking and dragging a large selection (or shift + pg down)
 - If layout params are fixed in an axis, do not compute expensive intrinsic size for that axis. If both axes are fixed, do not compute intrinsic size at all.
 
 ## API Ergonomics

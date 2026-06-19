@@ -472,7 +472,7 @@ The reach of the one-pass model is captured in a single rule:
 
 Three tiers fall out of it, in plain UI terms:
 
-- **Automate** (past-only) — "stack these labels, each as tall as its text." Resolves from intrinsic size + earlier siblings. Handled by `ColumnLayout`/`RowLayout`/`WrapLayout` with intrinsic sizing.
+- **Automate** (past-only) — "stack these labels, each as tall as its text." Resolves from this child's size request + earlier siblings. Handled by `ColumnLayout`/`RowLayout`/`WrapLayout` with size requests.
 - **Declare** (future sibling, but you said how many) — "split this row into four equal columns." Leftover/shared space depends on *all* siblings, which is a future-sibling dependency — but declaring the count converts it into a constant resolved from available space alone. This is why `SplitRow` takes a `count` up front. (Weighted/grid/match-tallest variants are not yet built — see `NOTES.md` (Remaining Layout Work).)
 - **Refuse** (depends on itself / over-constrained) — "size this to its text *and* force it twice its neighbour." Asks for a value that only exists after the thing it controls is decided. No fixed point in one pass; impossible at any phase. (The constraint-affecting half of fit-to-children sits here too — see [Three-State Axis Bounds](#three-state-axis-bounds--unbounded-axes).)
 
@@ -485,13 +485,13 @@ Real scenarios in the Automate and Declare tiers, and which mechanism handles ea
 | Manual explicit placement | ✅ `ManualLayout` |
 | Overlay / absolute children | ✅ `ManualLayout` |
 | Stack, caller sizes every child (vert/horiz) | ✅ `ColumnLayout` / `RowLayout` |
-| "Stack these labels, each as tall as its text" | ✅ `ColumnLayout` + intrinsic |
-| "Row of chips, each as wide as its label" | ✅ `RowLayout` + intrinsic |
-| "Fixed-width icon, label takes its intrinsic width" (mixed per-axis) | ✅ `RowLayout` + `RowLayoutParams` |
+| "Stack these labels, each as tall as its text" | ✅ `ColumnLayout` + size request |
+| "Row of chips, each as wide as its label" | ✅ `RowLayout` + size request |
+| "Fixed-width icon, label takes its requested width" (mixed per-axis) | ✅ `RowLayout` + `RowLayoutParams` |
 | "Column fills the panel width, each row auto-height" (fill cross-axis) | ✅ `ColumnLayout` + `Placement::Fill` |
 | "Tags that wrap onto the next line when the row fills" (flow) | ✅ `WrapLayout` |
 | "A bordered box that hugs its child(ren) plus padding" (decorator) | ✅ `frame` (fit-to-children) |
-| "Toolbar: search field eats leftover space, icons stay intrinsic" | ✅ via emit-reorder + `ManualLayout` (see below) |
+| "Toolbar: search field eats leftover space, icons use their size requests" | ✅ via emit-reorder + `ManualLayout` (see below) |
 | "Panel fills available height inside a normal (bounded) container" | ✅ `Placement::Fill` against `AxisBound::Exact` |
 | Scroll, content size known up front | ✅ `begin_scroll_area` (`fixed`/`FIT` extent) |
 | "Scroll area sized to content discovered only after its children run" | ✅ `begin_scroll_area` (`SCROLL` extent, resolved at `end`) |
@@ -511,7 +511,7 @@ Three orderings are separate concerns, and Framewise has machinery for all three
 - **Visual position** — the resolved `Rect`. Under `ManualLayout` it is fully decoupled from emit order.
 - **Focus order** — detached from emit order via `override_next` (see [Input Focus](#input-focus)).
 
-This decoupling is a general escape hatch: **reordering emit converts a future-sibling dependency into a past-sibling one.** "First child fills the remaining row width, second is intrinsic" — the fill child depends on a *future* sibling; instead emit the intrinsic child first, read its size, then emit the fill child at the computed remainder, and `override_next` to restore left-to-right focus. Visually L→R, focus L→R, emitted R→L. This works **today** with `ManualLayout` — no new machinery.
+This decoupling is a general escape hatch: **reordering emit converts a future-sibling dependency into a past-sibling one.** "First child fills the remaining row width, second uses its size request" — the fill child depends on a *future* sibling; instead emit the size-dependent child first, read its size, then emit the fill child at the computed remainder, and `override_next` to restore left-to-right focus. Visually L→R, focus L→R, emitted R→L. This works **today** with `ManualLayout` — no new machinery.
 
 General form: **if dependencies form a DAG, emit in topological order and every dependency is already known.** Cycles (the Refuse tier) have no valid topological order and remain impossible. Two caveats:
 
@@ -533,16 +533,16 @@ We define two traits:
 1. **`Layout`**: The user-facing configuration (e.g., `ColumnLayout { spacing: 4.0 }`). It dictates the `Params` required to position a widget and provides a `begin(space: impl Into<LayoutSpace>)` method to instantiate the layout's state. A plain `Rect` is a fully-bounded space (`From<Rect>`), so the common `begin(some_rect)` call is unchanged; an axis only goes unbounded when a caller hands down a `LayoutSpace` that says so (see [Unbounded Axes](#unbounded-axes)).
 2. **`LayoutState`**: The mutable engine that lives inside the `WidgetContext`. It accumulates positions as widgets are added.
 
-The layout call is `layout(params: S::Params, intrinsic: IntrinsicSize) -> Rect`. It merges three inputs: the caller's `params` (intent — fixed/auto/fill), the widget's `intrinsic` measurement (reported by a `calc_*` companion, see [Intrinsic Sizing](#intrinsic-sizing)), and the layout's own state (available space + cursor). Layouts that don't size from content (`ManualLayout`) ignore `intrinsic`; intrinsic-aware layouts (column/row/wrap) read it. There is still **no separate measuring pass over a retained tree** — the only extra work is the cheap, explicit `calc_*` spec measurement.
+The immediate placement call is `layout(params: S::Params, request: SizeRequest) -> Rect`. It merges three inputs: the caller's `params` (intent - fixed/auto/fill), the widget's size request (reported by a `size_*` companion under a `SizeOffer`, see [Size Offers and Requests](#size-offers-and-requests)), and the layout's own state (available space + cursor). Layouts that don't size from content (`ManualLayout`) ignore `request`; request-aware layouts (column/row/wrap) read it. There is still **no separate measuring pass over a retained tree** - the only extra work is the cheap, explicit spec measurement.
 
 ### Built-in Layouts
 
-- **`ManualLayout`**: `Params = Rect`. Explicit layout where the app specifies exact rectangles; ignores `intrinsic`. If nested (e.g. inside a scroll view), it treats its bounding box's `top_left` as an offset, so explicit rectangles are correctly shifted relative to their parent. This is also the sanctioned way to place a *high-level* widget at an explicit rect (the rect is the `Params`).
+- **`ManualLayout`**: `Params = Rect`. Explicit layout where the app specifies exact rectangles; ignores `request`. If nested (e.g. inside a scroll view), it treats its bounding box's `top_left` as an offset, so explicit rectangles are correctly shifted relative to their parent. This is also the sanctioned way to place a *high-level* widget at an explicit rect (the rect is the `Params`).
 - **`ColumnLayout`**: `Params = ColumnLayoutParams`. Stacks widgets vertically, keeping a Y-axis cursor. Fields `x` and `y` specify the cross-axis (`LinearCross`) and main-axis (`LinearMain`) parameters respectively.
 - **`RowLayout`**: `Params = RowLayoutParams`. Stacks widgets horizontally, keeping an X-axis cursor. Fields `x` and `y` specify the main-axis (`LinearMain`) and cross-axis (`LinearCross`) parameters respectively.
 - **`WrapLayout`**: `Params = Placement2D`. Flows widgets left-to-right and wraps to the next line when the next child would overflow the available width. Never wraps a child already at the start of a line; an unbounded width has no edge to overflow, so the flow stays on one line.
 - **`SplitRow`**: `Params = Placement` (cross-axis height only). A *declared-structure* layout (Phase 4): it takes a `count` up front and divides its width into that many **equal** cells, `(width − spacing·(count−1)) / count` each. Each child's width is imposed (the cell), so children declare only their height. Because dividing space needs a committed far edge, `SplitRow` requires `AxisBound::Exact` width and panics on `AtMost`/`Unbounded` — the same rule that governs `Fill` and alignment. Knowing `count` is what makes the equal split one-pass (no measure-all / emit-reorder): an equal split is otherwise a future-sibling dependency, and the declaration turns it into a constant resolved from available space alone.
-- **`OffsetLayout<L>`**: A decorator that shifts the inner layout's `Rect`s by a `Vec2` offset (used by scroll areas). It forwards `Params` and `intrinsic` to the inner layout. Scroll areas wrap their content layout in `OffsetLayout { offset, inner }` and push a scissor `clip_rect`.
+- **`OffsetLayout<L>`**: A decorator that shifts the inner layout's `Rect`s by a `Vec2` offset (used by scroll areas). It forwards `Params` and `request` to the inner layout. Scroll areas wrap their content layout in `OffsetLayout { offset, inner }` and push a scissor `clip_rect`.
 
 Because `OffsetLayout` directly shifts the `Rect`s returned during the layout pass, **widgets are physically located at their scrolled screen coordinates when created**. This means standard mouse hit-testing (`rect.contains(mouse_pos)`) works natively without translating input. We only require widgets to optionally test against a `clip_rect` so that hidden, scrolled-out elements aren't accidentally clickable.
 
@@ -560,32 +560,48 @@ All layout files under the `layouts/` directory must maintain structural and sty
   6. Unit tests module (`#[cfg(test)] mod tests`).
 - **Method Ordering inside `impl LayoutState`**: Methods inside the trait implementation must be declared in this exact order:
   1. `layout`
-  2. `begin_layout`
-  3. `end_layout`
+  2. `begin_deferred_layout`
+  3. `end_deferred_layout`
   4. `resolve_space`
 - **Sizing & Parameters Consistency**:
   - Keep doc comments of equal detail across similar layout implementations.
   - Implement identical panic messages when validation fails (e.g., panicking on unbounded dimensions).
-  - Parameter ordering on layout methods must be consistent, starting with the layout parameters (e.g., `layout_params` or named request parameters) followed by `intrinsic: IntrinsicSize`.
+  - Parameter ordering on layout methods must be consistent, starting with the layout parameters (e.g., `layout_params` or named request parameters) followed by `request: SizeRequest`.
 
 Differences in layouts are acceptable only when justified by distinct structural models (for example, `SplitRow` taking a declared item count, or `OffsetLayout` serving as a coordinate decorator).
 
-### Intrinsic Sizing
+### Size Offers and Requests
 
-Intrinsic-aware layouts let a widget be sized from its own content without abandoning the top-down, one-pass model.
+Request-aware layouts let a widget be sized from its own content without abandoning the top-down, one-pass model. The terminology separates four related concepts:
 
-Three types carry sizing information, each flowing one direction with one owner:
+- **`SizeOffer`**: the bounds a parent layout offers a hypothetical widget for size calculation. It contains only width and height `AxisBound`s; it has no `x`/`y` origin and is not a placement.
+- **`SizeRequest`**: the size a hypothetical widget would like under a `SizeOffer`. This is measurement only, never policy, and is not the final assigned size.
+- **`layout(params, request)`**: immediate placement. No widget drawing happens before this call returns the final concrete `Rect`.
+- **`begin_deferred_layout(params)` / `end_deferred_layout(...)`**: deferred placement for containers where child widgets may be drawn before the container's final size is known.
 
-- **`LayoutSpace`** — available space the parent hands **down**. Carries an `AxisBound` per axis (see [Three-State Axis Bounds](#three-state-axis-bounds--unbounded-axes)).
-- **`IntrinsicSize`** — the widget's own measurement, reported **up** by a `calc_*` companion to its raw function. Measurement only, never policy.
-- **`Rect`** — the resolved output, handed to the raw widget. Always fully concrete; honours the rule that **no `Option`/unbounded geometry ever reaches a raw function**. A layout combines the down-flowing space with the up-flowing measurement to produce it.
+The non-deferred widget path is:
 
-- **`IntrinsicSize`** — a measurement-only value (`min` / `preferred` / `max`, each an `Option<Vec2>`) reported *up* by a widget. The three fields mirror CSS intrinsic sizing: `min` is the smallest size below which content clips (the longest unbreakable word), `preferred` the natural unwrapped size, `max` the largest useful size. Fields are optional — a widget may know one axis and not the other; a fully-unknown value needs no separate sentinel. It is content + style derived, **never policy**: "fill", "grow", and weights are caller intent and live in the layout's `Params`, not here.
+1. Optionally call `peek_offer(params) -> SizeOffer`.
+2. Call `size_widget(..., offer) -> SizeRequest`.
+3. Call `layout(params, request) -> Rect`.
+4. Draw the widget into that `Rect`.
 
-  **The test for what belongs here:** if the widget computes it from its own content, it's `IntrinsicSize`; if the caller decides it, it's `Params`. "Should not shrink below 60 because the label clips" is a widget fact → `IntrinsicSize.min`. "Stretch to fill the row" is caller intent → `Params`. Keeping flex flags out of `IntrinsicSize` is what lets the name stay accurate as it grows from a single size to a min/preferred/max range.
+Because no drawing happens until after `layout` returns, this path may support auto-sized centered or end-aligned widgets. The layout can learn the `SizeRequest`, resolve alignment from the final size, and only then hand a concrete `Rect` to the widget.
+
+The deferred container path is:
+
+1. Call `begin_deferred_layout(params) -> (provisional LayoutSpace, token)`.
+2. Draw child widgets inside the provisional `LayoutSpace`.
+3. Call `end_deferred_layout(token, extent/request) -> Rect` to resolve the final container rectangle and advance the parent layout.
+
+Deferred layout is stricter because child output may already have been emitted into the provisional space. A layout must reject any deferred case where the provisional origin might need to move later, such as an auto-sized centered/end-aligned container. This is the same rationale currently embedded in `WidgetContext::child_with_layout`: a nested layout is a container whose final size may depend on its children, so it begins in a provisional `LayoutSpace` preserving `AtMost`/`Unbounded` bounds and advances the parent cursor only when the child finishes.
+
+`LayoutSpace` remains the concrete space used to begin a layout context. Unlike `SizeOffer`, it includes an origin (`x`/`y`) plus width and height `AxisBound`s. `Rect` remains the resolved output handed to raw widgets. It is always fully concrete and honors the rule that no `Option`/unbounded geometry reaches a raw function.
+
+`SizeRequest` is content + style derived, **never policy**: "fill", "grow", and weights are caller intent and live in the layout's `Params`, not in the request. The test for what belongs here: if the widget computes it from its own content under the offer, it is a `SizeRequest`; if the caller decides it, it is `Params`. "Should not shrink below 60 because the label clips" is a widget fact. "Stretch to fill the row" is caller intent.
 - **`Placement2D { width: Placement, height: Placement }`** — the caller's per-axis intent handed *down* to a layout (e.g., `WrapLayout`). `Placement` is `Sized { size: Size::Fixed(px), align }`, `Sized { size: Size::Auto, align }`, or `Fill` (span the layout's available extent on that axis). Axes are absolute (width/height), not main/cross, so the same request reads identically regardless of orientation. `From<Vec2>` treats a plain size as fixed on both axes with default `Start` alignment.
 - **`RowLayoutParams { x: LinearMain, y: LinearCross }` and `ColumnLayoutParams { x: LinearCross, y: LinearMain }`** — the axis-aware parameters used by `RowLayout` and `ColumnLayout` respectively. They replace `Placement2D` for linear layouts to decouple main-axis flow properties (e.g. `MainAxisAlign::Append` or `MainAxisAlign::End` alignment) from cross-axis placement properties (e.g. cross-axis alignment `Align`). Their field names are `x` and `y` to correspond with physical screen dimensions rather than width/height.
-- **Missing-measurement policy — panic, no fallback.** When an intrinsic-aware layout needs a measurement that was never reported (e.g. `Auto`, or `Fill` on a non-`Exact` axis, against a widget that returns no `preferred`), `Placement::resolve_size` **panics** with a message naming the unsatisfiable request. An unsatisfiable sizing request is a call-site bug, so it fails loudly rather than substituting an arbitrary size. (An earlier design substituted a large `LAYOUT_FALLBACK_SIZE`; that was dropped in favour of the panic.)
+- **Missing-measurement policy — panic, no fallback.** When a request-aware layout needs a measurement that was never reported (e.g. `Auto`, or `Fill` on a non-`Exact` axis, against a widget that returns no `preferred`), `Placement::resolve_size` **panics** with a message naming the unsatisfiable request. An unsatisfiable sizing request is a call-site bug, so it fails loudly rather than substituting an arbitrary size. (An earlier design substituted a large `LAYOUT_FALLBACK_SIZE`; that was dropped in favour of the panic.)
 
 ### Three-State Axis Bounds & Unbounded Axes
 
@@ -605,15 +621,15 @@ Position is always concrete — a layout always knows *where* a child starts —
 
 If a layout (such as `ColumnLayout` or `RowLayout`) is configured with a cross-axis alignment of `Center` or `End`, the request is **unsatisfiable** when:
 1. The cross-axis boundary is `AtMost` or `Unbounded` — alignment math has no committed far edge to run against (the boundary was only ever a ceiling or a scroll extent). This is a *recoverable* violation: the layout returns a safe fallback (`Start`, offset `0.0`) tagged with a `LayoutViolation`, and how it surfaces is decided by the [violation policy](#unsatisfiable-requests-layoutresult-and-the-violation-policy) below.
-2. The aligned object is a deferred container (such as a `Frame`) with a dynamic size (`Size::Auto`). Deferred layouts position and draw their children during the layout pass, so the container's size would have to be resolved upfront in `begin_layout`; with `Auto` it is only known once the layout *closes*, and the already-emitted child output cannot be shifted retroactively. There is no meaningful fallback, so this stays an *unrecoverable* hard `panic!` in `begin_layout`.
+2. The aligned object is a deferred container (such as a `Frame`) with a dynamic size (`Size::Auto`). Deferred layouts position and draw their children during the layout pass, so the container's size would have to be resolved upfront in `begin_deferred_layout`; with `Auto` it is only known once the layout *closes*, and the already-emitted child output cannot be shifted retroactively. There is no meaningful fallback, so this stays an *unrecoverable* hard `panic!` in `begin_deferred_layout`.
 
-Similarly, `WrapLayout` does not support deferred containers with `Size::Auto` widths because line-wrapping decisions must be resolved upfront in `begin_layout` — also a hard panic, for the same "no safe fallback" reason.
+Similarly, `WrapLayout` does not support deferred containers with `Size::Auto` widths because line-wrapping decisions must be resolved upfront in `begin_deferred_layout` — also a hard panic, for the same "no safe fallback" reason.
 
 To align or wrap a nested container safely, it must have a concrete size resolved upfront (e.g. `Placement::fixed(px)`, or `Placement::fill()` against a parent of exact bounds).
 
 #### Unsatisfiable Requests: `LayoutResult` and the Violation Policy
 
-Recoverable unsatisfiable requests (the bound-based alignment case above, plus `Fill` against a non-`Exact` axis and `Auto` with no reported intrinsic) are **not** raised as panics deep in the layout math. The two sizing/offset primitives — `Placement::resolve_size` and `Placement::align_offset` — return a `LayoutResult<T>`:
+Recoverable unsatisfiable requests (the bound-based alignment case above, plus `Fill` against a non-`Exact` axis and `Auto` with no reported size request) are **not** raised as panics deep in the layout math. The two sizing/offset primitives — `Placement::resolve_size` and `Placement::align_offset` — return a `LayoutResult<T>`:
 
 ```rust
 enum LayoutResult<T> {
@@ -622,14 +638,14 @@ enum LayoutResult<T> {
 }
 ```
 
-The `Fallback` arm always carries a usable value (`Start` offset `0.0` for alignment; intrinsic clamped to the ceiling, or `0.0`, for `Fill`) **and** a `LayoutViolation` describing what was unsatisfiable plus the call site (`#[track_caller]`). The `LayoutState` methods (`layout`, `begin_layout`, `end_layout`) compose these — assembling their `Rect`/`LayoutSpace` from the fallback sub-values and keeping the first violation — and return a `LayoutResult` instead of unwrapping internally. Layout math therefore never panics on its own; it *reports*.
+The `Fallback` arm always carries a usable value (`Start` offset `0.0` for alignment; size request clamped to the ceiling, or `0.0`, for `Fill`) **and** a `LayoutViolation` describing what was unsatisfiable plus the call site (`#[track_caller]`). The `LayoutState` methods (`layout`, `begin_deferred_layout`, `end_deferred_layout`) compose these — assembling their `Rect`/`LayoutSpace` from the fallback sub-values and keeping the first violation — and return a `LayoutResult` instead of unwrapping internally. Layout math therefore never panics on its own; it *reports*.
 
 **Reaction is a `WidgetContext`-level concern.** Every layout call funnels through `WidgetContext` (which owns the draw buffer, the text backend, and the policy), which reacts according to `layout_policy: LayoutViolationPolicy`:
 
 - **`Panic`** (default) — rethrow the violation's message. Preserves the strict fail-loud contract; used by tests and any caller wanting a hard guarantee.
 - **`Highlight`** — draw a red outline over the fallback geometry, label the violation message in red at its corner, and keep running.
 
-For the immediate path the reaction happens inline (the resolved rect is in hand). For a deferred child, the `begin_layout` violation is carried *on the child* and reacted at the child's own `finish()`, where its resolved rect is concrete — so each child reacts with its own geometry and no sibling violation is dropped.
+For the immediate path the reaction happens inline (the resolved rect is in hand). For a deferred child, the `begin_deferred_layout` violation is carried *on the child* and reacted at the child's own `finish()`, where its resolved rect is concrete — so each child reacts with its own geometry and no sibling violation is dropped.
 
 ##### Why a policy, rather than one fixed behaviour
 
@@ -643,37 +659,37 @@ A middle ground is required, and *which* one depends on the caller, so it can't 
 - **Tests want `Panic`.** CI should fail the moment a layout becomes unsatisfiable — the cheapest place to catch a regression. Hence `Panic` is the default, leaving existing behaviour and test guarantees unchanged.
 - **Interactive apps want `Highlight`.** The app keeps running so the developer sees the rest of the UI, but the offending region is unmistakable (red box) and self-describing (the message is drawn on it) — the layout equivalent of a renderer's magenta missing-texture. The sample app sets `Highlight` on every page.
 
-The key separation: keep the *value* deterministic and safe (`Start` / clamped-intrinsic) while putting the *loudness* in a policy-driven reaction. Because the fallback never moves a widget off-screen or yields a `NaN`, the rest of the frame lays out sanely around a flagged region even under `Highlight`.
+The key separation: keep the *value* deterministic and safe (`Start` / clamped request) while putting the *loudness* in a policy-driven reaction. Because the fallback never moves a widget off-screen or yields a `NaN`, the rest of the frame lays out sanely around a flagged region even under `Highlight`.
 
-**Scope and non-goals (current).** Only `Panic` and `Highlight` exist; `WarnOnce` (log-once-per-call-site, needs cross-frame state) and `Collect` (push violations to a buffer the app reads) are deferred. `Fallback` carries a single violation (first-wins); plural is a possible future direction. The text label is drawn on every reaction path — the `on_finish` closure carries the text backend into the deferred `begin_layout`/`end_layout` reactions, so they label the box like the immediate path does. The unrecoverable cases (deferred `Auto` + `Center`/`End`, `WrapLayout` `Auto` deferred) remain hard panics — no safe fallback exists, so the policy does not apply to them.
+**Scope and non-goals (current).** Only `Panic` and `Highlight` exist; `WarnOnce` (log-once-per-call-site, needs cross-frame state) and `Collect` (push violations to a buffer the app reads) are deferred. `Fallback` carries a single violation (first-wins); plural is a possible future direction. The text label is drawn on every reaction path — the `on_finish` closure carries the text backend into the deferred `begin_deferred_layout`/`end_deferred_layout` reactions, so they label the box like the immediate path does. The unrecoverable cases (deferred `Auto` + `Center`/`End`, `WrapLayout` `Auto` deferred) remain hard panics — no safe fallback exists, so the policy does not apply to them.
 
 #### Sizing Resolution Rules
 
 Three key rules keep these bounds from leaking infinity into leaf widget geometry:
 
-1. **`Fill` on non-`Exact` axes acts as `Auto`.** Filling an infinite (`Unbounded`) or unanchored (`AtMost`) axis is undefined since there is no committed extent to fill. In these cases, the layout falls back to the widget's intrinsic size (reported as a recoverable `LayoutResult` violation if none is available — see [Unsatisfiable Requests](#unsatisfiable-requests-layoutresult-and-the-violation-policy)), matching `Size::Auto` resolution behavior.
-2. **`AtMost` caps preferred size.** Under `AxisBound::AtMost(w)`, a widget's intrinsic size resolves to `preferred.min(w)`, preventing it from overflowing the ceiling.
+1. **`Fill` on non-`Exact` axes acts as `Auto`.** Filling an infinite (`Unbounded`) or unanchored (`AtMost`) axis is undefined since there is no committed extent to fill. In these cases, the layout falls back to the widget's size request (reported as a recoverable `LayoutResult` violation if no size request is available — see [Unsatisfiable Requests](#unsatisfiable-requests-layoutresult-and-the-violation-policy)), matching `Size::Auto` resolution behavior.
+2. **`AtMost` caps preferred size.** Under `AxisBound::AtMost(w)`, a widget's size request resolves to `preferred.min(w)`, preventing it from overflowing the ceiling.
 3. **Unbounded resolves to concrete at accumulation.** A child laid out in an unbounded axis still resolves to a fully concrete `Rect`. The layout's running cursor stays a concrete `f32`, meaning the accumulated extent remains fully bounded (which is precisely what a deferred scroll area reads as its content size). No infinity ever reaches a `Rect`.
 
 **Reading the accumulated extent — `resolve_space`.** `LayoutState` exposes `fn resolve_space(&self) -> Rect`: the accumulated content resolved against the layout's own `LayoutSpace` bounds (an `Exact` axis reports the exact extent, `AtMost` caps the measured size, `Unbounded` shrink-wraps to it), measured from its origin (so it is independent of any scroll offset, and `OffsetState` forwards its inner's value unchanged). Every layout state implements it — a column reports its widest child and stacked height, `ManualLayout` the max far-edge of placed rects, etc. `WidgetContext::finish()` reads it and hands the resolved `Rect` to the cleanup closure, which is how a deferred scroll area learns how large its children turned out (see [Scroll Areas](#scroll-areas-windows-and-symmetrical-container-life-cycles)). It returns the origin with zero extent before any child is placed.
 
-**The `calc_*_intrinsic_size` companion.** Each raw widget that participates has an independent `raw::calc_*_intrinsic_size(spec, text_backend) -> IntrinsicSize`. It takes a dedicated raw measurement spec such as `raw::ButtonCalcIntrinsicSizeSpec`, containing only the fields needed to measure that widget. Geometry, clipping, input state, focus state, and any draw-only fields are absent unless they genuinely affect intrinsic size.
+**The `size_*` companion.** Each raw widget that participates has an independent `raw::size_*(spec, offer, text_backend) -> SizeRequest`. It takes a dedicated raw measurement spec such as `raw::ButtonSizeSpec`, containing only the fields needed to measure that widget. Geometry, clipping, input state, focus state, and any draw-only fields are absent unless they genuinely affect the size request.
 
-This keeps the type honest: intrinsic sizing runs before layout, so the widget rect is not available and cannot appear in the measurement spec. Callers do not use placeholder rectangles to satisfy a broader raw widget spec; they construct the smaller calc spec directly.
+This keeps the type honest: size requesting runs before layout, so the widget rect is not available and cannot appear in the measurement spec. Callers do not use placeholder rectangles to satisfy a broader raw widget spec; they construct the smaller size spec directly.
 
-**High-level flow.** The high-level widget function: (1) resolves defaults into the high-level `*Spec`; (2) constructs `raw::*CalcIntrinsicSizeSpec` from the size-relevant fields; (3) calls `calc_*_intrinsic_size(&calc_spec, …)`; (4) calls `layout(params, intrinsic)` to get the real rect; (5) constructs `raw::*Spec` from the resolved high-level spec plus the layout rect and context clip; (6) calls the raw function. Under `ManualLayout` the intrinsic is computed but ignored — an accepted "double-shape" cost for now (the text is shaped in both `calc` and the raw draw); a later `Layout::WANTS_INTRINSIC` const can gate it.
+**High-level flow.** The high-level widget function: (1) resolves defaults into the high-level `*Spec`; (2) constructs `raw::*SizeSpec` from the size-relevant fields; (3) calls `size_*(&size_spec, offer, ...)`; (4) calls `layout(params, request)` to get the real rect; (5) constructs `raw::*Spec` from the resolved high-level spec plus the layout rect and context clip; (6) calls the raw function. Under `ManualLayout` the size request is computed but ignored — an accepted "double-shape" cost for now (the text is shaped in both sizing and raw draw); a later `Layout::WANTS_REQUEST` const can gate it.
 
 #### Deferred-own-size containers
 
-Most containers resolve their **own** bounds upfront. `begin_window` and `begin_scroll_area` call `layout(params, intrinsic)` at `begin`, construct a raw spec with the resulting concrete `Rect`, and only then call the raw function — so the raw layer always receives a fully-resolved rect, exactly per the High-level flow above. Their `*Result.layout` is a real `LayoutInfo`.
+Most containers resolve their **own** bounds upfront. `begin_window` and `begin_scroll_area` call `layout(params, request)` at `begin`, construct a raw spec with the resulting concrete `Rect`, and only then call the raw function — so the raw layer always receives a fully-resolved rect, exactly per the High-level flow above. Their `*Result.layout` is a real `LayoutInfo`.
 
-A `Frame` cannot do this: its size depends on its children (e.g. `Extent::Auto` height should shrink-wrap its rows), which are not built until *after* `begin` returns. So `begin_frame` takes the deferred path via `child_with_deferred_layout` / `begin_layout`:
+A `Frame` cannot do this: its size depends on its children (e.g. `Extent::Auto` height should shrink-wrap its rows), which are not built until *after* `begin` returns. So `begin_frame` takes the deferred path via `child_with_deferred_layout` / `begin_deferred_layout`:
 
 1. It hands the raw function a **provisional** rect — `Rect::pending_extent(x, y)` — at `begin`. The origin is genuinely known (it comes from the layout's `LayoutSpace`, whose origin is always concrete); only the extent is pending, so `w`/`h` are NaN. The raw `begin_frame` stamps placeholder `FillRect`/`PushClip` commands with this rect.
 2. Children are built into the inset space.
 3. At `end`, the measured content extent (read via `resolve_space`) is added to the chrome to produce the real bounds. `end_frame` patches the placeholder draw commands in place with that resolved rect.
 
-This is why a `Frame` looks like it breaks the "raw receives a fully-resolved `Rect`" rule but does not: its raw begin function specifically accepts a provisional raw spec for a deferred container lifecycle. Normal leaf widgets receive fully resolved raw specs, and measurement uses separate calc-intrinsic specs. **No layout-level type (`LayoutSpace`, `AxisBound`) ever crosses into the raw layer.** The raw function stays completely layout-agnostic; the provisional-then-patch dance lives entirely in the high-level function and the begin/end command-index plumbing.
+This is why a `Frame` looks like it breaks the "raw receives a fully-resolved `Rect`" rule but does not: its raw begin function specifically accepts a provisional raw spec for a deferred container lifecycle. Normal leaf widgets receive fully resolved raw specs, and size requests use separate sizing specs. **No layout-level type (`LayoutSpace`, `AxisBound`) ever crosses into the raw layer.** The raw function stays completely layout-agnostic; the provisional-then-patch dance lives entirely in the high-level function and the begin/end command-index plumbing.
 
 **Provisional geometry marker:**
 - `Rect::pending_extent(x, y)` (origin set, extent NaN) — "origin known, extent pending". Used for a deferred container's provisional rect between `begin` and the `end` patch.
@@ -753,11 +769,11 @@ Each widget defines two result structs reflecting the two API layers.
 - **Not** `DrawCommands` — accumulated into `WidgetContext` automatically
 - **Not** `*State` — mutated in-place
 
-The high-level function maps between them: it resolves builder defaults into a high-level `*Spec`, constructs the smaller raw calc-intrinsic spec, measures the intrinsic size, resolves the real rect via `ctx.layout_state.layout(params, intrinsic)`, constructs the raw widget spec with the resolved rect and context clip, calls `raw::widget()`, pushes draw commands into the context, then constructs the `*Result` forwarding the interaction fields and adding `LayoutInfo`.
+The high-level function maps between them: it resolves builder defaults into a high-level `*Spec`, constructs the smaller raw size spec, computes the `SizeRequest` under the `SizeOffer`, resolves the real rect via `ctx.layout_state.layout(params, request)`, constructs the raw widget spec with the resolved rect and context clip, calls `raw::widget()`, pushes draw commands into the context, then constructs the `*Result` forwarding the interaction fields and adding `LayoutInfo`.
 
 Nesting a child layout is done with `ctx.child_with_layout(placement, inner_layout)`: it resolves `placement` against the *current* layout to get the child's bounds, begins `inner_layout` at those bounds, and returns a child `WidgetContext`. (Container widgets that compute their own bounds — scroll areas, windows — instead use the `child_with_layout_and_on_finish[_and_clip_rect]` variants, which take an already-begun layout state plus a self-derived clip.)
 
-### Spec, Calc Spec, Raw Spec, and Builder Pattern
+### Spec, Size Spec, Raw Spec, and Builder Pattern
 
 Every widget type follows a consistent layered configuration pattern:
 
@@ -765,20 +781,20 @@ Every widget type follows a consistent layered configuration pattern:
 
 - **`*SpecBuilder`**: A builder struct used by high-level callers to construct the high-level `*Spec`. The builder holds optional fields and provides ergonomic setter methods. It applies theme defaults for user-facing values and panics only for required high-level inputs with no sensible default.
 
-- **`raw::*CalcIntrinsicSizeSpec`**: A low-level measurement specification struct used by `raw::calc_*_intrinsic_size`. It contains only the fields needed to compute intrinsic size. For example, `raw::ButtonCalcIntrinsicSizeSpec` contains the button text and style, but not `rect` or `clip_rect`.
+- **`raw::*SizeSpec`**: A low-level measurement specification struct used by `raw::size_*`. It contains only the fields needed to compute a `SizeRequest`. For example, `raw::ButtonSizeSpec` contains the button text and style, but not `rect` or `clip_rect`.
 
 - **`raw::*Spec`**: A fully resolved low-level specification struct used by the raw widget function. All fields are concrete values needed to draw and interact with the widget, including geometry such as `rect` and context-managed values such as `clip_rect` and `layer`. It is defined inside the widget's `pub mod raw {}` submodule (e.g. `button::raw::ButtonSpec`), co-located with the raw function that consumes it, and avoids cluttering the normal module level with details high-level users do not need.
 
 This pattern cleanly separates concerns:
 - **Low-level functions** are pure and testable — they receive explicit values and produce explicit results, with no knowledge of themes, layouts, or context.
-- **Intrinsic sizing** is type-safe — measurement specs cannot accidentally contain or read fields that are unavailable before layout.
+- **Size requesting** is type-safe — size specs cannot accidentally contain or read fields that are unavailable before layout.
 - **High-level functions** are ergonomic and integrated — they resolve defaults, handle layout, bridge from high-level specs to raw specs, and hide low-level geometry/context plumbing.
 
 > [!IMPORTANT]
-> **Spec and SpecBuilder Value-Type Rule:** High-level `*Spec`, `*SpecBuilder`, `raw::*CalcIntrinsicSizeSpec`, and `raw::*Spec` structs must contain only basic parameters (colors, fonts, rectangles, strings, numeric values, etc.). They must NOT include references to runtime resources like `Input`, `FocusSystem`, a text backend, or other external state. These structs should be pure value-types with no external references, making them trivially copyable, serializable, and independent of any runtime context.
+> **Spec and SpecBuilder Value-Type Rule:** High-level `*Spec`, `*SpecBuilder`, `raw::*SizeSpec`, and `raw::*Spec` structs must contain only basic parameters (colors, fonts, rectangles, strings, numeric values, etc.). They must NOT include references to runtime resources like `Input`, `FocusSystem`, a text backend, or other external state. These structs should be pure value-types with no external references, making them trivially copyable, serializable, and independent of any runtime context.
 
 > [!IMPORTANT]
-> **Theme Must Not Appear in Specs:** A high-level `*Spec`, raw calc spec, or raw widget spec must never hold a `Theme` field. `Theme` is a high-level convenience that maps semantic intent to concrete values; by the time a spec is constructed, that mapping is complete. The `*SpecBuilder` is the only place `Theme` is touched — its `defaults_from_theme()` method reads the theme and writes resolved colours, sizes, and font handles into the builder's fields. The resulting specs contain only those resolved primitives. This keeps every spec self-contained and renderer-agnostic, and prevents the low-level widget layer from having any dependency on the theme system.
+> **Theme Must Not Appear in Specs:** A high-level `*Spec`, raw size spec, or raw widget spec must never hold a `Theme` field. `Theme` is a high-level convenience that maps semantic intent to concrete values; by the time a spec is constructed, that mapping is complete. The `*SpecBuilder` is the only place `Theme` is touched — its `defaults_from_theme()` method reads the theme and writes resolved colours, sizes, and font handles into the builder's fields. The resulting specs contain only those resolved primitives. This keeps every spec self-contained and renderer-agnostic, and prevents the low-level widget layer from having any dependency on the theme system.
 
 > [!IMPORTANT]
 > **Builder Construction Rule:** All `*SpecBuilder` structs use a no-args `new()` constructor. No field is singled out as a required constructor parameter — **every field, including bool flags like `disabled` and `large`, is `Option<T>`** and starts as `None`. `build()` applies defaults for fields that have an obvious, context-independent value (e.g. `disabled` → `unwrap_or(false)`) and panics with a clear message for fields with no sensible default; the message names the missing field and points to the fix (e.g. *"style not set — call .style() or defaults_from_theme()"*). Making every field `Option<T>` is essential: `None` means "the user did not set this", which lets both `defaults_from_theme` and the high-level widget function inject context-aware defaults — something impossible if bools silently default to `false` in `new()`.
@@ -800,7 +816,7 @@ This is the only correct behaviour given the call order: the app sets fields on 
 
 **High-level API callers never call `defaults_from_theme` directly.** It is called automatically inside every high-level context function. App code just sets the fields it cares about and passes the builder in.
 
-The high-level function calls `defaults_from_theme` internally before building its high-level `*Spec`. Low-level raw callers do not use high-level builders; they construct `raw::*Spec` and `raw::*CalcIntrinsicSizeSpec` directly, supplying already-resolved styles and geometry. If a raw caller wants themed values, it calls the appropriate `*Style::from_theme` helper and places the resulting concrete style into the raw spec.
+The high-level function calls `defaults_from_theme` internally before building its high-level `*Spec`. Low-level raw callers do not use high-level builders; they construct `raw::*Spec` and `raw::*SizeSpec` directly, supplying already-resolved styles and geometry. If a raw caller wants themed values, it calls the appropriate `*Style::from_theme` helper and places the resulting concrete style into the raw spec.
 
 Explicit high-level placement is expressed through the layout parameters, not the spec. Under `ManualLayout`, the layout parameter *is* the rect. Callers that want to bypass layout entirely use the low-level `raw::` function and set `rect` directly on `raw::*Spec`.
 
@@ -878,12 +894,13 @@ pub fn button<T, S, CF>(
     state: &mut ButtonState,
 ) -> ButtonResult {
     let spec = builder.defaults_from_theme(&ctx.theme).build();
-    let calc_spec = raw::ButtonCalcIntrinsicSizeSpec {
+    let size_spec = raw::ButtonSizeSpec {
         text: spec.text,
         style: spec.style,
     };
-    let intrinsic = raw::calc_button_intrinsic_size(&calc_spec, ctx.text_backend);
-    let rect = ctx.layout(layout_params, intrinsic);
+    let offer = ctx.peek_offer(layout_params);
+    let request = raw::size_button(&size_spec, offer, ctx.text_backend);
+    let rect = ctx.layout(layout_params, request);
     let raw_spec = raw::ButtonSpec {
         rect,
         text: spec.text,
@@ -905,7 +922,7 @@ pub fn button<T, S, CF>(
 Built-in layouts hold no privileged position. The two public traits — `Layout` and `LayoutState` — are the complete extension point:
 
 - **`Layout`** defines the configuration type (`type Params`) and a `begin(space: impl Into<LayoutSpace>) -> Self::State` method that initialises the mutable state.
-- **`LayoutState`** is the mutable engine: `layout(params, intrinsic) -> Rect` for normal widgets, `begin_layout` / `end_layout` for fit-to-children containers, and `resolve_space() -> Rect` so scroll areas and `finish()` can read the accumulated content **resolved against the layout's own `LayoutSpace` bounds** (an `Exact` axis reports the exact extent, `AtMost` caps the measured size, `Unbounded` shrink-wraps to it).
+- **`LayoutState`** is the mutable engine: `layout(params, request) -> Rect` for normal widgets, `begin_deferred_layout` / `end_deferred_layout` for fit-to-children containers, and `resolve_space() -> Rect` so scroll areas and `finish()` can read the accumulated content **resolved against the layout's own `LayoutSpace` bounds** (an `Exact` axis reports the exact extent, `AtMost` caps the measured size, `Unbounded` shrink-wraps to it).
 
 A user-defined layout implements both traits, passes its state type into `WidgetContext::child_with_layout`, and is otherwise identical to `ColumnLayout` or any other built-in. No library modification is required; no registration step exists. The built-ins are examples of the pattern, not gatekeepers of it.
 
@@ -1118,13 +1135,13 @@ Design decisions around how complex container widgets (Scroll Areas and Windows)
 
 - **Decorator Layouts**: Layouts like `OffsetLayout<L>` are pure decorators. They wrap another layout and modify the returned rectangles (e.g. subtracting an offset). They do NOT track rendering state, apply clipping, or hold application state.
 
-- **Fit-to-Children Containers (Opt-in Sizing)**: Container widgets (such as `frame`) can choose to **opt in** to discovering their children's bounds to dynamically size themselves bottom-up. Standard single-pass leaf widgets call `layout(params, intrinsic)` to obtain their concrete bounds in one go. In contrast, container widgets that want to fit to their content size opt into the deferred layout pattern using a compile-safe token-borrow model:
+- **Fit-to-Children Containers (Opt-in Sizing)**: Container widgets (such as `frame`) can choose to **opt in** to discovering their children's bounds to dynamically size themselves bottom-up. Standard single-pass leaf widgets call `layout(params, request)` to obtain their concrete bounds in one go. In contrast, container widgets that want to fit to their content size opt into the deferred layout pattern using a compile-safe token-borrow model:
   - **The Opt-In Pattern**:
-    1. The container calls `begin_layout(layout_params) -> (LayoutSpace, LayoutToken<'a>)` instead of `layout()`. This mutably borrows the parent `LayoutState` for the lifetime of the returned `LayoutToken`, preventing any sibling layout calls from being made on the parent context while the token lives (statically borrow-enforcing the evaluation sequence).
+    1. The container calls `begin_deferred_layout(layout_params) -> (LayoutSpace, LayoutToken<'a>)` instead of `layout()`. This mutably borrows the parent `LayoutState` for the lifetime of the returned `LayoutToken`, preventing any sibling layout calls from being made on the parent context while the token lives (statically borrow-enforcing the evaluation sequence).
     2. The container inspects the generic `LayoutSpace` bounds (`AxisBound`) to make its own sizing policy decisions: if an axis is `Unbounded` or `AtMost`, the container will size itself bottom-up to its children; if it is `Exact(w)`, it honors the parent's rigid constraints. It subtracts padding/borders via `space.inset(amount)` to yield the available child space.
     3. The container creates a child `WidgetContext` with a custom `on_finish` closure, capturing the `LayoutToken` by value.
     4. Sibling widgets are laid out sequentially within the child context. When the child context is finished, `finish()` automatically queries the child layout state for its `resolve_space()` (the accumulated content resolved against the layout's bounds) and passes it to the `on_finish` closure.
-    5. Inside the closure, the container consumes the token by calling `token.end_layout(children_extent)`. This resolves the container's final size and visual alignment inside the parent, advances the parent layout cursor, and releases the parent borrow, unlocking the parent context for subsequent sibling widgets.
+    5. Inside the closure, the container consumes the token by calling `token.end_deferred_layout(children_extent)`. This resolves the container's final size and visual alignment inside the parent, advances the parent layout cursor, and releases the parent borrow, unlocking the parent context for subsequent sibling widgets.
   - This design decouples the container from concrete layout systems (like `ColumnLayout` or `RowLayout`) and concrete layout parameters (like `Placement2D` or `Rect`), as all sizing policies are decided solely via generic `LayoutSpace` bounds and completed via `LayoutToken`.
 
 - **Container Lifecycle — begin/finish**: Container widgets (`begin_scroll_area`, `begin_window`, `begin_frame`) return a child `WidgetContext` with their cleanup logic embedded as an `on_finish` closure. The caller fills the child context with widgets, then calls `child.finish()`. Commands accumulate directly into the shared buffer and cleanup runs automatically — no explicit high-level `end_*` call or manual command threading needed. The raw layer still exposes `raw::end_scroll_area(token, content_extent, state, input, focus_system)` and `raw::end_window()` for callers that bypass the context system.
