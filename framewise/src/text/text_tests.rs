@@ -979,8 +979,17 @@ fn visual_line_carets_collapsed_whitespace_soft_wrap_use_boundary_sides() {
     };
 
     assert_eq!(layout.lines[0].end_kind, LineEndKind::SoftWrapWhitespace);
+
+    // caret_at_visual_line_end for the previous line still returns BeforeCluster(wrapped_whitespace_boundary)
     assert_eq!(layout.caret_at_visual_line_end(0), previous_line_end);
+
+    // caret_at_visual_line_start after collapsed soft-wrap whitespace returns BeforeCluster(first cluster on following line)
     assert_eq!(layout.caret_at_visual_line_start(1), next_line_start);
+
+    // caret_at_visual_line_x(line, x_at_or_before_start) returns the same Home-style start caret.
+    assert_eq!(layout.caret_at_visual_line_x(1, 0.0), next_line_start);
+    assert_eq!(layout.caret_at_visual_line_x(1, -10.0), next_line_start);
+
     assert_eq!(layout.visual_line_index_for_caret(previous_line_end), 0);
     assert_eq!(layout.visual_line_index_for_caret(next_line_start), 1);
     assert_ne!(
@@ -1001,8 +1010,17 @@ fn visual_line_carets_hard_newline_use_boundary_sides() {
     };
 
     assert_eq!(layout.lines[0].end_kind, LineEndKind::HardNewline);
+
+    // caret_at_visual_line_end for the previous line still returns BeforeCluster(newline_boundary)
     assert_eq!(layout.caret_at_visual_line_end(0), previous_line_end);
+
+    // caret_at_visual_line_start after a hard newline returns BeforeCluster(first cluster on following line)
     assert_eq!(layout.caret_at_visual_line_start(1), next_line_start);
+
+    // caret_at_visual_line_x(line, x_at_or_before_start) returns the same Home-style start caret.
+    assert_eq!(layout.caret_at_visual_line_x(1, 0.0), next_line_start);
+    assert_eq!(layout.caret_at_visual_line_x(1, -10.0), next_line_start);
+
     assert_eq!(layout.visual_line_index_for_caret(previous_line_end), 0);
     assert_eq!(layout.visual_line_index_for_caret(next_line_start), 1);
 }
@@ -2480,7 +2498,8 @@ fn test_caret_at_visual_line_x_scenarios() {
     let layout_hard = layout("a\nb", TextFlow::single_line(), TextBounds::UNBOUNDED);
     // Line 0 is "a\n"
     // Line 1 is "b"
-    // If we move vertically, caret at x=0 on line 1:
+    // x=0 on line 1 clamps to the Home-style visual/content start of that line:
+    // before the first cluster on this visual line, not after the newline boundary.
     assert_eq!(
         layout_hard.caret_at_visual_line_x(1, 0.0),
         CaretPosition::BeforeCluster {
@@ -2515,7 +2534,9 @@ fn test_caret_at_visual_line_x_scenarios() {
     );
     // line 0: "hello" (with collapsed space)
     // line 1: "world"
-    // x=0 on line 1 (after whitespace) returns the distinct after-whitespace leading-edge caret:
+    // x=0 on line 1 clamps to the Home-style visual/content start of that line:
+    // before the first cluster on this visual line. This is intentionally not the
+    // same as the sequential traversal caret after the wrapped whitespace boundary.
     assert_eq!(
         layout_whitespace.caret_at_visual_line_x(1, 0.0),
         CaretPosition::BeforeCluster {

@@ -34,12 +34,18 @@ impl<G> TextLayout<G> {
 
     /// Return the caret at the visual start of a laid-out line.
     ///
-    /// Non-empty line starts return the first cluster's `BeforeCluster`
-    /// anchor, including mid-word soft-wrap starts that share an insertion byte
-    /// with the previous line's end. Empty continuation lines, such as the
-    /// editor feedback line after a terminal hard newline, use the preceding
-    /// boundary cluster's `AfterCluster` caret because no following cluster
-    /// exists.
+    /// This is a Home-style visual/content start helper intended for keyboard
+    /// movement, which may intentionally differ from the caret reached by sequential
+    /// left/right traversal across a newline or soft-wrap boundary.
+    ///
+    /// For a non-empty visual line, it always returns the first cluster's `BeforeCluster`
+    /// anchor, even when the line follows a hard newline or collapsed soft-wrap
+    /// whitespace boundary. It does not return the `AfterCluster` of the previous line's
+    /// boundary cluster.
+    ///
+    /// Empty continuation lines (e.g. editor feedback line after a terminal hard newline)
+    /// use the preceding boundary cluster's `AfterCluster` caret because no following
+    /// cluster exists.
     pub fn caret_at_visual_line_start(&self, line_index: usize) -> CaretPosition {
         let line_idx = line_index.min(self.lines.len().saturating_sub(1));
         let line = &self.lines[line_idx];
@@ -54,6 +60,9 @@ impl<G> TextLayout<G> {
     }
 
     /// Return the caret at the visual end of a laid-out line.
+    ///
+    /// This is an End-style visual/content end helper intended for keyboard
+    /// movement.
     ///
     /// Hard newline and collapsed soft-wrap-whitespace endings return
     /// `BeforeCluster` for their boundary cluster, keeping the caret visually
@@ -133,6 +142,10 @@ impl<G> TextLayout<G> {
     ///
     /// This is intended for keyboard vertical movement (such as Up, Down, PageUp, PageDown),
     /// not for pointer coordinate hit-testing.
+    ///
+    /// Any `x` coordinate at or before the visual line start clamps to the Home-style
+    /// [`TextLayout::caret_at_visual_line_start`] caret. Any `x` coordinate at or after the
+    /// visual line end clamps to the End-style [`TextLayout::caret_at_visual_line_end`] caret.
     pub fn caret_at_visual_line_x(&self, line_index: usize, x: f32) -> CaretPosition {
         let line_idx = line_index.min(self.lines.len().saturating_sub(1));
         let line = &self.lines[line_idx];
