@@ -1672,7 +1672,7 @@ mod tests {
         let theme = crate::theme::Theme::framewise();
         {
             let mut ctx = WidgetContext::root(
-                theme.clone(),
+                theme,
                 &mut text_backend,
                 &mut focus,
                 &input,

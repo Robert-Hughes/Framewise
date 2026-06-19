@@ -597,9 +597,11 @@ mod tests {
     fn test_segmented_click_takes_focus() {
         let mut focus_system = FocusSystem::new();
         let mut state = SegmentedState::default();
-        let mut input = Input::default();
-        input.mouse_pos = Vec2::new(20.0, 10.0);
-        input.mouse_pressed = true;
+        let input = Input {
+            mouse_pos: Vec2::new(20.0, 10.0),
+            mouse_pressed: true,
+            ..Default::default()
+        };
 
         let mut text_backend = TestTextBackend;
         let items = ["A", "B"];
@@ -635,9 +637,11 @@ mod tests {
     fn test_segmented_clipped_click_does_not_take_focus() {
         let mut focus_system = FocusSystem::new();
         let mut state = SegmentedState::default();
-        let mut input = Input::default();
-        input.mouse_pos = Vec2::new(20.0, 10.0);
-        input.mouse_pressed = true;
+        let input = Input {
+            mouse_pos: Vec2::new(20.0, 10.0),
+            mouse_pressed: true,
+            ..Default::default()
+        };
 
         let mut text_backend = TestTextBackend;
         let items = ["A", "B"];

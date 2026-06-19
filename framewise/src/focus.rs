@@ -739,8 +739,10 @@ mod tests {
 
     #[test]
     fn test_handle_traversal_tab_moves_next() {
-        let mut input = crate::input::Input::default();
-        input.key_pressed_tab = true;
+        let input = crate::input::Input {
+            key_pressed_tab: true,
+            ..Default::default()
+        };
         let (has1, has2) = two_widget_focus_after_key(input, FocusTraversalKeys::all());
         assert!(!has1, "id1 should lose focus after Tab");
         assert!(has2, "id2 should gain focus after Tab");
@@ -753,9 +755,11 @@ mod tests {
         let id2 = FocusId::new();
         sys.take_keyboard_focus(id2);
 
-        let mut input = crate::input::Input::default();
-        input.key_pressed_tab = true;
-        input.modifier_shift = true;
+        let input = crate::input::Input {
+            key_pressed_tab: true,
+            modifier_shift: true,
+            ..Default::default()
+        };
 
         sys.begin_frame();
         sys.register_keyboard(id1, r(0.0, 0.0), None);
@@ -774,8 +778,10 @@ mod tests {
     #[test]
     fn test_handle_traversal_down_moves_to_widget_below() {
         // id2 is directly below id1 — spatial finds it.
-        let mut input = crate::input::Input::default();
-        input.key_pressed_down = true;
+        let input = crate::input::Input {
+            key_pressed_down: true,
+            ..Default::default()
+        };
         let (has1, has2) = two_widget_focus_after_key(input, FocusTraversalKeys::all());
         assert!(!has1);
         assert!(has2, "Down should move focus to widget below");
@@ -785,8 +791,10 @@ mod tests {
     fn test_handle_traversal_right_no_spatial_target_falls_back_linear() {
         // id1 and id2 are stacked vertically — neither is to the right of the other.
         // Right falls back to linear Next → id2.
-        let mut input = crate::input::Input::default();
-        input.key_pressed_right = true;
+        let input = crate::input::Input {
+            key_pressed_right: true,
+            ..Default::default()
+        };
         let (has1, has2) = two_widget_focus_after_key(input, FocusTraversalKeys::all());
         assert!(!has1);
         assert!(
@@ -798,8 +806,10 @@ mod tests {
     #[test]
     fn test_handle_traversal_up_no_spatial_target_falls_back_linear() {
         // id1 is at top, nothing above — Up falls back to linear Prev → wraps to id2.
-        let mut input = crate::input::Input::default();
-        input.key_pressed_up = true;
+        let input = crate::input::Input {
+            key_pressed_up: true,
+            ..Default::default()
+        };
         let (has1, has2) = two_widget_focus_after_key(input, FocusTraversalKeys::all());
         assert!(!has1);
         assert!(
@@ -810,8 +820,10 @@ mod tests {
 
     #[test]
     fn test_handle_traversal_left_no_spatial_target_falls_back_linear() {
-        let mut input = crate::input::Input::default();
-        input.key_pressed_left = true;
+        let input = crate::input::Input {
+            key_pressed_left: true,
+            ..Default::default()
+        };
         let (has1, has2) = two_widget_focus_after_key(input, FocusTraversalKeys::all());
         assert!(!has1);
         assert!(
@@ -822,8 +834,10 @@ mod tests {
 
     #[test]
     fn test_handle_traversal_tab_only_arrows_dont_navigate() {
-        let mut input = crate::input::Input::default();
-        input.key_pressed_right = true;
+        let input = crate::input::Input {
+            key_pressed_right: true,
+            ..Default::default()
+        };
         let (has1, has2) = two_widget_focus_after_key(input, FocusTraversalKeys::tab_only());
         assert!(has1, "Arrow should not move focus with tab_only");
         assert!(!has2);
@@ -831,8 +845,10 @@ mod tests {
 
     #[test]
     fn test_handle_traversal_tab_only_tab_still_navigates() {
-        let mut input = crate::input::Input::default();
-        input.key_pressed_tab = true;
+        let input = crate::input::Input {
+            key_pressed_tab: true,
+            ..Default::default()
+        };
         let (has1, has2) = two_widget_focus_after_key(input, FocusTraversalKeys::tab_only());
         assert!(!has1);
         assert!(has2, "Tab should still navigate with tab_only");
@@ -840,9 +856,11 @@ mod tests {
 
     #[test]
     fn test_handle_traversal_none_nothing_navigates() {
-        let mut input = crate::input::Input::default();
-        input.key_pressed_tab = true;
-        input.key_pressed_right = true;
+        let input = crate::input::Input {
+            key_pressed_tab: true,
+            key_pressed_right: true,
+            ..Default::default()
+        };
         let (has1, has2) = two_widget_focus_after_key(input, FocusTraversalKeys::none());
         assert!(
             has1,
@@ -858,8 +876,10 @@ mod tests {
         let id2 = FocusId::new();
         sys.take_keyboard_focus(id1);
 
-        let mut input = crate::input::Input::default();
-        input.key_pressed_right = true;
+        let input = crate::input::Input {
+            key_pressed_right: true,
+            ..Default::default()
+        };
 
         sys.begin_frame();
         sys.register_keyboard(id1, r(0.0, 0.0), None);
@@ -1089,8 +1109,10 @@ mod tests {
         sys.take_keyboard_focus(id);
 
         sys.begin_frame();
-        let mut input = crate::input::Input::default();
-        input.key_pressed_down = true;
+        let input = crate::input::Input {
+            key_pressed_down: true,
+            ..Default::default()
+        };
         let focused = sys.register_keyboard(id, r(0.0, 0.0), None);
         sys.handle_keyboard_traversal(focused, &input, FocusTraversalKeys::all());
         sys.end_frame();
@@ -1119,8 +1141,10 @@ mod tests {
         sys.take_keyboard_focus(id_focus);
 
         sys.begin_frame();
-        let mut input = crate::input::Input::default();
-        input.key_pressed_down = true;
+        let input = crate::input::Input {
+            key_pressed_down: true,
+            ..Default::default()
+        };
         let focused = sys.register_keyboard(id_focus, r(0.0, 0.0), None); // y=0, inside clip
         sys.handle_keyboard_traversal(focused, &input, FocusTraversalKeys::all());
         // id_clipped: rect at y=50 is fully outside clip y=0..40 → excluded from spatial map
@@ -1154,8 +1178,10 @@ mod tests {
         sys.take_keyboard_focus(id_focus);
 
         sys.begin_frame();
-        let mut input = crate::input::Input::default();
-        input.key_pressed_down = true;
+        let input = crate::input::Input {
+            key_pressed_down: true,
+            ..Default::default()
+        };
         let focused = sys.register_keyboard(id_focus, r(0.0, 0.0), None);
         sys.handle_keyboard_traversal(focused, &input, FocusTraversalKeys::all());
         sys.register_keyboard(id_partial, rect_partial, Some(clip));
@@ -1198,9 +1224,11 @@ mod tests {
     fn test_handle_widget_focus_disabled() {
         let id = FocusId::new();
         let mut sys = FocusSystem::new();
-        let mut input = crate::input::Input::default();
-        input.mouse_pos = Vec2::new(10.0, 10.0);
-        input.mouse_pressed = true;
+        let input = crate::input::Input {
+            mouse_pos: Vec2::new(10.0, 10.0),
+            mouse_pressed: true,
+            ..Default::default()
+        };
 
         sys.begin_frame();
         let (focused, clicked) = handle_widget_keyboard_focus(
@@ -1223,8 +1251,10 @@ mod tests {
     fn test_handle_widget_focus_clicked_takes_focus() {
         let id = FocusId::new();
         let mut sys = FocusSystem::new();
-        let mut input = crate::input::Input::default();
-        input.mouse_pos = Vec2::new(10.0, 10.0);
+        let mut input = crate::input::Input {
+            mouse_pos: Vec2::new(10.0, 10.0),
+            ..Default::default()
+        };
 
         // Hovered but not pressed
         sys.begin_frame();
@@ -1266,8 +1296,10 @@ mod tests {
         let mut sys = FocusSystem::new();
         sys.take_keyboard_focus(id);
 
-        let mut input = crate::input::Input::default();
-        input.key_pressed_tab = true;
+        let input = crate::input::Input {
+            key_pressed_tab: true,
+            ..Default::default()
+        };
 
         sys.begin_frame();
         let (focused, clicked) = handle_widget_keyboard_focus(

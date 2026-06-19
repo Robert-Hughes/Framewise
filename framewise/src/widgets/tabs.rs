@@ -613,9 +613,11 @@ mod tests {
     fn test_tabs_click_takes_focus() {
         let mut focus_system = FocusSystem::new();
         let mut state = TabsState::default();
-        let mut input = Input::default();
-        input.mouse_pos = Vec2::new(20.0, 10.0);
-        input.mouse_pressed = true;
+        let input = Input {
+            mouse_pos: Vec2::new(20.0, 10.0),
+            mouse_pressed: true,
+            ..Default::default()
+        };
 
         let mut text_backend = TestTextBackend;
         let items = ["Tab1", "Tab2"];
@@ -644,9 +646,11 @@ mod tests {
     fn test_tabs_clipped_click_does_not_take_focus() {
         let mut focus_system = FocusSystem::new();
         let mut state = TabsState::default();
-        let mut input = Input::default();
-        input.mouse_pos = Vec2::new(20.0, 10.0);
-        input.mouse_pressed = true;
+        let input = Input {
+            mouse_pos: Vec2::new(20.0, 10.0),
+            mouse_pressed: true,
+            ..Default::default()
+        };
 
         let mut text_backend = TestTextBackend;
         let items = ["Tab1", "Tab2"];

@@ -984,8 +984,10 @@ mod tests {
 
     #[test]
     fn test_slider_page_up_down_keyboard() {
-        let mut state = SliderState::default();
-        state.value = 50.0;
+        let mut state = SliderState {
+            value: 50.0,
+            ..Default::default()
+        };
         let spec = test_spec(0.0, 100.0, true);
 
         let mut input = Input::new();
@@ -1224,8 +1226,10 @@ mod tests {
 
     #[test]
     fn test_slider_arrow_keys() {
-        let mut state = SliderState::default();
-        state.value = 50.0;
+        let mut state = SliderState {
+            value: 50.0,
+            ..Default::default()
+        };
         let spec = test_spec(0.0, 100.0, true);
 
         let mut input = Input::new();
@@ -1308,8 +1312,10 @@ mod tests {
             rect: Rect::new(0.0, 0.0, 100.0, 20.0),
             ..spec.clone()
         };
-        let mut horiz_state = SliderState::default();
-        horiz_state.value = 50.0;
+        let mut horiz_state = SliderState {
+            value: 50.0,
+            ..Default::default()
+        };
         focus_system.take_keyboard_focus(horiz_state.focus_id);
 
         input.key_pressed_left = true;
@@ -1336,10 +1342,14 @@ mod tests {
 
     #[test]
     fn test_slider_tab_moves_focus_not_arrows() {
-        let mut state_a = SliderState::default();
-        state_a.value = 50.0;
-        let mut state_b = SliderState::default();
-        state_b.value = 50.0;
+        let mut state_a = SliderState {
+            value: 50.0,
+            ..Default::default()
+        };
+        let mut state_b = SliderState {
+            value: 50.0,
+            ..Default::default()
+        };
         let mut focus_system = FocusSystem::new();
         let spec = test_spec(0.0, 100.0, true);
 
@@ -1347,8 +1357,10 @@ mod tests {
 
         // Frame 1: Tab on focused slider_a — should shift focus to slider_b
         focus_system.begin_frame();
-        let mut input = crate::input::Input::new();
-        input.key_pressed_tab = true;
+        let input = crate::input::Input {
+            key_pressed_tab: true,
+            ..Default::default()
+        };
         let mut cmds = DrawCommands::new();
         raw::slider(
             spec.clone(),
@@ -1393,8 +1405,10 @@ mod tests {
 
     #[test]
     fn test_slider_click_takes_focus() {
-        let mut state = SliderState::default();
-        state.value = 50.0;
+        let mut state = SliderState {
+            value: 50.0,
+            ..Default::default()
+        };
         let mut focus_system = FocusSystem::new();
         let spec = test_spec(0.0, 100.0, true);
 
@@ -1436,8 +1450,10 @@ mod tests {
 
     #[test]
     fn test_slider_clipped_click_does_not_take_focus() {
-        let mut state = SliderState::default();
-        state.value = 50.0;
+        let mut state = SliderState {
+            value: 50.0,
+            ..Default::default()
+        };
         let mut focus_system = FocusSystem::new();
 
         // Mouse is inside the widget rect but outside the clip_rect.
@@ -1462,8 +1478,10 @@ mod tests {
 
     #[test]
     fn test_slider_mouse_wheel() {
-        let mut state = SliderState::default();
-        state.value = 50.0;
+        let mut state = SliderState {
+            value: 50.0,
+            ..Default::default()
+        };
         let spec = test_spec(0.0, 100.0, true);
 
         let mut input = Input::new();
@@ -1819,14 +1837,18 @@ mod tests {
 
     #[test]
     fn test_standalone_slider_wheel_at_max_blocks_propagation() {
-        let mut state = SliderState::default();
-        state.value = 100.0; // already at max
+        let mut state = SliderState {
+            value: 100.0, // already at max
+            ..Default::default()
+        };
         let mut focus_system = FocusSystem::new();
         let parent_id = FocusId::new();
 
-        let mut input = Input::new();
-        input.mouse_pos = crate::types::Vec2::new(10.0, 50.0);
-        input.scroll_delta.y = -1.0; // scroll down
+        let input = Input {
+            mouse_pos: crate::types::Vec2::new(10.0, 50.0),
+            scroll_delta: Vec2::new(0.0, -1.0), // scroll down
+            ..Default::default()
+        };
 
         focus_system.begin_frame();
         let mut cmds = DrawCommands::new();
@@ -1854,14 +1876,18 @@ mod tests {
         // Regression: vertical standalone slider inside a horizontal scroll area was
         // letting horizontal scroll events propagate because claim_scroll_at_ends only
         // claimed up/down, not left/right.
-        let mut state = SliderState::default();
-        state.value = 50.0;
+        let mut state = SliderState {
+            value: 50.0,
+            ..Default::default()
+        };
         let mut focus_system = FocusSystem::new();
         let parent_id = FocusId::new();
 
-        let mut input = Input::new();
-        input.mouse_pos = crate::types::Vec2::new(10.0, 50.0);
-        input.scroll_delta.x = 3.0; // horizontal scroll only
+        let input = Input {
+            mouse_pos: crate::types::Vec2::new(10.0, 50.0),
+            scroll_delta: Vec2::new(3.0, 0.0), // horizontal scroll only
+            ..Default::default()
+        };
 
         focus_system.begin_frame();
         let mut cmds = DrawCommands::new();
@@ -1896,9 +1922,11 @@ mod tests {
         let mut focus_system = FocusSystem::new();
         let parent_id = FocusId::new();
 
-        let mut input = Input::new();
-        input.mouse_pos = crate::types::Vec2::new(10.0, 50.0);
-        input.scroll_delta.y = 1.0; // scroll up
+        let input = Input {
+            mouse_pos: crate::types::Vec2::new(10.0, 50.0),
+            scroll_delta: Vec2::new(0.0, 1.0), // scroll up
+            ..Default::default()
+        };
 
         // Frame 1: inner propagating slider first, then parent claims simulating parent's end()
         focus_system.begin_frame();
@@ -1926,14 +1954,18 @@ mod tests {
 
     #[test]
     fn test_propagating_slider_at_max_yields_scroll_down_to_parent() {
-        let mut state = SliderState::default();
-        state.value = 100.0; // at max — can't scroll down
+        let mut state = SliderState {
+            value: 100.0, // at max — can't scroll down
+            ..Default::default()
+        };
         let mut focus_system = FocusSystem::new();
         let parent_id = FocusId::new();
 
-        let mut input = Input::new();
-        input.mouse_pos = crate::types::Vec2::new(10.0, 50.0);
-        input.scroll_delta.y = -1.0; // scroll down
+        let input = Input {
+            mouse_pos: crate::types::Vec2::new(10.0, 50.0),
+            scroll_delta: Vec2::new(0.0, -1.0), // scroll down
+            ..Default::default()
+        };
 
         focus_system.begin_frame();
         let mut cmds = DrawCommands::new();
@@ -1960,14 +1992,18 @@ mod tests {
     fn test_propagating_slider_mid_range_wins_both_directions() {
         // When not at an end, the inner propagating slider claims both directions
         // and the parent gets neither.
-        let mut state = SliderState::default();
-        state.value = 50.0;
+        let mut state = SliderState {
+            value: 50.0,
+            ..Default::default()
+        };
         let mut focus_system = FocusSystem::new();
         let parent_id = FocusId::new();
 
-        let mut input = Input::new();
-        input.mouse_pos = crate::types::Vec2::new(10.0, 50.0);
-        input.scroll_delta.y = 1.0;
+        let input = Input {
+            mouse_pos: crate::types::Vec2::new(10.0, 50.0),
+            scroll_delta: Vec2::new(0.0, 1.0),
+            ..Default::default()
+        };
 
         focus_system.begin_frame();
         let mut cmds = DrawCommands::new();
@@ -2013,20 +2049,24 @@ mod tests {
     /// never takes focus (it isn't registered in the focus order).
     #[test]
     fn test_disabled_slider_ignores_all_input() {
-        let mut state = SliderState::default();
-        state.value = 50.0;
+        let mut state = SliderState {
+            value: 50.0,
+            ..Default::default()
+        };
         let spec = disabled_spec(false);
         let mut focus_system = FocusSystem::new();
         let mut cmds = DrawCommands::new();
 
         // Press on the thumb (thumb is centered around value=50).
-        let mut input = Input::new();
-        input.mouse_pos = crate::types::Vec2::new(10.0, 50.0);
-        input.mouse_pressed = true;
-        input.mouse_down = true;
-        input.scroll_delta.y = 5.0;
-        input.key_pressed_page_down = true;
-        input.key_pressed_end = true;
+        let input = Input {
+            mouse_pos: crate::types::Vec2::new(10.0, 50.0),
+            mouse_pressed: true,
+            mouse_down: true,
+            scroll_delta: Vec2::new(0.0, 5.0),
+            key_pressed_page_down: true,
+            key_pressed_end: true,
+            ..Default::default()
+        };
 
         focus_system.begin_frame();
         raw::slider(
@@ -2056,9 +2096,11 @@ mod tests {
         let mut focus_system = FocusSystem::new();
         let parent_id = FocusId::new();
 
-        let mut input = Input::new();
-        input.mouse_pos = crate::types::Vec2::new(10.0, 50.0);
-        input.scroll_delta.y = 1.0;
+        let input = Input {
+            mouse_pos: crate::types::Vec2::new(10.0, 50.0),
+            scroll_delta: Vec2::new(0.0, 1.0),
+            ..Default::default()
+        };
 
         focus_system.begin_frame();
         let mut cmds = DrawCommands::new();
@@ -2145,8 +2187,10 @@ mod tests {
 
     #[test]
     fn test_slider_visual_normal() {
-        let mut state = SliderState::default();
-        state.value = 50.0;
+        let mut state = SliderState {
+            value: 50.0,
+            ..Default::default()
+        };
         let mut focus_system = FocusSystem::new();
         let spec = test_spec(0.0, 100.0, true);
 
@@ -2196,13 +2240,17 @@ mod tests {
 
     #[test]
     fn test_slider_visual_hovered() {
-        let mut state = SliderState::default();
-        state.value = 50.0;
+        let mut state = SliderState {
+            value: 50.0,
+            ..Default::default()
+        };
         let mut focus_system = FocusSystem::new();
         let spec = test_spec(0.0, 100.0, true);
 
-        let mut input = Input::new();
-        input.mouse_pos = crate::types::Vec2::new(10.0, 50.0);
+        let input = Input {
+            mouse_pos: crate::types::Vec2::new(10.0, 50.0),
+            ..Default::default()
+        };
 
         focus_system.begin_frame();
         let mut cmds = DrawCommands::new();
@@ -2249,14 +2297,18 @@ mod tests {
 
     #[test]
     fn test_slider_visual_drag() {
-        let mut state = SliderState::default();
-        state.is_dragging = true;
-        state.value = 50.0;
+        let mut state = SliderState {
+            is_dragging: true,
+            value: 50.0,
+            ..Default::default()
+        };
         let mut focus_system = FocusSystem::new();
         let spec = test_spec(0.0, 100.0, true);
 
-        let mut input = Input::new();
-        input.mouse_down = true;
+        let input = Input {
+            mouse_down: true,
+            ..Default::default()
+        };
         focus_system.begin_frame();
         let mut cmds = DrawCommands::new();
         let _result = raw::slider(
@@ -2302,8 +2354,10 @@ mod tests {
 
     #[test]
     fn test_slider_visual_focused() {
-        let mut state = SliderState::default();
-        state.value = 50.0;
+        let mut state = SliderState {
+            value: 50.0,
+            ..Default::default()
+        };
         let mut focus_system = FocusSystem::new();
         let spec = test_spec(0.0, 100.0, true);
 

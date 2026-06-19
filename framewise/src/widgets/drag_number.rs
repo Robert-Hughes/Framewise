@@ -559,10 +559,10 @@ mod tests {
     fn test_drag_number_visual_active() {
         let mut state = DragNumberState {
             value: 50.0,
+            is_dragging: true,
+            drag_start_value: 50.0,
             ..Default::default()
         };
-        state.is_dragging = true;
-        state.drag_start_value = 50.0;
         let spec = DragNumberSpec {
             layer: Layer::default(),
             rect: Rect::new(10.0, 10.0, 100.0, 28.0),
@@ -575,9 +575,10 @@ mod tests {
         };
 
         let style = spec.style;
-        let mut input = Input::default();
-        input.mouse_down = true;
-        let mut state = state;
+        let input = Input {
+            mouse_down: true,
+            ..Default::default()
+        };
         let mut cmds = DrawCommands::new();
         let mut text_backend = TestTextBackend;
         let _res = raw::drag_number(
@@ -760,9 +761,11 @@ mod tests {
             value: 50.0,
             ..Default::default()
         };
-        let mut input = Input::default();
-        input.mouse_pos = Vec2::new(15.0, 15.0);
-        input.mouse_pressed = true;
+        let input = Input {
+            mouse_pos: Vec2::new(15.0, 15.0),
+            mouse_pressed: true,
+            ..Default::default()
+        };
 
         let mut text_backend = TestTextBackend;
         let spec = DragNumberSpec {
@@ -803,9 +806,11 @@ mod tests {
             value: 50.0,
             ..Default::default()
         };
-        let mut input = Input::default();
-        input.mouse_pos = Vec2::new(15.0, 15.0);
-        input.mouse_pressed = true;
+        let input = Input {
+            mouse_pos: Vec2::new(15.0, 15.0),
+            mouse_pressed: true,
+            ..Default::default()
+        };
 
         let mut text_backend = TestTextBackend;
         let spec = DragNumberSpec {

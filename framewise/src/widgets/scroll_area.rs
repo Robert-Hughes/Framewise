@@ -936,13 +936,13 @@ mod tests {
     fn nested_scroll_two_frames(
         outer_state: &mut ScrollState,
         inner_state: &mut ScrollState,
-        outer_content_h: f32,
-        inner_content_h: f32,
-        outer_bounds: Rect,
-        inner_bounds: Rect,
+        content_heights: (f32, f32),
+        bounds: (Rect, Rect),
         wheel_delta_y: f32,
         mouse_pos: Vec2,
     ) {
+        let (outer_content_h, inner_content_h) = content_heights;
+        let (outer_bounds, inner_bounds) = bounds;
         let mut input = Input::new();
         input.scroll_delta = Vec2::new(0.0, wheel_delta_y);
         input.mouse_pos = mouse_pos;
@@ -1035,10 +1035,8 @@ mod tests {
         nested_scroll_two_frames(
             &mut outer_state,
             &mut inner_state,
-            600.0,
-            400.0,
-            outer_bounds,
-            inner_bounds,
+            (600.0, 400.0),
+            (outer_bounds, inner_bounds),
             -1.0,
             Vec2::new(50.0, 50.0),
         );
@@ -1093,7 +1091,7 @@ mod tests {
                 crate::widgets::button::raw::ButtonSpec {
                     layer: Layer::default(),
                     rect: Rect::new(0.0, 0.0, 10.0, 10.0),
-                    text: "dummy".into(),
+                    text: "dummy",
                     style: crate::widgets::button::ButtonStyle::primary_from_theme(
                         &theme::Theme::default(),
                     ),
@@ -1168,7 +1166,7 @@ mod tests {
                 crate::widgets::button::raw::ButtonSpec {
                     layer: Layer::default(),
                     rect: Rect::new(0.0, 0.0, 10.0, 10.0),
-                    text: "".into(),
+                    text: "",
                     style: crate::widgets::button::ButtonStyle::primary_from_theme(
                         &theme::Theme::default(),
                     ),
@@ -1221,7 +1219,7 @@ mod tests {
                 crate::widgets::button::raw::ButtonSpec {
                     layer: Layer::default(),
                     rect: Rect::new(500.0, 500.0, 10.0, 10.0),
-                    text: "".into(),
+                    text: "",
                     style: crate::widgets::button::ButtonStyle::primary_from_theme(
                         &theme::Theme::default(),
                     ),
@@ -2171,7 +2169,7 @@ mod tests {
                 crate::widgets::button::raw::ButtonSpec {
                     layer: Layer::default(),
                     rect: Rect::new(0.0, 20.0, 80.0, 30.0),
-                    text: "visible".into(),
+                    text: "visible",
                     style: crate::widgets::button::ButtonStyle::primary_from_theme(
                         &theme::Theme::default(),
                     ),
@@ -2192,7 +2190,7 @@ mod tests {
                 crate::widgets::button::raw::ButtonSpec {
                     layer: Layer::default(),
                     rect: Rect::new(0.0, 120.0, 80.0, 30.0),
-                    text: "clipped".into(),
+                    text: "clipped",
                     style: crate::widgets::button::ButtonStyle::primary_from_theme(
                         &theme::Theme::default(),
                     ),
@@ -2220,7 +2218,7 @@ mod tests {
                 crate::widgets::button::raw::ButtonSpec {
                     layer: Layer::default(),
                     rect: Rect::new(0.0, 200.0, 80.0, 30.0),
-                    text: "start".into(),
+                    text: "start",
                     style: crate::widgets::button::ButtonStyle::primary_from_theme(
                         &theme::Theme::default(),
                     ),
@@ -2312,7 +2310,7 @@ mod tests {
                 crate::widgets::button::raw::ButtonSpec {
                     layer: Layer::default(),
                     rect: Rect::new(0.0, 70.0, 80.0, 30.0),
-                    text: "partial".into(),
+                    text: "partial",
                     style: crate::widgets::button::ButtonStyle::primary_from_theme(
                         &theme::Theme::default(),
                     ),
@@ -2340,7 +2338,7 @@ mod tests {
                 crate::widgets::button::raw::ButtonSpec {
                     layer: Layer::default(),
                     rect: Rect::new(0.0, 150.0, 80.0, 30.0),
-                    text: "start".into(),
+                    text: "start",
                     style: crate::widgets::button::ButtonStyle::primary_from_theme(
                         &theme::Theme::default(),
                     ),
@@ -3060,7 +3058,7 @@ mod nested_bubbling_tests {
 
         for frame in 0..3 {
             focus_system.begin_frame();
-            input.key_pressed_page_down = if frame == 1 { true } else { false };
+            input.key_pressed_page_down = frame == 1;
             if frame == 0 {
                 inner_state.offset.y = 100.0; // At bottom
                 outer_state.offset.y = 0.0; // Has room to scroll down
@@ -3125,7 +3123,7 @@ mod nested_bubbling_tests {
                 crate::widgets::button::raw::ButtonSpec {
                     layer: Layer::default(),
                     rect: Rect::new(0.0, 0.0, 10.0, 10.0),
-                    text: "".into(),
+                    text: "",
                     style: crate::widgets::button::ButtonStyle::primary_from_theme(
                         &theme::Theme::default(),
                     ),
@@ -3174,7 +3172,7 @@ mod nested_bubbling_tests {
 
         for frame in 0..3 {
             focus_system.begin_frame();
-            input.key_pressed_page_down = if frame == 1 { true } else { false };
+            input.key_pressed_page_down = frame == 1;
             if frame == 0 {
                 inner_state.offset.x = 100.0; // Inner horiz at bottom
                 outer_state.offset.y = 0.0; // Outer vert has room
@@ -3238,7 +3236,7 @@ mod nested_bubbling_tests {
                 crate::widgets::button::raw::ButtonSpec {
                     layer: Layer::default(),
                     rect: Rect::new(0.0, 0.0, 10.0, 10.0),
-                    text: "".into(),
+                    text: "",
                     style: crate::widgets::button::ButtonStyle::primary_from_theme(
                         &theme::Theme::default(),
                     ),
@@ -3326,7 +3324,7 @@ mod nested_bubbling_tests {
 
         for frame in 0..3 {
             focus_system.begin_frame();
-            input.key_pressed_page_down = if frame == 1 { true } else { false };
+            input.key_pressed_page_down = frame == 1;
             if frame == 0 {
                 inner_state.offset.y = 100.0; // At bottom
                 outer_state.offset.y = 0.0; // Has room to scroll down
@@ -3458,7 +3456,7 @@ mod nested_bubbling_tests {
 
         for frame in 0..3 {
             focus_system.begin_frame();
-            input.key_pressed_page_down = if frame == 1 { true } else { false };
+            input.key_pressed_page_down = frame == 1;
             if frame == 0 {
                 inner_state.offset.x = 100.0; // At right
                 outer_state.offset.y = 0.0; // Has room
@@ -3842,7 +3840,7 @@ mod nested_bubbling_tests {
                 crate::widgets::button::raw::ButtonSpec {
                     layer: Layer::default(),
                     rect: Rect::new(0.0, 0.0, 10.0, 10.0),
-                    text: "".into(),
+                    text: "",
                     style: crate::widgets::button::ButtonStyle::primary_from_theme(
                         &theme::Theme::default(),
                     ),
@@ -4439,7 +4437,7 @@ mod nested_bubbling_tests {
                 crate::widgets::button::raw::ButtonSpec {
                     layer: Layer::default(),
                     rect: Rect::new(0.0, 0.0, 10.0, 10.0),
-                    text: "".into(),
+                    text: "",
                     style: crate::widgets::button::ButtonStyle::primary_from_theme(
                         &theme::Theme::default(),
                     ),
@@ -5090,7 +5088,7 @@ mod nested_bubbling_tests {
                 crate::widgets::button::raw::ButtonSpec {
                     layer: Layer::default(),
                     rect: Rect::new(0.0, 0.0, 10.0, 10.0),
-                    text: "".into(),
+                    text: "",
                     style: crate::widgets::button::ButtonStyle::primary_from_theme(
                         &theme::Theme::default(),
                     ),
@@ -6199,7 +6197,7 @@ mod nested_bubbling_tests {
                 crate::widgets::button::raw::ButtonSpec {
                     layer: Layer::default(),
                     rect: Rect::new(0.0, 0.0, 10.0, 10.0),
-                    text: "".into(),
+                    text: "",
                     style: crate::widgets::button::ButtonStyle::primary_from_theme(
                         &theme::Theme::default(),
                     ),

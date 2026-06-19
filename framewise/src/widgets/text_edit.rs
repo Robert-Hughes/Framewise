@@ -2265,8 +2265,10 @@ mod tests {
             wrap: true,
             ..spec()
         };
-        let mut input = Input::default();
-        input.mouse_pos = Vec2::new(15.0, 8.0);
+        let mut input = Input {
+            mouse_pos: Vec2::new(15.0, 8.0),
+            ..Default::default()
+        };
 
         focus_system.begin_frame();
         raw::text_edit(
@@ -2367,11 +2369,13 @@ mod tests {
         let mut focus_system = FocusSystem::new();
         let mut state = TextEditState::new("hello world");
 
-        let mut input = Input::default();
-        input.mouse_pos = crate::types::Vec2::new(
-            40.0 + spec().style.padding_x + spec().style.border_width,
-            15.0,
-        );
+        let mut input = Input {
+            mouse_pos: crate::types::Vec2::new(
+                40.0 + spec().style.padding_x + spec().style.border_width,
+                15.0,
+            ),
+            ..Default::default()
+        };
 
         // Frame 1: Warmup to establish hover claim
         focus_system.begin_frame();
@@ -2441,12 +2445,14 @@ mod tests {
         let mut focus_system = FocusSystem::new();
         let mut state = TextEditState::new("hello rust world");
 
-        let mut input = Input::default();
         // Click on "rust" (byte index 8 -> pixel 64)
-        input.mouse_pos = crate::types::Vec2::new(
-            64.0 + spec().style.padding_x + spec().style.border_width,
-            15.0,
-        );
+        let mut input = Input {
+            mouse_pos: crate::types::Vec2::new(
+                64.0 + spec().style.padding_x + spec().style.border_width,
+                15.0,
+            ),
+            ..Default::default()
+        };
 
         // Frame 1: Warmup to establish hover claim
         focus_system.begin_frame();
@@ -3114,11 +3120,13 @@ mod tests {
         let mut focus_system = FocusSystem::new();
         let mut state = TextEditState::new("hello world");
 
-        let mut input = Input::default();
-        input.mouse_pos = crate::types::Vec2::new(
-            40.0 + spec().style.padding_x + spec().style.border_width,
-            15.0,
-        );
+        let mut input = Input {
+            mouse_pos: crate::types::Vec2::new(
+                40.0 + spec().style.padding_x + spec().style.border_width,
+                15.0,
+            ),
+            ..Default::default()
+        };
 
         // Frame 1: Warmup to establish hover claim
         focus_system.begin_frame();
@@ -3170,8 +3178,10 @@ mod tests {
         let mut focus_system = FocusSystem::new();
         let mut state = TextEditState::new("hello");
 
-        let mut input = Input::default();
-        input.mouse_pos = crate::types::Vec2::new(10.0, 15.0);
+        let mut input = Input {
+            mouse_pos: crate::types::Vec2::new(10.0, 15.0),
+            ..Default::default()
+        };
 
         // Frame 1: Warmup to establish hover claim
         focus_system.begin_frame();
@@ -3218,10 +3228,12 @@ mod tests {
             ..spec()
         };
 
-        let mut input = Input::default();
-        input.mouse_pos = crate::types::Vec2::new(10.0, 15.0);
-        input.mouse_pressed = true;
-        input.mouse_down = true;
+        let input = Input {
+            mouse_pos: crate::types::Vec2::new(10.0, 15.0),
+            mouse_pressed: true,
+            mouse_down: true,
+            ..Default::default()
+        };
 
         focus_system.begin_frame();
         raw::text_edit(
@@ -3966,8 +3978,10 @@ mod tests {
         // Manually inject a scroll offset of 50.0
         state.scroll.offset.x = 50.0;
 
-        let mut input = Input::default();
-        input.mouse_pos = Vec2::new(45.0, 15.0);
+        let mut input = Input {
+            mouse_pos: Vec2::new(45.0, 15.0),
+            ..Default::default()
+        };
 
         // Frame 1: Warmup to establish hover claim
         focus_system.begin_frame();
@@ -4105,13 +4119,15 @@ mod tests {
         // Manually inject a vertical scroll offset of 20.0
         state.scroll.offset.y = 20.0;
 
-        let mut input = Input::default();
         // border = 1.0, padding = 4.0, offset.x = 0.0 => text_x = 5.0.
         // Clicking at x = 5.0, y = 38.0.
         // scroll_outer_rect.h = 48.0, metrics.logical_size.y = 96.0.
         // Since text is taller than the viewport, text_y = 1.0 + 4.0 - 20.0 = -15.0.
         // relative_pos.y = 38.0 - (-15.0) = 53.0, which lands on Line 3 ("line4\n", starts at 18)
-        input.mouse_pos = Vec2::new(5.0, 38.0);
+        let mut input = Input {
+            mouse_pos: Vec2::new(5.0, 38.0),
+            ..Default::default()
+        };
 
         // Frame 1: Warmup to establish hover claim
         focus_system.begin_frame();
@@ -4779,8 +4795,10 @@ mod tests {
             set_caret_byte(&mut state, 1);
             set_selection_byte(&mut state, None);
             state.had_keyboard_focus = true;
-            let mut input = Input::default();
-            input.key_pressed_enter = true;
+            let input = Input {
+                key_pressed_enter: true,
+                ..Default::default()
+            };
             focus_system.begin_frame();
             focus_system.take_keyboard_focus(state.focus_id);
             raw::text_edit(
@@ -5119,8 +5137,10 @@ mod tests {
         };
 
         for _ in 0..2 {
-            let mut input = Input::default();
-            input.key_pressed_page_down = true;
+            let input = Input {
+                key_pressed_page_down: true,
+                ..Default::default()
+            };
 
             focus_system.begin_frame();
             let outer_token = crate::widgets::scroll_area::raw::begin_scroll_area(
@@ -5851,13 +5871,15 @@ mod tests {
                 ..spec()
             };
 
-            let mut click_input = Input::default();
             // Text is placed at x = 5.0 (scroll_outer_rect.x + padding = 1.0 + 4.0).
             // Character width in TestTextBackend is 8.0px.
             // Click on 'l' (index 3). x offset should be around 5.0 + 3 * 8.0 = 29.0.
             // Let's click at x = 31.0 (between 29.0 and 37.0).
             // Click Y should be in the line: text Y is 9.0, height is 16.0, so middle is 17.0.
-            click_input.mouse_pos = Vec2::new(31.0, 17.0);
+            let mut click_input = Input {
+                mouse_pos: Vec2::new(31.0, 17.0),
+                ..Default::default()
+            };
 
             // Frame 1: Warmup to claim hover
             focus_system.begin_frame();
@@ -6006,8 +6028,10 @@ mod tests {
             "vertical scrollbar should stay tucked against the right edge"
         );
 
-        let mut click_input = Input::default();
-        click_input.mouse_pos = Vec2::new(9.0, 37.0);
+        let mut click_input = Input {
+            mouse_pos: Vec2::new(9.0, 37.0),
+            ..Default::default()
+        };
 
         focus_system.begin_frame();
         raw::text_edit(

@@ -1045,8 +1045,10 @@ mod tests {
         let mut text_backend = TestTextBackend;
         let mut focus_system = FocusSystem::new();
         let state = ButtonState::default();
-        let mut input = Input::default();
-        input.mouse_pos = Vec2::new(50.0, 25.0); // Inside bounds
+        let input = Input {
+            mouse_pos: Vec2::new(50.0, 25.0), // Inside bounds
+            ..Default::default()
+        };
 
         let mut state = state;
         // Warmup frame to establish hover claim
@@ -1130,8 +1132,10 @@ mod tests {
         let mut text_backend = TestTextBackend;
         let mut focus_system = FocusSystem::new();
         let state = ButtonState::default();
-        let mut input = Input::default();
-        input.mouse_pos = Vec2::new(50.0, 25.0);
+        let mut input = Input {
+            mouse_pos: Vec2::new(50.0, 25.0),
+            ..Default::default()
+        };
 
         let mut state = state;
         // Warmup frame to establish hover claim

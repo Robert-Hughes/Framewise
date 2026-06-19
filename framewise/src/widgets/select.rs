@@ -906,9 +906,11 @@ mod tests {
     fn test_select_click_takes_focus_and_opens() {
         let mut focus_system = FocusSystem::new();
         let state = SelectState::default();
-        let mut input = Input::default();
-        input.mouse_pos = Vec2::new(15.0, 15.0);
-        input.mouse_pressed = true;
+        let input = Input {
+            mouse_pos: Vec2::new(15.0, 15.0),
+            mouse_pressed: true,
+            ..Default::default()
+        };
 
         let mut text_backend = TestTextBackend;
         let items = vec!["Option 1", "Option 2"];
@@ -947,9 +949,11 @@ mod tests {
     fn test_select_clipped_click_does_not_take_focus() {
         let mut focus_system = FocusSystem::new();
         let state = SelectState::default();
-        let mut input = Input::default();
-        input.mouse_pos = Vec2::new(15.0, 15.0);
-        input.mouse_pressed = true;
+        let input = Input {
+            mouse_pos: Vec2::new(15.0, 15.0),
+            mouse_pressed: true,
+            ..Default::default()
+        };
 
         let mut text_backend = TestTextBackend;
         let items = vec!["Option 1", "Option 2"];

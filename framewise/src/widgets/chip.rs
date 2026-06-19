@@ -408,8 +408,10 @@ mod tests {
     #[test]
     fn test_chip_visual_active() {
         let mut text_backend = TestTextBackend;
-        let mut state = ChipState::default();
-        state.checked = true;
+        let mut state = ChipState {
+            checked: true,
+            ..Default::default()
+        };
         let spec = ChipSpec {
             layer: Layer::default(),
             rect: Rect::new(0.0, 0.0, 50.0, 22.0),
@@ -419,7 +421,6 @@ mod tests {
             clip_rect: None,
         };
         let style = spec.style;
-        let mut state = state;
         let mut cmds = DrawCommands::new();
         raw::chip(
             spec,
@@ -555,9 +556,11 @@ mod tests {
     fn test_chip_click_takes_focus() {
         let mut focus_system = FocusSystem::new();
         let state = ChipState::default();
-        let mut input = Input::default();
-        input.mouse_pos = Vec2::new(10.0, 10.0);
-        input.mouse_pressed = true;
+        let input = Input {
+            mouse_pos: Vec2::new(10.0, 10.0),
+            mouse_pressed: true,
+            ..Default::default()
+        };
 
         let mut text_backend = TestTextBackend;
         let spec = ChipSpec {
@@ -593,9 +596,11 @@ mod tests {
     fn test_chip_clipped_click_does_not_take_focus() {
         let mut focus_system = FocusSystem::new();
         let state = ChipState::default();
-        let mut input = Input::default();
-        input.mouse_pos = Vec2::new(10.0, 10.0);
-        input.mouse_pressed = true;
+        let input = Input {
+            mouse_pos: Vec2::new(10.0, 10.0),
+            mouse_pressed: true,
+            ..Default::default()
+        };
 
         let mut text_backend = TestTextBackend;
         let spec = ChipSpec {
