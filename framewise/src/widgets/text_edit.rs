@@ -172,8 +172,8 @@ pub mod raw {
     ) -> TextEditResult {
         let text_style = to_text_style(spec.style, spec.wrap, spec.line_align);
         let processed = spec.newline_policy.process(&state.value);
-        if let std::borrow::Cow::Owned(s) = processed {
-            state.value = s;
+        if processed != state.value {
+            state.value = processed.into_owned();
         }
 
         let mut clipboard_action = None;
@@ -294,29 +294,17 @@ pub mod raw {
                 match ev {
                     TextEvent::Char(c) => {
                         let is_newline = *c == '\n' || *c == '\r';
-                        let ok = if is_newline {
-                            spec.newline_policy != NewlinePolicy::Reject
-                        } else {
-                            !c.is_control()
-                        };
-                        if ok {
-                            remove_selection(
+                        if !c.is_control() || is_newline {
+                            let mut buf = [0; 4];
+                            let char_str = c.encode_utf8(&mut buf);
+                            insert_text_with_newline_policy(
                                 &mut state.value,
                                 &mut caret_state.caret_byte,
                                 &mut caret_state.selection_byte,
+                                &mut caret_state.caret_needs_layout_sync,
+                                spec.newline_policy,
+                                char_str,
                             );
-                            let char_to_insert = if is_newline {
-                                if spec.newline_policy == NewlinePolicy::ReplaceWithSpace {
-                                    ' '
-                                } else {
-                                    '\n'
-                                }
-                            } else {
-                                *c
-                            };
-                            state.value.insert(caret_state.caret_byte, char_to_insert);
-                            caret_state.caret_byte += char_to_insert.len_utf8();
-                            caret_state.caret_needs_layout_sync = true;
                             if is_newline {
                                 newline_inserted = true;
                             }
@@ -445,31 +433,27 @@ pub mod raw {
                         }
                     }
                     TextEvent::Paste(text) => {
-                        let processed = spec.newline_policy.process(text);
-                        remove_selection(
+                        insert_text_with_newline_policy(
                             &mut state.value,
                             &mut caret_state.caret_byte,
                             &mut caret_state.selection_byte,
+                            &mut caret_state.caret_needs_layout_sync,
+                            spec.newline_policy,
+                            text,
                         );
-                        state.value.insert_str(caret_state.caret_byte, &processed);
-                        caret_state.caret_byte += processed.len();
-                        caret_state.caret_needs_layout_sync = true;
                     }
                 }
             }
 
-            if input.key_pressed_enter
-                && !newline_inserted
-                && spec.newline_policy == NewlinePolicy::Allow
-            {
-                remove_selection(
+            if input.key_pressed_enter && !newline_inserted {
+                insert_text_with_newline_policy(
                     &mut state.value,
                     &mut caret_state.caret_byte,
                     &mut caret_state.selection_byte,
+                    &mut caret_state.caret_needs_layout_sync,
+                    spec.newline_policy,
+                    "\n",
                 );
-                state.value.insert(caret_state.caret_byte, '\n');
-                caret_state.caret_byte += 1;
-                caret_state.caret_needs_layout_sync = true;
             }
 
             if input.key_pressed_page_up || input.key_pressed_page_down {
@@ -1525,6 +1509,29 @@ fn remove_selection(
     }
 }
 
+/// Inserts `text` into `value` at the current `caret_byte` (replacing any selection in `selection_byte`),
+/// after applying the specified `policy`.
+///
+/// If the processed text is empty (for example, if `TrimAfterFirstNewline` trims everything or Enter is pressed),
+/// this function returns early without mutating the text or selection.
+fn insert_text_with_newline_policy(
+    value: &mut String,
+    caret_byte: &mut usize,
+    selection_byte: &mut Option<usize>,
+    caret_needs_layout_sync: &mut bool,
+    policy: NewlinePolicy,
+    text: &str,
+) {
+    let processed = policy.process(text);
+    if processed.is_empty() {
+        return;
+    }
+    remove_selection(value, caret_byte, selection_byte);
+    value.insert_str(*caret_byte, &processed);
+    *caret_byte += processed.len();
+    *caret_needs_layout_sync = true;
+}
+
 fn caret_position_at_text_end(text: &str) -> CaretPosition {
     text.char_indices()
         .next_back()
@@ -1566,29 +1573,41 @@ pub struct TextEditResult {
 
 // ── Spec ─────────────────────────────────────────────────────────────────────
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Default)]
+/// Policy governing how newlines in text inputs (e.g. pasted text, typed characters,
+/// and programmatic values) are handled, and how Enter-key press events are resolved.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum NewlinePolicy {
-    Reject,
+    /// Newlines are preserved. Normalizes `\r\n` and bare `\r` to `\n`.
+    /// Pressing Enter inserts a newline character (`\n`).
+    Preserve,
+    /// Each newline sequence (treating `\r\n` as one sequence) is replaced with a single space.
+    /// Pressing Enter inserts a space character (` `).
     #[default]
     ReplaceWithSpace,
-    Allow,
+    /// Truncates the text before the first newline sequence (treating `\r\n` as one sequence).
+    /// Pressing Enter is a no-op (inserts nothing).
+    TrimAfterFirstNewline,
 }
 
 impl NewlinePolicy {
     /// Sanitizes the input string according to the newline policy.
-    pub fn process<'a>(&self, text: &'a str) -> std::borrow::Cow<'a, str> {
+    pub fn process<'a>(self, text: &'a str) -> std::borrow::Cow<'a, str> {
         if !text.contains('\n') && !text.contains('\r') {
             return std::borrow::Cow::Borrowed(text);
         }
         match self {
-            NewlinePolicy::Allow => {
+            NewlinePolicy::Preserve => {
                 std::borrow::Cow::Owned(text.replace("\r\n", "\n").replace('\r', "\n"))
             }
             NewlinePolicy::ReplaceWithSpace => {
                 std::borrow::Cow::Owned(text.replace("\r\n", " ").replace(['\r', '\n'], " "))
             }
-            NewlinePolicy::Reject => {
-                std::borrow::Cow::Owned(text.chars().filter(|&c| c != '\n' && c != '\r').collect())
+            NewlinePolicy::TrimAfterFirstNewline => {
+                if let Some(idx) = text.find(['\n', '\r']) {
+                    std::borrow::Cow::Borrowed(&text[..idx])
+                } else {
+                    std::borrow::Cow::Borrowed(text)
+                }
             }
         }
     }
@@ -1663,7 +1682,7 @@ impl TextEditSpecBuilder {
     pub fn defaults_from_theme(mut self, theme: &crate::theme::Theme) -> Self {
         if self.style.is_none() {
             let mut style = TextEditStyle::from_theme(theme);
-            let multiline = self.newline_policy.unwrap_or_default() == NewlinePolicy::Allow
+            let multiline = self.newline_policy.unwrap_or_default() == NewlinePolicy::Preserve
                 || self.wrap.unwrap_or(false);
             style.padding_y = if multiline { 8.0 } else { 0.0 };
             self.style = Some(style);
@@ -1933,7 +1952,7 @@ mod tests {
         let theme = crate::theme::Theme::framewise();
 
         let allow_newlines = TextEditSpecBuilder::new()
-            .newline_policy(NewlinePolicy::Allow)
+            .newline_policy(NewlinePolicy::Preserve)
             .defaults_from_theme(&theme);
         assert_eq!(allow_newlines.style.unwrap().padding_y, 8.0);
 
@@ -2686,7 +2705,7 @@ mod tests {
             input.mouse_pos = crate::types::Vec2::new(100.0 + x_offset, y_pos);
 
             let edit_spec = TextEditSpec {
-                newline_policy: NewlinePolicy::Allow,
+                newline_policy: NewlinePolicy::Preserve,
                 ..spec()
             };
 
@@ -2747,7 +2766,7 @@ mod tests {
         let mut input = Input::default();
         let edit_spec = TextEditSpec {
             rect: Rect::new(0.0, 0.0, 200.0, 80.0),
-            newline_policy: NewlinePolicy::Allow,
+            newline_policy: NewlinePolicy::Preserve,
             vertical_align: Align::Start,
             ..spec()
         };
@@ -2792,7 +2811,7 @@ mod tests {
         let mut input = Input::default();
         let edit_spec = TextEditSpec {
             rect: Rect::new(0.0, 0.0, 200.0, 90.0),
-            newline_policy: NewlinePolicy::Allow,
+            newline_policy: NewlinePolicy::Preserve,
             vertical_align: Align::Start,
             ..spec()
         };
@@ -2867,7 +2886,7 @@ mod tests {
         let mut input = Input::default();
         let edit_spec = TextEditSpec {
             rect: Rect::new(0.0, 0.0, 90.0, 80.0),
-            newline_policy: NewlinePolicy::Allow,
+            newline_policy: NewlinePolicy::Preserve,
             wrap: true,
             vertical_align: Align::Start,
             ..spec()
@@ -2911,7 +2930,7 @@ mod tests {
         let mut input = Input::default();
         let edit_spec = TextEditSpec {
             rect: Rect::new(0.0, 0.0, 200.0, 80.0),
-            newline_policy: NewlinePolicy::Allow,
+            newline_policy: NewlinePolicy::Preserve,
             vertical_align: Align::Start,
             ..spec()
         };
@@ -3733,7 +3752,7 @@ mod tests {
         raw::text_edit(
             TextEditSpec {
                 line_align: TextLineAlign::Center,
-                newline_policy: NewlinePolicy::Allow,
+                newline_policy: NewlinePolicy::Preserve,
                 rect: Rect::new(0.0, 0.0, 200.0, 60.0),
                 ..spec()
             },
@@ -4231,7 +4250,7 @@ mod tests {
         state.had_keyboard_focus = true;
 
         let edit_spec = TextEditSpec {
-            newline_policy: NewlinePolicy::Allow,
+            newline_policy: NewlinePolicy::Preserve,
             ..spec()
         };
 
@@ -4318,7 +4337,7 @@ mod tests {
 
         let edit_spec = TextEditSpec {
             rect: Rect::new(0.0, 0.0, 200.0, 50.0),
-            newline_policy: NewlinePolicy::Allow,
+            newline_policy: NewlinePolicy::Preserve,
             ..spec()
         };
 
@@ -4384,7 +4403,7 @@ mod tests {
 
         let edit_spec = TextEditSpec {
             rect: Rect::new(0.0, 0.0, 200.0, 60.0),
-            newline_policy: NewlinePolicy::Allow,
+            newline_policy: NewlinePolicy::Preserve,
             ..spec()
         };
 
@@ -4459,7 +4478,7 @@ mod tests {
 
         let edit_spec = TextEditSpec {
             rect: Rect::new(0.0, 0.0, 200.0, 60.0),
-            newline_policy: NewlinePolicy::Allow,
+            newline_policy: NewlinePolicy::Preserve,
             ..spec()
         };
 
@@ -4930,7 +4949,7 @@ mod tests {
             input.text_events.push(TextEvent::CaretUp { shift: false });
             raw::text_edit(
                 TextEditSpec {
-                    newline_policy: NewlinePolicy::Allow,
+                    newline_policy: NewlinePolicy::Preserve,
                     ..spec()
                 },
                 &mut state,
@@ -4958,7 +4977,7 @@ mod tests {
             input.text_events.push(TextEvent::CaretUp { shift: false });
             raw::text_edit(
                 TextEditSpec {
-                    newline_policy: NewlinePolicy::Allow,
+                    newline_policy: NewlinePolicy::Preserve,
                     ..spec()
                 },
                 &mut state,
@@ -4988,7 +5007,7 @@ mod tests {
                 .push(TextEvent::CaretDown { shift: false });
             raw::text_edit(
                 TextEditSpec {
-                    newline_policy: NewlinePolicy::Allow,
+                    newline_policy: NewlinePolicy::Preserve,
                     ..spec()
                 },
                 &mut state,
@@ -5018,7 +5037,7 @@ mod tests {
                 .push(TextEvent::CaretDown { shift: false });
             raw::text_edit(
                 TextEditSpec {
-                    newline_policy: NewlinePolicy::Allow,
+                    newline_policy: NewlinePolicy::Preserve,
                     ..spec()
                 },
                 &mut state,
@@ -5046,7 +5065,7 @@ mod tests {
             focus_system.end_frame();
 
             let edit_spec = TextEditSpec {
-                newline_policy: NewlinePolicy::Allow,
+                newline_policy: NewlinePolicy::Preserve,
                 ..spec()
             };
 
@@ -5154,173 +5173,119 @@ mod tests {
         let mut focus_system = FocusSystem::new();
         let mut cmds = DrawCommands::new();
 
-        // 1. ReplaceWithSpace (default)
+        // A. NewlinePolicy::process unit tests
         {
-            // Initial value contains \n
-            let mut state = TextEditState::new("hello\nworld");
-            let mut input = Input::default();
-            focus_system.begin_frame();
-            focus_system.take_keyboard_focus(state.focus_id);
-            raw::text_edit(
-                TextEditSpec {
-                    newline_policy: NewlinePolicy::ReplaceWithSpace,
-                    ..spec()
-                },
-                &mut state,
-                &input,
-                &mut focus_system,
-                &mut text_backend,
-                &mut cmds,
-            );
-            assert_eq!(state.value, "hello world");
+            let p_preserve = NewlinePolicy::Preserve;
+            let p_space = NewlinePolicy::ReplaceWithSpace;
+            let p_trim = NewlinePolicy::TrimAfterFirstNewline;
 
-            // Paste value containing \n
-            set_caret_byte(&mut state, 5);
-            set_selection_byte(&mut state, None);
-            input.text_events = vec![TextEvent::Paste("a\nb".to_string())];
-            focus_system.begin_frame();
-            focus_system.take_keyboard_focus(state.focus_id);
-            raw::text_edit(
-                TextEditSpec {
-                    newline_policy: NewlinePolicy::ReplaceWithSpace,
-                    ..spec()
-                },
-                &mut state,
-                &input,
-                &mut focus_system,
-                &mut text_backend,
-                &mut cmds,
-            );
-            assert_eq!(state.value, "helloa b world");
+            // no newline
+            assert_eq!(p_preserve.process("abc"), "abc");
+            assert_eq!(p_space.process("abc"), "abc");
+            assert_eq!(p_trim.process("abc"), "abc");
 
-            // Type \n -> inserts space
-            set_caret_byte(&mut state, 0);
-            set_selection_byte(&mut state, None);
-            input.text_events = vec![TextEvent::Char('\n')];
-            focus_system.begin_frame();
-            focus_system.take_keyboard_focus(state.focus_id);
-            raw::text_edit(
-                TextEditSpec {
-                    newline_policy: NewlinePolicy::ReplaceWithSpace,
-                    ..spec()
-                },
-                &mut state,
-                &input,
-                &mut focus_system,
-                &mut text_backend,
-                &mut cmds,
-            );
-            assert_eq!(state.value, " helloa b world");
+            // LF
+            assert_eq!(p_preserve.process("a\nb"), "a\nb");
+            assert_eq!(p_space.process("a\nb"), "a b");
+            assert_eq!(p_trim.process("a\nb"), "a");
 
-            // Press Enter -> does not change value (because policy is ReplaceWithSpace, not Allow)
-            input.text_events.clear();
-            input.key_pressed_enter = true;
-            let mut state = TextEditState::new("abc");
-            state.had_keyboard_focus = true;
-            focus_system.begin_frame();
-            focus_system.take_keyboard_focus(state.focus_id);
-            raw::text_edit(
-                TextEditSpec {
-                    newline_policy: NewlinePolicy::ReplaceWithSpace,
-                    ..spec()
-                },
-                &mut state,
-                &input,
-                &mut focus_system,
-                &mut text_backend,
-                &mut cmds,
-            );
-            assert_eq!(state.value, "abc");
+            // CRLF
+            assert_eq!(p_preserve.process("a\r\nb"), "a\nb");
+            assert_eq!(p_space.process("a\r\nb"), "a b");
+            assert_eq!(p_trim.process("a\r\nb"), "a");
+
+            // CR
+            assert_eq!(p_preserve.process("a\rb"), "a\nb");
+            assert_eq!(p_space.process("a\rb"), "a b");
+            assert_eq!(p_trim.process("a\rb"), "a");
+
+            // multiple newlines
+            assert_eq!(p_preserve.process("a\nb\nc"), "a\nb\nc");
+            assert_eq!(p_space.process("a\nb\nc"), "a b c");
+            assert_eq!(p_trim.process("a\nb\nc"), "a");
+
+            // leading newline
+            assert_eq!(p_preserve.process("\nabc"), "\nabc");
+            assert_eq!(p_space.process("\nabc"), " abc");
+            assert_eq!(p_trim.process("\nabc"), "");
         }
 
-        // 2. Reject
+        // B. Initial/programmatic state value sanitization
         {
-            // Initial value contains \n -> removed
+            // Preserve
             let mut state = TextEditState::new("hello\nworld");
-            let mut input = Input::default();
-            focus_system.begin_frame();
-            focus_system.take_keyboard_focus(state.focus_id);
             raw::text_edit(
                 TextEditSpec {
-                    newline_policy: NewlinePolicy::Reject,
+                    newline_policy: NewlinePolicy::Preserve,
                     ..spec()
                 },
                 &mut state,
-                &input,
-                &mut focus_system,
-                &mut text_backend,
-                &mut cmds,
-            );
-            assert_eq!(state.value, "helloworld");
-
-            // Paste value containing \n -> \n is removed
-            set_caret_byte(&mut state, 5);
-            set_selection_byte(&mut state, None);
-            input.text_events = vec![TextEvent::Paste("a\nb".to_string())];
-            focus_system.begin_frame();
-            focus_system.take_keyboard_focus(state.focus_id);
-            raw::text_edit(
-                TextEditSpec {
-                    newline_policy: NewlinePolicy::Reject,
-                    ..spec()
-                },
-                &mut state,
-                &input,
-                &mut focus_system,
-                &mut text_backend,
-                &mut cmds,
-            );
-            assert_eq!(state.value, "helloabworld");
-
-            // Type \n -> ignored
-            set_caret_byte(&mut state, 0);
-            set_selection_byte(&mut state, None);
-            input.text_events = vec![TextEvent::Char('\n')];
-            focus_system.begin_frame();
-            focus_system.take_keyboard_focus(state.focus_id);
-            raw::text_edit(
-                TextEditSpec {
-                    newline_policy: NewlinePolicy::Reject,
-                    ..spec()
-                },
-                &mut state,
-                &input,
-                &mut focus_system,
-                &mut text_backend,
-                &mut cmds,
-            );
-            assert_eq!(state.value, "helloabworld");
-        }
-
-        // 3. Allow
-        {
-            // Initial value contains \n -> preserved
-            let mut state = TextEditState::new("hello\nworld");
-            let mut input = Input::default();
-            focus_system.begin_frame();
-            focus_system.take_keyboard_focus(state.focus_id);
-            raw::text_edit(
-                TextEditSpec {
-                    newline_policy: NewlinePolicy::Allow,
-                    ..spec()
-                },
-                &mut state,
-                &input,
+                &Input::default(),
                 &mut focus_system,
                 &mut text_backend,
                 &mut cmds,
             );
             assert_eq!(state.value, "hello\nworld");
 
-            // Paste value containing \n -> preserved
-            set_caret_byte(&mut state, 5);
-            set_selection_byte(&mut state, None);
+            // ReplaceWithSpace
+            let mut state = TextEditState::new("hello\nworld");
+            raw::text_edit(
+                TextEditSpec {
+                    newline_policy: NewlinePolicy::ReplaceWithSpace,
+                    ..spec()
+                },
+                &mut state,
+                &Input::default(),
+                &mut focus_system,
+                &mut text_backend,
+                &mut cmds,
+            );
+            assert_eq!(state.value, "hello world");
+
+            // TrimAfterFirstNewline
+            let mut state = TextEditState::new("hello\nworld");
+            raw::text_edit(
+                TextEditSpec {
+                    newline_policy: NewlinePolicy::TrimAfterFirstNewline,
+                    ..spec()
+                },
+                &mut state,
+                &Input::default(),
+                &mut focus_system,
+                &mut text_backend,
+                &mut cmds,
+            );
+            assert_eq!(state.value, "hello");
+
+            // Normalization check under Preserve
+            let mut state = TextEditState::new("hello\r\nworld\rfoo");
+            raw::text_edit(
+                TextEditSpec {
+                    newline_policy: NewlinePolicy::Preserve,
+                    ..spec()
+                },
+                &mut state,
+                &Input::default(),
+                &mut focus_system,
+                &mut text_backend,
+                &mut cmds,
+            );
+            assert_eq!(state.value, "hello\nworld\nfoo");
+        }
+
+        // C. Paste
+        {
+            // Paste a\nb under Preserve
+            let mut state = TextEditState::new("x");
+            set_caret_byte(&mut state, 1);
+            state.had_keyboard_focus = true;
+            let mut input = Input::default();
             input.text_events = vec![TextEvent::Paste("a\nb".to_string())];
             focus_system.begin_frame();
             focus_system.take_keyboard_focus(state.focus_id);
             raw::text_edit(
                 TextEditSpec {
-                    newline_policy: NewlinePolicy::Allow,
+                    newline_policy: NewlinePolicy::Preserve,
                     ..spec()
                 },
                 &mut state,
@@ -5329,17 +5294,19 @@ mod tests {
                 &mut text_backend,
                 &mut cmds,
             );
-            assert_eq!(state.value, "helloa\nb\nworld");
+            assert_eq!(state.value, "xa\nb");
 
-            // Type \n -> inserts \n
-            set_caret_byte(&mut state, 0);
-            set_selection_byte(&mut state, None);
-            input.text_events = vec![TextEvent::Char('\n')];
+            // Paste a\nb under ReplaceWithSpace
+            let mut state = TextEditState::new("x");
+            set_caret_byte(&mut state, 1);
+            state.had_keyboard_focus = true;
+            let mut input = Input::default();
+            input.text_events = vec![TextEvent::Paste("a\nb".to_string())];
             focus_system.begin_frame();
             focus_system.take_keyboard_focus(state.focus_id);
             raw::text_edit(
                 TextEditSpec {
-                    newline_policy: NewlinePolicy::Allow,
+                    newline_policy: NewlinePolicy::ReplaceWithSpace,
                     ..spec()
                 },
                 &mut state,
@@ -5348,22 +5315,67 @@ mod tests {
                 &mut text_backend,
                 &mut cmds,
             );
-            assert_eq!(state.value, "\nhelloa\nb\nworld");
+            assert_eq!(state.value, "xa b");
 
-            // Press Enter while focused -> inserts \n
+            // Paste a\nb under TrimAfterFirstNewline
+            let mut state = TextEditState::new("x");
+            set_caret_byte(&mut state, 1);
+            state.had_keyboard_focus = true;
+            let mut input = Input::default();
+            input.text_events = vec![TextEvent::Paste("a\nb".to_string())];
+            focus_system.begin_frame();
+            focus_system.take_keyboard_focus(state.focus_id);
+            raw::text_edit(
+                TextEditSpec {
+                    newline_policy: NewlinePolicy::TrimAfterFirstNewline,
+                    ..spec()
+                },
+                &mut state,
+                &input,
+                &mut focus_system,
+                &mut text_backend,
+                &mut cmds,
+            );
+            assert_eq!(state.value, "xa");
+
+            // Paste empty processed under TrimAfterFirstNewline with selection
+            let mut state = TextEditState::new("xy");
+            set_caret_byte(&mut state, 0);
+            set_selection_byte(&mut state, Some(2));
+            state.had_keyboard_focus = true;
+            let mut input = Input::default();
+            input.text_events = vec![TextEvent::Paste("\nab".to_string())]; // processes to empty string
+            focus_system.begin_frame();
+            focus_system.take_keyboard_focus(state.focus_id);
+            raw::text_edit(
+                TextEditSpec {
+                    newline_policy: NewlinePolicy::TrimAfterFirstNewline,
+                    ..spec()
+                },
+                &mut state,
+                &input,
+                &mut focus_system,
+                &mut text_backend,
+                &mut cmds,
+            );
+            // Selection remains untouched
+            assert_eq!(state.value, "xy");
+            assert_eq!(selection_byte(&state), Some(2));
+        }
+
+        // D. Enter key
+        {
+            // Enter under Preserve
             let mut state = TextEditState::new("abc");
             set_caret_byte(&mut state, 1);
-            set_selection_byte(&mut state, None);
             state.had_keyboard_focus = true;
-            let input = Input {
-                key_pressed_enter: true,
-                ..Default::default()
-            };
+            let mut input = Input::default();
+            input.key_pressed_enter = true;
             focus_system.begin_frame();
             focus_system.take_keyboard_focus(state.focus_id);
             raw::text_edit(
                 TextEditSpec {
-                    newline_policy: NewlinePolicy::Allow,
+                    newline_policy: NewlinePolicy::Preserve,
                     ..spec()
                 },
                 &mut state,
@@ -5373,6 +5385,48 @@ mod tests {
                 &mut cmds,
             );
             assert_eq!(state.value, "a\nbc");
+
+            // Enter under ReplaceWithSpace
+            let mut state = TextEditState::new("abc");
+            set_caret_byte(&mut state, 1);
+            state.had_keyboard_focus = true;
+            let mut input = Input::default();
+            input.key_pressed_enter = true;
+            focus_system.begin_frame();
+            focus_system.take_keyboard_focus(state.focus_id);
+            raw::text_edit(
+                TextEditSpec {
+                    newline_policy: NewlinePolicy::ReplaceWithSpace,
+                    ..spec()
+                },
+                &mut state,
+                &input,
+                &mut focus_system,
+                &mut text_backend,
+                &mut cmds,
+            );
+            assert_eq!(state.value, "a bc");
+
+            // Enter under TrimAfterFirstNewline
+            let mut state = TextEditState::new("abc");
+            set_caret_byte(&mut state, 1);
+            state.had_keyboard_focus = true;
+            let mut input = Input::default();
+            input.key_pressed_enter = true;
+            focus_system.begin_frame();
+            focus_system.take_keyboard_focus(state.focus_id);
+            raw::text_edit(
+                TextEditSpec {
+                    newline_policy: NewlinePolicy::TrimAfterFirstNewline,
+                    ..spec()
+                },
+                &mut state,
+                &input,
+                &mut focus_system,
+                &mut text_backend,
+                &mut cmds,
+            );
+            assert_eq!(state.value, "abc"); // unchanged
         }
     }
 
@@ -5393,7 +5447,7 @@ mod tests {
         focus_system.take_keyboard_focus(state.focus_id);
 
         let edit_spec = TextEditSpec {
-            newline_policy: NewlinePolicy::Allow,
+            newline_policy: NewlinePolicy::Preserve,
             ..spec()
         };
 
@@ -5482,7 +5536,7 @@ mod tests {
         let mut cmds = DrawCommands::new();
 
         let mut edit_spec = TextEditSpec {
-            newline_policy: NewlinePolicy::Allow,
+            newline_policy: NewlinePolicy::Preserve,
             vertical_align: Align::Start,
             ..spec()
         };
@@ -5564,7 +5618,7 @@ mod tests {
         let mut cmds = DrawCommands::new();
 
         let mut edit_spec = TextEditSpec {
-            newline_policy: NewlinePolicy::Allow,
+            newline_policy: NewlinePolicy::Preserve,
             vertical_align: Align::Start,
             ..spec()
         };
@@ -5622,7 +5676,7 @@ mod tests {
         let mut cmds = DrawCommands::new();
 
         let mut edit_spec = TextEditSpec {
-            newline_policy: NewlinePolicy::Allow,
+            newline_policy: NewlinePolicy::Preserve,
             vertical_align: Align::Start,
             ..spec()
         };
@@ -5670,7 +5724,7 @@ mod tests {
         focus_system.take_keyboard_focus(state.focus_id);
 
         let mut edit_spec = TextEditSpec {
-            newline_policy: NewlinePolicy::Allow,
+            newline_policy: NewlinePolicy::Preserve,
             vertical_align: Align::Start,
             ..spec()
         };
@@ -5767,7 +5821,7 @@ mod tests {
         focus_system.take_keyboard_focus(state.focus_id);
 
         let edit_spec = TextEditSpec {
-            newline_policy: NewlinePolicy::Allow,
+            newline_policy: NewlinePolicy::Preserve,
             ..spec()
         };
 
@@ -6036,7 +6090,7 @@ mod tests {
         raw::text_edit(
             TextEditSpec {
                 rect: Rect::new(0.0, 0.0, 200.0, 100.0),
-                newline_policy: NewlinePolicy::Allow,
+                newline_policy: NewlinePolicy::Preserve,
                 ..spec()
             },
             &mut state,
@@ -6128,7 +6182,7 @@ mod tests {
         raw::text_edit(
             TextEditSpec {
                 rect: Rect::new(0.0, 0.0, 200.0, 100.0),
-                newline_policy: NewlinePolicy::Allow,
+                newline_policy: NewlinePolicy::Preserve,
                 wrap: true,
                 vertical_align: Align::Start,
                 ..spec()
@@ -6176,7 +6230,7 @@ mod tests {
         raw::text_edit(
             TextEditSpec {
                 rect: Rect::new(0.0, 0.0, 200.0, 100.0),
-                newline_policy: NewlinePolicy::Allow,
+                newline_policy: NewlinePolicy::Preserve,
                 ..spec()
             },
             &mut state,
@@ -6714,7 +6768,7 @@ mod tests {
         let mut text_backend = TestTextBackend;
         let mut edit_spec = TextEditSpec {
             line_align: TextLineAlign::Center,
-            newline_policy: NewlinePolicy::Allow,
+            newline_policy: NewlinePolicy::Preserve,
             ..spec()
         };
         edit_spec.wrap = false;
@@ -6740,7 +6794,7 @@ mod tests {
         let mut text_backend = TestTextBackend;
         let mut edit_spec = TextEditSpec {
             line_align: TextLineAlign::Center,
-            newline_policy: NewlinePolicy::Allow,
+            newline_policy: NewlinePolicy::Preserve,
             ..spec()
         };
         edit_spec.wrap = true;
@@ -6768,7 +6822,7 @@ mod tests {
         let mut edit_spec = spec();
         edit_spec.rect = Rect::new(0.0, 0.0, 200.0, 40.0);
         edit_spec.error = true;
-        edit_spec.newline_policy = NewlinePolicy::Allow;
+        edit_spec.newline_policy = NewlinePolicy::Preserve;
 
         state.scroll.offset.y = 16.0;
 
@@ -6871,7 +6925,7 @@ mod tests {
         let mut cmds = DrawCommands::new();
         let mut edit_spec = spec();
         edit_spec.rect = Rect::new(0.0, 0.0, 200.0, 40.0); // height 40px -> viewport h = 38px
-        edit_spec.newline_policy = NewlinePolicy::Allow;
+        edit_spec.newline_policy = NewlinePolicy::Preserve;
 
         raw::text_edit(
             edit_spec,

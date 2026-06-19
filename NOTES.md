@@ -5,10 +5,6 @@ Working notes, TODOs, open questions, and half-baked ideas.
 ## Current Work
 
 - Text Edit
-  - Consider
-    - newline policy reject - is this useful? What about trim after first newline?
-    - newline policy - how is enter rejected? Even for replace-with-space?
-
   - auto-sizing to height of text (like VS Code commit message)
     - use existing auto-sizing layout stuff?
     - what about width?
@@ -79,6 +75,8 @@ DESIGN treats mouse-capture-via-state as foundational robustness mechanism. Togg
 - Panic on re-using FocusId should give more helpful guidance?
 
 - &mut ButtonState::default() — using a temporary state created and dropped every frame makes focus go weird - hard to diagnose bug
+
+- Keyboard shortcuts like Ctrl+N - these probably shouldn't be handled by every widget that can take keyboard focus just to report it back to the caller. Need some kind of 'global' shortcuts or bubbling/nesting system. Many shortcuts like Ctrl+A/C/V are used by text_edits (for example), need to resolve conflicts somehow.
 
 ## Activation
 
@@ -344,7 +342,8 @@ The "App-Managed State" option would require either a trait layer (so the widget
 - adding spaces to the start of wrapped lines is confusing (appends to prev line instead, no visual indication). This is standard wrapped editor behaviour, but maybe we can do better?
   - would be nice to snap the cursor to the end of the prev line, but we can't do that in a faithful way because the previous line ends in the 'visually collapsed' space that's wrapping!
 - user-sizing using drag handle (height and/or width). Re-use 'splitter'/dragging infrastructure (doesn't exist yet!)
-- tab alignment within text. Maybe need a 'tab policy' like we do for Enter key?
+- 'Enter key policy' - does it insert a newline (depending on the NewlinePolicy) or 'submit' the form/dialog? Perhaps shift/ctrl/enter is needed, to make a newline, or maybe that's how you submit instead?
+- tab alignment within text. Maybe need a 'tab policy' like we could for Enter key?
 
 
 

@@ -165,12 +165,12 @@ pub(crate) fn draw_text_edit_demo_content<'a, 'b, CF>(
     let mut left = page_row.child_with_layout(RowLayoutParams::auto().fixed_x(430.0), ColumnLayout);
     let ctx = &mut left;
 
-    // ── 1. Allow Policy ──────────────────────────────────────────────────────────
+    // ── 1. Preserve Policy ──────────────────────────────────────────────────────────
     {
         label(
             ctx,
             LabelSpecBuilder::new()
-                .text("1. NewlinePolicy::Allow")
+                .text("1. NewlinePolicy::Preserve")
                 .style(section_header_style),
             ColumnLayoutParams::auto(),
         );
@@ -186,7 +186,7 @@ pub(crate) fn draw_text_edit_demo_content<'a, 'b, CF>(
 
         text_edit(
             ctx,
-            TextEditSpecBuilder::new().newline_policy(NewlinePolicy::Allow),
+            TextEditSpecBuilder::new().newline_policy(NewlinePolicy::Preserve),
             ColumnLayoutParams::fixed(400.0, 80.0),
             &mut state.te_allow,
         );
@@ -206,7 +206,7 @@ pub(crate) fn draw_text_edit_demo_content<'a, 'b, CF>(
         label(
             ctx,
             LabelSpecBuilder::new()
-                .text("Replaces newline characters with spaces on paste. Hitting Enter is ignored.")
+                .text("Replaces newline sequences with spaces. Hitting Enter inserts a space.")
                 .style(desc_style),
             ColumnLayoutParams::auto(),
         );
@@ -221,12 +221,12 @@ pub(crate) fn draw_text_edit_demo_content<'a, 'b, CF>(
     }
     ctx.spacer(24.0);
 
-    // ── 3. Reject Policy ──────────────────────────────────────────────────────────
+    // ── 3. TrimAfterFirstNewline Policy ──────────────────────────────────────────
     {
         label(
             ctx,
             LabelSpecBuilder::new()
-                .text("3. NewlinePolicy::Reject")
+                .text("3. NewlinePolicy::TrimAfterFirstNewline")
                 .style(section_header_style),
             ColumnLayoutParams::auto(),
         );
@@ -234,7 +234,7 @@ pub(crate) fn draw_text_edit_demo_content<'a, 'b, CF>(
         label(
             ctx,
             LabelSpecBuilder::new()
-                .text("Strips/rejects newline characters entirely. Hitting Enter is ignored.")
+                .text("Keeps only the text before the first newline sequence. Hitting Enter is a no-op.")
                 .style(desc_style),
             ColumnLayoutParams::auto(),
         );
@@ -242,7 +242,7 @@ pub(crate) fn draw_text_edit_demo_content<'a, 'b, CF>(
 
         text_edit(
             ctx,
-            TextEditSpecBuilder::new().newline_policy(NewlinePolicy::Reject),
+            TextEditSpecBuilder::new().newline_policy(NewlinePolicy::TrimAfterFirstNewline),
             ColumnLayoutParams::fixed(400.0, 80.0),
             &mut state.te_reject,
         );
@@ -254,7 +254,7 @@ pub(crate) fn draw_text_edit_demo_content<'a, 'b, CF>(
         label(
             ctx,
             LabelSpecBuilder::new()
-                .text("4. Wrapping (NewlinePolicy::Allow + wrap(true))")
+                .text("4. Wrapping (NewlinePolicy::Preserve + wrap(true))")
                 .style(section_header_style),
             ColumnLayoutParams::auto(),
         );
@@ -271,7 +271,7 @@ pub(crate) fn draw_text_edit_demo_content<'a, 'b, CF>(
         text_edit(
             ctx,
             TextEditSpecBuilder::new()
-                .newline_policy(NewlinePolicy::Allow)
+                .newline_policy(NewlinePolicy::Preserve)
                 .wrap(true),
             ColumnLayoutParams::fixed(400.0, 100.0),
             &mut state.te_wrap,
@@ -319,7 +319,7 @@ pub(crate) fn draw_text_edit_demo_content<'a, 'b, CF>(
                     TextEditSpecBuilder::new()
                         .vertical_align(vertical_align)
                         .line_align(line_align)
-                        .newline_policy(NewlinePolicy::Allow)
+                        .newline_policy(NewlinePolicy::Preserve)
                         .wrap(true),
                     RowLayoutParams::fixed(130.0, 80.0),
                     &mut state.te_aligns[r][c],
@@ -385,7 +385,7 @@ pub(crate) fn draw_text_edit_demo_content<'a, 'b, CF>(
             &mut right,
             TextEditSpecBuilder::new()
                 .style(styled_text_edit_style)
-                .newline_policy(NewlinePolicy::Allow)
+                .newline_policy(NewlinePolicy::Preserve)
                 .wrap(false)
                 .line_align(TextLineAlign::Center)
                 .vertical_align(Align::Center),
@@ -415,7 +415,7 @@ pub(crate) fn draw_text_edit_demo_content<'a, 'b, CF>(
         text_edit(
             &mut right,
             TextEditSpecBuilder::new()
-                .newline_policy(NewlinePolicy::Allow)
+                .newline_policy(NewlinePolicy::Preserve)
                 .wrap(word_wrap_enabled),
             ColumnLayoutParams::fixed(540.0, 520.0),
             &mut state.te_large,
