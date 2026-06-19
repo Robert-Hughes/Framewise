@@ -82,18 +82,19 @@ impl<G> TextLayout<G> {
             let mid = cluster.x + cluster.advance * 0.5;
             if pos.x < mid {
                 return CaretPosition::BeforeCluster {
-                    cluster_byte_index: cluster.byte_start,
+                    cluster_byte_start: cluster.byte_start,
                 };
             }
         }
         match clusters.last() {
             Some(last) if last.is_hard_break || last.is_soft_wrap_boundary => {
                 CaretPosition::BeforeCluster {
-                    cluster_byte_index: last.byte_start,
+                    cluster_byte_start: last.byte_start,
                 }
             }
             Some(last) => CaretPosition::AfterCluster {
-                cluster_byte_index: last.byte_start,
+                cluster_byte_start: last.byte_start,
+                cluster_byte_end: last.byte_end,
             },
             None => self.empty_line_caret_position(line_idx),
         }
@@ -139,22 +140,6 @@ impl<G> TextLayout<G> {
             .unwrap_or(0)
     }
 
-    /// Convert a visual caret position into the insertion byte index used by
-    /// text editing operations.
-    ///
-    /// `BeforeCluster` returns the anchored cluster's `byte_start`;
-    /// `AfterCluster` returns its `byte_end`; `EmptyText` returns `0`.
-    pub fn caret_insertion_byte(&self, position: CaretPosition) -> usize {
-        match self.find_caret_cluster(position) {
-            Some((_, _, cluster)) => match position {
-                CaretPosition::BeforeCluster { .. } => cluster.byte_start,
-                CaretPosition::AfterCluster { .. } => cluster.byte_end,
-                CaretPosition::EmptyText => 0,
-            },
-            None => 0,
-        }
-    }
-
     /// Choose a canonical visual caret anchor for a programmatic insertion byte
     /// index.
     ///
@@ -173,7 +158,7 @@ impl<G> TextLayout<G> {
         while let Some((_, _, cluster)) = clusters.next() {
             if byte_index <= cluster.byte_start || byte_index < cluster.byte_end {
                 return CaretPosition::BeforeCluster {
-                    cluster_byte_index: cluster.byte_start,
+                    cluster_byte_start: cluster.byte_start,
                 };
             }
 
@@ -181,20 +166,33 @@ impl<G> TextLayout<G> {
                 if let Some((_, _, next)) = clusters.peek() {
                     if next.byte_start == byte_index {
                         return CaretPosition::BeforeCluster {
-                            cluster_byte_index: next.byte_start,
+                            cluster_byte_start: next.byte_start,
                         };
                     }
                 }
                 return CaretPosition::AfterCluster {
-                    cluster_byte_index: cluster.byte_start,
+                    cluster_byte_start: cluster.byte_start,
+                    cluster_byte_end: cluster.byte_end,
                 };
             }
         }
 
         let last = self.last_cluster().expect("clusters is non-empty");
         CaretPosition::AfterCluster {
-            cluster_byte_index: last.byte_start,
+            cluster_byte_start: last.byte_start,
+            cluster_byte_end: last.byte_end,
         }
+    }
+
+    /// Return an `AfterCluster` caret anchored to a cluster start in this
+    /// already-built layout.
+    pub fn caret_after_cluster_start(&self, cluster_byte_start: usize) -> Option<CaretPosition> {
+        self.iter_clusters()
+            .find(|(_, _, cluster)| cluster.byte_start == cluster_byte_start)
+            .map(|(_, _, cluster)| CaretPosition::AfterCluster {
+                cluster_byte_start: cluster.byte_start,
+                cluster_byte_end: cluster.byte_end,
+            })
     }
 
     /// Move one shaped cluster boundary to the left.
@@ -206,12 +204,12 @@ impl<G> TextLayout<G> {
     /// the visual side reached by moving from the right, such as `AfterCluster`
     /// for the boundary character when landing immediately after it.
     pub fn previous_caret_position(&self, position: CaretPosition) -> CaretPosition {
-        let byte_index = self.caret_insertion_byte(position);
-        if let CaretPosition::BeforeCluster { cluster_byte_index } = position {
+        let byte_index = position.insertion_byte_hint();
+        if let CaretPosition::BeforeCluster { cluster_byte_start } = position {
             if let Some(cluster) = self
                 .iter_clusters()
                 .map(|(_, _, cluster)| cluster)
-                .find(|cluster| cluster.byte_start == cluster_byte_index)
+                .find(|cluster| cluster.byte_start == cluster_byte_start)
             {
                 if let Some(previous) = self
                     .iter_clusters_rev()
@@ -222,7 +220,8 @@ impl<G> TextLayout<G> {
                     .map(|(_, _, previous)| previous)
                 {
                     return CaretPosition::AfterCluster {
-                        cluster_byte_index: previous.byte_start,
+                        cluster_byte_start: previous.byte_start,
+                        cluster_byte_end: previous.byte_end,
                     };
                 }
             }
@@ -243,12 +242,13 @@ impl<G> TextLayout<G> {
     /// the visual side reached by moving from the left, such as `BeforeCluster`
     /// for the boundary character when landing immediately before it.
     pub fn next_caret_position(&self, position: CaretPosition) -> CaretPosition {
-        let byte_index = self.caret_insertion_byte(position);
+        let byte_index = position.insertion_byte_hint();
         let Some(target_byte) = self.next_insertion_boundary(byte_index) else {
             return self
                 .last_cluster()
                 .map(|cluster| CaretPosition::AfterCluster {
-                    cluster_byte_index: cluster.byte_start,
+                    cluster_byte_start: cluster.byte_start,
+                    cluster_byte_end: cluster.byte_end,
                 })
                 .unwrap_or(CaretPosition::EmptyText);
         };
@@ -259,18 +259,20 @@ impl<G> TextLayout<G> {
         &self,
         position: CaretPosition,
     ) -> Option<(usize, usize, &WorkingCluster)> {
-        let cluster_byte_index = match position {
-            CaretPosition::BeforeCluster { cluster_byte_index }
-            | CaretPosition::AfterCluster { cluster_byte_index } => cluster_byte_index,
+        let cluster_byte_start = match position {
+            CaretPosition::BeforeCluster { cluster_byte_start }
+            | CaretPosition::AfterCluster {
+                cluster_byte_start, ..
+            } => cluster_byte_start,
             CaretPosition::EmptyText => return None,
         };
 
         self.iter_clusters()
-            .find(|(_, _, cluster)| cluster.byte_start == cluster_byte_index)
+            .find(|(_, _, cluster)| cluster.byte_start == cluster_byte_start)
             .or_else(|| {
                 self.iter_clusters().find(|(_, _, cluster)| {
-                    cluster_byte_index <= cluster.byte_start
-                        || cluster_byte_index < cluster.byte_end
+                    cluster_byte_start <= cluster.byte_start
+                        || cluster_byte_start < cluster.byte_end
                 })
             })
             .or_else(|| self.iter_clusters().next_back())
@@ -286,7 +288,8 @@ impl<G> TextLayout<G> {
             .and_then(|lines| lines.iter().rev().find(|line| !line.clusters.is_empty()))
             .and_then(|line| line.clusters.last())
             .map(|cluster| CaretPosition::AfterCluster {
-                cluster_byte_index: cluster.byte_start,
+                cluster_byte_start: cluster.byte_start,
+                cluster_byte_end: cluster.byte_end,
             })
             .unwrap_or(CaretPosition::EmptyText)
     }
@@ -313,7 +316,8 @@ impl<G> TextLayout<G> {
                 && cluster.byte_end == target_byte
         }) {
             return Some(CaretPosition::AfterCluster {
-                cluster_byte_index: cluster.byte_start,
+                cluster_byte_start: cluster.byte_start,
+                cluster_byte_end: cluster.byte_end,
             });
         }
 
@@ -322,7 +326,7 @@ impl<G> TextLayout<G> {
                 && cluster.byte_start == target_byte
         }) {
             return Some(CaretPosition::BeforeCluster {
-                cluster_byte_index: cluster.byte_start,
+                cluster_byte_start: cluster.byte_start,
             });
         }
 

@@ -136,9 +136,7 @@ pub mod raw {
         let target_line = &metrics.lines[target_line_idx];
         let pos = Vec2::new(caret_geom.x, target_line.y_top + target_line.height * 0.5);
         let new_caret = layout.hit_test_caret(pos);
-        let byte = layout
-            .caret_insertion_byte(new_caret)
-            .min(text_content.len());
+        let byte = new_caret.insertion_byte_hint().min(text_content.len());
         VerticalCaretMove {
             caret: new_caret,
             byte,
@@ -295,26 +293,11 @@ pub mod raw {
         let is_hover_active = focus_system.is_hover_active(state.focus_id);
         let contains = contains_raw && is_hover_active;
 
-        let initial_text_content = state.value.as_str();
-        let (_, initial_layout_width, initial_layout_height, _) =
-            edit_layout_size(initial_text_content, &spec, text_style, text_backend);
-        let initial_layout = layout_text_in_rect(
-            text_backend,
-            initial_text_content,
-            text_style,
-            Rect::new(0.0, 0.0, initial_layout_width, initial_layout_height),
-        );
-
-        let mut caret_byte = initial_layout
-            .caret_insertion_byte(state.caret)
-            .min(state.value.len());
+        let mut caret_byte = state.caret.insertion_byte_hint().min(state.value.len());
         let mut selection_byte = state
             .selection_anchor
-            .map(|selection| {
-                initial_layout
-                    .caret_insertion_byte(selection)
-                    .min(state.value.len())
-            })
+            .map(CaretPosition::insertion_byte_hint)
+            .map(|selection| selection.min(state.value.len()))
             .filter(|selection| state.value.is_char_boundary(*selection));
 
         let old_caret = state.caret;
@@ -429,10 +412,22 @@ pub mod raw {
                             caret_byte = caret_byte.min(sel_byte.unwrap());
                             caret_needs_layout_sync = true;
                         } else if caret_byte > 0 {
-                            caret = initial_layout.previous_caret_position(caret);
-                            caret_byte = initial_layout
-                                .caret_insertion_byte(caret)
-                                .min(state.value.len());
+                            let text_content = state.value.as_str();
+                            let (_, layout_width, layout_height, _) =
+                                edit_layout_size(text_content, &spec, text_style, text_backend);
+                            let layout = layout_text_in_rect(
+                                text_backend,
+                                text_content,
+                                text_style,
+                                Rect::new(0.0, 0.0, layout_width, layout_height),
+                            );
+                            let visual_caret = if caret_needs_layout_sync {
+                                layout.caret_position_at_insertion_byte(caret_byte)
+                            } else {
+                                caret
+                            };
+                            caret = layout.previous_caret_position(visual_caret);
+                            caret_byte = caret.insertion_byte_hint().min(state.value.len());
                             caret_needs_layout_sync = false;
                         }
                     }
@@ -460,10 +455,22 @@ pub mod raw {
                             caret_byte = caret_byte.max(sel_byte.unwrap());
                             caret_needs_layout_sync = true;
                         } else if caret_byte < state.value.len() {
-                            caret = initial_layout.next_caret_position(caret);
-                            caret_byte = initial_layout
-                                .caret_insertion_byte(caret)
-                                .min(state.value.len());
+                            let text_content = state.value.as_str();
+                            let (_, layout_width, layout_height, _) =
+                                edit_layout_size(text_content, &spec, text_style, text_backend);
+                            let layout = layout_text_in_rect(
+                                text_backend,
+                                text_content,
+                                text_style,
+                                Rect::new(0.0, 0.0, layout_width, layout_height),
+                            );
+                            let visual_caret = if caret_needs_layout_sync {
+                                layout.caret_position_at_insertion_byte(caret_byte)
+                            } else {
+                                caret
+                            };
+                            caret = layout.next_caret_position(visual_caret);
+                            caret_byte = caret.insertion_byte_hint().min(state.value.len());
                             caret_needs_layout_sync = false;
                         }
                     }
@@ -566,7 +573,7 @@ pub mod raw {
                             let line = &metrics.lines[current_line_idx];
                             let line_mid_y = line.y_top + line.height * 0.5;
                             caret = layout.hit_test_caret(Vec2::new(line.logical_x, line_mid_y));
-                            caret_byte = layout.caret_insertion_byte(caret).min(state.value.len());
+                            caret_byte = caret.insertion_byte_hint().min(state.value.len());
                             caret_needs_layout_sync = false;
                         } else {
                             // Line-aware: scan left for the preceding '\n' (or
@@ -616,12 +623,14 @@ pub mod raw {
                                 LineEndKind::HardNewline | LineEndKind::SoftWrapWhitespace
                             ) {
                                 CaretPosition::BeforeCluster {
-                                    cluster_byte_index: end_cluster,
+                                    cluster_byte_start: end_cluster,
                                 }
                             } else {
-                                let line_end_caret = CaretPosition::AfterCluster {
-                                    cluster_byte_index: end_cluster,
-                                };
+                                let line_end_caret = layout
+                                    .caret_after_cluster_start(end_cluster)
+                                    .unwrap_or_else(|| {
+                                        layout.caret_position_at_insertion_byte(end_cluster)
+                                    });
                                 let line_end_geom = layout.caret_geom(line_end_caret);
                                 let line_end_idx = visual_line_index_at_y(
                                     metrics,
@@ -631,11 +640,11 @@ pub mod raw {
                                     line_end_caret
                                 } else {
                                     CaretPosition::BeforeCluster {
-                                        cluster_byte_index: end_cluster,
+                                        cluster_byte_start: end_cluster,
                                     }
                                 }
                             };
-                            caret_byte = layout.caret_insertion_byte(caret).min(state.value.len());
+                            caret_byte = caret.insertion_byte_hint().min(state.value.len());
                             caret_needs_layout_sync = false;
                         } else {
                             // Line-aware: scan right for the next '\n' and land
@@ -912,8 +921,7 @@ pub mod raw {
                 input.mouse_pos.y - text_rect.y,
             );
             let clicked_caret = layout.hit_test_caret(relative_pos);
-            let clicked_byte = layout.caret_insertion_byte(clicked_caret);
-            let clicked_byte = clicked_byte.min(state.value.len());
+            let clicked_byte = clicked_caret.insertion_byte_hint().min(state.value.len());
 
             // Handling repeated clicks
             if input.mouse_click_count == 2 {
@@ -961,8 +969,7 @@ pub mod raw {
                     input.mouse_pos.y - text_rect.y,
                 );
                 let current_caret = layout.hit_test_caret(relative_pos);
-                let current_byte = layout.caret_insertion_byte(current_caret);
-                let current_byte = current_byte.min(state.value.len());
+                let current_byte = current_caret.insertion_byte_hint().min(state.value.len());
 
                 if let Some((orig_start, orig_end)) = state.drag_word_origin {
                     let cluster_byte = layout.hit_test_cluster(relative_pos);
@@ -1007,14 +1014,11 @@ pub mod raw {
         state.selection_anchor =
             selection_byte.map(|selection| layout.caret_position_at_insertion_byte(selection));
 
-        caret_byte = layout
-            .caret_insertion_byte(state.caret)
-            .min(state.value.len());
-        selection_byte = state.selection_anchor.map(|selection| {
-            layout
-                .caret_insertion_byte(selection)
-                .min(state.value.len())
-        });
+        caret_byte = state.caret.insertion_byte_hint().min(state.value.len());
+        selection_byte = state
+            .selection_anchor
+            .map(CaretPosition::insertion_byte_hint)
+            .map(|selection| selection.min(state.value.len()));
 
         if just_focused || state.caret != old_caret || state.selection_anchor != old_selection {
             state.last_caret_move_time = spec.time;
@@ -1457,7 +1461,10 @@ fn remove_selection(
 fn caret_position_at_text_end(text: &str) -> CaretPosition {
     text.char_indices()
         .next_back()
-        .map(|(cluster_byte_index, _)| CaretPosition::AfterCluster { cluster_byte_index })
+        .map(|(cluster_byte_start, ch)| CaretPosition::AfterCluster {
+            cluster_byte_start,
+            cluster_byte_end: cluster_byte_start + ch.len_utf8(),
+        })
         .unwrap_or(CaretPosition::EmptyText)
 }
 
@@ -1470,7 +1477,7 @@ fn caret_position_at_byte(text: &str, byte_index: usize) -> CaretPosition {
         return caret_position_at_text_end(text);
     }
     CaretPosition::BeforeCluster {
-        cluster_byte_index: byte_index,
+        cluster_byte_start: byte_index,
     }
 }
 
@@ -1794,7 +1801,40 @@ mod tests {
     use super::raw::TextEditSpec;
     use super::*;
 
-    use crate::{test_utils::TestTextBackend, DrawGlyph, PreparedGlyphToken};
+    use crate::{
+        test_utils::TestTextBackend, DrawGlyph, PrepareGlyphRequest, PreparedGlyphToken,
+        SharedShapedText,
+    };
+
+    #[derive(Default)]
+    struct CountingTextBackend {
+        inner: TestTextBackend,
+        shape_text_calls: usize,
+    }
+
+    impl TextBackend for CountingTextBackend {
+        type ShapedGlyphToken = u32;
+
+        fn line_height(&mut self, style: TextStyle) -> f32 {
+            self.inner.line_height(style)
+        }
+
+        fn shape_text(
+            &mut self,
+            text: &str,
+            style: TextStyle,
+        ) -> SharedShapedText<Self::ShapedGlyphToken> {
+            self.shape_text_calls += 1;
+            self.inner.shape_text(text, style)
+        }
+
+        fn prepare_glyph(
+            &mut self,
+            request: PrepareGlyphRequest<Self::ShapedGlyphToken>,
+        ) -> Option<DrawGlyph> {
+            self.inner.prepare_glyph(request)
+        }
+    }
 
     #[test]
     fn test_builder_defaults_from_theme_fills_unset_style() {
@@ -1885,6 +1925,36 @@ mod tests {
         state.selection_anchor = byte.map(|byte| caret_position_at_byte(&state.value, byte));
     }
 
+    #[test]
+    fn idle_text_edit_does_not_shape_initial_layout_for_byte_recovery() {
+        let mut text_backend = CountingTextBackend::default();
+        let mut focus_system = FocusSystem::new();
+        let mut state = TextEditState::new("abc");
+        state.caret = CaretPosition::AfterCluster {
+            cluster_byte_start: 1,
+            cluster_byte_end: 2,
+        };
+        state.selection_anchor = Some(CaretPosition::BeforeCluster {
+            cluster_byte_start: 0,
+        });
+
+        raw::text_edit(
+            spec(),
+            &mut state,
+            &Input::default(),
+            &mut focus_system,
+            &mut text_backend,
+            &mut DrawCommands::new(),
+        );
+
+        assert_eq!(
+            text_backend.shape_text_calls, 2,
+            "idle rendering should only shape for final measurement and final layout"
+        );
+        assert_eq!(caret_byte(&state), 2);
+        assert_eq!(selection_byte(&state), Some(0));
+    }
+
     fn glyphs(items: &[(char, f32, f32)]) -> Vec<DrawGlyph> {
         items
             .iter()
@@ -1896,17 +1966,7 @@ mod tests {
     }
 
     fn insertion_byte_for_position(text: &str, position: CaretPosition) -> usize {
-        match position {
-            CaretPosition::EmptyText => 0,
-            CaretPosition::BeforeCluster { cluster_byte_index } => {
-                cluster_byte_index.min(text.len())
-            }
-            CaretPosition::AfterCluster { cluster_byte_index } => text
-                .get(cluster_byte_index..)
-                .and_then(|tail| tail.chars().next())
-                .map_or(cluster_byte_index, |ch| cluster_byte_index + ch.len_utf8())
-                .min(text.len()),
-        }
+        position.insertion_byte_hint().min(text.len())
     }
 
     #[test]
@@ -2148,7 +2208,7 @@ mod tests {
         focus_system.end_frame();
 
         state.caret = CaretPosition::BeforeCluster {
-            cluster_byte_index: 0,
+            cluster_byte_start: 0,
         };
         let mut input = Input::default();
         input.text_events.push(TextEvent::CaretRight {
@@ -2167,7 +2227,7 @@ mod tests {
         assert_eq!(
             state.caret,
             CaretPosition::BeforeCluster {
-                cluster_byte_index: 1
+                cluster_byte_start: 1
             }
         );
         assert_eq!(caret_byte(&state), 1);
@@ -2189,7 +2249,7 @@ mod tests {
         assert_eq!(
             state.caret,
             CaretPosition::BeforeCluster {
-                cluster_byte_index: 0
+                cluster_byte_start: 0
             }
         );
         assert_eq!(caret_byte(&state), 0);
@@ -2235,7 +2295,8 @@ mod tests {
         assert_eq!(
             state.caret,
             CaretPosition::AfterCluster {
-                cluster_byte_index: 0
+                cluster_byte_start: 0,
+                cluster_byte_end: 1,
             }
         );
         assert_eq!(caret_byte(&state), 1);
@@ -2256,7 +2317,8 @@ mod tests {
         assert_eq!(
             state.caret,
             CaretPosition::AfterCluster {
-                cluster_byte_index: 0
+                cluster_byte_start: 0,
+                cluster_byte_end: 1,
             }
         );
         assert_eq!(caret_byte(&state), 1);
@@ -6171,7 +6233,8 @@ mod tests {
         // - BeforeCluster(10) is the start of visual line 1.
 
         state.caret = CaretPosition::AfterCluster {
-            cluster_byte_index: 9,
+            cluster_byte_start: 9,
+            cluster_byte_end: 10,
         };
         focus_system.begin_frame();
         let mut input = Input::default();
@@ -6192,13 +6255,13 @@ mod tests {
         assert_eq!(
             state.caret,
             CaretPosition::BeforeCluster {
-                cluster_byte_index: 0
+                cluster_byte_start: 0
             },
             "Home from the end anchor of visual line 0 should stay on visual line 0"
         );
 
         state.caret = CaretPosition::BeforeCluster {
-            cluster_byte_index: 10,
+            cluster_byte_start: 10,
         };
         focus_system.begin_frame();
         let mut input = Input::default();
@@ -6219,7 +6282,8 @@ mod tests {
         assert_eq!(
             state.caret,
             CaretPosition::AfterCluster {
-                cluster_byte_index: 19
+                cluster_byte_start: 19,
+                cluster_byte_end: 20,
             },
             "End from the start anchor of visual line 1 should stay on visual line 1"
         );
@@ -6239,7 +6303,7 @@ mod tests {
         edit_spec.wrap = true;
 
         state.caret = CaretPosition::BeforeCluster {
-            cluster_byte_index: 3,
+            cluster_byte_start: 3,
         };
         focus_system.begin_frame();
         let mut input = Input::default();
@@ -6260,13 +6324,14 @@ mod tests {
         assert_eq!(
             state.caret,
             CaretPosition::AfterCluster {
-                cluster_byte_index: 9
+                cluster_byte_start: 9,
+                cluster_byte_end: 10,
             },
             "End on visual line 0 should use the line-end anchor, not the next line start"
         );
 
         state.caret = CaretPosition::BeforeCluster {
-            cluster_byte_index: 15,
+            cluster_byte_start: 15,
         };
         focus_system.begin_frame();
         let mut input = Input::default();
@@ -6287,7 +6352,7 @@ mod tests {
         assert_eq!(
             state.caret,
             CaretPosition::BeforeCluster {
-                cluster_byte_index: 10
+                cluster_byte_start: 10
             },
             "Home on visual line 1 should use the line-start anchor"
         );
@@ -6307,7 +6372,7 @@ mod tests {
         edit_spec.rect = Rect::new(0.0, 0.0, 18.0, 100.0);
 
         state.caret = CaretPosition::BeforeCluster {
-            cluster_byte_index: 0,
+            cluster_byte_start: 0,
         };
         focus_system.begin_frame();
         let mut input = Input::default();
@@ -6328,7 +6393,7 @@ mod tests {
         assert_eq!(
             state.caret,
             CaretPosition::BeforeCluster {
-                cluster_byte_index: 1
+                cluster_byte_start: 1
             },
             "End on a line ending with collapsed soft-wrap whitespace should stay on that visual line"
         );

@@ -69,10 +69,6 @@ fn assert_visible_glyph_count_matches_resolved(layout: &TextLayout<u32>) {
     );
 }
 
-fn flattened_clusters(layout: &TextLayout<u32>) -> impl Iterator<Item = &WorkingCluster> {
-    layout.lines.iter().flat_map(|line| line.clusters.iter())
-}
-
 fn wrap_word_keep() -> TextFlow {
     TextFlow {
         overflow_x: OverflowX::WrapWord {
@@ -289,7 +285,39 @@ fn empty_text_reports_one_blank_line() {
         layout.hit_test_caret(Vec2::new(100.0, 100.0)),
         CaretPosition::EmptyText
     );
-    assert_eq!(layout.caret_insertion_byte(CaretPosition::EmptyText), 0);
+    assert_eq!(CaretPosition::EmptyText.insertion_byte_hint(), 0);
+}
+
+#[test]
+fn caret_position_insertion_byte_hint_uses_stored_bytes() {
+    assert_eq!(
+        CaretPosition::BeforeCluster {
+            cluster_byte_start: 4,
+        }
+        .insertion_byte_hint(),
+        4
+    );
+    assert_eq!(
+        CaretPosition::AfterCluster {
+            cluster_byte_start: 4,
+            cluster_byte_end: 9,
+        }
+        .insertion_byte_hint(),
+        9
+    );
+    assert_eq!(CaretPosition::EmptyText.insertion_byte_hint(), 0);
+
+    let text = "e\u{0301}x";
+    let layout = layout(text, TextFlow::single_line(), TextBounds::UNBOUNDED);
+    let x_byte = text.find('x').unwrap();
+
+    assert_eq!(
+        layout
+            .caret_position_at_insertion_byte(x_byte)
+            .insertion_byte_hint(),
+        x_byte,
+        "a caret after the multi-byte combining cluster should carry its byte end"
+    );
 }
 
 #[test]
@@ -600,7 +628,7 @@ fn caret_advances_along_single_line() {
     assert_eq!(
         layout
             .caret_geom(CaretPosition::BeforeCluster {
-                cluster_byte_index: 0
+                cluster_byte_start: 0
             })
             .x,
         0.0
@@ -608,7 +636,7 @@ fn caret_advances_along_single_line() {
     assert_eq!(
         layout
             .caret_geom(CaretPosition::BeforeCluster {
-                cluster_byte_index: 1
+                cluster_byte_start: 1
             })
             .x,
         8.0
@@ -616,7 +644,8 @@ fn caret_advances_along_single_line() {
     assert_eq!(
         layout
             .caret_geom(CaretPosition::AfterCluster {
-                cluster_byte_index: 2
+                cluster_byte_start: 2,
+                cluster_byte_end: 3,
             })
             .x,
         24.0
@@ -628,15 +657,21 @@ fn hit_test_round_trips_to_boundaries() {
     let layout = layout("abc", TextFlow::single_line(), TextBounds::UNBOUNDED);
 
     assert_eq!(
-        layout.caret_insertion_byte(layout.hit_test_caret(Vec2::new(0.0, 1.0))),
+        layout
+            .hit_test_caret(Vec2::new(0.0, 1.0))
+            .insertion_byte_hint(),
         0
     );
     assert_eq!(
-        layout.caret_insertion_byte(layout.hit_test_caret(Vec2::new(7.9, 1.0))),
+        layout
+            .hit_test_caret(Vec2::new(7.9, 1.0))
+            .insertion_byte_hint(),
         1
     );
     assert_eq!(
-        layout.caret_insertion_byte(layout.hit_test_caret(Vec2::new(100.0, 1.0))),
+        layout
+            .hit_test_caret(Vec2::new(100.0, 1.0))
+            .insertion_byte_hint(),
         3
     );
 }
@@ -646,10 +681,11 @@ fn caret_position_distinguishes_before_and_after_newline_cluster() {
     let layout = layout("a\nb", TextFlow::single_line(), TextBounds::UNBOUNDED);
 
     let before = layout.caret_geom(CaretPosition::BeforeCluster {
-        cluster_byte_index: 1,
+        cluster_byte_start: 1,
     });
     let after = layout.caret_geom(CaretPosition::AfterCluster {
-        cluster_byte_index: 1,
+        cluster_byte_start: 1,
+        cluster_byte_end: 2,
     });
 
     assert_eq!(before.y_top, 0.0);
@@ -659,7 +695,7 @@ fn caret_position_distinguishes_before_and_after_newline_cluster() {
     assert_eq!(
         layout.hit_test_caret(Vec2::new(100.0, 1.0)),
         CaretPosition::BeforeCluster {
-            cluster_byte_index: 1,
+            cluster_byte_start: 1,
         }
     );
 }
@@ -670,26 +706,28 @@ fn caret_navigation_chooses_newline_side_by_direction() {
 
     assert_eq!(
         layout.next_caret_position(CaretPosition::BeforeCluster {
-            cluster_byte_index: 0,
+            cluster_byte_start: 0,
         }),
         CaretPosition::BeforeCluster {
-            cluster_byte_index: 1,
+            cluster_byte_start: 1,
         }
     );
     assert_eq!(
         layout.next_caret_position(CaretPosition::BeforeCluster {
-            cluster_byte_index: 1,
+            cluster_byte_start: 1,
         }),
         CaretPosition::AfterCluster {
-            cluster_byte_index: 1,
+            cluster_byte_start: 1,
+            cluster_byte_end: 2,
         }
     );
     assert_eq!(
         layout.previous_caret_position(CaretPosition::BeforeCluster {
-            cluster_byte_index: 2,
+            cluster_byte_start: 2,
         }),
         CaretPosition::AfterCluster {
-            cluster_byte_index: 1,
+            cluster_byte_start: 1,
+            cluster_byte_end: 2,
         }
     );
 }
@@ -703,10 +741,11 @@ fn collapsed_soft_wrap_space_has_newline_like_caret_and_hit_test_behavior() {
     );
 
     let before = layout.caret_geom(CaretPosition::BeforeCluster {
-        cluster_byte_index: 5,
+        cluster_byte_start: 5,
     });
     let after = layout.caret_geom(CaretPosition::AfterCluster {
-        cluster_byte_index: 5,
+        cluster_byte_start: 5,
+        cluster_byte_end: 6,
     });
 
     assert_eq!(before.y_top, 0.0);
@@ -716,7 +755,7 @@ fn collapsed_soft_wrap_space_has_newline_like_caret_and_hit_test_behavior() {
     assert_eq!(
         layout.hit_test_caret(Vec2::new(100.0, 1.0)),
         CaretPosition::BeforeCluster {
-            cluster_byte_index: 5,
+            cluster_byte_start: 5,
         }
     );
 }
@@ -730,21 +769,24 @@ fn caret_position_distinguishes_soft_wrap_boundary_space_sides() {
     );
 
     assert_eq!(
-        layout.caret_insertion_byte(CaretPosition::BeforeCluster {
-            cluster_byte_index: 5,
-        }),
+        CaretPosition::BeforeCluster {
+            cluster_byte_start: 5,
+        }
+        .insertion_byte_hint(),
         5
     );
     assert_eq!(
-        layout.caret_insertion_byte(CaretPosition::AfterCluster {
-            cluster_byte_index: 5,
-        }),
+        CaretPosition::AfterCluster {
+            cluster_byte_start: 5,
+            cluster_byte_end: 6,
+        }
+        .insertion_byte_hint(),
         6
     );
     assert_eq!(
         layout.caret_position_at_insertion_byte(6),
         CaretPosition::BeforeCluster {
-            cluster_byte_index: 6,
+            cluster_byte_start: 6,
         }
     );
 }
@@ -792,7 +834,8 @@ fn caret_geom_alignment_empty_lines_and_empty_text() {
         assert_close(
             trailing
                 .caret_geom(CaretPosition::AfterCluster {
-                    cluster_byte_index: 1,
+                    cluster_byte_start: 1,
+                    cluster_byte_end: 2,
                 })
                 .x,
             expected_x,
@@ -1008,7 +1051,8 @@ fn hit_test_cannot_target_a_line_made_from_half_a_cluster() {
     assert_eq!(
         layout.hit_test_caret(Vec2::new(100.0, 0.0)),
         CaretPosition::AfterCluster {
-            cluster_byte_index: 0,
+            cluster_byte_start: 0,
+            cluster_byte_end: text.find('x').unwrap(),
         }
     );
 }
@@ -1030,7 +1074,7 @@ fn caret_inside_combining_mark_cluster_clamps_to_cluster_start() {
     assert_eq!(
         layout.caret_position_at_insertion_byte(1),
         CaretPosition::BeforeCluster {
-            cluster_byte_index: 0,
+            cluster_byte_start: 0,
         }
     );
 }
@@ -1041,11 +1085,15 @@ fn hit_test_combining_mark_cluster_returns_cluster_boundaries() {
     let layout = layout(text, TextFlow::single_line(), TextBounds::UNBOUNDED);
 
     assert_eq!(
-        layout.caret_insertion_byte(layout.hit_test_caret(Vec2::new(0.0, 0.0))),
+        layout
+            .hit_test_caret(Vec2::new(0.0, 0.0))
+            .insertion_byte_hint(),
         0
     );
     assert_eq!(
-        layout.caret_insertion_byte(layout.hit_test_caret(Vec2::new(7.9, 0.0))),
+        layout
+            .hit_test_caret(Vec2::new(7.9, 0.0))
+            .insertion_byte_hint(),
         text.find('x').unwrap()
     );
 }
@@ -1109,7 +1157,8 @@ fn caret_end_uses_shaped_advance_not_bitmap_width() {
     assert_eq!(
         layout
             .caret_geom(CaretPosition::AfterCluster {
-                cluster_byte_index: 1,
+                cluster_byte_start: 1,
+                cluster_byte_end: 2,
             })
             .x,
         16.0
@@ -1135,7 +1184,7 @@ fn caret_on_second_line_is_offset_in_y() {
     assert_eq!(
         layout
             .caret_geom(CaretPosition::BeforeCluster {
-                cluster_byte_index: 2,
+                cluster_byte_start: 2,
             })
             .y_top,
         16.0
@@ -1157,7 +1206,8 @@ fn hit_test_right_of_wrapped_long_word_line_selects_after_last_cluster() {
     assert_eq!(
         layout.hit_test_caret(Vec2::new(100.0, 1.0)),
         CaretPosition::AfterCluster {
-            cluster_byte_index: 1,
+            cluster_byte_start: 1,
+            cluster_byte_end: 2,
         }
     );
 }
@@ -1205,7 +1255,7 @@ fn hit_test_right_of_newline_line_stays_on_same_line() {
     assert_eq!(
         layout.hit_test_caret(Vec2::new(100.0, 1.0)),
         CaretPosition::BeforeCluster {
-            cluster_byte_index: 1,
+            cluster_byte_start: 1,
         }
     );
 }
@@ -1217,7 +1267,7 @@ fn hit_test_right_of_blank_newline_line_stays_on_same_line() {
     assert_eq!(
         layout.hit_test_caret(Vec2::new(100.0, 17.0)),
         CaretPosition::BeforeCluster {
-            cluster_byte_index: 1,
+            cluster_byte_start: 1,
         }
     );
 }
@@ -1237,7 +1287,7 @@ fn caret_geom_at_newline_index_stays_on_same_line() {
     let layout = layout("a\nb", TextFlow::single_line(), TextBounds::UNBOUNDED);
 
     let caret = layout.caret_geom(CaretPosition::BeforeCluster {
-        cluster_byte_index: 1,
+        cluster_byte_start: 1,
     });
     assert_eq!(caret.y_top, 0.0);
     assert_eq!(caret.x, 8.0);
@@ -1248,7 +1298,8 @@ fn caret_geom_after_newline_index_is_on_next_line() {
     let layout = layout("a\nb", TextFlow::single_line(), TextBounds::UNBOUNDED);
 
     let caret = layout.caret_geom(CaretPosition::AfterCluster {
-        cluster_byte_index: 1,
+        cluster_byte_start: 1,
+        cluster_byte_end: 2,
     });
     assert_eq!(caret.y_top, 16.0);
     assert_eq!(caret.x, 0.0);
@@ -1262,18 +1313,19 @@ fn caret_navigation_moves_by_cluster_boundaries() {
 
     assert_eq!(
         layout.next_caret_position(CaretPosition::BeforeCluster {
-            cluster_byte_index: 0,
+            cluster_byte_start: 0,
         }),
         CaretPosition::BeforeCluster {
-            cluster_byte_index: x_byte,
+            cluster_byte_start: x_byte,
         }
     );
     assert_eq!(
         layout.previous_caret_position(CaretPosition::AfterCluster {
-            cluster_byte_index: x_byte,
+            cluster_byte_start: x_byte,
+            cluster_byte_end: x_byte + 1,
         }),
         CaretPosition::BeforeCluster {
-            cluster_byte_index: x_byte,
+            cluster_byte_start: x_byte,
         }
     );
 }
@@ -1287,10 +1339,11 @@ fn test_caret_geom_soft_wrap_boundaries() {
     );
 
     let before = layout.caret_geom(CaretPosition::BeforeCluster {
-        cluster_byte_index: 5,
+        cluster_byte_start: 5,
     });
     let after = layout.caret_geom(CaretPosition::AfterCluster {
-        cluster_byte_index: 5,
+        cluster_byte_start: 5,
+        cluster_byte_end: 6,
     });
     assert_eq!(
         before,
@@ -1320,18 +1373,19 @@ fn caret_navigation_chooses_soft_wrap_boundary_space_side_by_direction() {
 
     assert_eq!(
         layout.next_caret_position(CaretPosition::BeforeCluster {
-            cluster_byte_index: 4,
+            cluster_byte_start: 4,
         }),
         CaretPosition::BeforeCluster {
-            cluster_byte_index: 5,
+            cluster_byte_start: 5,
         }
     );
     assert_eq!(
         layout.previous_caret_position(CaretPosition::BeforeCluster {
-            cluster_byte_index: 6,
+            cluster_byte_start: 6,
         }),
         CaretPosition::AfterCluster {
-            cluster_byte_index: 5,
+            cluster_byte_start: 5,
+            cluster_byte_end: 6,
         }
     );
 }
@@ -1667,7 +1721,7 @@ fn empty_text_hit_testing_returns_empty_caret_and_byte_zero() {
 
     let position = layout.hit_test_caret(Vec2::new(100.0, 100.0));
     assert_eq!(position, CaretPosition::EmptyText);
-    assert_eq!(layout.caret_insertion_byte(position), 0);
+    assert_eq!(position.insertion_byte_hint(), 0);
 }
 
 #[test]

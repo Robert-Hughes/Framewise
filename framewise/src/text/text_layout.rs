@@ -633,7 +633,7 @@ mod tests {
         let layout = layout_text(&mut backend, "x\ny", style, TextBounds::UNBOUNDED);
 
         let caret = layout.caret_geom(CaretPosition::BeforeCluster {
-            cluster_byte_index: 2,
+            cluster_byte_start: 2,
         });
         assert_eq!(caret.y_top, 30.0);
         assert_eq!(caret.height, 30.0);

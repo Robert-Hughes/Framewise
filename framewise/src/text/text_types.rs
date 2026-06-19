@@ -728,7 +728,7 @@ pub struct LayoutGlyph<G> {
     pub approx_ink_bounds: Rect,
 }
 
-/// A visual caret anchor in prepared text.
+/// A visual caret anchor in prepared text with a cheap insertion-byte hint.
 ///
 /// This is deliberately richer than an insertion byte index. At hard line
 /// breaks and soft-wrap boundaries, two visually distinct caret positions can
@@ -737,29 +737,51 @@ pub struct LayoutGlyph<G> {
 /// API cannot preserve that distinction during hit-testing, caret movement, or
 /// editor feedback.
 ///
-/// `cluster_byte_index` identifies the cluster being anchored to. It is not
-/// necessarily the same thing as the insertion byte index:
+/// `cluster_byte_start` identifies the cluster being visually anchored to. For
+/// [`BeforeCluster`](Self::BeforeCluster), it is also the insertion byte. For
+/// [`AfterCluster`](Self::AfterCluster), `cluster_byte_end` is stored so callers
+/// can recover the insertion byte immediately after the anchored cluster
+/// without consulting layout.
 ///
-/// - [`BeforeCluster`](Self::BeforeCluster) inserts at the anchored cluster's
-///   `byte_start`.
-/// - [`AfterCluster`](Self::AfterCluster) inserts at the anchored cluster's
-///   `byte_end`.
-///
-/// Use [`TextLayout::caret_insertion_byte`] to convert a visual caret position
-/// into an insertion byte index for editing operations. Use
+/// Use [`CaretPosition::insertion_byte_hint`] to get the insertion byte for
+/// editing operations. Use
 /// [`TextLayout::caret_position_at_insertion_byte`] to choose a canonical visual
-/// anchor for a programmatic byte position.
+/// anchor for a programmatic byte position. Layout-dependent operations such as
+/// caret geometry, hit testing, and visual movement remain on `TextLayout`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum CaretPosition {
     /// The caret is anchored to the leading visual edge of the cluster that
-    /// starts at `cluster_byte_index`.
-    BeforeCluster { cluster_byte_index: usize },
+    /// starts at `cluster_byte_start`.
+    ///
+    /// `cluster_byte_start` identifies the anchored cluster's start byte. It is
+    /// both the visual anchor and the insertion byte.
+    BeforeCluster { cluster_byte_start: usize },
     /// The caret is anchored to the trailing visual edge of the cluster that
-    /// starts at `cluster_byte_index`.
-    AfterCluster { cluster_byte_index: usize },
+    /// starts at `cluster_byte_start`.
+    ///
+    /// `cluster_byte_start` identifies the anchored cluster's start byte and is
+    /// the visual anchor. `cluster_byte_end` is the insertion byte immediately
+    /// after the anchored cluster.
+    AfterCluster {
+        cluster_byte_start: usize,
+        cluster_byte_end: usize,
+    },
     /// The prepared text contains no clusters. The caret sits at the start of
-    /// the single empty visual line.
+    /// the single empty visual line, with insertion byte `0`.
     EmptyText,
+}
+
+impl CaretPosition {
+    /// Return the insertion byte carried by this visual caret anchor.
+    pub fn insertion_byte_hint(self) -> usize {
+        match self {
+            CaretPosition::BeforeCluster { cluster_byte_start } => cluster_byte_start,
+            CaretPosition::AfterCluster {
+                cluster_byte_end, ..
+            } => cluster_byte_end,
+            CaretPosition::EmptyText => 0,
+        }
+    }
 }
 
 /// The geometry of a visual caret anchor, in block-local coordinates (origin at
