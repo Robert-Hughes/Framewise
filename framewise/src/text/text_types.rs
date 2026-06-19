@@ -370,6 +370,10 @@ pub enum EllipsisFallback {
 /// `Start`/`End` are resolved against text direction; for left-to-right text
 /// `Start` is left and `End` is right. Alignment only affects glyph X positions —
 /// it never changes the measured block size or which glyphs are truncated.
+///
+/// When [`TextBounds::max_width`] is provided, lines align inside that width.
+/// When no maximum width is provided, lines align inside the maximum logical
+/// width of the laid-out lines.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum TextLineAlign {
     Start,

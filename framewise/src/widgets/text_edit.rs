@@ -870,7 +870,8 @@ pub mod raw {
         let scroll_result =
             raw::begin_scroll_area(scroll_spec, &mut state.scroll, input, focus_system, cmds);
 
-        let text_x = scroll_outer_rect.x + spec.style.padding_x - scroll_result.offset.x;
+        let text_x = scroll_outer_rect.x + spec.style.padding_x + prepared.block_align_offset_x
+            - scroll_result.offset.x;
         let text_y = if metrics.logical_size.y + 2.0 * spec.style.padding_y <= scroll_outer_rect.h {
             match spec.vertical_align {
                 Align::Start => scroll_outer_rect.y + spec.style.padding_y,
@@ -1252,6 +1253,7 @@ pub mod raw {
         pub layout_width: f32,
         pub layout_height: f32,
         pub inner_scroll_size: Vec2,
+        pub block_align_offset_x: f32,
         pub reserved_vertical_scrollbar: bool,
         pub layout: TextLayout<G>,
     }
@@ -1298,6 +1300,11 @@ pub mod raw {
     /// feedback loop. The layout is block-local; scroll offsets change the
     /// screen-space draw/hit-test origin, not the layout. Metrics from this
     /// same layout drive the inner scroll size.
+    ///
+    /// Unwrapped text uses unbounded horizontal bounds so it remains
+    /// horizontally scrollable. The text system aligns lines within their
+    /// natural block width; when the viewport is wider than that block,
+    /// TextEdit applies one block-level x offset to the origin.
     pub(super) fn prepare_text_edit_layout<T: TextBackend>(
         text_content: &str,
         spec: &TextEditSpec,
@@ -1322,7 +1329,7 @@ pub mod raw {
         };
         let content_width = (available_text_width - reserved_vertical_width).max(0.0);
 
-        let mut layout = if spec.wrap {
+        let layout = if spec.wrap {
             crate::text::layout_text(
                 text_backend,
                 text_content,
@@ -1350,10 +1357,16 @@ pub mod raw {
         } else {
             metrics.logical_size.x.max(scroll_outer_rect.w)
         };
-        if !spec.wrap {
-            layout.align_lines_to_width(layout_width, text_style.flow.line_align);
-        }
-        let metrics = layout.metrics();
+        let block_align_offset_x = if spec.wrap {
+            0.0
+        } else {
+            let extra_width = (content_width - metrics.logical_size.x).max(0.0);
+            match text_style.flow.line_align {
+                TextLineAlign::Start => 0.0,
+                TextLineAlign::Center => extra_width * 0.5,
+                TextLineAlign::End => extra_width,
+            }
+        };
         let layout_height = metrics.logical_size.y.max(scroll_outer_rect.h);
         let inner_scroll_size = Vec2::new(
             metrics.logical_size.x + 2.0 * spec.style.padding_x,
@@ -1365,6 +1378,7 @@ pub mod raw {
             layout_width,
             layout_height,
             inner_scroll_size,
+            block_align_offset_x,
             reserved_vertical_scrollbar: reserve_vertical_scrollbar,
             layout,
         }
@@ -3635,7 +3649,7 @@ mod tests {
 
     #[test]
     fn test_text_edit_selection_highlight_respects_horizontal_line_alignment() {
-        for (line_align, expected_x) in [(TextLineAlign::Center, 84.0), (TextLineAlign::End, 163.0)]
+        for (line_align, expected_x) in [(TextLineAlign::Center, 80.0), (TextLineAlign::End, 155.0)]
         {
             let mut text_backend = TestTextBackend;
             let mut focus_system = FocusSystem::new();
@@ -3705,11 +3719,11 @@ mod tests {
         assert_eq!(
             cmds.glyphs(),
             glyphs(&[
-                ('a', 88.0, 26.0),
-                ('b', 96.0, 26.0),
-                ('c', 104.0, 26.0),
-                ('d', 112.0, 26.0),
-                ('x', 100.0, 42.0),
+                ('a', 84.0, 26.0),
+                ('b', 92.0, 26.0),
+                ('c', 100.0, 26.0),
+                ('d', 108.0, 26.0),
+                ('x', 96.0, 42.0),
             ])
         );
     }
@@ -6162,6 +6176,126 @@ mod tests {
         assert_eq!(prepared.layout.metrics().line_count, 1);
         assert!(prepared.reserved_vertical_scrollbar);
         assert_eq!(prepared.layout_width, 98.0);
+    }
+
+    #[test]
+    fn test_prepare_text_edit_layout_offsets_short_unwrapped_center_block() {
+        let mut text_backend = TestTextBackend;
+        let mut edit_spec = TextEditSpec {
+            line_align: TextLineAlign::Center,
+            ..spec()
+        };
+        edit_spec.wrap = false;
+
+        let text_style =
+            super::to_text_style(edit_spec.style, edit_spec.wrap, edit_spec.line_align);
+        let prepared = super::raw::prepare_text_edit_layout(
+            "hello",
+            &edit_spec,
+            text_style,
+            &mut text_backend,
+        );
+
+        assert_eq!(prepared.layout.metrics().logical_size.x, 40.0);
+        assert_eq!(prepared.block_align_offset_x, 75.0);
+        assert_eq!(prepared.layout.metrics().lines[0].logical_x, 0.0);
+    }
+
+    #[test]
+    fn test_prepare_text_edit_layout_offsets_short_unwrapped_end_block() {
+        let mut text_backend = TestTextBackend;
+        let mut edit_spec = TextEditSpec {
+            line_align: TextLineAlign::End,
+            ..spec()
+        };
+        edit_spec.wrap = false;
+
+        let text_style =
+            super::to_text_style(edit_spec.style, edit_spec.wrap, edit_spec.line_align);
+        let prepared = super::raw::prepare_text_edit_layout(
+            "hello",
+            &edit_spec,
+            text_style,
+            &mut text_backend,
+        );
+
+        assert_eq!(prepared.layout.metrics().logical_size.x, 40.0);
+        assert_eq!(prepared.block_align_offset_x, 150.0);
+        assert_eq!(prepared.layout.metrics().lines[0].logical_x, 0.0);
+    }
+
+    #[test]
+    fn test_prepare_text_edit_layout_does_not_offset_wide_unwrapped_block() {
+        let mut text_backend = TestTextBackend;
+        let mut edit_spec = TextEditSpec {
+            line_align: TextLineAlign::End,
+            ..spec()
+        };
+        edit_spec.wrap = false;
+
+        let text_style =
+            super::to_text_style(edit_spec.style, edit_spec.wrap, edit_spec.line_align);
+        let prepared = super::raw::prepare_text_edit_layout(
+            "abcdefghijklmnopqrstuvwxyz0123",
+            &edit_spec,
+            text_style,
+            &mut text_backend,
+        );
+
+        assert_eq!(prepared.layout.metrics().logical_size.x, 240.0);
+        assert_eq!(prepared.block_align_offset_x, 0.0);
+        assert_eq!(prepared.inner_scroll_size.x, 248.0);
+    }
+
+    #[test]
+    fn test_prepare_text_edit_layout_aligns_unwrapped_lines_then_offsets_block() {
+        let mut text_backend = TestTextBackend;
+        let mut edit_spec = TextEditSpec {
+            line_align: TextLineAlign::Center,
+            newline_policy: NewlinePolicy::Allow,
+            ..spec()
+        };
+        edit_spec.wrap = false;
+
+        let text_style =
+            super::to_text_style(edit_spec.style, edit_spec.wrap, edit_spec.line_align);
+        let prepared = super::raw::prepare_text_edit_layout(
+            "abcd\nx",
+            &edit_spec,
+            text_style,
+            &mut text_backend,
+        );
+        let metrics = prepared.layout.metrics();
+
+        assert_eq!(metrics.logical_size.x, 32.0);
+        assert_eq!(metrics.lines[0].logical_x, 0.0);
+        assert_eq!(metrics.lines[1].logical_x, 12.0);
+        assert_eq!(prepared.block_align_offset_x, 76.5);
+    }
+
+    #[test]
+    fn test_prepare_text_edit_layout_wrap_uses_bounded_line_alignment_without_block_offset() {
+        let mut text_backend = TestTextBackend;
+        let mut edit_spec = TextEditSpec {
+            line_align: TextLineAlign::Center,
+            newline_policy: NewlinePolicy::Allow,
+            ..spec()
+        };
+        edit_spec.wrap = true;
+
+        let text_style =
+            super::to_text_style(edit_spec.style, edit_spec.wrap, edit_spec.line_align);
+        let prepared = super::raw::prepare_text_edit_layout(
+            "a\nabcd",
+            &edit_spec,
+            text_style,
+            &mut text_backend,
+        );
+        let metrics = prepared.layout.metrics();
+
+        assert_eq!(prepared.block_align_offset_x, 0.0);
+        assert_eq!(metrics.lines[0].logical_x, 88.5);
+        assert_eq!(metrics.lines[1].logical_x, 76.5);
     }
 
     #[test]

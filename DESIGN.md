@@ -1023,8 +1023,9 @@ Framewise has several alignment concepts that sound similar but operate at diffe
 
 *Note on `TextEdit`*: The editable text input widget (`TextEdit`) makes use of two of these layers:
 - It uses **Widget text/content placement** (specifically a `vertical_align: Align` property) to vertically align the entire prepared text block (top, center, or bottom) inside the viewport when the content fits.
-- It uses **`TextFlow::line_align`** (specifically a `line_align: TextLineAlign` property forwarded to `TextStyle`) to horizontally align individual lines (left, center, or right) inside the text layout.
-Because all editing logic, caret rendering, selection highlight bounds, and hit-testing in `TextEdit` are evaluated using block-local coordinates relative to the text block's origin, these two layers of alignment are handled completely naturally without any additional logic in the widget's interaction code.
+- It uses **`TextFlow::line_align`** (specifically a `line_align: TextLineAlign` property forwarded to `TextStyle`) to horizontally align individual lines (left, center, or right) inside the text layout. When `TextBounds::max_width` is provided, text layout aligns lines inside that width. When no maximum width is provided, it aligns lines inside the maximum logical width of the laid-out lines.
+
+For unwrapped text, `TextEdit` lays out using unbounded horizontal bounds so text remains horizontally scrollable. The resulting lines are aligned within their natural block width by the text system. If the viewport is wider than that natural block, `TextEdit` applies a single block-level x-offset to position the whole block according to the requested line alignment. Because all editing logic, caret rendering, selection highlight bounds, and hit-testing in `TextEdit` are evaluated using block-local coordinates relative to the text block's origin, this block offset is applied through the shared origin rather than by mutating line positions.
 
 
 The proposed label/button property should therefore be named for content placement rather than plain alignment, for example:

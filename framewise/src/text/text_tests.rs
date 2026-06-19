@@ -943,6 +943,77 @@ fn horizontal_alignment_affects_line_offsets() {
 }
 
 #[test]
+fn unbounded_horizontal_alignment_uses_natural_block_width() {
+    let text = "a\nabcd";
+
+    for (align, expected_first_x, expected_second_x) in [
+        (TextLineAlign::Start, 0.0, 0.0),
+        (TextLineAlign::Center, 12.0, 0.0),
+        (TextLineAlign::End, 24.0, 0.0),
+    ] {
+        let flow = TextFlow {
+            overflow_x: OverflowX::Keep,
+            overflow_y: OverflowY::Keep,
+            line_align: align,
+        };
+        let layout = layout(text, flow, TextBounds::UNBOUNDED);
+
+        assert_close(
+            layout.lines[0].logical_x,
+            expected_first_x,
+            "short line logical_x",
+        );
+        assert_close(
+            first_cluster(&layout).x,
+            expected_first_x,
+            "short line cluster x",
+        );
+        assert_close(
+            layout.lines[1].logical_x,
+            expected_second_x,
+            "widest line logical_x",
+        );
+        assert_close(
+            layout.lines[1].clusters[0].x,
+            expected_second_x,
+            "widest line cluster x",
+        );
+        assert_close(layout.metrics().logical_size.x, 32.0, "natural block width");
+    }
+}
+
+#[test]
+fn unbounded_alignment_handles_empty_text_and_empty_lines() {
+    for align in [
+        TextLineAlign::Start,
+        TextLineAlign::Center,
+        TextLineAlign::End,
+    ] {
+        let flow = TextFlow {
+            overflow_x: OverflowX::Keep,
+            overflow_y: OverflowY::Keep,
+            line_align: align,
+        };
+
+        let empty = layout("", flow, TextBounds::UNBOUNDED);
+        assert_close(empty.metrics().logical_size.x, 0.0, "empty width");
+        assert_close(empty.lines[0].logical_x, 0.0, "empty line x");
+        assert!(empty.lines[0].logical_x.is_finite());
+
+        let with_empty_line = layout("abcd\n\nx", flow, TextBounds::UNBOUNDED);
+        for line in &with_empty_line.lines {
+            assert!(line.logical_x.is_finite());
+            assert!(line.logical_x >= 0.0);
+        }
+        assert_close(
+            with_empty_line.metrics().logical_size.x,
+            32.0,
+            "block width with empty line",
+        );
+    }
+}
+
+#[test]
 fn caret_geom_alignment_empty_lines_and_empty_text() {
     for (align, expected_x) in [
         (TextLineAlign::Start, 0.0),
