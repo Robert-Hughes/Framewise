@@ -88,14 +88,9 @@ pub mod raw {
             layout.caret_position_at_insertion_byte(start_byte)
         };
         let caret_geom = layout.caret_geom(visual_position);
-        let metrics = layout.metrics();
-        let current_line_idx = metrics
-            .lines
-            .iter()
-            .rposition(|line| start_byte >= line.byte_start)
-            .unwrap_or(0);
+        let current_line_idx = layout.visual_line_index_for_caret(visual_position);
 
-        let line_len = metrics.lines.len();
+        let line_len = layout.lines.len();
         let (target_line_idx, target_clamped) = match direction {
             VerticalCaretDirection::Up => (
                 current_line_idx.saturating_sub(line_count),
@@ -119,9 +114,7 @@ pub mod raw {
             };
         }
 
-        let target_line = &metrics.lines[target_line_idx];
-        let pos = Vec2::new(caret_geom.x, target_line.y_top + target_line.height * 0.5);
-        let new_caret = layout.hit_test_caret(pos);
+        let new_caret = layout.caret_at_visual_line_x(target_line_idx, caret_geom.x);
         let byte = new_caret.insertion_byte_hint().min(text_content.len());
         VerticalCaretMove {
             caret: new_caret,

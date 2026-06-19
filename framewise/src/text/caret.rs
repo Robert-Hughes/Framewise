@@ -129,6 +129,53 @@ impl<G> TextLayout<G> {
         CaretGeom { x, y_top, height }
     }
 
+    /// Return the caret position on the selected visual line closest to the layout-space x coordinate.
+    ///
+    /// This is intended for keyboard vertical movement (such as Up, Down, PageUp, PageDown),
+    /// not for pointer coordinate hit-testing.
+    pub fn caret_at_visual_line_x(&self, line_index: usize, x: f32) -> CaretPosition {
+        let line_idx = line_index.min(self.lines.len().saturating_sub(1));
+        let line = &self.lines[line_idx];
+        let clusters = &line.clusters;
+        if clusters.is_empty() {
+            return self.empty_line_caret_position(line_idx);
+        }
+
+        let start_caret = self.caret_at_visual_line_start(line_idx);
+        let end_caret = self.caret_at_visual_line_end(line_idx);
+
+        let start_x = self.caret_geom(start_caret).x;
+        let end_x = self.caret_geom(end_caret).x;
+
+        let is_ltr = start_x <= end_x;
+        if is_ltr {
+            if x <= start_x {
+                return start_caret;
+            }
+            if x >= end_x {
+                return end_caret;
+            }
+        } else {
+            if x >= start_x {
+                return start_caret;
+            }
+            if x <= end_x {
+                return end_caret;
+            }
+        }
+
+        for cluster in clusters {
+            let mid = cluster.x + cluster.advance * 0.5;
+            if x < mid {
+                return CaretPosition::BeforeCluster {
+                    cluster_byte_start: cluster.byte_start,
+                };
+            }
+        }
+
+        end_caret
+    }
+
     /// Hit-test a block-local point to the nearest character boundary.
     ///
     /// The point is resolved to a visual line by y, then to the nearest gap
@@ -156,31 +203,7 @@ impl<G> TextLayout<G> {
             .iter()
             .position(|line| pos.y < line.y_top + line.height)
             .unwrap_or_else(|| self.lines.len().saturating_sub(1));
-        let line = &self.lines[line_idx];
-        let clusters = &line.clusters;
-        if clusters.is_empty() {
-            return self.empty_line_caret_position(line_idx);
-        }
-        for cluster in clusters {
-            let mid = cluster.x + cluster.advance * 0.5;
-            if pos.x < mid {
-                return CaretPosition::BeforeCluster {
-                    cluster_byte_start: cluster.byte_start,
-                };
-            }
-        }
-        match clusters.last() {
-            Some(last) if last.is_hard_break || last.is_soft_wrap_boundary => {
-                CaretPosition::BeforeCluster {
-                    cluster_byte_start: last.byte_start,
-                }
-            }
-            Some(last) => CaretPosition::AfterCluster {
-                cluster_byte_start: last.byte_start,
-                cluster_byte_end: last.byte_end,
-            },
-            None => self.empty_line_caret_position(line_idx),
-        }
+        self.caret_at_visual_line_x(line_idx, pos.x)
     }
 
     /// Hit-test a block-local point to a shaped cluster start byte.

@@ -785,30 +785,6 @@ fn caret_advances_along_single_line() {
 }
 
 #[test]
-fn hit_test_round_trips_to_boundaries() {
-    let layout = layout("abc", TextFlow::single_line(), TextBounds::UNBOUNDED);
-
-    assert_eq!(
-        layout
-            .hit_test_caret(Vec2::new(0.0, 1.0))
-            .insertion_byte_hint(),
-        0
-    );
-    assert_eq!(
-        layout
-            .hit_test_caret(Vec2::new(7.9, 1.0))
-            .insertion_byte_hint(),
-        1
-    );
-    assert_eq!(
-        layout
-            .hit_test_caret(Vec2::new(100.0, 1.0))
-            .insertion_byte_hint(),
-        3
-    );
-}
-
-#[test]
 fn caret_positions_distinguish_hard_newline_sides() {
     let layout = layout("a\nb", TextFlow::single_line(), TextBounds::UNBOUNDED);
 
@@ -2364,11 +2340,6 @@ fn whitespace_that_wraps_from_non_empty_line_does_not_use_wrap_cluster_keep_fall
 }
 
 #[test]
-fn hit_test_round_trips_to_a_boundary() {
-    hit_test_round_trips_to_boundaries();
-}
-
-#[test]
 fn empty_text_measure_reports_one_blank_line() {
     empty_text_reports_one_blank_line();
 }
@@ -2444,4 +2415,111 @@ fn test_line_metrics_horizontal_alignment() {
 #[test]
 fn test_caret_geom_alignment_empty_lines_and_empty_text() {
     caret_geom_alignment_empty_lines_and_empty_text();
+}
+
+#[test]
+fn test_caret_at_visual_line_x_scenarios() {
+    // 1. x before, 2. x after, 3. x in middle
+    let layout1 = layout("abc", TextFlow::single_line(), TextBounds::UNBOUNDED);
+
+    // x before start -> first caret position (BeforeCluster(0) at x=0.0)
+    assert_eq!(
+        layout1.caret_at_visual_line_x(0, -10.0),
+        CaretPosition::BeforeCluster {
+            cluster_byte_start: 0
+        }
+    );
+    assert_eq!(
+        layout1.caret_at_visual_line_x(0, 0.0),
+        CaretPosition::BeforeCluster {
+            cluster_byte_start: 0
+        }
+    );
+
+    // x after end -> last caret position (AfterCluster(2, 3) at x=24.0)
+    assert_eq!(
+        layout1.caret_at_visual_line_x(0, 30.0),
+        CaretPosition::AfterCluster {
+            cluster_byte_start: 2,
+            cluster_byte_end: 3
+        }
+    );
+    assert_eq!(
+        layout1.caret_at_visual_line_x(0, 24.0),
+        CaretPosition::AfterCluster {
+            cluster_byte_start: 2,
+            cluster_byte_end: 3
+        }
+    );
+
+    // x in the middle:
+    // x=3.9 -> BeforeCluster(0) (dist to 0.0 is 3.9, dist to 8.0 is 4.1)
+    assert_eq!(
+        layout1.caret_at_visual_line_x(0, 3.9),
+        CaretPosition::BeforeCluster {
+            cluster_byte_start: 0
+        }
+    );
+    // x=4.1 -> BeforeCluster(1) (dist to 8.0 is 3.9, dist to 0.0 is 4.1)
+    assert_eq!(
+        layout1.caret_at_visual_line_x(0, 4.1),
+        CaretPosition::BeforeCluster {
+            cluster_byte_start: 1
+        }
+    );
+    // x=12.0 -> BeforeCluster(1) vs BeforeCluster(2). Midpoint between 8 and 16 is 12.0.
+    // Ties broken to later candidate -> BeforeCluster(2) at x=16.0
+    assert_eq!(
+        layout1.caret_at_visual_line_x(0, 12.0),
+        CaretPosition::BeforeCluster {
+            cluster_byte_start: 2
+        }
+    );
+
+    // 4. hard newline boundary
+    let layout_hard = layout("a\nb", TextFlow::single_line(), TextBounds::UNBOUNDED);
+    // Line 0 is "a\n"
+    // Line 1 is "b"
+    // If we move vertically, caret at x=0 on line 1:
+    assert_eq!(
+        layout_hard.caret_at_visual_line_x(1, 0.0),
+        CaretPosition::BeforeCluster {
+            cluster_byte_start: 2
+        } // start of line 1 ('b')
+    );
+    // caret at x=100 on line 0 (after newline):
+    assert_eq!(
+        layout_hard.caret_at_visual_line_x(0, 100.0),
+        CaretPosition::BeforeCluster {
+            cluster_byte_start: 1
+        } // before newline
+    );
+
+    // 5. soft-wrap mid-word boundary
+    let layout_mid_word = layout("abcde", wrap_word_cluster_drop(), TextBounds::width(16.1));
+    // line 0: "ab"
+    // line 1: "cde"
+    // x=0 on line 1 (the continuation line) returns the leading edge caret on the wrapped continuation:
+    assert_eq!(
+        layout_mid_word.caret_at_visual_line_x(1, 0.0),
+        CaretPosition::BeforeCluster {
+            cluster_byte_start: 2
+        } // 'c'
+    );
+
+    // 6. soft-wrap collapsed-whitespace boundary
+    let layout_whitespace = layout(
+        "hello world",
+        wrap_word_cluster_drop(),
+        TextBounds::width(40.1),
+    );
+    // line 0: "hello" (with collapsed space)
+    // line 1: "world"
+    // x=0 on line 1 (after whitespace) returns the distinct after-whitespace leading-edge caret:
+    assert_eq!(
+        layout_whitespace.caret_at_visual_line_x(1, 0.0),
+        CaretPosition::BeforeCluster {
+            cluster_byte_start: 6
+        } // 'w'
+    );
 }
