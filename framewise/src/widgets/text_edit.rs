@@ -870,24 +870,18 @@ pub mod raw {
         let scroll_result =
             raw::begin_scroll_area(scroll_spec, &mut state.scroll, input, focus_system, cmds);
 
-        let text_x = scroll_outer_rect.x + spec.style.padding_x + prepared.block_align_offset_x
-            - scroll_result.offset.x;
-        let text_y = if metrics.logical_size.y + 2.0 * spec.style.padding_y <= scroll_outer_rect.h {
-            match spec.vertical_align {
-                Align::Start => scroll_outer_rect.y + spec.style.padding_y,
-                Align::Center => {
-                    scroll_outer_rect.y + (scroll_outer_rect.h - metrics.logical_size.y) / 2.0
-                }
-                Align::End => {
-                    scroll_outer_rect.y + scroll_outer_rect.h
-                        - spec.style.padding_y
-                        - metrics.logical_size.y
-                }
-            }
-        } else {
-            scroll_outer_rect.y + spec.style.padding_y - scroll_result.offset.y
-        };
-        let text_origin = Vec2::new(text_x, text_y);
+        // Mouse input is interpreted using the scroll offset captured at
+        // begin_scroll_area(), matching the scroll-area frame model. Programmatic
+        // caret reveal can update state.scroll.offset later in this call, and drawing
+        // uses that final offset so caret movement/typing does not visually lag by one
+        // frame.
+        let input_text_origin = text_origin_for_scroll(
+            &spec,
+            scroll_outer_rect,
+            metrics.logical_size,
+            prepared.block_align_offset_x,
+            scroll_result.offset,
+        );
 
         // Mouse interaction
         if contains && input.mouse_pressed {
@@ -897,8 +891,8 @@ pub mod raw {
             focus_system.take_keyboard_focus(state.focus_id);
 
             let relative_pos = Vec2::new(
-                input.mouse_pos.x - text_origin.x,
-                input.mouse_pos.y - text_origin.y,
+                input.mouse_pos.x - input_text_origin.x,
+                input.mouse_pos.y - input_text_origin.y,
             );
             let clicked_caret = layout.hit_test_caret(relative_pos);
             let clicked_byte = clicked_caret.insertion_byte_hint().min(state.value.len());
@@ -945,8 +939,8 @@ pub mod raw {
         if state.is_dragging {
             if input.mouse_down {
                 let relative_pos = Vec2::new(
-                    input.mouse_pos.x - text_origin.x,
-                    input.mouse_pos.y - text_origin.y,
+                    input.mouse_pos.x - input_text_origin.x,
+                    input.mouse_pos.y - input_text_origin.y,
                 );
                 let current_caret = layout.hit_test_caret(relative_pos);
                 let current_byte = current_caret.insertion_byte_hint().min(state.value.len());
@@ -1083,6 +1077,14 @@ pub mod raw {
             state.scroll.offset.y = target_scroll_y.clamp(0.0, max_scroll_y);
         }
 
+        let draw_text_origin = text_origin_for_scroll(
+            &spec,
+            scroll_outer_rect,
+            metrics.logical_size,
+            prepared.block_align_offset_x,
+            state.scroll.offset,
+        );
+
         // Selection
         if focused {
             if let Some(sel) = selection_byte {
@@ -1113,8 +1115,8 @@ pub mod raw {
                             };
 
                             let sel_rect = Rect::new(
-                                text_origin.x + start_caret.x.min(end_x),
-                                text_origin.y + start_caret.y_top,
+                                draw_text_origin.x + start_caret.x.min(end_x),
+                                draw_text_origin.y + start_caret.y_top,
                                 (end_x - start_caret.x).abs(),
                                 start_caret.height,
                             );
@@ -1136,15 +1138,15 @@ pub mod raw {
             layout.emit_glyphs(
                 cmds,
                 text_backend,
-                text_origin,
+                draw_text_origin,
                 spec.style.text_color,
                 spec.layer.get_z(),
             );
         } else if !focused {
             if let Some(placeholder) = spec.placeholder.as_deref() {
                 let text_rect = Rect::new(
-                    text_origin.x,
-                    text_origin.y,
+                    draw_text_origin.x,
+                    draw_text_origin.y,
                     prepared.layout_width,
                     prepared.layout_height,
                 );
@@ -1182,8 +1184,8 @@ pub mod raw {
             if blink_on {
                 let caret = layout.caret_geom(state.caret);
                 let caret_rect = Rect::new(
-                    text_origin.x + caret.x,
-                    text_origin.y + caret.y_top,
+                    draw_text_origin.x + caret.x,
+                    draw_text_origin.y + caret.y_top,
                     spec.style.caret_width,
                     caret.height,
                 );
@@ -1245,6 +1247,33 @@ pub mod raw {
         } else {
             0.0
         }
+    }
+
+    fn text_origin_for_scroll(
+        spec: &TextEditSpec,
+        scroll_outer_rect: Rect,
+        logical_text_size: Vec2,
+        block_align_offset_x: f32,
+        scroll_offset: Vec2,
+    ) -> Vec2 {
+        let text_x =
+            scroll_outer_rect.x + spec.style.padding_x + block_align_offset_x - scroll_offset.x;
+        let text_y = if logical_text_size.y + 2.0 * spec.style.padding_y <= scroll_outer_rect.h {
+            match spec.vertical_align {
+                Align::Start => scroll_outer_rect.y + spec.style.padding_y,
+                Align::Center => {
+                    scroll_outer_rect.y + (scroll_outer_rect.h - logical_text_size.y) / 2.0
+                }
+                Align::End => {
+                    scroll_outer_rect.y + scroll_outer_rect.h
+                        - spec.style.padding_y
+                        - logical_text_size.y
+                }
+            }
+        } else {
+            scroll_outer_rect.y + spec.style.padding_y - scroll_offset.y
+        };
+        Vec2::new(text_x, text_y)
     }
 
     #[derive(Debug, Clone, PartialEq)]
@@ -1993,6 +2022,29 @@ mod tests {
 
     fn set_selection_byte(state: &mut TextEditState, byte: Option<usize>) {
         state.selection_anchor = byte.map(|byte| caret_position_at_byte(&state.value, byte));
+    }
+
+    fn find_caret_rect(cmds: &DrawCommands, caret_color: Color) -> Rect {
+        cmds.iter()
+            .find_map(|cmd| match cmd {
+                DrawCmd::FillRect {
+                    anti_alias: false,
+                    rect,
+                    color,
+                    ..
+                } if *color == caret_color => Some(*rect),
+                _ => None,
+            })
+            .expect("caret rect should be drawn")
+    }
+
+    fn test_text_edit_scroll_outer_rect(edit_spec: &TextEditSpec) -> Rect {
+        let mut scroll_outer_rect = edit_spec.rect.inset(edit_spec.style.border_width);
+        if edit_spec.error {
+            scroll_outer_rect.x += edit_spec.style.error_stripe_width;
+            scroll_outer_rect.w -= edit_spec.style.error_stripe_width;
+        }
+        scroll_outer_rect
     }
 
     fn press_text_event(
@@ -3770,6 +3822,49 @@ mod tests {
     }
 
     #[test]
+    fn test_text_edit_center_aligned_overflow_typing_draws_caret_with_same_frame_scroll() {
+        let mut text_backend = TestTextBackend;
+        let mut focus_system = FocusSystem::new();
+
+        let mut state = focused_text_edit_state("abcdefghijklmnopqrstuvwx", &mut focus_system);
+        focus_system.begin_frame();
+        let end = state.value.len();
+        set_caret_byte(&mut state, end);
+        state.scroll.offset.x = 0.0;
+
+        let mut input = Input::default();
+        input.text_events = vec![TextEvent::Char('y')];
+
+        let edit_spec = TextEditSpec {
+            line_align: TextLineAlign::Center,
+            rect: Rect::new(0.0, 0.0, 120.0, 30.0),
+            ..spec()
+        };
+
+        let mut cmds = DrawCommands::new();
+        raw::text_edit(
+            edit_spec.clone(),
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut text_backend,
+            &mut cmds,
+        );
+
+        assert_eq!(state.value, "abcdefghijklmnopqrstuvwxy");
+        assert_eq!(caret_byte(&state), state.value.len());
+        assert!(state.scroll.offset.x > 0.0);
+
+        let caret_rect = find_caret_rect(&cmds, edit_spec.style.caret_color);
+        let scroll_outer_rect = test_text_edit_scroll_outer_rect(&edit_spec);
+        assert!(
+            caret_rect.x >= scroll_outer_rect.x
+                && caret_rect.x + caret_rect.w <= scroll_outer_rect.x + scroll_outer_rect.w,
+            "center-aligned typed-character caret reveal should affect same-frame drawing"
+        );
+    }
+
+    #[test]
     fn test_text_edit_visual_error() {
         let mut text_backend = TestTextBackend;
         let mut focus_system = FocusSystem::new();
@@ -3913,6 +4008,7 @@ mod tests {
             shift: false,
             ctrl: false,
         }];
+        let mut cmds = DrawCommands::new();
         raw::text_edit(
             spec(),
             &mut state,
@@ -3923,6 +4019,8 @@ mod tests {
         );
         assert_eq!(caret_byte(&state), 35);
         assert_eq!(state.scroll.offset.x, 90.0);
+        let caret_rect = find_caret_rect(&cmds, spec().style.caret_color);
+        assert_eq!(caret_rect.x, 195.0);
 
         // 4. Move caret left from 3 to 2 (x = 16): below left threshold (98.0 + 16 = 114)
         // Expected scroll = 16 - 16 = 0.0
@@ -3941,6 +4039,40 @@ mod tests {
         );
         assert_eq!(caret_byte(&state), 2);
         assert_eq!(state.scroll.offset.x, 0.0);
+
+        // 5. Typing at the end of an overflowing line should update scroll and draw the
+        // caret with that updated scroll offset in the same frame.
+        let mut state =
+            focused_text_edit_state("hello world how are you today doing", &mut focus_system);
+        focus_system.begin_frame();
+        let end = state.value.len();
+        set_caret_byte(&mut state, end);
+        state.scroll.offset.x = 0.0;
+
+        let mut input = Input::default();
+        input.text_events = vec![TextEvent::Char('!')];
+
+        let mut cmds = DrawCommands::new();
+        raw::text_edit(
+            spec(),
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut text_backend,
+            &mut cmds,
+        );
+
+        assert_eq!(state.value, "hello world how are you today doing!");
+        assert_eq!(caret_byte(&state), state.value.len());
+        assert!(state.scroll.offset.x > 0.0);
+
+        let caret_rect = find_caret_rect(&cmds, spec().style.caret_color);
+        let scroll_outer_rect = test_text_edit_scroll_outer_rect(&spec());
+        assert!(
+            caret_rect.x >= scroll_outer_rect.x
+                && caret_rect.x + caret_rect.w <= scroll_outer_rect.x + scroll_outer_rect.w,
+            "typed-character caret reveal should affect same-frame drawing"
+        );
     }
 
     #[test]

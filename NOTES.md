@@ -4,13 +4,9 @@ Working notes, TODOs, open questions, and half-baked ideas.
 
 ## Current Work
 
-- Home, then Left bug
 - Home/End should use LineMetrics, not hit-test, and then before/after cluster for the first/last cluster on the line (roughly)
 
 - Text Edit
-  - Improve and test
-    - flickering due to advance caret on frame n, then frame n+1 scrolls it into view. Account for this during same frame?
-    - flickering when adding chars to end of a long line in a centre-aligned, non wrap box (e.g. the styling demo one)
   - Consider
     - newline policy reject - is this useful? What about trim after first newline?
     - newline policy - how is enter rejected? Even for replace-with-space?
