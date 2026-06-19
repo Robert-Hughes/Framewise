@@ -4,8 +4,8 @@ use crate::{
     input::{Input, TextEvent},
     layout::{Align, IntrinsicSize, LayoutState},
     text::{
-        emit_text_in_rect, layout_text_in_rect, measure_text, CaretPosition, FontId, LineEndKind,
-        LineHeight, LineMetrics, TextBackend, TextBounds, TextFlow, TextLineAlign, TextMetrics,
+        emit_text_in_rect, measure_text, CaretPosition, FontId, LineEndKind, LineHeight,
+        LineMetrics, TextBackend, TextBounds, TextFlow, TextLayout, TextLineAlign, TextMetrics,
         TextStyle,
     },
     types::{ClipRect, Color, Layer, Rect, Vec2},
@@ -20,6 +20,8 @@ pub mod raw {
         scroll_area::{ScrollAxis, ScrollExtent, ScrollLen},
         ScrollbarVisibility, SliderStyle,
     };
+
+    const TEXT_EDIT_SCROLLBAR_WIDTH: f32 = 5.0;
 
     #[derive(Debug, Clone, PartialEq)]
     pub struct TextEditSpec {
@@ -87,14 +89,8 @@ pub mod raw {
         direction: VerticalCaretDirection,
         line_count: usize,
     ) -> VerticalCaretMove {
-        let (_, layout_width, layout_height, _) =
-            edit_layout_size(text_content, spec, text_style, text_backend);
-        let layout = layout_text_in_rect(
-            text_backend,
-            text_content,
-            text_style,
-            Rect::new(0.0, 0.0, layout_width, layout_height),
-        );
+        let prepared = prepare_text_edit_layout(text_content, spec, text_style, text_backend);
+        let layout = &prepared.layout;
 
         let visual_position = if caret_is_current && start_byte == caret_byte {
             caret
@@ -152,14 +148,8 @@ pub mod raw {
         caret_byte: usize,
         scroll_outer_height: f32,
     ) -> usize {
-        let (_, layout_width, layout_height, _) =
-            edit_layout_size(text_content, spec, text_style, text_backend);
-        let layout = layout_text_in_rect(
-            text_backend,
-            text_content,
-            text_style,
-            Rect::new(0.0, 0.0, layout_width, layout_height),
-        );
+        let prepared = prepare_text_edit_layout(text_content, spec, text_style, text_backend);
+        let layout = &prepared.layout;
         let caret = layout.caret_position_at_insertion_byte(caret_byte);
         let line_height = layout.caret_geom(caret).height.max(1.0);
         (scroll_outer_height / line_height).floor().max(1.0) as usize
@@ -413,14 +403,13 @@ pub mod raw {
                             caret_needs_layout_sync = true;
                         } else if caret_byte > 0 {
                             let text_content = state.value.as_str();
-                            let (_, layout_width, layout_height, _) =
-                                edit_layout_size(text_content, &spec, text_style, text_backend);
-                            let layout = layout_text_in_rect(
-                                text_backend,
+                            let prepared = prepare_text_edit_layout(
                                 text_content,
+                                &spec,
                                 text_style,
-                                Rect::new(0.0, 0.0, layout_width, layout_height),
+                                text_backend,
                             );
+                            let layout = &prepared.layout;
                             let visual_caret = if caret_needs_layout_sync {
                                 layout.caret_position_at_insertion_byte(caret_byte)
                             } else {
@@ -456,14 +445,13 @@ pub mod raw {
                             caret_needs_layout_sync = true;
                         } else if caret_byte < state.value.len() {
                             let text_content = state.value.as_str();
-                            let (_, layout_width, layout_height, _) =
-                                edit_layout_size(text_content, &spec, text_style, text_backend);
-                            let layout = layout_text_in_rect(
-                                text_backend,
+                            let prepared = prepare_text_edit_layout(
                                 text_content,
+                                &spec,
                                 text_style,
-                                Rect::new(0.0, 0.0, layout_width, layout_height),
+                                text_backend,
                             );
+                            let layout = &prepared.layout;
                             let visual_caret = if caret_needs_layout_sync {
                                 layout.caret_position_at_insertion_byte(caret_byte)
                             } else {
@@ -553,14 +541,13 @@ pub mod raw {
                             caret_needs_layout_sync = true;
                         } else if spec.wrap {
                             let text_content = state.value.as_str();
-                            let (_, layout_width, layout_height, _) =
-                                edit_layout_size(text_content, &spec, text_style, text_backend);
-                            let layout = layout_text_in_rect(
-                                text_backend,
+                            let prepared = prepare_text_edit_layout(
                                 text_content,
+                                &spec,
                                 text_style,
-                                Rect::new(0.0, 0.0, layout_width, layout_height),
+                                text_backend,
                             );
+                            let layout = &prepared.layout;
                             let visual_caret = if caret_needs_layout_sync {
                                 layout.caret_position_at_insertion_byte(caret_byte)
                             } else {
@@ -595,14 +582,13 @@ pub mod raw {
                             caret_needs_layout_sync = true;
                         } else if spec.wrap {
                             let text_content = state.value.as_str();
-                            let (_, layout_width, layout_height, _) =
-                                edit_layout_size(text_content, &spec, text_style, text_backend);
-                            let layout = layout_text_in_rect(
-                                text_backend,
+                            let prepared = prepare_text_edit_layout(
                                 text_content,
+                                &spec,
                                 text_style,
-                                Rect::new(0.0, 0.0, layout_width, layout_height),
+                                text_backend,
                             );
+                            let layout = &prepared.layout;
                             let visual_caret = if caret_needs_layout_sync {
                                 layout.caret_position_at_insertion_byte(caret_byte)
                             } else {
@@ -736,8 +722,7 @@ pub mod raw {
                     caret_byte
                 };
 
-                let (_, _, _, scroll_outer_rect) =
-                    edit_layout_size(state.value.as_str(), &spec, text_style, text_backend);
+                let scroll_outer_rect = text_edit_scroll_outer_rect(&spec);
                 let line_count = page_line_count(
                     state.value.as_str(),
                     &spec,
@@ -785,8 +770,11 @@ pub mod raw {
         }
 
         let text_content = state.value.as_str();
-        let (metrics, layout_width, layout_height, scroll_outer_rect) =
-            edit_layout_size(text_content, &spec, text_style, text_backend);
+        let prepared = prepare_text_edit_layout(text_content, &spec, text_style, text_backend);
+        let metrics = prepared.layout.metrics();
+        let scroll_outer_rect = prepared.scroll_outer_rect;
+        let inner_scroll_size = prepared.inner_scroll_size;
+        let layout = &prepared.layout;
 
         // Drawing Background
         let bg_color = if spec.error {
@@ -842,13 +830,6 @@ pub mod raw {
             });
         }
 
-        // Prepare text after content bounds are known so hit testing and caret
-        // geometry use the same logical text block that will be drawn.
-        let inner_scroll_size = Vec2::new(
-            metrics.logical_size.x + 2.0 * spec.style.padding_x,
-            metrics.logical_size.y + 2.0 * spec.style.padding_y,
-        ); // Include padding on either side of text.
-
         let scroll_spec = raw::ScrollAreaSpec {
             rect: scroll_outer_rect,
             horizontal: ScrollAxis {
@@ -861,7 +842,7 @@ pub mod raw {
             },
             clip_rect: spec.clip_rect,
             time: spec.time,
-            scrollbar_width: 5.0,
+            scrollbar_width: TEXT_EDIT_SCROLLBAR_WIDTH,
             scrollbar_style: SliderStyle {
                 track_color: Color::linear_rgba(
                     spec.style.border.r,
@@ -906,8 +887,7 @@ pub mod raw {
         } else {
             scroll_outer_rect.y + spec.style.padding_y - scroll_result.offset.y
         };
-        let text_rect = Rect::new(text_x, text_y, layout_width, layout_height);
-        let layout = layout_text_in_rect(text_backend, text_content, text_style, text_rect);
+        let text_origin = Vec2::new(text_x, text_y);
 
         // Mouse interaction
         if contains && input.mouse_pressed {
@@ -917,8 +897,8 @@ pub mod raw {
             focus_system.take_keyboard_focus(state.focus_id);
 
             let relative_pos = Vec2::new(
-                input.mouse_pos.x - text_rect.x,
-                input.mouse_pos.y - text_rect.y,
+                input.mouse_pos.x - text_origin.x,
+                input.mouse_pos.y - text_origin.y,
             );
             let clicked_caret = layout.hit_test_caret(relative_pos);
             let clicked_byte = clicked_caret.insertion_byte_hint().min(state.value.len());
@@ -965,8 +945,8 @@ pub mod raw {
         if state.is_dragging {
             if input.mouse_down {
                 let relative_pos = Vec2::new(
-                    input.mouse_pos.x - text_rect.x,
-                    input.mouse_pos.y - text_rect.y,
+                    input.mouse_pos.x - text_origin.x,
+                    input.mouse_pos.y - text_origin.y,
                 );
                 let current_caret = layout.hit_test_caret(relative_pos);
                 let current_byte = current_caret.insertion_byte_hint().min(state.value.len());
@@ -1133,8 +1113,8 @@ pub mod raw {
                             };
 
                             let sel_rect = Rect::new(
-                                text_rect.x + start_caret.x.min(end_x),
-                                text_rect.y + start_caret.y_top,
+                                text_origin.x + start_caret.x.min(end_x),
+                                text_origin.y + start_caret.y_top,
                                 (end_x - start_caret.x).abs(),
                                 start_caret.height,
                             );
@@ -1156,12 +1136,18 @@ pub mod raw {
             layout.emit_glyphs(
                 cmds,
                 text_backend,
-                Vec2::new(text_rect.x, text_rect.y),
+                text_origin,
                 spec.style.text_color,
                 spec.layer.get_z(),
             );
         } else if !focused {
             if let Some(placeholder) = spec.placeholder.as_deref() {
+                let text_rect = Rect::new(
+                    text_origin.x,
+                    text_origin.y,
+                    prepared.layout_width,
+                    prepared.layout_height,
+                );
                 emit_text_in_rect(
                     cmds,
                     text_backend,
@@ -1189,8 +1175,8 @@ pub mod raw {
             if blink_on {
                 let caret = layout.caret_geom(state.caret);
                 let caret_rect = Rect::new(
-                    text_rect.x + caret.x,
-                    text_rect.y + caret.y_top,
+                    text_origin.x + caret.x,
+                    text_origin.y + caret.y_top,
                     spec.style.caret_width,
                     caret.height,
                 );
@@ -1254,64 +1240,128 @@ pub mod raw {
         }
     }
 
-    pub(super) fn edit_layout_size<T: TextBackend>(
-        text_content: &str,
-        spec: &TextEditSpec,
-        text_style: TextStyle,
-        text_backend: &mut T,
-    ) -> (TextMetrics, f32, f32, Rect) {
+    #[derive(Debug, Clone, PartialEq)]
+    pub(super) struct TextEditPreparedLayout<G> {
+        pub scroll_outer_rect: Rect,
+        pub layout_width: f32,
+        pub layout_height: f32,
+        pub inner_scroll_size: Vec2,
+        pub reserved_vertical_scrollbar: bool,
+        pub layout: TextLayout<G>,
+    }
+
+    fn text_edit_scroll_outer_rect(spec: &TextEditSpec) -> Rect {
         let mut scroll_outer_rect = spec.rect.inset(spec.style.border_width);
         if spec.error {
             scroll_outer_rect.x += spec.style.error_stripe_width;
             scroll_outer_rect.w -= spec.style.error_stripe_width;
         }
+        scroll_outer_rect
+    }
 
-        let max_width = if spec.wrap {
-            Some((scroll_outer_rect.w - 2.0 * spec.style.padding_x).max(0.0))
-        } else {
-            None
-        };
-
-        let mut metrics = measure_text(
-            text_backend,
-            text_content,
-            text_style,
-            TextBounds {
-                max_width,
-                max_height: None,
-            },
-        );
-
-        let mut final_max_width = max_width;
-
+    pub(super) fn should_reserve_vertical_scrollbar_gutter<T: TextBackend>(
+        text_content: &str,
+        spec: &TextEditSpec,
+        text_style: TextStyle,
+        text_backend: &mut T,
+        scroll_outer_rect: Rect,
+    ) -> bool {
         if spec.wrap {
-            // If the wrapped height exceeds the viewport height, a vertical scrollbar
-            // will be shown. The vertical scrollbar steals width (5.0px in our scroll spec),
-            // so we re-measure the text with a narrower width.
-            let content_h = metrics.logical_size.y + 2.0 * spec.style.padding_y;
-            if content_h > scroll_outer_rect.h {
-                let max_width_narrow =
-                    Some(((scroll_outer_rect.w - 2.0 * spec.style.padding_x) - 5.0).max(0.0));
-                final_max_width = max_width_narrow;
-                metrics = measure_text(
-                    text_backend,
-                    text_content,
-                    text_style,
-                    TextBounds {
-                        max_width: max_width_narrow,
-                        max_height: None,
-                    },
-                );
-            }
+            return true;
         }
 
+        let available_content_height = (scroll_outer_rect.h - 2.0 * spec.style.padding_y).max(0.0);
+        let one_line_height = text_backend
+            .line_metrics(text_style)
+            .line_height
+            .round()
+            .max(1.0);
+        let hard_line_count = text_content
+            .as_bytes()
+            .iter()
+            .filter(|&&byte| byte == b'\n')
+            .count()
+            + 1;
+        available_content_height < one_line_height * hard_line_count as f32
+    }
+
+    /// Prepare the reusable layout for the normal interactive TextEdit path.
+    ///
+    /// The vertical scrollbar gutter is reserved conservatively before layout,
+    /// which gives wrapped text a stable width and avoids a measure/reflow
+    /// feedback loop. The layout is block-local; scroll offsets change the
+    /// screen-space draw/hit-test origin, not the layout. Metrics from this
+    /// same layout drive the inner scroll size.
+    pub(super) fn prepare_text_edit_layout<T: TextBackend>(
+        text_content: &str,
+        spec: &TextEditSpec,
+        text_style: TextStyle,
+        text_backend: &mut T,
+    ) -> TextEditPreparedLayout<T::ShapedGlyphToken> {
+        let scroll_outer_rect = text_edit_scroll_outer_rect(spec);
+        let reserve_vertical_scrollbar = should_reserve_vertical_scrollbar_gutter(
+            text_content,
+            spec,
+            text_style,
+            text_backend,
+            scroll_outer_rect,
+        );
+        let available_text_width = (scroll_outer_rect.w - 2.0 * spec.style.padding_x).max(0.0);
+        let reserved_vertical_width = if reserve_vertical_scrollbar
+            && available_text_width > TEXT_EDIT_SCROLLBAR_WIDTH * 2.0
+        {
+            TEXT_EDIT_SCROLLBAR_WIDTH
+        } else {
+            0.0
+        };
+        let content_width = (available_text_width - reserved_vertical_width).max(0.0);
+
+        let mut layout = if spec.wrap {
+            crate::text::layout_text(
+                text_backend,
+                text_content,
+                text_style,
+                TextBounds {
+                    max_width: Some(content_width),
+                    max_height: None,
+                },
+            )
+        } else {
+            crate::text::layout_text(
+                text_backend,
+                text_content,
+                text_style,
+                TextBounds {
+                    max_width: None,
+                    max_height: None,
+                },
+            )
+        };
+
+        let metrics = layout.metrics();
         let layout_width = if spec.wrap {
-            final_max_width.unwrap_or(0.0)
+            content_width
         } else {
             metrics.logical_size.x.max(scroll_outer_rect.w)
         };
+        if !spec.wrap {
+            layout.align_lines_to_width(layout_width, text_style.flow.line_align);
+        }
+        let metrics = layout.metrics();
         let layout_height = metrics.logical_size.y.max(scroll_outer_rect.h);
-        (metrics, layout_width, layout_height, scroll_outer_rect)
+        let inner_scroll_size = Vec2::new(
+            metrics.logical_size.x + 2.0 * spec.style.padding_x,
+            metrics.logical_size.y + 2.0 * spec.style.padding_y,
+        );
+
+        TextEditPreparedLayout {
+            scroll_outer_rect,
+            layout_width,
+            layout_height,
+            inner_scroll_size,
+            reserved_vertical_scrollbar: reserve_vertical_scrollbar,
+            layout,
+        }
     }
 }
 
@@ -1926,20 +1976,16 @@ mod tests {
     }
 
     #[test]
-    fn idle_text_edit_does_not_shape_initial_layout_for_byte_recovery() {
+    fn idle_wrapped_text_edit_uses_one_prepared_layout() {
         let mut text_backend = CountingTextBackend::default();
         let mut focus_system = FocusSystem::new();
-        let mut state = TextEditState::new("abc");
-        state.caret = CaretPosition::AfterCluster {
-            cluster_byte_start: 1,
-            cluster_byte_end: 2,
-        };
-        state.selection_anchor = Some(CaretPosition::BeforeCluster {
-            cluster_byte_start: 0,
-        });
+        let mut state = TextEditState::new("abcdefghijklmnopqrst");
+        let mut edit_spec = spec();
+        edit_spec.rect = Rect::new(0.0, 0.0, 100.0, 30.0);
+        edit_spec.wrap = true;
 
         raw::text_edit(
-            spec(),
+            edit_spec,
             &mut state,
             &Input::default(),
             &mut focus_system,
@@ -1948,11 +1994,9 @@ mod tests {
         );
 
         assert_eq!(
-            text_backend.shape_text_calls, 2,
-            "idle rendering should only shape for final measurement and final layout"
+            text_backend.shape_text_calls, 1,
+            "idle wrapped rendering should not measure and then lay out again"
         );
-        assert_eq!(caret_byte(&state), 2);
-        assert_eq!(selection_byte(&state), Some(0));
     }
 
     fn glyphs(items: &[(char, f32, f32)]) -> Vec<DrawGlyph> {
@@ -3628,6 +3672,40 @@ mod tests {
                 "{line_align:?} selection highlight should cover the horizontally aligned text"
             );
         }
+    }
+
+    #[test]
+    fn test_text_edit_center_aligns_non_wrapped_hard_lines_independently() {
+        let mut text_backend = TestTextBackend;
+        let mut focus_system = FocusSystem::new();
+        let mut state = TextEditState::new("abcd\nx");
+        let input = Input::default();
+        let mut cmds = DrawCommands::new();
+
+        raw::text_edit(
+            TextEditSpec {
+                line_align: TextLineAlign::Center,
+                newline_policy: NewlinePolicy::Allow,
+                rect: Rect::new(0.0, 0.0, 200.0, 60.0),
+                ..spec()
+            },
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut text_backend,
+            &mut cmds,
+        );
+
+        assert_eq!(
+            cmds.glyphs(),
+            glyphs(&[
+                ('a', 88.0, 26.0),
+                ('b', 96.0, 26.0),
+                ('c', 104.0, 26.0),
+                ('d', 112.0, 26.0),
+                ('x', 100.0, 42.0),
+            ])
+        );
     }
 
     #[test]
@@ -5916,7 +5994,7 @@ mod tests {
     }
 
     #[test]
-    fn test_edit_layout_size_wrapping() {
+    fn test_prepare_text_edit_layout_applies_wrapped_gutter_to_layout_width() {
         let mut text_backend = TestTextBackend;
         let mut edit_spec = spec();
         edit_spec.rect = Rect::new(0.0, 0.0, 100.0, 30.0);
@@ -5926,41 +6004,158 @@ mod tests {
         edit_spec.style.padding_y = 4.0;
 
         // scroll_outer_rect: x=1.0, y=1.0, w=98.0, h=28.0.
-        // available text width without scrollbar = 98.0 - 2 * 4.0 = 90.0.
-        // In characters: 90.0 / 8.0 = 11.25 -> 11 characters.
+        // Wrapped editors reserve the vertical scrollbar gutter before layout.
+        // available text width = 98.0 - 2 * 4.0 - 5.0 = 85.0.
+        // In characters: 85.0 / 8.0 = 10.625 -> 10 characters.
 
         let text_style =
             super::to_text_style(edit_spec.style, edit_spec.wrap, edit_spec.line_align);
 
-        // Case A: Short text that does not overflow height.
-        // "abcdefghijk" -> 11 chars. Should fit on 1 line.
-        // Height = 16.0. Height + padding = 24.0 <= 28.0 (viewport h).
-        // No vertical scrollbar width deduction should happen.
-        let (metrics, layout_width, layout_height, _) =
-            super::raw::edit_layout_size("abcdefghijk", &edit_spec, text_style, &mut text_backend);
-        assert_eq!(metrics.line_count, 1);
-        assert_eq!(layout_width, 90.0);
-        assert_eq!(layout_height, 28.0);
-
-        // Case B: Long text that wraps and overflows height.
-        // "abcdefghijklmnopqrst" -> 20 chars.
-        // Initial available width = 90.0. Max chars = 11.
-        // Visual lines: 11 chars + 9 chars.
-        // Height = 32.0. Height + padding = 40.0 > 28.0 (viewport h).
-        // Scrollbar will appear and steal 5px.
-        // New available width = 85.0. Max chars = 10.
-        // Final visual lines: 10 chars ("abcdefghij") + 10 chars ("klmnopqrst").
-        // Both lines should have 10 chars.
-        let (metrics, layout_width, _layout_height, _) = super::raw::edit_layout_size(
-            "abcdefghijklmnopqrst",
+        let prepared = super::raw::prepare_text_edit_layout(
+            "abcdefghijk",
             &edit_spec,
             text_style,
             &mut text_backend,
         );
+        let metrics = prepared.layout.metrics();
         assert_eq!(metrics.line_count, 2);
         assert_eq!(metrics.lines[0].byte_end - metrics.lines[0].byte_start, 10);
-        assert_eq!(metrics.lines[1].byte_end - metrics.lines[1].byte_start, 10);
-        assert_eq!(layout_width, 85.0);
+        assert_eq!(metrics.lines[1].byte_end - metrics.lines[1].byte_start, 1);
+        assert!(prepared.reserved_vertical_scrollbar);
+        assert_eq!(prepared.layout_width, 85.0);
+        assert_eq!(prepared.layout_height, 32.0);
+        assert_eq!(prepared.inner_scroll_size, Vec2::new(88.0, 40.0));
+    }
+
+    #[test]
+    fn test_should_reserve_vertical_scrollbar_gutter_counts_non_wrapped_lines() {
+        let mut text_backend = TestTextBackend;
+        let mut edit_spec = spec();
+        edit_spec.rect = Rect::new(0.0, 0.0, 100.0, 50.0);
+        edit_spec.wrap = false;
+        edit_spec.style.border_width = 1.0;
+        edit_spec.style.padding_x = 4.0;
+        edit_spec.style.padding_y = 4.0;
+        let text_style =
+            super::to_text_style(edit_spec.style, edit_spec.wrap, edit_spec.line_align);
+
+        let scroll_outer_rect = edit_spec.rect.inset(edit_spec.style.border_width);
+        assert!(
+            !super::raw::should_reserve_vertical_scrollbar_gutter(
+                "one",
+                &edit_spec,
+                text_style,
+                &mut text_backend,
+                scroll_outer_rect,
+            ),
+            "single-line text should not reserve when one line fits"
+        );
+        assert!(
+            !super::raw::should_reserve_vertical_scrollbar_gutter(
+                "one\ntwo",
+                &edit_spec,
+                text_style,
+                &mut text_backend,
+                scroll_outer_rect,
+            ),
+            "non-wrapped multiline text should not reserve when all hard lines fit"
+        );
+        assert!(
+            super::raw::should_reserve_vertical_scrollbar_gutter(
+                "one\ntwo\nthree",
+                &edit_spec,
+                text_style,
+                &mut text_backend,
+                scroll_outer_rect,
+            ),
+            "non-wrapped multiline text should reserve when hard lines overflow"
+        );
+
+        edit_spec.rect = Rect::new(0.0, 0.0, 100.0, 20.0);
+        let short_scroll_outer_rect = edit_spec.rect.inset(edit_spec.style.border_width);
+        assert!(
+            super::raw::should_reserve_vertical_scrollbar_gutter(
+                "one",
+                &edit_spec,
+                text_style,
+                &mut text_backend,
+                short_scroll_outer_rect,
+            ),
+            "single-line text should reserve when even one line does not fit"
+        );
+
+        edit_spec.wrap = true;
+        let wrapped_text_style =
+            super::to_text_style(edit_spec.style, edit_spec.wrap, edit_spec.line_align);
+        assert!(
+            super::raw::should_reserve_vertical_scrollbar_gutter(
+                "one",
+                &edit_spec,
+                wrapped_text_style,
+                &mut text_backend,
+                scroll_outer_rect,
+            ),
+            "wrapped text reserves conservatively before layout"
+        );
+    }
+
+    #[test]
+    fn test_prepare_text_edit_layout_non_wrapped_gutter_rules() {
+        let mut text_backend = TestTextBackend;
+        let mut edit_spec = spec();
+        edit_spec.rect = Rect::new(0.0, 0.0, 100.0, 30.0);
+        edit_spec.wrap = false;
+        edit_spec.style.border_width = 1.0;
+        edit_spec.style.padding_x = 4.0;
+        edit_spec.style.padding_y = 4.0;
+
+        let text_style =
+            super::to_text_style(edit_spec.style, edit_spec.wrap, edit_spec.line_align);
+
+        let prepared = super::raw::prepare_text_edit_layout(
+            "abcdefghijk",
+            &edit_spec,
+            text_style,
+            &mut text_backend,
+        );
+        let metrics = prepared.layout.metrics();
+        assert_eq!(metrics.line_count, 1);
+        assert!(!prepared.reserved_vertical_scrollbar);
+        assert_eq!(prepared.layout_width, 98.0);
+        assert_eq!(prepared.inner_scroll_size, Vec2::new(96.0, 24.0));
+
+        let prepared = super::raw::prepare_text_edit_layout(
+            "abc\ndef",
+            &edit_spec,
+            text_style,
+            &mut text_backend,
+        );
+        let metrics = prepared.layout.metrics();
+        assert_eq!(metrics.line_count, 2);
+        assert!(prepared.reserved_vertical_scrollbar);
+        assert_eq!(prepared.layout_width, 98.0);
+
+        edit_spec.rect = Rect::new(0.0, 0.0, 100.0, 50.0);
+        let prepared = super::raw::prepare_text_edit_layout(
+            "abc\ndef",
+            &edit_spec,
+            text_style,
+            &mut text_backend,
+        );
+        assert_eq!(prepared.layout.metrics().line_count, 2);
+        assert!(!prepared.reserved_vertical_scrollbar);
+        assert_eq!(prepared.layout_width, 98.0);
+
+        edit_spec.rect = Rect::new(0.0, 0.0, 100.0, 20.0);
+        let prepared = super::raw::prepare_text_edit_layout(
+            "abcdefghijk",
+            &edit_spec,
+            text_style,
+            &mut text_backend,
+        );
+        assert_eq!(prepared.layout.metrics().line_count, 1);
+        assert!(prepared.reserved_vertical_scrollbar);
+        assert_eq!(prepared.layout_width, 98.0);
     }
 
     #[test]
@@ -6168,12 +6363,17 @@ mod tests {
 
         let text_style =
             super::to_text_style(edit_spec.style, edit_spec.wrap, edit_spec.line_align);
-        let (metrics, layout_width, _, _) =
-            super::raw::edit_layout_size(&state.value, &edit_spec, text_style, &mut text_backend);
+        let prepared = super::raw::prepare_text_edit_layout(
+            &state.value,
+            &edit_spec,
+            text_style,
+            &mut text_backend,
+        );
+        let metrics = prepared.layout.metrics();
 
         // Verify that the text is laid out with the narrower max_width (85px)
         // so that it fits 10 characters per line.
-        assert_eq!(layout_width, 85.0);
+        assert_eq!(prepared.layout_width, 85.0);
         assert_eq!(metrics.line_count, 2);
         assert_eq!(metrics.lines[0].byte_end - metrics.lines[0].byte_start, 10);
         assert_eq!(metrics.lines[1].byte_end - metrics.lines[1].byte_start, 10);

@@ -538,6 +538,52 @@ impl<G: Copy + Eq + Hash> TextLayout<G> {
     pub fn metrics(&self) -> &TextMetrics {
         &self.metrics
     }
+
+    pub(crate) fn align_lines_to_width(&mut self, width: f32, line_align: TextLineAlign) {
+        if line_align == TextLineAlign::Start {
+            return;
+        }
+
+        let mut block_ink = None;
+        for (line, metrics_line) in self.lines.iter_mut().zip(self.metrics.lines.iter_mut()) {
+            let target_x = match line_align {
+                TextLineAlign::Start => 0.0,
+                TextLineAlign::Center => ((width - line.logical_width) * 0.5).max(0.0),
+                TextLineAlign::End => (width - line.logical_width).max(0.0),
+            };
+            let dx = target_x - line.logical_x;
+            if dx != 0.0 {
+                for cluster in &mut line.clusters {
+                    cluster.shift_x(dx);
+                }
+                line.logical_x += dx;
+            }
+
+            let mut line_ink = None;
+            for cluster in &line.clusters {
+                let line_ink_from_cluster =
+                    working_cluster_ink(cluster, &self.runs, line.baseline_y);
+                line_ink = line_ink_from_cluster
+                    .into_iter()
+                    .fold(line_ink, union_approx_ink_bounds);
+            }
+
+            let (approx_ink_x, approx_ink_width) =
+                line_ink.map_or((target_x, 0.0), |rect| (rect.x, rect.w));
+            line.approx_ink_x = approx_ink_x;
+            line.approx_ink_width = approx_ink_width;
+
+            metrics_line.logical_x = line.logical_x;
+            metrics_line.approx_ink_x = line.approx_ink_x;
+            metrics_line.approx_ink_width = line.approx_ink_width;
+
+            block_ink = line_ink
+                .into_iter()
+                .fold(block_ink, union_approx_ink_bounds);
+        }
+
+        self.metrics.approx_ink_bounds = block_ink.unwrap_or(Rect::ZERO);
+    }
 }
 
 impl<G: Copy> TextLayout<G> {

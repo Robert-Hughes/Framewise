@@ -386,7 +386,7 @@ pub(crate) fn draw_text_edit_demo_content<'a, 'b, CF>(
             TextEditSpecBuilder::new()
                 .style(styled_text_edit_style)
                 .newline_policy(NewlinePolicy::Allow)
-                .wrap(true)
+                .wrap(false)
                 .line_align(TextLineAlign::Center)
                 .vertical_align(Align::Center),
             ColumnLayoutParams::fixed(360.0, 110.0),
