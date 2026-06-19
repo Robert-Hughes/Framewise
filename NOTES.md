@@ -4,15 +4,10 @@ Working notes, TODOs, open questions, and half-baked ideas.
 
 ## Current Work
 
-- Home/End should use LineMetrics, not hit-test, and then before/after cluster for the first/last cluster on the line (roughly)
-  -and other similar cases
-  - general tidy-up of (keyboard?) caret movement
-
 - Text Edit
   - Consider
     - newline policy reject - is this useful? What about trim after first newline?
     - newline policy - how is enter rejected? Even for replace-with-space?
-    - tab alignment within text. Maybe need a 'tab policy' like we do for Enter key?
 
   - auto-sizing to height of text (like VS Code commit message)
     - use existing auto-sizing layout stuff?
@@ -349,6 +344,7 @@ The "App-Managed State" option would require either a trait layer (so the widget
 - adding spaces to the start of wrapped lines is confusing (appends to prev line instead, no visual indication). This is standard wrapped editor behaviour, but maybe we can do better?
   - would be nice to snap the cursor to the end of the prev line, but we can't do that in a faithful way because the previous line ends in the 'visually collapsed' space that's wrapping!
 - user-sizing using drag handle (height and/or width). Re-use 'splitter'/dragging infrastructure (doesn't exist yet!)
+- tab alignment within text. Maybe need a 'tab policy' like we do for Enter key?
 
 
 
