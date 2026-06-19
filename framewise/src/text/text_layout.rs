@@ -142,6 +142,27 @@ fn working_cluster_ink<G: Copy>(
     }
 }
 
+fn update_logical_geometry(
+    logical_start: &mut f32,
+    logical_end: &mut f32,
+    cluster: &WorkingCluster,
+) {
+    *logical_start = logical_start.min(cluster.x);
+    *logical_end = logical_end.max(cluster.end_x());
+}
+
+fn finish_logical_geometry(
+    clusters_are_empty: bool,
+    logical_start: f32,
+    logical_end: f32,
+) -> (f32, f32) {
+    if clusters_are_empty {
+        (0.0, 0.0)
+    } else {
+        (logical_start, logical_end - logical_start)
+    }
+}
+
 impl<G: Copy + Eq + Hash> TextLayout<G> {
     fn from_backend<B: TextBackend<ShapedGlyphToken = G>>(
         backend: &mut B,
@@ -189,7 +210,7 @@ impl<G: Copy + Eq + Hash> TextLayout<G> {
         } else {
             source_lines
                 .iter()
-                .flat_map(|line| line.clusters.iter().map(|cluster| cluster.x))
+                .map(|line| line.logical_start)
                 .fold(f32::INFINITY, f32::min)
         };
 
@@ -198,16 +219,17 @@ impl<G: Copy + Eq + Hash> TextLayout<G> {
 
         for line in source_lines {
             let mut seg = line.clusters;
-            let line_start = logical_cluster_line_start(&seg);
-            let logical_line_w = logical_cluster_line_width(&seg);
+            let mut source_logical_start = line.logical_start;
+            let source_logical_width = line.logical_width;
             let base_shift = match flow.line_align {
                 TextLineAlign::Start => global_line_start,
-                TextLineAlign::Center | TextLineAlign::End => line_start,
+                TextLineAlign::Center | TextLineAlign::End => source_logical_start,
             };
             if base_shift != 0.0 {
                 for cluster in &mut seg {
                     cluster.shift_x(-base_shift);
                 }
+                source_logical_start -= base_shift;
             }
 
             if let Some(w) = bounds.max_width {
@@ -217,6 +239,7 @@ impl<G: Copy + Eq + Hash> TextLayout<G> {
                             seg,
                             line.byte_start,
                             line.byte_end,
+                            source_logical_width,
                             w,
                             fallback,
                             &mut processed_lines,
@@ -227,13 +250,14 @@ impl<G: Copy + Eq + Hash> TextLayout<G> {
                             seg,
                             line.byte_start,
                             line.byte_end,
+                            source_logical_width,
                             w,
                             fallback,
                             &mut processed_lines,
                         );
                     }
                     _ => {
-                        if logical_line_w > w + 0.5 {
+                        if source_logical_width > w + 0.5 {
                             truncated_horizontal = true;
                             match flow.overflow_x {
                                 OverflowX::Ellipsis { fallback } => {
@@ -254,35 +278,67 @@ impl<G: Copy + Eq + Hash> TextLayout<G> {
                                 }
                                 OverflowX::Keep => {
                                     let mut out = Vec::with_capacity(seg.len());
+                                    let mut logical_start = f32::INFINITY;
+                                    let mut logical_end = 0.0_f32;
                                     for cluster in seg {
                                         let end_x = cluster.end_x();
+                                        update_logical_geometry(
+                                            &mut logical_start,
+                                            &mut logical_end,
+                                            &cluster,
+                                        );
                                         out.push(cluster);
                                         if end_x > w {
                                             break;
                                         }
                                     }
-                                    processed_lines.push(WorkingProcessedLine::pending(
-                                        out,
-                                        line.byte_start,
-                                        line.byte_end,
-                                        LineEndKind::OverflowKeep,
-                                    ));
+                                    let (logical_start, logical_width) = finish_logical_geometry(
+                                        out.is_empty(),
+                                        logical_start,
+                                        logical_end,
+                                    );
+                                    processed_lines.push(
+                                        WorkingProcessedLine::pending_with_geometry(
+                                            out,
+                                            line.byte_start,
+                                            line.byte_end,
+                                            LineEndKind::OverflowKeep,
+                                            logical_start,
+                                            logical_width,
+                                        ),
+                                    );
                                 }
                                 OverflowX::Drop => {
                                     let mut out = Vec::with_capacity(seg.len());
+                                    let mut logical_start = f32::INFINITY;
+                                    let mut logical_end = 0.0_f32;
                                     for cluster in seg {
                                         if cluster.end_x() <= w {
+                                            update_logical_geometry(
+                                                &mut logical_start,
+                                                &mut logical_end,
+                                                &cluster,
+                                            );
                                             out.push(cluster);
                                         } else {
                                             break;
                                         }
                                     }
-                                    processed_lines.push(WorkingProcessedLine::pending(
-                                        out,
-                                        line.byte_start,
-                                        line.byte_end,
-                                        LineEndKind::OverflowDrop,
-                                    ));
+                                    let (logical_start, logical_width) = finish_logical_geometry(
+                                        out.is_empty(),
+                                        logical_start,
+                                        logical_end,
+                                    );
+                                    processed_lines.push(
+                                        WorkingProcessedLine::pending_with_geometry(
+                                            out,
+                                            line.byte_start,
+                                            line.byte_end,
+                                            LineEndKind::OverflowDrop,
+                                            logical_start,
+                                            logical_width,
+                                        ),
+                                    );
                                 }
                                 _ => unreachable!(),
                             }
@@ -293,11 +349,13 @@ impl<G: Copy + Eq + Hash> TextLayout<G> {
                                 } else {
                                     LineEndKind::EndOfText
                                 };
-                            processed_lines.push(WorkingProcessedLine::pending(
+                            processed_lines.push(WorkingProcessedLine::pending_with_geometry(
                                 seg,
                                 line.byte_start,
                                 line.byte_end,
                                 end_kind,
+                                source_logical_start,
+                                source_logical_width,
                             ));
                         }
                     }
@@ -308,11 +366,13 @@ impl<G: Copy + Eq + Hash> TextLayout<G> {
                 } else {
                     LineEndKind::EndOfText
                 };
-                processed_lines.push(WorkingProcessedLine::pending(
+                processed_lines.push(WorkingProcessedLine::pending_with_geometry(
                     seg,
                     line.byte_start,
                     line.byte_end,
                     end_kind,
+                    source_logical_start,
+                    source_logical_width,
                 ));
             }
         }

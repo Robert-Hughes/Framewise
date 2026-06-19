@@ -14,6 +14,8 @@ pub(super) fn make_source_line<B: TextBackend>(
 ) -> WorkingSourceLine {
     let segment = &text[segment_start..segment_end];
     let mut clusters = Vec::new();
+    let mut logical_start = f32::INFINITY;
+    let mut logical_end = 0.0_f32;
 
     if !segment.is_empty() {
         let shaped = backend.shape_text(segment, style);
@@ -27,7 +29,7 @@ pub(super) fn make_source_line<B: TextBackend>(
             let byte_start = segment_start + shaped_cluster.byte_start;
             let byte_end = segment_start + shaped_cluster.byte_end;
             let x = clusters.last().map(WorkingCluster::end_x).unwrap_or(0.0);
-            clusters.push(WorkingCluster {
+            let cluster = WorkingCluster {
                 source: WorkingClusterSource::Shaped {
                     run_index,
                     cluster_index,
@@ -40,7 +42,10 @@ pub(super) fn make_source_line<B: TextBackend>(
                 is_whitespace: shaped_cluster.is_whitespace,
                 is_soft_wrap_boundary: false,
                 glyphs_visible: true,
-            });
+            };
+            logical_start = logical_start.min(cluster.x);
+            logical_end = logical_end.max(cluster.end_x());
+            clusters.push(cluster);
         }
     } else if has_newline {
         clusters.reserve(1);
@@ -48,7 +53,7 @@ pub(super) fn make_source_line<B: TextBackend>(
 
     if has_newline {
         let x = clusters.last().map(WorkingCluster::end_x).unwrap_or(0.0);
-        clusters.push(WorkingCluster {
+        let cluster = WorkingCluster {
             source: WorkingClusterSource::Empty,
             byte_start: segment_end,
             byte_end: segment_end + 1,
@@ -58,8 +63,17 @@ pub(super) fn make_source_line<B: TextBackend>(
             is_whitespace: true,
             is_soft_wrap_boundary: false,
             glyphs_visible: false,
-        });
+        };
+        logical_start = logical_start.min(cluster.x);
+        logical_end = logical_end.max(cluster.end_x());
+        clusters.push(cluster);
     }
+
+    if clusters.is_empty() {
+        logical_start = 0.0;
+        logical_end = 0.0;
+    }
+    let logical_width = logical_end - logical_start;
 
     WorkingSourceLine {
         clusters,
@@ -69,6 +83,8 @@ pub(super) fn make_source_line<B: TextBackend>(
         } else {
             segment_end
         },
+        logical_start,
+        logical_width,
     }
 }
 
@@ -356,6 +372,7 @@ pub(super) fn wrap_clusters_into_processed_lines(
     clusters: Vec<WorkingCluster>,
     source_byte_start: usize,
     source_byte_end: usize,
+    source_logical_width: f32,
     w: f32,
     fallback: WrapClusterFallback,
     out: &mut Vec<WorkingProcessedLine>,
@@ -368,8 +385,7 @@ pub(super) fn wrap_clusters_into_processed_lines(
     }
 
     let cluster_count = clusters.len();
-    let logical_w = logical_cluster_line_width(&clusters);
-    let estimated_lines = estimated_wrapped_line_count(cluster_count, logical_w, w);
+    let estimated_lines = estimated_wrapped_line_count(cluster_count, source_logical_width, w);
     emitter.out.reserve(estimated_lines);
     let estimated_line_cap = estimated_clusters_per_line(cluster_count, estimated_lines);
     let result = wrap_clusters_into_processed_lines_open_tail(
@@ -500,6 +516,7 @@ pub(super) fn wrap_clusters_at_words_into_processed_lines(
     clusters: Vec<WorkingCluster>,
     source_byte_start: usize,
     source_byte_end: usize,
+    source_logical_width: f32,
     w: f32,
     fallback: WrapWordFallback,
     out: &mut Vec<WorkingProcessedLine>,
@@ -512,8 +529,8 @@ pub(super) fn wrap_clusters_at_words_into_processed_lines(
     }
 
     let input_cluster_count = clusters.len();
-    let logical_w = logical_cluster_line_width(&clusters);
-    let estimated_lines = estimated_wrapped_line_count(input_cluster_count, logical_w, w);
+    let estimated_lines =
+        estimated_wrapped_line_count(input_cluster_count, source_logical_width, w);
     let estimated_line_cap = estimated_clusters_per_line(input_cluster_count, estimated_lines);
     emitter.out.reserve(estimated_lines);
 

@@ -642,6 +642,8 @@ pub(crate) struct WorkingSourceLine {
     pub(crate) clusters: Vec<WorkingCluster>,
     pub(crate) byte_start: usize,
     pub(crate) byte_end: usize,
+    pub(crate) logical_start: f32,
+    pub(crate) logical_width: f32,
 }
 
 /// Framewise-owned visual line after wrapping/truncation/finalisation.
