@@ -4,7 +4,8 @@ Working notes, TODOs, open questions, and half-baked ideas.
 
 ## Current Work
 
-- check perf 40fps on text edit demo page after text changes
+- target perf from before text system refactor: 95 fps spec page, 40fps on text edit demo page, 2 fps editing big text
+- current perf: 80,18,18
 
 - Text Edit
   - Improve and test

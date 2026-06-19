@@ -1,6 +1,6 @@
 use super::cluster_layout::{
-    append_empty_after_terminal_soft_wrap_boundary, logical_cluster_line_start,
-    logical_cluster_line_width, make_source_line, wrap_clusters, wrap_clusters_at_words,
+    logical_cluster_line_start, logical_cluster_line_width, make_source_line,
+    wrap_clusters_at_words_into_processed_lines, wrap_clusters_into_processed_lines,
 };
 use super::text_overflow::apply_ellipsis_x;
 use super::{
@@ -210,33 +210,49 @@ impl<G: Copy + Eq + Hash> TextLayout<G> {
                 }
             }
 
-            let mut final_sublines = Vec::new();
-            let mut overflow_line_end_kind = None;
             if let Some(w) = bounds.max_width {
                 match flow.overflow_x {
                     OverflowX::WrapWord { fallback } => {
-                        final_sublines.extend(wrap_clusters_at_words(seg, w, fallback));
+                        wrap_clusters_at_words_into_processed_lines(
+                            seg,
+                            line.byte_start,
+                            line.byte_end,
+                            w,
+                            fallback,
+                            &mut processed_lines,
+                        );
                     }
                     OverflowX::WrapCluster { fallback } => {
-                        final_sublines.extend(wrap_clusters(seg, w, fallback));
+                        wrap_clusters_into_processed_lines(
+                            seg,
+                            line.byte_start,
+                            line.byte_end,
+                            w,
+                            fallback,
+                            &mut processed_lines,
+                        );
                     }
                     _ => {
                         if logical_line_w > w + 0.5 {
                             truncated_horizontal = true;
                             match flow.overflow_x {
                                 OverflowX::Ellipsis { fallback } => {
-                                    overflow_line_end_kind = Some(LineEndKind::EllipsisX);
-                                    final_sublines.push(apply_ellipsis_x(
+                                    let clusters = apply_ellipsis_x(
                                         backend,
                                         &mut working_runs,
                                         seg,
                                         w,
                                         style,
                                         fallback,
+                                    );
+                                    processed_lines.push(WorkingProcessedLine::pending(
+                                        clusters,
+                                        line.byte_start,
+                                        line.byte_end,
+                                        LineEndKind::EllipsisX,
                                     ));
                                 }
                                 OverflowX::Keep => {
-                                    overflow_line_end_kind = Some(LineEndKind::OverflowKeep);
                                     let mut out = Vec::with_capacity(seg.len());
                                     for cluster in seg {
                                         let end_x = cluster.end_x();
@@ -245,10 +261,14 @@ impl<G: Copy + Eq + Hash> TextLayout<G> {
                                             break;
                                         }
                                     }
-                                    final_sublines.push(out);
+                                    processed_lines.push(WorkingProcessedLine::pending(
+                                        out,
+                                        line.byte_start,
+                                        line.byte_end,
+                                        LineEndKind::OverflowKeep,
+                                    ));
                                 }
                                 OverflowX::Drop => {
-                                    overflow_line_end_kind = Some(LineEndKind::OverflowDrop);
                                     let mut out = Vec::with_capacity(seg.len());
                                     for cluster in seg {
                                         if cluster.end_x() <= w {
@@ -257,60 +277,41 @@ impl<G: Copy + Eq + Hash> TextLayout<G> {
                                             break;
                                         }
                                     }
-                                    final_sublines.push(out);
+                                    processed_lines.push(WorkingProcessedLine::pending(
+                                        out,
+                                        line.byte_start,
+                                        line.byte_end,
+                                        LineEndKind::OverflowDrop,
+                                    ));
                                 }
                                 _ => unreachable!(),
                             }
                         } else {
-                            final_sublines.push(seg);
+                            let end_kind =
+                                if seg.last().is_some_and(|cluster| cluster.is_hard_break) {
+                                    LineEndKind::HardNewline
+                                } else {
+                                    LineEndKind::EndOfText
+                                };
+                            processed_lines.push(WorkingProcessedLine::pending(
+                                seg,
+                                line.byte_start,
+                                line.byte_end,
+                                end_kind,
+                            ));
                         }
                     }
                 }
             } else {
-                final_sublines.push(seg);
-            }
-
-            append_empty_after_terminal_soft_wrap_boundary(&mut final_sublines, line.byte_end);
-            processed_lines.reserve(final_sublines.len());
-
-            let mut sub_starts = Vec::with_capacity(final_sublines.len() + 1);
-            let mut previous_end = line.byte_start;
-            for (idx, sub_seg) in final_sublines.iter().enumerate() {
-                let byte_start = if idx == 0 {
-                    line.byte_start
+                let end_kind = if seg.last().is_some_and(|cluster| cluster.is_hard_break) {
+                    LineEndKind::HardNewline
                 } else {
-                    sub_seg
-                        .first()
-                        .map(|cluster| cluster.byte_start)
-                        .unwrap_or(previous_end)
+                    LineEndKind::EndOfText
                 };
-                previous_end = sub_seg
-                    .last()
-                    .map(|cluster| cluster.byte_end)
-                    .unwrap_or(byte_start);
-                sub_starts.push(byte_start);
-            }
-            sub_starts.push(line.byte_end);
-
-            for (idx, sub_seg) in final_sublines.into_iter().enumerate() {
-                let end_kind = overflow_line_end_kind.unwrap_or_else(|| {
-                    if sub_seg.last().is_some_and(|cluster| cluster.is_hard_break) {
-                        LineEndKind::HardNewline
-                    } else if sub_seg
-                        .last()
-                        .is_some_and(|cluster| cluster.is_soft_wrap_boundary)
-                    {
-                        LineEndKind::SoftWrapWhitespace
-                    } else if idx + 1 < sub_starts.len() - 1 {
-                        LineEndKind::SoftWrapNonWhitespace
-                    } else {
-                        LineEndKind::EndOfText
-                    }
-                });
                 processed_lines.push(WorkingProcessedLine::pending(
-                    sub_seg,
-                    sub_starts[idx],
-                    sub_starts[idx + 1],
+                    seg,
+                    line.byte_start,
+                    line.byte_end,
                     end_kind,
                 ));
             }
