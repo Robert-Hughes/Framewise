@@ -1,7 +1,8 @@
 use super::*;
+use crate::widgets::label::{raw as raw_label, LabelStyle};
 use crate::{
-    test_utils::TestTextBackend, Color, DrawCmd, DrawCommands, DrawGlyph, FontId,
-    PrepareGlyphRequest, PreparedGlyphToken, Rect, Vec2,
+    test_utils::TestTextBackend, Color, DrawCmd, DrawCommands, DrawGlyph, FontId, Layer,
+    PrepareGlyphRequest, PreparedGlyphToken, Rect, TextContentPlacement, Vec2,
 };
 
 fn style(flow: TextFlow) -> TextStyle {
@@ -25,6 +26,12 @@ fn line_source(text: &str, layout: &TextLayout<u32>, line_idx: usize) -> String 
     line.clusters
         .iter()
         .map(|cluster| &text[cluster.byte_start..cluster.byte_end])
+        .collect()
+}
+
+fn visual_line_sources(text: &str, layout: &TextLayout<u32>) -> Vec<String> {
+    (0..layout.lines.len())
+        .map(|line_idx| line_source(text, layout, line_idx))
         .collect()
 }
 
@@ -223,6 +230,131 @@ impl TextBackend for ApproxInkBackend {
             top_left: request.glyph_origin,
         })
     }
+}
+
+struct CardTextBackend {
+    line_height: f32,
+}
+
+impl CardTextBackend {
+    fn glyph_width(ch: char) -> f32 {
+        match ch {
+            '\u{0301}' | '\n' => 0.0,
+            '\t' => 12.2,
+            '…' => 13.0,
+            _ => 6.1,
+        }
+    }
+}
+
+impl TextBackend for CardTextBackend {
+    type ShapedGlyphToken = u32;
+
+    fn line_height(&mut self, _style: TextStyle) -> f32 {
+        self.line_height
+    }
+
+    fn shape_text(
+        &mut self,
+        text: &str,
+        style: TextStyle,
+    ) -> SharedShapedText<Self::ShapedGlyphToken> {
+        let mut clusters: Vec<ShapedCluster<Self::ShapedGlyphToken>> = Vec::new();
+        for (byte_start, ch) in text.char_indices() {
+            let byte_end = byte_start + ch.len_utf8();
+            let advance = Self::glyph_width(ch);
+            let is_whitespace = ch.is_whitespace();
+            let glyphs = if is_whitespace {
+                Vec::new()
+            } else {
+                vec![ShapedGlyph {
+                    token: ch as u32,
+                    x: 0.0,
+                    y: 0.0,
+                    advance,
+                    approx_ink_bounds: Rect::new(0.0, -style.size, advance, self.line_height),
+                }]
+            };
+            clusters.push(ShapedCluster {
+                byte_start,
+                byte_end,
+                advance,
+                is_whitespace,
+                approx_ink_bounds: cluster_approx_ink_bounds(&glyphs),
+                glyphs,
+            });
+        }
+
+        std::rc::Rc::new(ShapedText { clusters })
+    }
+
+    fn prepare_glyph(
+        &mut self,
+        request: PrepareGlyphRequest<Self::ShapedGlyphToken>,
+    ) -> Option<DrawGlyph> {
+        if char::from_u32(request.glyph).is_some_and(char::is_whitespace) {
+            return None;
+        }
+
+        Some(DrawGlyph {
+            token: PreparedGlyphToken(request.glyph as u64),
+            top_left: request.glyph_origin,
+        })
+    }
+}
+
+fn card_layout(text: &str, flow: TextFlow, bounds: TextBounds) -> TextLayout<u32> {
+    let mut backend = CardTextBackend { line_height: 15.0 };
+    layout_text(&mut backend, text, style(flow), bounds)
+}
+
+fn card_layout_with_line_height(
+    text: &str,
+    flow: TextFlow,
+    bounds: TextBounds,
+    line_height: f32,
+) -> TextLayout<u32> {
+    let mut backend = CardTextBackend { line_height };
+    layout_text(&mut backend, text, style(flow), bounds)
+}
+
+fn card_label_glyph_counts_by_line(
+    text: &str,
+    flow: TextFlow,
+    rect: Rect,
+    line_height: f32,
+) -> Vec<usize> {
+    let mut backend = CardTextBackend { line_height };
+    let mut cmds = DrawCommands::new();
+    raw_label::label(
+        raw_label::LabelSpec {
+            layer: Layer::default(),
+            rect,
+            text,
+            style: LabelStyle {
+                text_style: style(flow),
+                content_placement: TextContentPlacement::TOP_LEFT,
+                text_color: Color::BLACK,
+                rule: false,
+                rule_color: Color::BLACK,
+            },
+        },
+        &mut backend,
+        &mut cmds,
+    );
+
+    let mut lines = Vec::<(f32, usize)>::new();
+    for glyph in cmds.glyphs() {
+        if let Some((_, count)) = lines
+            .iter_mut()
+            .find(|(y, _)| (*y - glyph.top_left.y).abs() < 0.5)
+        {
+            *count += 1;
+        } else {
+            lines.push((glyph.top_left.y, 1));
+        }
+    }
+    lines.into_iter().map(|(_, count)| count).collect()
 }
 
 #[test]
@@ -1392,196 +1524,412 @@ fn caret_navigation_chooses_soft_wrap_boundary_space_side_by_direction() {
 
 #[test]
 fn test_overflow_x_drop_y_drop() {
-    let layout = layout(
-        "abcdef\nghijkl",
+    let layout = card_layout(
+        "hello\nhello",
         drop_x_drop_y(),
         TextBounds {
-            max_width: Some(16.1),
-            max_height: Some(16.0),
+            max_width: Some(25.0),
+            max_height: Some(28.0),
         },
     );
 
-    assert_eq!(visible(&layout), "ab");
+    // Keep this test in sync with Card 1 in Section 4 of sample/src/label_page.rs.
+    assert_eq!(layout.lines.len(), 1);
+    assert_eq!(layout.lines[0].end_kind, LineEndKind::OverflowDrop);
+    assert_eq!(visual_lines(&layout), ["hell"]);
+    for glyph in layout.resolved_glyphs() {
+        assert!(glyph.origin.x + glyph.advance <= 25.0 + 0.1);
+    }
+    assert!(!layout.resolved_glyphs().is_empty());
     assert!(layout.metrics().truncated_horizontal);
     assert!(layout.metrics().truncated_vertical);
 }
 
 #[test]
 fn test_overflow_x_keep_y_keep() {
-    let layout = layout(
-        "abcdef\nghijkl",
+    let layout = card_layout(
+        "hello\nhello",
         keep_x_keep_y(),
         TextBounds {
-            max_width: Some(16.1),
-            max_height: Some(16.0),
+            max_width: Some(25.0),
+            max_height: Some(28.0),
         },
     );
 
-    assert_eq!(visual_lines(&layout), ["abc", "ghi"]);
-    assert!(layout.metrics().logical_size.y > 16.0);
+    // Keep this test in sync with Card 2 in Section 4 of sample/src/label_page.rs.
+    assert_eq!(layout.lines.len(), 2);
+    let line_has_overflow = |line_idx| {
+        layout
+            .iter_resolved_line_glyphs(line_idx)
+            .any(|glyph| glyph.origin.x + glyph.advance > 25.0 + 0.1)
+    };
+    assert!(line_has_overflow(0));
+    assert!(line_has_overflow(1));
+    assert_eq!(visual_lines(&layout), ["hello", "hello"]);
+    assert_eq!(layout.lines[0].end_kind, LineEndKind::OverflowKeep);
+    assert_eq!(layout.lines[1].end_kind, LineEndKind::OverflowKeep);
 }
 
 #[test]
 fn test_overflow_x_keep_y_ellipsis() {
-    let layout = layout(
-        "abcdef\nghijkl",
-        keep_x_ellipsis_y(EllipsisFallback::Keep),
+    let layout = card_layout(
+        "hello\nhello",
+        keep_x_ellipsis_y(EllipsisFallback::Drop),
         TextBounds {
-            max_width: Some(16.1),
-            max_height: Some(16.0),
+            max_width: Some(25.0),
+            max_height: Some(28.0),
         },
     );
 
+    // Keep this test in sync with Card 3 in Section 4 of sample/src/label_page.rs.
+    assert_eq!(layout.lines.len(), 1);
+    assert!(visible(&layout).ends_with('…'));
+    assert_eq!(visual_lines(&layout), ["h…"]);
     assert_eq!(layout.lines[0].end_kind, LineEndKind::EllipsisY);
+    let last = layout.resolved_glyphs().last().copied().unwrap();
+    assert!(last.origin.x + last.advance <= 25.0 + 0.1);
     assert!(layout.metrics().truncated_vertical);
 }
 
 #[test]
 fn test_overflow_x_keep_y_ellipsis_fallback_drop() {
-    let layout = layout(
-        "a\nb",
+    let layout = card_layout(
+        "hello\nhello",
         keep_x_ellipsis_y(EllipsisFallback::Drop),
         TextBounds {
-            max_width: Some(0.0),
-            max_height: Some(16.0),
+            max_width: Some(8.0),
+            max_height: Some(28.0),
         },
     );
 
+    // Keep this test in sync with Card 4 in Section 4 of sample/src/label_page.rs.
     assert!(layout.metrics().truncated_vertical);
     assert_eq!(layout.resolved_glyphs().len(), 0);
+    assert_eq!(visual_lines(&layout), [""]);
 }
 
 #[test]
 fn test_overflow_x_keep_y_ellipsis_fallback_keep() {
-    let layout = layout(
-        "a\nb",
+    let layout = card_layout(
+        "hello\nhello",
         keep_x_ellipsis_y(EllipsisFallback::Keep),
         TextBounds {
-            max_width: Some(0.0),
-            max_height: Some(16.0),
+            max_width: Some(8.0),
+            max_height: Some(28.0),
         },
     );
 
+    // Keep this test in sync with Card 5 in Section 4 of sample/src/label_page.rs.
     assert!(layout.metrics().truncated_vertical);
-    assert!(total_clusters(&layout) > 0);
+    assert_eq!(visible(&layout), "…");
+    assert_eq!(visual_lines(&layout), ["…"]);
+    let last = layout.resolved_glyphs().last().copied().unwrap();
+    assert!(last.origin.x + last.advance > 8.0 + 0.1);
 }
 
 #[test]
 fn test_overflow_x_ellipsis_y_keep() {
-    let layout = layout(
-        "abcdef\nghijkl",
+    let layout = card_layout(
+        "hello\nhello",
         ellipsis_x_keep_y(EllipsisFallback::Drop),
         TextBounds {
-            max_width: Some(16.1),
-            max_height: Some(16.0),
+            max_width: Some(23.0),
+            max_height: Some(48.0),
         },
     );
 
+    // Keep this test in sync with Card 6 in Section 4 of sample/src/label_page.rs.
+    assert_eq!(layout.lines.len(), 2);
+    assert!(visible(&layout).contains('…'));
+    assert_eq!(visual_lines(&layout), ["h…", "h…"]);
     assert_eq!(layout.lines[0].end_kind, LineEndKind::EllipsisX);
-    assert!(layout.metrics().logical_size.y > 16.0);
+    assert_eq!(layout.lines[1].end_kind, LineEndKind::EllipsisX);
+    for line_idx in 0..layout.lines.len() {
+        let last = layout.iter_resolved_line_glyphs(line_idx).last().unwrap();
+        assert!(last.origin.x + last.advance <= 23.0 + 0.1);
+    }
 }
 
 #[test]
 fn test_overflow_x_ellipsis_fallback_drop_y_keep() {
-    let layout = layout(
-        "abc",
+    let layout = card_layout(
+        "hello\nhello",
         ellipsis_x_keep_y(EllipsisFallback::Drop),
-        TextBounds::width(0.0),
+        TextBounds {
+            max_width: Some(8.0),
+            max_height: Some(48.0),
+        },
     );
 
+    // Keep this test in sync with Card 7 in Section 4 of sample/src/label_page.rs.
     assert_eq!(layout.resolved_glyphs().len(), 0);
-    assert_eq!(layout.lines[0].end_kind, LineEndKind::EllipsisX);
+    assert_eq!(visual_lines(&layout), ["", ""]);
 }
 
 #[test]
 fn test_overflow_x_ellipsis_fallback_keep_y_keep() {
-    let layout = layout(
-        "abc",
+    let layout = card_layout(
+        "hello\nhello",
         ellipsis_x_keep_y(EllipsisFallback::Keep),
-        TextBounds::width(0.0),
+        TextBounds {
+            max_width: Some(8.0),
+            max_height: Some(48.0),
+        },
     );
 
-    assert_eq!(visible(&layout), "\u{2026}");
-    assert_eq!(layout.lines[0].end_kind, LineEndKind::EllipsisX);
+    // Keep this test in sync with Card 8 in Section 4 of sample/src/label_page.rs.
+    assert_eq!(layout.lines.len(), 2);
+    assert_eq!(visible(&layout), "……");
+    assert_eq!(visual_lines(&layout), ["…", "…"]);
+    for line_idx in 0..layout.lines.len() {
+        let last = layout.iter_resolved_line_glyphs(line_idx).last().unwrap();
+        assert!(last.origin.x + last.advance > 8.0 + 0.1);
+    }
+    let glyphs = layout.resolved_glyphs();
+    assert!(glyphs[1].origin.y > glyphs[0].origin.y + 10.0);
 }
 
 #[test]
 fn test_wrap_cluster_y_keep() {
-    let layout = layout("abcdef", wrap_cluster_keep(), TextBounds::width(16.1));
+    let text = "hello\nhello";
+    let layout = card_layout(
+        text,
+        wrap_cluster_drop(),
+        TextBounds {
+            max_width: Some(23.0),
+            max_height: Some(63.0),
+        },
+    );
 
-    assert_eq!(visual_lines(&layout), ["ab", "cd", "ef"]);
+    // Keep this test in sync with Card 1 in Section 4.1 of sample/src/label_page.rs.
+    assert_eq!(layout.lines.len(), 4);
+    assert_eq!(visible(&layout), "hellohello");
+    assert_eq!(visual_lines(&layout), ["hel", "lo", "hel", "lo"]);
+    assert_eq!(
+        visual_line_sources(text, &layout),
+        ["hel", "lo\n", "hel", "lo"]
+    );
+    assert_eq!(
+        layout
+            .lines
+            .iter()
+            .map(|line| line.end_kind)
+            .collect::<Vec<_>>(),
+        [
+            LineEndKind::SoftWrapNonWhitespace,
+            LineEndKind::HardNewline,
+            LineEndKind::SoftWrapNonWhitespace,
+            LineEndKind::EndOfText,
+        ]
+    );
 }
 
 #[test]
 fn test_wrap_cluster_fallback_drop_y_keep() {
-    let layout = layout("a", wrap_cluster_drop(), TextBounds::width(0.0));
+    let layout = card_layout(
+        "hello\nhello",
+        wrap_cluster_drop(),
+        TextBounds {
+            max_width: Some(6.0),
+            max_height: Some(68.0),
+        },
+    );
 
-    assert_eq!(visible(&layout), "");
+    // Keep this test in sync with Card 2 in Section 4.1 of sample/src/label_page.rs.
+    assert!(visible(&layout).trim().is_empty());
+    assert_eq!(visual_lines(&layout), [""]);
     assert_eq!(layout.metrics().logical_size.x, 0.0);
 }
 
 #[test]
 fn test_wrap_cluster_fallback_keep_y_keep() {
-    let layout = layout("a", wrap_cluster_keep(), TextBounds::width(0.0));
+    let text = "hello\nhello";
+    let layout = card_layout(
+        text,
+        wrap_cluster_keep(),
+        TextBounds {
+            max_width: Some(4.0),
+            max_height: Some(162.0),
+        },
+    );
 
-    assert_eq!(visible(&layout), "a");
-    assert!(layout.metrics().logical_size.x > 0.0);
+    // Keep this test in sync with Card 3 in Section 4.1 of sample/src/label_page.rs.
+    assert_eq!(layout.lines.len(), 10);
+    assert_eq!(visible(&layout), "hellohello");
+    assert_eq!(
+        visual_lines(&layout),
+        ["h", "e", "l", "l", "o", "h", "e", "l", "l", "o"]
+    );
+    assert_eq!(
+        visual_line_sources(text, &layout),
+        ["h", "e", "l", "l", "o\n", "h", "e", "l", "l", "o"]
+    );
+    for line_idx in 0..layout.lines.len() {
+        assert!(line_visible_glyph_count(&layout, line_idx) <= 1);
+    }
 }
 
 #[test]
 fn label_wrap_cluster_fallback_keep_uses_widget_width() {
-    let layout = layout("abcdef", wrap_cluster_keep(), TextBounds::width(16.1));
-
-    assert_eq!(visual_lines(&layout), ["ab", "cd", "ef"]);
+    assert_eq!(
+        card_label_glyph_counts_by_line(
+            "hello\nhello",
+            wrap_cluster_keep(),
+            Rect::new(0.0, 0.0, 4.0, 162.0),
+            15.0,
+        ),
+        vec![1; 10]
+    );
 }
 
 #[test]
 fn test_wrap_word_y_keep() {
-    let layout = layout("ab cd ef", wrap_word_keep(), TextBounds::width(24.1));
+    let text = "hello there\nhello there";
+    let layout = card_layout(
+        text,
+        wrap_word_drop(),
+        TextBounds {
+            max_width: Some(48.0),
+            max_height: Some(68.0),
+        },
+    );
 
-    assert_eq!(layout.metrics().line_count, 3);
+    // Keep this test in sync with Card 4 in Section 4.1 of sample/src/label_page.rs.
+    assert_eq!(layout.lines.len(), 4);
+    assert_eq!(visible(&layout), "hellotherehellothere");
+    assert_eq!(visual_lines(&layout), ["hello", "there", "hello", "there"]);
+    assert_eq!(
+        visual_line_sources(text, &layout),
+        ["hello ", "there\n", "hello ", "there"]
+    );
 }
 
 #[test]
 fn test_wrap_word_fallback_wrap_cluster_y_keep() {
-    let layout = layout("abcdef", wrap_word_cluster_keep(), TextBounds::width(16.1));
+    let text = "hello there\nhello there";
+    let layout = card_layout(
+        text,
+        wrap_word_cluster_drop(),
+        TextBounds {
+            max_width: Some(23.0),
+            max_height: Some(138.0),
+        },
+    );
 
-    assert_eq!(visual_lines(&layout), ["ab", "cd", "ef"]);
+    // Keep this test in sync with Card 5 in Section 4.1 of sample/src/label_page.rs.
+    assert!(layout.lines.len() > 4);
+    assert_eq!(visible(&layout), "hellotherehellothere");
+    assert_eq!(
+        visual_lines(&layout),
+        ["hel", "lo", "the", "re", "hel", "lo", "the", "re"]
+    );
+    assert_eq!(
+        visual_line_sources(text, &layout),
+        ["hel", "lo ", "the", "re\n", "hel", "lo ", "the", "re"]
+    );
 }
 
 #[test]
 fn test_wrap_word_fallback_wrap_cluster_fallback_drop_y_keep() {
-    let layout = layout("abcdef", wrap_word_cluster_drop(), TextBounds::width(16.1));
+    let layout = card_layout(
+        "hello there\nhello there",
+        wrap_word_cluster_drop(),
+        TextBounds {
+            max_width: Some(6.0),
+            max_height: Some(138.0),
+        },
+    );
 
-    assert_eq!(visual_lines(&layout), ["ab", "cd", "ef"]);
+    // Keep this test in sync with Card 6 in Section 4.1 of sample/src/label_page.rs.
+    assert!(visible(&layout).trim().is_empty());
+    assert_eq!(visual_lines(&layout), [""]);
 }
 
 #[test]
 fn test_wrap_word_fallback_wrap_cluster_fallback_keep_y_keep() {
-    let layout = layout("abcdef", wrap_word_cluster_keep(), TextBounds::width(16.1));
+    let text = "hello there\nhello there";
+    let layout = card_layout_with_line_height(
+        text,
+        wrap_word_cluster_keep(),
+        TextBounds {
+            max_width: Some(4.0),
+            max_height: Some(318.0),
+        },
+        17.0,
+    );
 
-    assert_eq!(visual_lines(&layout), ["ab", "cd", "ef"]);
+    // Keep this test in sync with Card 7 in Section 4.1 of sample/src/label_page.rs.
+    assert_eq!(visible(&layout), "hellotherehellother");
+    assert_eq!(layout.lines.len(), 19);
+    assert_eq!(
+        visual_lines(&layout),
+        [
+            "h", "e", "l", "l", "o", "t", "h", "e", "r", "e", "h", "e", "l", "l", "o", "t", "h",
+            "e", "r"
+        ]
+    );
+    assert_eq!(
+        visual_line_sources(text, &layout),
+        [
+            "h", "e", "l", "l", "o ", "t", "h", "e", "r", "e\n", "h", "e", "l", "l", "o ", "t",
+            "h", "e", "r"
+        ]
+    );
+    for line_idx in 0..layout.lines.len() {
+        assert!(line_visible_glyph_count(&layout, line_idx) <= 1);
+    }
 }
 
 #[test]
 fn label_wrap_word_cluster_keep_uses_widget_width() {
-    let layout = layout("abcdef", wrap_word_cluster_keep(), TextBounds::width(16.1));
-
-    assert_eq!(visual_lines(&layout), ["ab", "cd", "ef"]);
+    assert_eq!(
+        card_label_glyph_counts_by_line(
+            "hello there\nhello there",
+            wrap_word_cluster_keep(),
+            Rect::new(0.0, 0.0, 4.0, 318.0),
+            17.0,
+        ),
+        vec![1; 19]
+    );
 }
 
 #[test]
 fn test_wrap_word_fallback_drop_y_keep() {
-    let layout = layout("abcdef", wrap_word_drop(), TextBounds::width(16.1));
+    let layout = card_layout(
+        "hello there\nhello there",
+        wrap_word_drop(),
+        TextBounds {
+            max_width: Some(25.0),
+            max_height: Some(68.0),
+        },
+    );
 
-    assert_eq!(visible(&layout), "ab");
+    // Keep this test in sync with Card 8 in Section 4.1 of sample/src/label_page.rs.
+    assert_eq!(layout.lines.len(), 2);
+    assert_eq!(visual_lines(&layout), ["hell", "hell"]);
+    for glyph in layout.resolved_glyphs() {
+        assert!(glyph.origin.x + glyph.advance <= 25.0 + 0.1);
+    }
 }
 
 #[test]
 fn test_wrap_word_fallback_keep_y_keep() {
-    let layout = layout("abcdef", wrap_word_keep(), TextBounds::width(16.1));
+    let layout = card_layout(
+        "hello there\nhello there",
+        wrap_word_keep(),
+        TextBounds {
+            max_width: Some(25.0),
+            max_height: Some(68.0),
+        },
+    );
 
-    assert_eq!(visible(&layout), "abc");
+    // Keep this test in sync with Card 9 in Section 4.1 of sample/src/label_page.rs.
+    assert_eq!(layout.lines.len(), 2);
+    assert_eq!(visual_lines(&layout), ["hello", "hello"]);
+    assert!(layout
+        .resolved_glyphs()
+        .iter()
+        .any(|glyph| glyph.origin.x + glyph.advance > 25.0 + 0.1));
 }
 
 #[test]

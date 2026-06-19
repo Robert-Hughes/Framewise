@@ -473,6 +473,20 @@ fn raster_ink_bounds_for_glyphs(glyphs: &[DrawGlyph]) -> Rect {
         .unwrap_or(Rect::ZERO)
 }
 
+fn caret_geom_at_byte(
+    layout: &framewise::TextLayout<SampleGlyphToken>,
+    byte_index: usize,
+) -> framewise::CaretGeom {
+    layout.caret_geom(layout.caret_position_at_insertion_byte(byte_index))
+}
+
+fn measured_logical_width(text: &str, style: TextStyle) -> f32 {
+    let mut sys = sys();
+    measure_text(&mut sys, text, style, TextBounds::UNBOUNDED)
+        .logical_size
+        .x
+}
+
 fn assert_loaded_subpixel(sys: &SampleTextBackend, token: SampleGlyphToken, subpixel_x: u8) {
     assert!(
         matches!(
@@ -511,6 +525,85 @@ fn shaped_combining_mark_records_one_cluster_with_multiple_glyphs() {
     assert_eq!(shaped.clusters[0].byte_start, 0);
     assert_eq!(shaped.clusters[0].byte_end, "e\u{0301}".len());
     assert!(!shaped.clusters[0].glyphs.is_empty());
+}
+
+#[test]
+fn drop_overflow_uses_logical_advance_not_ink_width_for_single_glyph() {
+    let mut sys = sys();
+    let text = "◎";
+    let style = style(FontId(0), 13.0, 500, TextFlow::single_line());
+    let width = measured_logical_width(text, style).round();
+    let layout = layout_text(
+        &mut sys,
+        text,
+        style,
+        TextBounds {
+            max_width: Some(width),
+            max_height: Some(28.0),
+        },
+    );
+
+    assert_eq!(layout.resolved_glyphs().len(), 1);
+    assert!(
+        !layout.metrics().truncated_horizontal,
+        "ink protrusion outside the logical advance should not count as truncation"
+    );
+    assert!(layout.metrics().approx_ink_bounds.w > 0.0);
+}
+
+#[test]
+fn drop_overflow_uses_logical_advance_not_ink_width_for_final_glyph() {
+    let mut sys = sys();
+    let text = "Run ◎";
+    let style = style(FontId(0), 13.0, 500, TextFlow::single_line());
+    let width = measured_logical_width(text, style).round();
+    let layout = layout_text(
+        &mut sys,
+        text,
+        style,
+        TextBounds {
+            max_width: Some(width),
+            max_height: Some(28.0),
+        },
+    );
+
+    assert_eq!(
+        layout.resolved_glyphs().len(),
+        TextBackend::shape_text(&mut sys, text, style)
+            .clusters
+            .iter()
+            .map(|cluster| cluster.glyphs.len())
+            .sum::<usize>()
+    );
+    assert!(
+        !layout.metrics().truncated_horizontal,
+        "final glyph ink protrusion should not drop the last character"
+    );
+}
+
+#[test]
+fn caret_end_uses_shaped_advance_not_bitmap_width() {
+    let mut sys = sys();
+    let text = "Headless Test.";
+    let style = style(FontId(1), 14.0, 400, TextFlow::single_line());
+    let layout = layout_text(
+        &mut sys,
+        text,
+        style,
+        TextBounds {
+            max_width: Some(180.0),
+            max_height: Some(30.0),
+        },
+    );
+
+    let expected_advance = measured_logical_width(text, style);
+    let caret = caret_geom_at_byte(&layout, text.len());
+
+    assert!(
+        (caret.x - expected_advance).abs() < 0.5,
+        "caret end x should follow shaped advance {expected_advance}, got {}",
+        caret.x
+    );
 }
 
 #[test]
