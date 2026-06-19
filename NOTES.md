@@ -5,6 +5,8 @@ Working notes, TODOs, open questions, and half-baked ideas.
 ## Current Work
 
 - Home/End should use LineMetrics, not hit-test, and then before/after cluster for the first/last cluster on the line (roughly)
+  -and other similar cases
+  - general tidy-up of (keyboard?) caret movement
 
 - Text Edit
   - Consider
@@ -12,14 +14,13 @@ Working notes, TODOs, open questions, and half-baked ideas.
     - newline policy - how is enter rejected? Even for replace-with-space?
     - tab alignment within text. Maybe need a 'tab policy' like we do for Enter key?
 
-  - Copy/paste integration with the OS (apparently not working!)
-  - caret cursor when mouse is over a text_edit
-
   - auto-sizing to height of text (like VS Code commit message)
     - use existing auto-sizing layout stuff?
     - what about width?
     - can use intrinsic size calculation, if we pass the remaining available LayoutSpace as a 'hint' to the calc_intrinsic_size (maybe rename to something better?) then text edit can auto height if it has a max width!
-  - user-sizing using drag handle (height and/or width)
+
+  - Copy/paste integration with the OS (apparently not working!)
+  - caret cursor when mouse is over a text_edit
 
   - check all the combinations of \n handling, wrapping, height etc. are meaningful (even if degenerate), to see if we want to tighten it up at all
     - newline policy, wrap, alignment (vertical and horizontal)
@@ -347,6 +348,7 @@ The "App-Managed State" option would require either a trait layer (so the widget
 - Undo and redo? (Or built into larger app-wide system?)
 - adding spaces to the start of wrapped lines is confusing (appends to prev line instead, no visual indication). This is standard wrapped editor behaviour, but maybe we can do better?
   - would be nice to snap the cursor to the end of the prev line, but we can't do that in a faithful way because the previous line ends in the 'visually collapsed' space that's wrapping!
+- user-sizing using drag handle (height and/or width). Re-use 'splitter'/dragging infrastructure (doesn't exist yet!)
 
 
 

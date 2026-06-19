@@ -5,7 +5,7 @@ use crate::{
     layout::{Align, IntrinsicSize, LayoutState},
     text::{
         layout_text, CaretPosition, FontId, LineEndKind, LineHeight, LineMetrics, TextBackend,
-        TextBounds, TextFlow, TextLayout, TextLineAlign, TextMetrics, TextStyle,
+        TextBounds, TextFlow, TextLayout, TextLineAlign, TextStyle,
     },
     types::{ClipRect, Color, Layer, Rect, Vec2},
     widget::{InputInfo, LayoutInfo, WidgetContext},
@@ -51,15 +51,6 @@ pub mod raw {
         pub focused: bool,
         pub content_bounds: Rect,
         pub clipboard_action: Option<ClipboardAction>,
-    }
-
-    fn visual_line_index_at_y(metrics: &TextMetrics, y: f32) -> usize {
-        metrics
-            .lines
-            .iter()
-            .position(|line| y >= line.y_top && y < line.y_top + line.height)
-            .or_else(|| metrics.lines.iter().rposition(|line| y >= line.y_top))
-            .unwrap_or(0)
     }
 
     #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -552,13 +543,8 @@ pub mod raw {
                             } else {
                                 caret
                             };
-                            let caret_geom = layout.caret_geom(visual_caret);
-                            let caret_mid_y = caret_geom.y_top + caret_geom.height * 0.5;
-                            let metrics = layout.metrics();
-                            let current_line_idx = visual_line_index_at_y(metrics, caret_mid_y);
-                            let line = &metrics.lines[current_line_idx];
-                            let line_mid_y = line.y_top + line.height * 0.5;
-                            caret = layout.hit_test_caret(Vec2::new(line.logical_x, line_mid_y));
+                            let current_line_idx = layout.visual_line_index_for_caret(visual_caret);
+                            caret = layout.caret_at_visual_line_start(current_line_idx);
                             caret_byte = caret.insertion_byte_hint().min(state.value.len());
                             caret_needs_layout_sync = false;
                         } else {
@@ -593,42 +579,8 @@ pub mod raw {
                             } else {
                                 caret
                             };
-                            let caret_geom = layout.caret_geom(visual_caret);
-                            let caret_mid_y = caret_geom.y_top + caret_geom.height * 0.5;
-                            let metrics = layout.metrics();
-                            let current_line_idx = visual_line_index_at_y(metrics, caret_mid_y);
-                            let line = &metrics.lines[current_line_idx];
-                            let line_mid_y = line.y_top + line.height * 0.5;
-                            let end_cluster = layout.hit_test_cluster(Vec2::new(
-                                line.logical_x + line.logical_width + 1.0,
-                                line_mid_y,
-                            ));
-                            caret = if matches!(
-                                line.end_kind,
-                                LineEndKind::HardNewline | LineEndKind::SoftWrapWhitespace
-                            ) {
-                                CaretPosition::BeforeCluster {
-                                    cluster_byte_start: end_cluster,
-                                }
-                            } else {
-                                let line_end_caret = layout
-                                    .caret_after_cluster_start(end_cluster)
-                                    .unwrap_or_else(|| {
-                                        layout.caret_position_at_insertion_byte(end_cluster)
-                                    });
-                                let line_end_geom = layout.caret_geom(line_end_caret);
-                                let line_end_idx = visual_line_index_at_y(
-                                    metrics,
-                                    line_end_geom.y_top + line_end_geom.height * 0.5,
-                                );
-                                if line_end_idx == current_line_idx {
-                                    line_end_caret
-                                } else {
-                                    CaretPosition::BeforeCluster {
-                                        cluster_byte_start: end_cluster,
-                                    }
-                                }
-                            };
+                            let current_line_idx = layout.visual_line_index_for_caret(visual_caret);
+                            caret = layout.caret_at_visual_line_end(current_line_idx);
                             caret_byte = caret.insertion_byte_hint().min(state.value.len());
                             caret_needs_layout_sync = false;
                         } else {

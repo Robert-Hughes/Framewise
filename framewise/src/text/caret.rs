@@ -2,6 +2,83 @@ use super::{CaretGeom, CaretPosition, TextLayout, WorkingCluster};
 use crate::types::Vec2;
 
 impl<G> TextLayout<G> {
+    /// Return the visual line index that owns a logical caret position.
+    ///
+    /// These visual-line caret helpers are intended for keyboard and logical
+    /// movement such as Home/End. Pointer coordinate resolution should keep
+    /// using [`TextLayout::hit_test_caret`] and [`TextLayout::hit_test_cluster`].
+    pub fn visual_line_index_for_caret(&self, caret: CaretPosition) -> usize {
+        match caret {
+            CaretPosition::BeforeCluster { cluster_byte_start } => self
+                .find_exact_cluster(cluster_byte_start)
+                .map(|(line_idx, _, _)| line_idx)
+                .unwrap_or_else(|| self.visual_line_index_for_insertion_byte(cluster_byte_start)),
+            CaretPosition::AfterCluster {
+                cluster_byte_start, ..
+            } => {
+                if let Some((line_idx, _, cluster)) = self.find_exact_cluster(cluster_byte_start) {
+                    if cluster.is_hard_break || cluster.is_soft_wrap_boundary {
+                        return self
+                            .lines
+                            .get(line_idx + 1)
+                            .map(|_| line_idx + 1)
+                            .unwrap_or(line_idx);
+                    }
+                    return line_idx;
+                }
+                self.visual_line_index_for_insertion_byte(caret.insertion_byte_hint())
+            }
+            CaretPosition::EmptyText => 0,
+        }
+    }
+
+    /// Return the caret at the visual start of a laid-out line.
+    ///
+    /// Non-empty line starts return the first cluster's `BeforeCluster`
+    /// anchor, including mid-word soft-wrap starts that share an insertion byte
+    /// with the previous line's end. Empty continuation lines, such as the
+    /// editor feedback line after a terminal hard newline, use the preceding
+    /// boundary cluster's `AfterCluster` caret because no following cluster
+    /// exists.
+    pub fn caret_at_visual_line_start(&self, line_index: usize) -> CaretPosition {
+        let line_idx = line_index.min(self.lines.len().saturating_sub(1));
+        let line = &self.lines[line_idx];
+
+        if let Some(first) = line.clusters.first() {
+            return CaretPosition::BeforeCluster {
+                cluster_byte_start: first.byte_start,
+            };
+        }
+
+        self.empty_line_caret_position(line_idx)
+    }
+
+    /// Return the caret at the visual end of a laid-out line.
+    ///
+    /// Hard newline and collapsed soft-wrap-whitespace endings return
+    /// `BeforeCluster` for their boundary cluster, keeping the caret visually
+    /// on the ending line. Ordinary soft wraps and end-of-text lines return
+    /// `AfterCluster` for the last visible cluster on that line.
+    pub fn caret_at_visual_line_end(&self, line_index: usize) -> CaretPosition {
+        let line_idx = line_index.min(self.lines.len().saturating_sub(1));
+        let line = &self.lines[line_idx];
+
+        let Some(last) = line.clusters.last() else {
+            return self.empty_line_caret_position(line_idx);
+        };
+
+        if last.is_hard_break || last.is_soft_wrap_boundary {
+            CaretPosition::BeforeCluster {
+                cluster_byte_start: last.byte_start,
+            }
+        } else {
+            CaretPosition::AfterCluster {
+                cluster_byte_start: last.byte_start,
+                cluster_byte_end: last.byte_end,
+            }
+        }
+    }
+
     /// Caret geometry for a visual caret position in block-local coordinates.
     ///
     /// Caret positions follow shaped advances and line metrics, not the tight
@@ -405,6 +482,15 @@ impl<G> TextLayout<G> {
             .flat_map(|cluster| [cluster.byte_start, cluster.byte_end])
             .filter(|byte| *byte > byte_index)
             .min()
+    }
+
+    fn visual_line_index_for_insertion_byte(&self, byte_index: usize) -> usize {
+        self.lines
+            .iter()
+            .enumerate()
+            .find(|(_, line)| byte_index >= line.byte_start && byte_index <= line.byte_end)
+            .map(|(line_idx, _)| line_idx)
+            .unwrap_or_else(|| self.lines.len().saturating_sub(1))
     }
 
     fn iter_clusters(&self) -> impl DoubleEndedIterator<Item = (usize, usize, &WorkingCluster)> {

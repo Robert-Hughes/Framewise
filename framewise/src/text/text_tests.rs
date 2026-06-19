@@ -959,6 +959,112 @@ fn caret_positions_distinguish_mid_word_soft_wrap_visual_affinity() {
 }
 
 #[test]
+fn visual_line_carets_mid_word_soft_wrap_use_previous_end_and_next_start_affinity() {
+    let layout = layout("abcde", wrap_word_cluster_drop(), TextBounds::width(16.1));
+
+    let previous_line_end = CaretPosition::AfterCluster {
+        cluster_byte_start: 1,
+        cluster_byte_end: 2,
+    };
+    let next_line_start = CaretPosition::BeforeCluster {
+        cluster_byte_start: 2,
+    };
+
+    assert_eq!(layout.lines[0].end_kind, LineEndKind::SoftWrapNonWhitespace);
+    assert_eq!(
+        layout.caret_at_visual_line_start(0),
+        CaretPosition::BeforeCluster {
+            cluster_byte_start: 0
+        }
+    );
+    assert_eq!(layout.caret_at_visual_line_end(0), previous_line_end);
+    assert_eq!(layout.caret_at_visual_line_start(1), next_line_start);
+    assert_eq!(layout.visual_line_index_for_caret(previous_line_end), 0);
+    assert_eq!(layout.visual_line_index_for_caret(next_line_start), 1);
+    assert_eq!(
+        previous_line_end.insertion_byte_hint(),
+        next_line_start.insertion_byte_hint()
+    );
+}
+
+#[test]
+fn visual_line_carets_collapsed_whitespace_soft_wrap_use_boundary_sides() {
+    let layout = layout(
+        "hello world",
+        wrap_word_cluster_drop(),
+        TextBounds::width(40.1),
+    );
+
+    let previous_line_end = CaretPosition::BeforeCluster {
+        cluster_byte_start: 5,
+    };
+    let next_line_start = CaretPosition::BeforeCluster {
+        cluster_byte_start: 6,
+    };
+
+    assert_eq!(layout.lines[0].end_kind, LineEndKind::SoftWrapWhitespace);
+    assert_eq!(layout.caret_at_visual_line_end(0), previous_line_end);
+    assert_eq!(layout.caret_at_visual_line_start(1), next_line_start);
+    assert_eq!(layout.visual_line_index_for_caret(previous_line_end), 0);
+    assert_eq!(layout.visual_line_index_for_caret(next_line_start), 1);
+    assert_ne!(
+        previous_line_end.insertion_byte_hint(),
+        next_line_start.insertion_byte_hint()
+    );
+}
+
+#[test]
+fn visual_line_carets_hard_newline_use_boundary_sides() {
+    let layout = layout("a\nb", TextFlow::single_line(), TextBounds::UNBOUNDED);
+
+    let previous_line_end = CaretPosition::BeforeCluster {
+        cluster_byte_start: 1,
+    };
+    let next_line_start = CaretPosition::BeforeCluster {
+        cluster_byte_start: 2,
+    };
+
+    assert_eq!(layout.lines[0].end_kind, LineEndKind::HardNewline);
+    assert_eq!(layout.caret_at_visual_line_end(0), previous_line_end);
+    assert_eq!(layout.caret_at_visual_line_start(1), next_line_start);
+    assert_eq!(layout.visual_line_index_for_caret(previous_line_end), 0);
+    assert_eq!(layout.visual_line_index_for_caret(next_line_start), 1);
+}
+
+#[test]
+fn visual_line_carets_single_unwrapped_line_use_text_edges() {
+    let layout = layout("abc", TextFlow::single_line(), TextBounds::UNBOUNDED);
+
+    let start = CaretPosition::BeforeCluster {
+        cluster_byte_start: 0,
+    };
+    let end = CaretPosition::AfterCluster {
+        cluster_byte_start: 2,
+        cluster_byte_end: 3,
+    };
+
+    assert_eq!(layout.caret_at_visual_line_start(0), start);
+    assert_eq!(layout.caret_at_visual_line_end(0), end);
+    assert_eq!(layout.visual_line_index_for_caret(start), 0);
+    assert_eq!(layout.visual_line_index_for_caret(end), 0);
+}
+
+#[test]
+fn visual_line_carets_empty_text_use_empty_caret() {
+    let layout = layout("", TextFlow::single_line(), TextBounds::UNBOUNDED);
+
+    assert_eq!(
+        layout.caret_at_visual_line_start(0),
+        CaretPosition::EmptyText
+    );
+    assert_eq!(layout.caret_at_visual_line_end(0), CaretPosition::EmptyText);
+    assert_eq!(
+        layout.visual_line_index_for_caret(CaretPosition::EmptyText),
+        0
+    );
+}
+
+#[test]
 fn caret_navigation_mid_word_soft_wrap_moves_between_insertion_positions() {
     let layout = layout("abcde", wrap_word_cluster_drop(), TextBounds::width(16.1));
 
