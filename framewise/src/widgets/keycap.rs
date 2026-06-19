@@ -1,8 +1,8 @@
 use crate::{
     draw::{DrawCmd, DrawCommands},
     layout::LayoutState,
-    text::{emit_text_in_rect, measure_text, TextBackend},
-    types::{Color, Layer, Rect},
+    text::{layout_text, TextBackend},
+    types::{Color, Layer, Rect, Vec2},
     widget::{LayoutInfo, WidgetContext},
 };
 
@@ -33,13 +33,13 @@ pub mod raw {
         spec: &KeycapCalcIntrinsicSizeSpec,
         text_backend: &mut T,
     ) -> crate::layout::IntrinsicSize {
-        let metrics = measure_text(
+        let layout = layout_text(
             text_backend,
             spec.text,
             spec.style.text_style,
             crate::text::TextBounds::UNBOUNDED,
         );
-        crate::layout::IntrinsicSize::preferred(metrics.logical_size)
+        crate::layout::IntrinsicSize::preferred(layout.metrics().logical_size)
     }
 
     /// Low-level keycap widget function.
@@ -81,7 +81,7 @@ pub mod raw {
 
         // text, centered
         if !spec.text.is_empty() {
-            let metrics = measure_text(
+            let layout = layout_text(
                 text_backend,
                 spec.text,
                 spec.style.text_style,
@@ -93,13 +93,11 @@ pub mod raw {
             let text_rect = spec
                 .style
                 .content_placement
-                .resolve_rect(spec.rect, metrics);
-            emit_text_in_rect(
+                .resolve_rect(spec.rect, layout.metrics().clone());
+            layout.emit_glyphs(
                 cmds,
                 text_backend,
-                spec.text,
-                spec.style.text_style,
-                text_rect,
+                Vec2::new(text_rect.x, text_rect.y),
                 spec.style.text_color,
                 spec.layer.get_z(),
             );

@@ -116,7 +116,7 @@ resource data and performs a no-scale glyph bitmap draw at
 `DrawGlyph::top_left`. That `top_left` is the final bitmap top-left. It is not a
 text baseline origin, cluster position, or unadjusted glyph origin.
 
-Measurement reports stable logical layout geometry. `measure_text(...)` and
+Measurement reports stable logical layout geometry. `layout_text(...)` and
 `TextLayout::metrics()` produce `TextMetrics`, whose `logical_size` is suitable
 for widget sizing. `TextMetrics::approx_ink_bounds` is an approximate,
 conservative layout-coordinate estimate calculated from mandatory backend
@@ -976,7 +976,7 @@ Text rendering is notoriously complex (shaping, hinting, atlas caching) and is a
 
 To draw text, the widget building pass must have access to a `TextBackend` provided by the application.
 
-- **Layout pass:** The widget calls `layout_text(...)` or `measure_text(...)`. Framewise asks the backend to shape text and provide line metrics, then builds an owned `TextLayout` containing nested working line/cluster state plus caret, hit-test, and metrics data.
+- **Layout pass:** The widget calls `layout_text(...)`. Framewise asks the backend to shape text and provide line metrics, then builds an owned `TextLayout` containing nested working line/cluster state plus caret, hit-test, and metrics data.
 - **Emission pass:** The widget calls `TextLayout::emit_glyphs(...)`. Framewise asks the backend to prepare each visible drawable layout glyph at its final glyph origin. Returned `DrawGlyph`s are appended to the `DrawCommands` glyph arena and referenced by `DrawCmd::GlyphRun`.
 - **Render pass:** The renderer reads each glyph run, resolves every `PreparedGlyphHandle` through backend/application resource tables, and draws each prepared bitmap at `DrawGlyph::top_left`.
 
@@ -991,7 +991,7 @@ A major visual challenge in GUI layouts is aligning text containers perfectly wi
 
 Framewise treats text bounds as **logical layout constraints**, not promises that all ink will be contained inside the supplied rectangle.
 
-For `measure_text(text_backend, text, style, TextBounds)`, `TextBounds` answers: "what logical space is available for shaping, wrapping, alignment, and overflow policy?" A bounded width constrains line breaking and horizontal overflow handling. A bounded height constrains which visual lines are admitted. These inputs are available before final ink is known, so they cannot honestly be tight ink boxes.
+For `layout_text(text_backend, text, style, TextBounds)`, `TextBounds` answers: "what logical space is available for shaping, wrapping, alignment, and overflow policy?" A bounded width constrains line breaking and horizontal overflow handling. A bounded height constrains which visual lines are admitted. These inputs are available before final ink is known, so they cannot honestly be tight ink boxes.
 
 For drawing, widgets lay text out against the concrete logical text block size and pass the block origin to `TextLayout::emit_glyphs(...)`. The logical block supplies the wrap width, vertical extent, and alignment frame. The renderer or widget may still choose to clip drawing to this rect, but clipping is a rendering policy; it is not the text layout contract.
 

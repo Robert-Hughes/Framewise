@@ -7,7 +7,7 @@
 
 use crate::text::SampleTextBackend;
 #[allow(unused_imports)]
-use framewise::text::{measure_text, TextBackend};
+use framewise::text::{layout_text, TextBackend};
 #[cfg(feature = "radio")]
 use framewise::RowState;
 use framewise::{
@@ -2715,12 +2715,13 @@ fn section_05_selection<CF>(
                 },
                 ..ChipStyle::from_theme(&b.theme)
             };
-            let metrics = measure_text(
+            let layout = layout_text(
                 b.text_backend,
                 label,
                 chip_style.text_style,
                 framewise::text::TextBounds::UNBOUNDED,
             );
+            let metrics = layout.metrics();
             let chip_w = (metrics.logical_size.x + 16.0).max(32.0);
             {
                 let state = &mut state.chip_states[i];
@@ -2738,12 +2739,13 @@ fn section_05_selection<CF>(
             },
             ..ChipStyle::from_theme(&b.theme)
         };
-        let add_metrics = measure_text(
+        let add_layout = layout_text(
             b.text_backend,
             "+ add backend",
             chip_style.text_style,
             framewise::text::TextBounds::UNBOUNDED,
         );
+        let add_metrics = add_layout.metrics();
         let add_w = (add_metrics.logical_size.x + 16.0).max(32.0);
         {
             let state = &mut state.chip_states[4];
@@ -4412,18 +4414,20 @@ fn footer_section<CF>(b: &mut WidgetContext<SampleTextBackend, ColumnState, CF>,
 
     let title_key = "FRAMEWISE";
     let title_value = "· WIDGET SPECIFICATION";
-    let title_key_metrics = measure_text(
+    let title_key_layout = layout_text(
         b.text_backend,
         title_key,
         footer_text,
         framewise::text::TextBounds::UNBOUNDED,
     );
-    let title_value_metrics = measure_text(
+    let title_key_metrics = title_key_layout.metrics();
+    let title_value_layout = layout_text(
         b.text_backend,
         title_value,
         footer_text,
         framewise::text::TextBounds::UNBOUNDED,
     );
+    let title_value_metrics = title_value_layout.metrics();
     let title_w = title_key_metrics.logical_size.x
         + FOOTER_PAIR_GAP
         + title_value_metrics.logical_size.x

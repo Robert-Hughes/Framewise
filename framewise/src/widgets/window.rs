@@ -2,7 +2,7 @@ use crate::{
     draw::{DrawCmd, DrawCommands},
     focus::FocusSystem,
     layout::{Layout, LayoutState},
-    text::{emit_text_in_rect, measure_text, TextBackend},
+    text::{layout_text, TextBackend},
     types::{Color, Layer, Rect, Vec2},
     widget::{LayoutInfo, WidgetContext},
 };
@@ -90,12 +90,13 @@ pub mod raw {
             z: spec.layer.get_z(),
         });
 
-        let title_metrics = measure_text(
+        let title_layout = layout_text(
             text_backend,
             spec.title,
             s.text_style,
             crate::text::TextBounds::UNBOUNDED,
         );
+        let title_metrics = title_layout.metrics();
         let tty = spec.rect.y + (title_h - title_metrics.logical_size.y) * 0.5;
         let title_text_rect = Rect::new(
             spec.rect.x + s.text_pad_x,
@@ -103,12 +104,10 @@ pub mod raw {
             title_metrics.logical_size.x,
             title_metrics.logical_size.y,
         );
-        emit_text_in_rect(
+        title_layout.emit_glyphs(
             cmds,
             text_backend,
-            spec.title,
-            s.text_style,
-            title_text_rect,
+            Vec2::new(title_text_rect.x, title_text_rect.y),
             s.title_text,
             spec.layer.get_z(),
         );
@@ -117,12 +116,13 @@ pub mod raw {
         let mut btn_x = spec.rect.x + spec.rect.w - s.button_right_pad;
         for btn in spec.buttons.iter().rev() {
             btn_x -= btn_size + s.button_gap;
-            let btn_metrics = measure_text(
+            let btn_layout = layout_text(
                 text_backend,
                 btn.symbol,
                 s.text_style,
                 crate::text::TextBounds::UNBOUNDED,
             );
+            let btn_metrics = btn_layout.metrics();
             let bty = spec.rect.y + (title_h - btn_metrics.logical_size.y) * 0.5;
             let btn_rect = Rect::new(
                 btn_x,
@@ -130,12 +130,10 @@ pub mod raw {
                 btn_metrics.logical_size.x,
                 btn_metrics.logical_size.y,
             );
-            emit_text_in_rect(
+            btn_layout.emit_glyphs(
                 cmds,
                 text_backend,
-                btn.symbol,
-                s.text_style,
-                btn_rect,
+                Vec2::new(btn_rect.x, btn_rect.y),
                 s.title_text,
                 spec.layer.get_z(),
             );
@@ -153,12 +151,13 @@ pub mod raw {
                 z: spec.layer.get_z(),
             });
             let status_text = spec.status_text.unwrap_or("");
-            let status_metrics = measure_text(
+            let status_layout = layout_text(
                 text_backend,
                 status_text,
                 s.text_style,
                 crate::text::TextBounds::UNBOUNDED,
             );
+            let status_metrics = status_layout.metrics();
             let sty = bar_y + (status_h - status_metrics.logical_size.y) * 0.5;
             let status_rect = Rect::new(
                 spec.rect.x + s.text_pad_x,
@@ -166,12 +165,10 @@ pub mod raw {
                 status_metrics.logical_size.x,
                 status_metrics.logical_size.y,
             );
-            emit_text_in_rect(
+            status_layout.emit_glyphs(
                 cmds,
                 text_backend,
-                status_text,
-                s.text_style,
-                status_rect,
+                Vec2::new(status_rect.x, status_rect.y),
                 s.status_text,
                 spec.layer.get_z(),
             );

@@ -4,9 +4,8 @@ use crate::{
     input::{Input, TextEvent},
     layout::{Align, IntrinsicSize, LayoutState},
     text::{
-        emit_text_in_rect, measure_text, CaretPosition, FontId, LineEndKind, LineHeight,
-        LineMetrics, TextBackend, TextBounds, TextFlow, TextLayout, TextLineAlign, TextMetrics,
-        TextStyle,
+        layout_text, CaretPosition, FontId, LineEndKind, LineHeight, LineMetrics, TextBackend,
+        TextBounds, TextFlow, TextLayout, TextLineAlign, TextMetrics, TextStyle,
     },
     types::{ClipRect, Color, Layer, Rect, Vec2},
     widget::{InputInfo, LayoutInfo, WidgetContext},
@@ -161,12 +160,13 @@ pub mod raw {
         state: &TextEditState,
         text_backend: &mut T,
     ) -> IntrinsicSize {
-        let metrics = measure_text(
+        let layout = layout_text(
             text_backend,
             &state.value,
             to_text_style(spec.style, spec.wrap, spec.line_align),
             TextBounds::UNBOUNDED,
         );
+        let metrics = layout.metrics();
         IntrinsicSize::preferred(Vec2::new(
             metrics.logical_size.x + (spec.style.border_width + spec.style.padding_x) * 2.0,
             (metrics.logical_size.y + (spec.style.border_width + spec.style.padding_y) * 2.0)
@@ -229,7 +229,7 @@ pub mod raw {
                 Some(state.value.as_str())
             };
             if let Some(text) = disabled_text {
-                let metrics = measure_text(
+                let layout = layout_text(
                     text_backend,
                     text,
                     text_style,
@@ -238,6 +238,7 @@ pub mod raw {
                         max_height: Some(content_rect.h),
                     },
                 );
+                let metrics = layout.metrics();
                 let ty = match spec.vertical_align {
                     Align::Start => content_rect.y,
                     Align::Center => {
@@ -251,12 +252,10 @@ pub mod raw {
                 } else {
                     spec.style.text_color
                 };
-                emit_text_in_rect(
+                layout.emit_glyphs(
                     cmds,
                     text_backend,
-                    text,
-                    text_style,
-                    text_rect,
+                    Vec2::new(text_rect.x, text_rect.y),
                     tint(color),
                     spec.layer.get_z(),
                 );
@@ -1148,12 +1147,19 @@ pub mod raw {
                     prepared.layout_width,
                     prepared.layout_height,
                 );
-                emit_text_in_rect(
-                    cmds,
+                let placeholder_layout = layout_text(
                     text_backend,
                     placeholder,
                     text_style,
-                    text_rect,
+                    TextBounds {
+                        max_width: Some(text_rect.w),
+                        max_height: Some(text_rect.h),
+                    },
+                );
+                placeholder_layout.emit_glyphs(
+                    cmds,
+                    text_backend,
+                    Vec2::new(text_rect.x, text_rect.y),
                     spec.style.placeholder_color,
                     spec.layer.get_z(),
                 );

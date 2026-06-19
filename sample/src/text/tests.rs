@@ -1,11 +1,19 @@
 use crate::text::types::{decode_prepared_glyph_token, GlyphSubpixelSlot, SampleGlyphToken};
 use crate::text::SampleTextBackend;
 use framewise::{
-    text::{layout_text, measure_text},
-    Color, DrawCommands, DrawGlyph, FontId, LineHeight, PrepareGlyphRequest, Rect, TextBackend,
-    TextBounds, TextFlow, TextLineAlign, TextStyle, Vec2,
+    text::layout_text, Color, DrawCommands, DrawGlyph, FontId, LineHeight, PrepareGlyphRequest,
+    Rect, TextBackend, TextBounds, TextFlow, TextLineAlign, TextStyle, Vec2,
 };
 use std::rc::Rc;
+
+fn measure_text<T: TextBackend>(
+    backend: &mut T,
+    text: &str,
+    style: TextStyle,
+    bounds: TextBounds,
+) -> framewise::TextMetrics {
+    layout_text(backend, text, style, bounds).metrics().clone()
+}
 
 fn sys() -> SampleTextBackend {
     SampleTextBackend::new()

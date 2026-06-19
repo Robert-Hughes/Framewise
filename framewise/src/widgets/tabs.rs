@@ -3,7 +3,7 @@ use crate::{
     focus::{FocusId, FocusSystem},
     input::Input,
     layout::{IntrinsicSize, LayoutState},
-    text::{emit_text_in_rect, measure_text, TextBackend, TextBounds, TextStyle},
+    text::{layout_text, TextBackend, TextBounds, TextStyle},
     types::{ClipRect, Color, Layer, Rect, Vec2},
     widget::{InputInfo, LayoutInfo, WidgetContext},
 };
@@ -43,8 +43,8 @@ pub mod raw {
         let s = spec.style;
         let mut total_w = 0.0_f32;
         for label in spec.items.iter() {
-            let metrics = measure_text(text_backend, label, s.text_style, TextBounds::UNBOUNDED);
-            total_w += metrics.logical_size.x + s.pad_x * 2.0;
+            let layout = layout_text(text_backend, label, s.text_style, TextBounds::UNBOUNDED);
+            total_w += layout.metrics().logical_size.x + s.pad_x * 2.0;
         }
         IntrinsicSize::preferred(Vec2::new(total_w, s.height))
     }
@@ -67,12 +67,19 @@ pub mod raw {
         let pad_x = s.pad_x;
         let underbar_h = s.underbar_height;
 
-        // Sum width of tabs
-        let mut total_w = 0.0;
-        for label in spec.items.iter() {
-            let metrics = measure_text(text_backend, label, s.text_style, TextBounds::UNBOUNDED);
-            total_w += metrics.logical_size.x + pad_x * 2.0;
-        }
+        // Pre-layout all labels.
+        let layouts: Vec<_> = spec
+            .items
+            .iter()
+            .map(|label| layout_text(text_backend, label, s.text_style, TextBounds::UNBOUNDED))
+            .collect();
+
+        // Calculate tab widths and total width
+        let widths: Vec<f32> = layouts
+            .iter()
+            .map(|l| l.metrics().logical_size.x + pad_x * 2.0)
+            .collect();
+        let total_w: f32 = widths.iter().sum();
 
         let (focused, clicked) = if spec.disabled {
             (false, false)
@@ -105,10 +112,7 @@ pub mod raw {
         // Mouse click segment detection
         if clicked && !spec.disabled && !spec.items.is_empty() {
             let mut x = spec.rect.x;
-            for (i, label) in spec.items.iter().enumerate() {
-                let metrics =
-                    measure_text(text_backend, label, s.text_style, TextBounds::UNBOUNDED);
-                let tab_w = metrics.logical_size.x + pad_x * 2.0;
+            for (i, &tab_w) in widths.iter().enumerate() {
                 let tab_rect = Rect::new(x, spec.rect.y, tab_w, tab_h);
                 let is_visible = spec.clip_rect.is_none_or(|c| c.contains(input.mouse_pos));
                 if tab_rect.contains(input.mouse_pos) && is_visible {
@@ -135,10 +139,10 @@ pub mod raw {
 
         let mut x = spec.rect.x;
 
-        for (i, label) in spec.items.iter().enumerate() {
+        for (i, (_label, layout)) in spec.items.iter().zip(layouts.iter()).enumerate() {
             let is_active = i == state.active_index;
 
-            let metrics = measure_text(text_backend, label, s.text_style, TextBounds::UNBOUNDED);
+            let metrics = layout.metrics();
             let tab_w = metrics.logical_size.x + pad_x * 2.0;
             let tab_rect = Rect::new(x, spec.rect.y, tab_w, tab_h);
 
@@ -160,12 +164,10 @@ pub mod raw {
             let text_color = if is_active { s.text } else { s.inactive_text };
             let ty = spec.rect.y + (tab_h - text_h) * 0.5;
             let text_rect = Rect::new(x + pad_x, ty, text_w, text_h);
-            emit_text_in_rect(
+            layout.emit_glyphs(
                 cmds,
                 text_backend,
-                label,
-                s.text_style,
-                text_rect,
+                Vec2::new(text_rect.x, text_rect.y),
                 tint(text_color),
                 spec.layer.get_z(),
             );

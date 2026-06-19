@@ -3,7 +3,7 @@ use crate::{
     focus::{FocusId, FocusSystem},
     input::Input,
     layout::LayoutState,
-    text::{emit_text_in_rect, measure_text, TextBackend},
+    text::{layout_text, TextBackend},
     types::{ClipRect, Color, Layer, Rect, Vec2},
     widget::{InputInfo, LayoutInfo, WidgetContext},
 };
@@ -45,26 +45,29 @@ pub mod raw {
         text_backend: &mut T,
     ) -> crate::layout::IntrinsicSize {
         let s = spec.style;
-        let label_metrics = measure_text(
+        let label_layout = layout_text(
             text_backend,
             spec.text,
             s.text_style,
             crate::text::TextBounds::UNBOUNDED,
         );
+        let label_metrics = label_layout.metrics();
         let min_text = format!("{:.2}", spec.min);
         let max_text = format!("{:.2}", spec.max);
-        let min_metrics = measure_text(
+        let min_layout = layout_text(
             text_backend,
             &min_text,
             s.text_style,
             crate::text::TextBounds::UNBOUNDED,
         );
-        let max_metrics = measure_text(
+        let min_metrics = min_layout.metrics();
+        let max_layout = layout_text(
             text_backend,
             &max_text,
             s.text_style,
             crate::text::TextBounds::UNBOUNDED,
         );
+        let max_metrics = max_layout.metrics();
         let value_w =
             min_metrics.logical_size.x.max(max_metrics.logical_size.x) + s.text_pad_x * 2.0;
         let label_w = label_metrics.logical_size.x + s.text_pad_x * 2.0;
@@ -100,12 +103,13 @@ pub mod raw {
         let s = spec.style;
 
         // Label width calculation
-        let text_metrics = measure_text(
+        let text_layout = layout_text(
             text_backend,
             spec.text,
             s.text_style,
             crate::text::TextBounds::UNBOUNDED,
         );
+        let text_metrics = text_layout.metrics();
         let text_w = text_metrics.logical_size.x + s.text_pad_x * 2.0;
         let value_x = spec.rect.x + text_w;
         let value_w = (spec.rect.w - text_w).max(20.0);
@@ -200,12 +204,10 @@ pub mod raw {
             text_metrics.logical_size.x,
             text_metrics.logical_size.y,
         );
-        emit_text_in_rect(
+        text_layout.emit_glyphs(
             cmds,
             text_backend,
-            spec.text,
-            s.text_style,
-            text_rect,
+            Vec2::new(text_rect.x, text_rect.y),
             tint(s.text_text),
             spec.layer.get_z(),
         );
@@ -222,12 +224,13 @@ pub mod raw {
         }
 
         let value_text = format!("{:.2}", state.value);
-        let value_metrics = measure_text(
+        let value_layout = layout_text(
             text_backend,
             &value_text,
             s.text_style,
             crate::text::TextBounds::UNBOUNDED,
         );
+        let value_metrics = value_layout.metrics();
         let vtx = value_x + (value_w - value_metrics.logical_size.x) * 0.5;
         let vty = spec.rect.y + (spec.rect.h - value_metrics.logical_size.y) * 0.5;
         let value_rect = Rect::new(
@@ -236,12 +239,10 @@ pub mod raw {
             value_metrics.logical_size.x,
             value_metrics.logical_size.y,
         );
-        emit_text_in_rect(
+        value_layout.emit_glyphs(
             cmds,
             text_backend,
-            &value_text,
-            s.text_style,
-            value_rect,
+            Vec2::new(value_rect.x, value_rect.y),
             tint(s.value_text),
             spec.layer.get_z(),
         );

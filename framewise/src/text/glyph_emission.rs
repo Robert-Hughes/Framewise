@@ -7,6 +7,12 @@ use crate::{
 impl<G: Copy> TextLayout<G> {
     /// Prepare and emit visible layout glyphs into a draw command glyph arena.
     ///
+    /// `origin` is the final screen position (`rect.x`, `rect.y`) passed to the backend so it
+    /// can apply subpixel offsets/positioning at the absolute draw location.
+    ///
+    /// The text backend may produce ink that extends outside the logical layout bounds of the
+    /// text. A caller that needs hard containment must apply clipping or provide padding.
+    ///
     /// The backend may return `None` for non-drawable glyphs such as spaces,
     /// newlines, zero-area glyphs, or failed rasterisation. Empty prepared
     /// output does not emit a `GlyphRun` command.

@@ -3,8 +3,8 @@ use crate::{
     focus::{FocusId, FocusSystem},
     input::Input,
     layout::LayoutState,
-    text::{emit_text_in_rect, measure_text, TextBackend},
-    types::{ClipRect, Color, Layer, Rect},
+    text::{layout_text, TextBackend},
+    types::{ClipRect, Color, Layer, Rect, Vec2},
     widget::{InputInfo, LayoutInfo, WidgetContext},
 };
 
@@ -42,25 +42,23 @@ pub mod raw {
         text_backend: &mut T,
     ) -> crate::layout::IntrinsicSize {
         let s = spec.style;
-        let mut widest = measure_text(
+        let mut widest = layout_text(
             text_backend,
             spec.value,
             s.text_style,
             crate::text::TextBounds::UNBOUNDED,
         )
+        .metrics()
         .logical_size
         .x;
         for item in spec.items {
-            widest = widest.max(
-                measure_text(
-                    text_backend,
-                    item,
-                    s.text_style,
-                    crate::text::TextBounds::UNBOUNDED,
-                )
-                .logical_size
-                .x,
+            let layout = layout_text(
+                text_backend,
+                item,
+                s.text_style,
+                crate::text::TextBounds::UNBOUNDED,
             );
+            widest = widest.max(layout.metrics().logical_size.x);
         }
         crate::layout::IntrinsicSize::preferred(crate::types::Vec2::new(
             (widest + s.pad_x * 2.0 + s.chevron_right).max(s.min_width),
@@ -242,12 +240,13 @@ pub mod raw {
             spec.value
         };
 
-        let val_metrics = measure_text(
+        let val_layout = layout_text(
             text_backend,
             display_text,
             s.text_style,
             crate::text::TextBounds::UNBOUNDED,
         );
+        let val_metrics = val_layout.metrics();
         let vty = r.y + (s.height - val_metrics.logical_size.y) * 0.5;
         let val_rect = Rect::new(
             r.x + s.pad_x,
@@ -255,24 +254,23 @@ pub mod raw {
             val_metrics.logical_size.x,
             val_metrics.logical_size.y,
         );
-        emit_text_in_rect(
+        val_layout.emit_glyphs(
             cmds,
             text_backend,
-            display_text,
-            s.text_style,
-            val_rect,
+            Vec2::new(val_rect.x, val_rect.y),
             tint(s.text),
             spec.layer.get_z(),
         );
 
         // Chevron "v".
         let chev_color = if state.open { s.accent } else { s.muted };
-        let chev_metrics = measure_text(
+        let chev_layout = layout_text(
             text_backend,
             "v",
             s.chevron_style,
             crate::text::TextBounds::UNBOUNDED,
         );
+        let chev_metrics = chev_layout.metrics();
         let cty = r.y + (s.height - chev_metrics.logical_size.y) * 0.5;
         let chev_rect = Rect::new(
             r.x + r.w - s.chevron_right,
@@ -280,12 +278,10 @@ pub mod raw {
             chev_metrics.logical_size.x,
             chev_metrics.logical_size.y,
         );
-        emit_text_in_rect(
+        chev_layout.emit_glyphs(
             cmds,
             text_backend,
-            "v",
-            s.chevron_style,
-            chev_rect,
+            Vec2::new(chev_rect.x, chev_rect.y),
             tint(chev_color),
             spec.layer.get_z(),
         );
@@ -333,12 +329,13 @@ pub mod raw {
                 }
 
                 let text_color = if is_selected { s.selected_text } else { s.text };
-                let opt_metrics = measure_text(
+                let opt_layout = layout_text(
                     text_backend,
                     opt,
                     s.text_style,
                     crate::text::TextBounds::UNBOUNDED,
                 );
+                let opt_metrics = opt_layout.metrics();
                 let oty = row_y + (row_h - opt_metrics.logical_size.y) * 0.5;
                 let opt_rect = Rect::new(
                     popup.x + s.pad_x + 2.0,
@@ -346,12 +343,10 @@ pub mod raw {
                     opt_metrics.logical_size.x,
                     opt_metrics.logical_size.y,
                 );
-                emit_text_in_rect(
+                opt_layout.emit_glyphs(
                     cmds,
                     text_backend,
-                    opt,
-                    s.text_style,
-                    opt_rect,
+                    Vec2::new(opt_rect.x, opt_rect.y),
                     tint(text_color),
                     spec.layer.get_z(),
                 );

@@ -8,10 +8,7 @@ use super::{
     OverflowY, TextBackend, TextBounds, TextLayout, TextLineAlign, TextMetrics, TextStyle,
     WorkingCluster, WorkingClusterSource, WorkingProcessedLine, WorkingRun,
 };
-use crate::{
-    draw::DrawCommands,
-    types::{Color, Rect, Vec2},
-};
+use crate::types::{Rect, Vec2};
 use std::hash::Hash;
 
 /// Lay out `text` with Framewise-owned text layout policy.
@@ -24,20 +21,11 @@ use std::hash::Hash;
 /// All positions in the returned layout are in block-local coordinates: the
 /// origin is the block's top-left corner, with y increasing downward. The caller
 /// translates the block to its final screen position when emitting glyphs.
-pub fn layout_text<B: TextBackend>(
-    backend: &mut B,
-    text: &str,
-    style: TextStyle,
-    bounds: TextBounds,
-) -> TextLayout<B::ShapedGlyphToken> {
-    TextLayout::from_backend(backend, text, style, bounds)
-}
-
-/// Measure `text` without preparing backend glyph resources for drawing.
 ///
-/// Used by widgets' intrinsic-sizing companions to learn how large a piece of
-/// text wants to be inside a given space, before the final rect is resolved.
-/// The returned [`TextMetrics`] reflect the style's flow policy applied against
+/// Layout is the measurement result. Widgets that need both size information and
+/// drawing/interactions should call `layout_text` once and reuse the returned `TextLayout`.
+///
+/// The returned [`TextLayout::metrics`] reflect the style's flow policy applied against
 /// `bounds`; see [`TextBounds`] for how bounded and unbounded axes drive reflow.
 ///
 /// The returned `logical_size` represents logical layout geometry:
@@ -55,63 +43,15 @@ pub fn layout_text<B: TextBackend>(
 /// `approx_ink_bounds`, because alignment shifts the admitted glyphs within the
 /// available line width.
 ///
-/// For empty `text`, this returns the empty-text metrics described on
+/// For empty `text`, the returned layout represents the empty-text metrics described on
 /// [`TextLayout`]: one normal-height line, zero width, and empty ink bounds.
-pub fn measure_text<B: TextBackend>(
+pub fn layout_text<B: TextBackend>(
     backend: &mut B,
     text: &str,
     style: TextStyle,
     bounds: TextBounds,
-) -> TextMetrics {
-    layout_text(backend, text, style, bounds).metrics().clone()
-}
-
-pub fn layout_text_in_rect<B: TextBackend>(
-    backend: &mut B,
-    text: &str,
-    style: TextStyle,
-    rect: Rect,
 ) -> TextLayout<B::ShapedGlyphToken> {
-    layout_text(
-        backend,
-        text,
-        style,
-        TextBounds {
-            max_width: Some(rect.w),
-            max_height: Some(rect.h),
-        },
-    )
-}
-
-/// Lay out `text` in `rect`, emit its drawable glyphs, and return the owned
-/// layout for further metrics, caret, or hit-testing queries.
-///
-/// `rect` is the fully concrete logical layout rect: its width is the
-/// wrap/alignment width, its height is the vertical layout or clip extent, and
-/// its origin is the block origin used for rendering.
-///
-/// The final screen position (`rect.x`, `rect.y`) is passed to the backend when
-/// glyphs are emitted so it can apply subpixel offsets/positioning at the
-/// absolute draw location.
-///
-/// The text backend may produce ink that extends outside this rect. A caller
-/// that needs hard containment must apply clipping or provide padding.
-///
-/// The returned [`TextLayout::metrics`] equal what [`measure_text`] would report
-/// for the same `text` and `style`, with
-/// `TextBounds { max_width: Some(rect.w), max_height: Some(rect.h) }`.
-pub fn emit_text_in_rect<B: TextBackend>(
-    commands: &mut DrawCommands,
-    backend: &mut B,
-    text: &str,
-    style: TextStyle,
-    rect: Rect,
-    color: Color,
-    z: u32,
-) -> TextLayout<B::ShapedGlyphToken> {
-    let layout = layout_text_in_rect(backend, text, style, rect);
-    layout.emit_glyphs(commands, backend, Vec2::new(rect.x, rect.y), color, z);
-    layout
+    TextLayout::from_backend(backend, text, style, bounds)
 }
 
 fn working_cluster_ink<G: Copy>(

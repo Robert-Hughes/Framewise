@@ -9,7 +9,7 @@ use crate::{
 };
 
 pub mod raw {
-    use crate::text::{layout_text, measure_text};
+    use crate::text::layout_text;
 
     use super::*;
 
@@ -37,13 +37,13 @@ pub mod raw {
         spec: &LabelCalcIntrinsicSizeSpec,
         text_backend: &mut T,
     ) -> crate::layout::IntrinsicSize {
-        let t = measure_text(
+        let layout = layout_text(
             text_backend,
             spec.text,
             spec.style.text_style,
             crate::text::TextBounds::UNBOUNDED,
         );
-        crate::layout::IntrinsicSize::preferred(t.logical_size)
+        crate::layout::IntrinsicSize::preferred(layout.metrics().logical_size)
     }
 
     /// Low-level label widget function.

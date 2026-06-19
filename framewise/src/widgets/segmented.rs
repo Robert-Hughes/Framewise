@@ -3,7 +3,7 @@ use crate::{
     focus::{FocusId, FocusSystem},
     input::Input,
     layout::LayoutState,
-    text::{emit_text_in_rect, measure_text, TextBackend},
+    text::{layout_text, TextBackend},
     types::{ClipRect, Color, Layer, Rect, Vec2},
     widget::{InputInfo, LayoutInfo, WidgetContext},
 };
@@ -45,14 +45,13 @@ pub mod raw {
             .items
             .iter()
             .map(|text| {
-                measure_text(
+                let layout = layout_text(
                     text_backend,
                     text,
                     s.text_style,
                     crate::text::TextBounds::UNBOUNDED,
-                )
-                .logical_size
-                .x + s.pad_x * 2.0
+                );
+                layout.metrics().logical_size.x + s.pad_x * 2.0
             })
             .sum();
         crate::layout::IntrinsicSize::preferred(Vec2::new(total_w, s.height))
@@ -87,12 +86,12 @@ pub mod raw {
         let h = s.height;
         let pad_x = s.pad_x;
 
-        // Pre-measure all labels to get their widths.
-        let metrics: Vec<_> = spec
+        // Pre-layout all labels to get their widths.
+        let layouts: Vec<_> = spec
             .items
             .iter()
             .map(|text| {
-                measure_text(
+                layout_text(
                     text_backend,
                     text,
                     s.text_style,
@@ -100,9 +99,9 @@ pub mod raw {
                 )
             })
             .collect();
-        let widths: Vec<f32> = metrics
+        let widths: Vec<f32> = layouts
             .iter()
-            .map(|m| m.logical_size.x + pad_x * 2.0)
+            .map(|l| l.metrics().logical_size.x + pad_x * 2.0)
             .collect();
         let total_w: f32 = widths.iter().sum();
 
@@ -168,13 +167,14 @@ pub mod raw {
         });
 
         let mut x = spec.rect.x;
-        for (i, ((label, metric), &w)) in spec
+        for (i, ((_label, layout), &w)) in spec
             .items
             .iter()
-            .zip(metrics.iter())
+            .zip(layouts.iter())
             .zip(widths.iter())
             .enumerate()
         {
+            let metric = layout.metrics();
             let is_active = i == state.active_index;
             let seg_rect = Rect::new(x, spec.rect.y, w, h);
 
@@ -215,12 +215,10 @@ pub mod raw {
             let text_color = if is_active { s.active_text } else { s.text };
             let ty = spec.rect.y + (h - metric.logical_size.y) * 0.5;
             let text_rect = Rect::new(x + pad_x, ty, metric.logical_size.x, metric.logical_size.y);
-            emit_text_in_rect(
+            layout.emit_glyphs(
                 cmds,
                 text_backend,
-                label,
-                s.text_style,
-                text_rect,
+                Vec2::new(text_rect.x, text_rect.y),
                 tint(text_color),
                 spec.layer.get_z(),
             );

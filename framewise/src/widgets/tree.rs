@@ -1,7 +1,7 @@
 use crate::{
     draw::{DrawCmd, DrawCommands},
     layout::{IntrinsicSize, LayoutState},
-    text::{emit_text_in_rect, measure_text, TextBackend, TextBounds, TextStyle},
+    text::{layout_text, TextBackend, TextBounds, TextStyle},
     types::{Color, Layer, Rect, Vec2},
     widget::{LayoutInfo, WidgetContext},
 };
@@ -108,8 +108,9 @@ pub mod raw {
                 Some(false) => ">",
                 None => " ",
             };
-            let caret_metrics =
-                measure_text(text_backend, caret_sym, s.text_style, TextBounds::UNBOUNDED);
+            let caret_layout =
+                layout_text(text_backend, caret_sym, s.text_style, TextBounds::UNBOUNDED);
+            let caret_metrics = caret_layout.metrics();
             let cty = y + (row_h - caret_metrics.logical_size.y) * 0.5;
             let caret_rect = Rect::new(
                 indent_x,
@@ -117,19 +118,18 @@ pub mod raw {
                 caret_metrics.logical_size.x,
                 caret_metrics.logical_size.y,
             );
-            emit_text_in_rect(
+            caret_layout.emit_glyphs(
                 cmds,
                 text_backend,
-                caret_sym,
-                s.text_style,
-                caret_rect,
+                Vec2::new(caret_rect.x, caret_rect.y),
                 caret_color,
                 spec.layer.get_z(),
             );
 
             // Label.
-            let label_metrics =
-                measure_text(text_backend, row.label, s.text_style, TextBounds::UNBOUNDED);
+            let label_layout =
+                layout_text(text_backend, row.label, s.text_style, TextBounds::UNBOUNDED);
+            let label_metrics = label_layout.metrics();
             let lty = y + (row_h - label_metrics.logical_size.y) * 0.5;
             let label_rect = Rect::new(
                 indent_x + caret_w,
@@ -137,20 +137,19 @@ pub mod raw {
                 label_metrics.logical_size.x,
                 label_metrics.logical_size.y,
             );
-            emit_text_in_rect(
+            label_layout.emit_glyphs(
                 cmds,
                 text_backend,
-                row.label,
-                s.text_style,
-                label_rect,
+                Vec2::new(label_rect.x, label_rect.y),
                 text_color,
                 spec.layer.get_z(),
             );
 
             // Meta (right-aligned).
             if let Some(meta) = row.meta {
-                let meta_metrics =
-                    measure_text(text_backend, meta, s.text_style, TextBounds::UNBOUNDED);
+                let meta_layout =
+                    layout_text(text_backend, meta, s.text_style, TextBounds::UNBOUNDED);
+                let meta_metrics = meta_layout.metrics();
                 let mx = outer.x + w - pad_x - meta_metrics.logical_size.x;
                 let mty = y + (row_h - meta_metrics.logical_size.y) * 0.5;
                 let meta_rect = Rect::new(
@@ -159,12 +158,10 @@ pub mod raw {
                     meta_metrics.logical_size.x,
                     meta_metrics.logical_size.y,
                 );
-                emit_text_in_rect(
+                meta_layout.emit_glyphs(
                     cmds,
                     text_backend,
-                    meta,
-                    s.text_style,
-                    meta_rect,
+                    Vec2::new(meta_rect.x, meta_rect.y),
                     meta_color,
                     spec.layer.get_z(),
                 );

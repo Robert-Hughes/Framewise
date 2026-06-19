@@ -92,11 +92,14 @@ pub fn react_layout_violation<T: TextBackend>(
             // Label at the top-left corner, in the same red.
             let style =
                 crate::text::TextStyle::new(font, 12.0, 400, crate::text::TextFlow::single_line());
-            let layout = crate::text::layout_text_in_rect(
+            let layout = crate::text::layout_text(
                 text_backend,
                 &violation.to_string(),
                 style,
-                fallback_rect,
+                crate::text::TextBounds {
+                    max_width: Some(fallback_rect.w),
+                    max_height: Some(fallback_rect.h),
+                },
             );
             layout.emit_glyphs(
                 cmds,

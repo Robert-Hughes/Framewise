@@ -1,7 +1,7 @@
 use crate::{
     draw::{DrawCmd, DrawCommands},
     layout::LayoutState,
-    text::{layout_text, measure_text, TextBackend},
+    text::{layout_text, TextBackend},
     types::{Color, Layer, Rect, Vec2},
     widget::{LayoutInfo, WidgetContext},
 };
@@ -32,12 +32,13 @@ pub mod raw {
         spec: &StatusCalcIntrinsicSizeSpec,
         text_backend: &mut T,
     ) -> crate::layout::IntrinsicSize {
-        let metrics = measure_text(
+        let layout = layout_text(
             text_backend,
             spec.text,
             spec.style.text_style,
             crate::text::TextBounds::UNBOUNDED,
         );
+        let metrics = layout.metrics();
         let size = crate::types::Vec2::new(
             spec.style.dot_size + spec.style.gap + metrics.logical_size.x,
             spec.style.dot_size.max(metrics.logical_size.y),

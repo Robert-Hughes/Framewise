@@ -1242,14 +1242,15 @@ fn metrics_report_approx_ink_bounds_separately_from_logical_size() {
 }
 
 #[test]
-fn measure_text_reports_backend_approx_ink_bounds() {
+fn layout_text_metrics_reports_backend_approx_ink_bounds() {
     let mut backend = ApproxInkBackend;
-    let metrics = measure_text(
+    let layout = layout_text(
         &mut backend,
         "x",
         style(TextFlow::single_line()),
         TextBounds::UNBOUNDED,
     );
+    let metrics = layout.metrics();
 
     assert_eq!(metrics.logical_size, Vec2::new(30.0, 20.0));
     assert_eq!(metrics.approx_ink_bounds, Rect::new(-2.0, 3.0, 18.0, 10.0));

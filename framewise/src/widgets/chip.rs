@@ -9,7 +9,7 @@ use crate::{
 };
 
 pub mod raw {
-    use crate::text::{layout_text_in_rect, measure_text};
+    use crate::text::layout_text;
 
     use super::*;
 
@@ -42,13 +42,13 @@ pub mod raw {
         spec: &ChipCalcIntrinsicSizeSpec,
         text_backend: &mut T,
     ) -> crate::layout::IntrinsicSize {
-        let t = measure_text(
+        let layout = layout_text(
             text_backend,
             spec.text,
             spec.style.text_style,
             crate::text::TextBounds::UNBOUNDED,
         );
-        crate::layout::IntrinsicSize::preferred(t.logical_size)
+        crate::layout::IntrinsicSize::preferred(layout.metrics().logical_size)
     }
 
     /// Low-level chip widget function.
@@ -104,7 +104,15 @@ pub mod raw {
         let h = s.height;
         let pad_x = s.pad_x;
 
-        let layout = layout_text_in_rect(text_backend, spec.text, spec.style.text_style, spec.rect);
+        let layout = layout_text(
+            text_backend,
+            spec.text,
+            spec.style.text_style,
+            crate::text::TextBounds {
+                max_width: Some(spec.rect.w),
+                max_height: Some(spec.rect.h),
+            },
+        );
         let w = spec.rect.w.max(32.0);
         let r = Rect::new(spec.rect.x, spec.rect.y, w, h);
 

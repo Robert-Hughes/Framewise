@@ -9,7 +9,7 @@ use crate::{
 };
 
 pub mod raw {
-    use crate::text::{layout_text, measure_text};
+    use crate::text::layout_text;
 
     use super::*;
 
@@ -46,12 +46,13 @@ pub mod raw {
         text_backend: &mut T,
     ) -> crate::layout::IntrinsicSize {
         let style = &spec.style;
-        let t = measure_text(
+        let layout = layout_text(
             text_backend,
             spec.text,
             style.text_style,
             crate::text::TextBounds::UNBOUNDED,
         );
+        let t = layout.metrics();
         let w = t.logical_size.x + 2.0 * style.pad_x;
         let h = (t.logical_size.y + 2.0 * style.pad_y).max(style.min_height);
         crate::layout::IntrinsicSize::preferred(crate::types::Vec2::new(w, h))

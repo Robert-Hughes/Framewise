@@ -1,7 +1,7 @@
 use criterion::{black_box, criterion_group, criterion_main, BatchSize, Criterion};
 use framewise::{
-    text::{layout_text, measure_text},
-    Color, DrawCommands, FontId, LineHeight, TextBounds, TextFlow, TextStyle, Vec2,
+    text::layout_text, Color, DrawCommands, FontId, LineHeight, TextBounds, TextFlow, TextStyle,
+    Vec2,
 };
 use sample::text::SampleTextBackend;
 
@@ -25,8 +25,8 @@ fn warm_text_caches(
     origin: Vec2,
 ) {
     for _ in 0..50 {
-        let metrics = measure_text(backend, BENCH_TEXT, style, bounds);
         let layout = layout_text(backend, BENCH_TEXT, style, bounds);
+        let metrics = layout.metrics();
 
         let mut commands = DrawCommands::new();
         layout.emit_glyphs(&mut commands, backend, origin, Color::WHITE, 0);
@@ -52,8 +52,8 @@ fn bench_text_hot_path(c: &mut Criterion) {
         b.iter_batched(
             DrawCommands::new,
             |mut commands| {
-                let metrics = measure_text(&mut backend, black_box(BENCH_TEXT), style, bounds);
                 let layout = layout_text(&mut backend, black_box(BENCH_TEXT), style, bounds);
+                let metrics = layout.metrics();
 
                 layout.emit_glyphs(&mut commands, &mut backend, origin, Color::WHITE, 0);
 

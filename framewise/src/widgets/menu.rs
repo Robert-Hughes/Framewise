@@ -1,7 +1,7 @@
 use crate::{
     draw::{DrawCmd, DrawCommands},
     layout::LayoutState,
-    text::{emit_text_in_rect, measure_text, TextBackend},
+    text::{layout_text, TextBackend},
     types::{Color, Layer, Rect, Vec2},
     widget::{LayoutInfo, WidgetContext},
 };
@@ -43,24 +43,22 @@ pub mod raw {
                     label, shortcut, ..
                 } => {
                     height += s.row_height;
-                    let label_w = measure_text(
+                    let label_layout = layout_text(
                         text_backend,
                         label,
                         s.label_style,
                         crate::text::TextBounds::UNBOUNDED,
-                    )
-                    .logical_size
-                    .x;
+                    );
+                    let label_w = label_layout.metrics().logical_size.x;
                     let shortcut_w = shortcut
                         .map(|sc| {
-                            measure_text(
+                            let sc_layout = layout_text(
                                 text_backend,
                                 sc,
                                 s.meta_style,
                                 crate::text::TextBounds::UNBOUNDED,
-                            )
-                            .logical_size
-                            .x
+                            );
+                            sc_layout.metrics().logical_size.x
                         })
                         .unwrap_or(0.0);
                     widest = widest.max(label_w + shortcut_w + s.pad_x * 3.0);
@@ -68,16 +66,13 @@ pub mod raw {
                 MenuItem::Separator => height += s.separator_height,
                 MenuItem::Group(label) => {
                     height += s.group_height;
-                    widest = widest.max(
-                        measure_text(
-                            text_backend,
-                            label,
-                            s.meta_style,
-                            crate::text::TextBounds::UNBOUNDED,
-                        )
-                        .logical_size
-                        .x + s.pad_x * 2.0,
+                    let group_layout = layout_text(
+                        text_backend,
+                        label,
+                        s.meta_style,
+                        crate::text::TextBounds::UNBOUNDED,
                     );
+                    widest = widest.max(group_layout.metrics().logical_size.x + s.pad_x * 2.0);
                 }
             }
         }
@@ -146,24 +141,23 @@ pub mod raw {
                 }
                 MenuItem::Group(label) => {
                     let ty = y + s.group_text_y;
-                    let metrics = measure_text(
+                    let layout = layout_text(
                         text_backend,
                         label,
                         s.meta_style,
                         crate::text::TextBounds::UNBOUNDED,
                     );
+                    let metrics = layout.metrics();
                     let rect = Rect::new(
                         outer.x + pad_x,
                         ty,
                         metrics.logical_size.x,
                         metrics.logical_size.y,
                     );
-                    emit_text_in_rect(
+                    layout.emit_glyphs(
                         cmds,
                         text_backend,
-                        label,
-                        s.meta_style,
-                        rect,
+                        Vec2::new(rect.x, rect.y),
                         s.muted,
                         spec.layer.get_z(),
                     );
@@ -194,12 +188,13 @@ pub mod raw {
                     } else {
                         tint(s.text)
                     };
-                    let metrics = measure_text(
+                    let layout = layout_text(
                         text_backend,
                         label,
                         s.label_style,
                         crate::text::TextBounds::UNBOUNDED,
                     );
+                    let metrics = layout.metrics();
                     let ty = y + (row_h - metrics.logical_size.y) * 0.5;
                     let rect = Rect::new(
                         outer.x + pad_x,
@@ -207,12 +202,10 @@ pub mod raw {
                         metrics.logical_size.x,
                         metrics.logical_size.y,
                     );
-                    emit_text_in_rect(
+                    layout.emit_glyphs(
                         cmds,
                         text_backend,
-                        label,
-                        s.label_style,
-                        rect,
+                        Vec2::new(rect.x, rect.y),
                         text_color,
                         spec.layer.get_z(),
                     );
@@ -228,12 +221,13 @@ pub mod raw {
                         } else {
                             tint(s.muted)
                         };
-                        let sc_metrics = measure_text(
+                        let sc_layout = layout_text(
                             text_backend,
                             sc,
                             s.meta_style,
                             crate::text::TextBounds::UNBOUNDED,
                         );
+                        let sc_metrics = sc_layout.metrics();
                         let sc_x = outer.x + w - pad_x - sc_metrics.logical_size.x;
                         let sc_ty = y + (row_h - sc_metrics.logical_size.y) * 0.5;
                         let sc_rect = Rect::new(
@@ -242,12 +236,10 @@ pub mod raw {
                             sc_metrics.logical_size.x,
                             sc_metrics.logical_size.y,
                         );
-                        emit_text_in_rect(
+                        sc_layout.emit_glyphs(
                             cmds,
                             text_backend,
-                            sc,
-                            s.meta_style,
-                            sc_rect,
+                            Vec2::new(sc_rect.x, sc_rect.y),
                             sc_color,
                             spec.layer.get_z(),
                         );

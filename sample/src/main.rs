@@ -171,7 +171,7 @@ impl App {
         win_size: (f32, f32),
         text_backend: &mut SampleTextBackend,
     ) -> framewise::DrawCommands {
-        use framewise::{Color, DrawCmd, FontId, Rect, TextBounds, TextFlow};
+        use framewise::{text::layout_text, Color, DrawCmd, FontId, Rect, TextBounds, TextFlow};
         let mut cmds = framewise::DrawCommands::new();
         cmds.push(DrawCmd::FillRect {
             anti_alias: false,
@@ -181,20 +181,15 @@ impl App {
         });
         let flow = TextFlow::single_line();
         let style = framewise::TextStyle::new(FontId(1), 24.0, 400, flow);
-        let m = framewise::text::measure_text(
+        let layout = layout_text(
             text_backend,
             "Feature not enabled",
             style,
             TextBounds::UNBOUNDED,
         );
+        let m = layout.metrics();
         let cx = (win_size.0 - m.logical_size.x) * 0.5;
         let cy = (win_size.1 - m.logical_size.y) * 0.5;
-        let layout = framewise::text::layout_text_in_rect(
-            text_backend,
-            "Feature not enabled",
-            style,
-            Rect::new(cx, cy, m.logical_size.x, m.logical_size.y),
-        );
         layout.emit_glyphs(
             &mut cmds,
             text_backend,
