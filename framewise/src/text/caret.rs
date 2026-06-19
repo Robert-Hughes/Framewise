@@ -8,11 +8,14 @@ impl<G> TextLayout<G> {
     /// ink box of the surrounding text. `EmptyText` returns the start of the
     /// single empty line with a positive height.
     ///
-    /// Hard newline clusters and collapsed soft-wrap-boundary whitespace have
-    /// two distinct visual anchors: `BeforeCluster` is on the previous visual
-    /// line, while `AfterCluster` is at the start of the following visual line.
-    /// If the boundary whitespace is terminal, `AfterCluster` is on the
-    /// following empty visual line created for editor feedback.
+    /// Mid-word soft wraps can have two visual anchors for one insertion byte:
+    /// `AfterCluster` on the previous visual line and `BeforeCluster` on the
+    /// following visual line. Hard newline clusters and collapsed
+    /// soft-wrap-boundary whitespace are source-distinct boundary clusters:
+    /// `BeforeCluster` is on the previous visual line, while `AfterCluster` is
+    /// at the start of the following visual line. If boundary whitespace is
+    /// terminal, `AfterCluster` is on the following empty visual line created
+    /// for editor feedback.
     pub fn caret_geom(&self, position: CaretPosition) -> CaretGeom {
         let Some((line_idx, _, cluster)) = self.find_caret_cluster(position) else {
             let line = self
@@ -60,8 +63,11 @@ impl<G> TextLayout<G> {
     ///   line's first cluster.
     /// - Points to the right of a line clamp to the end of the visible content
     ///   on that line. If the line ends with a hard newline or collapsed
-    ///   soft-wrap boundary, this returns a caret anchored to that boundary
-    ///   cluster so the visual line is preserved.
+    ///   soft-wrap boundary, this returns `BeforeCluster` for that source
+    ///   boundary cluster so the previous visual line is preserved. At
+    ///   mid-word soft wraps, this returns `AfterCluster` for the previous
+    ///   line's last cluster, which may have the same insertion byte as the
+    ///   following line's `BeforeCluster`.
     /// - Points on an empty line return the visual position for that empty line:
     ///   `EmptyText` for empty input, or `AfterCluster` for the previous hard
     ///   newline or terminal collapsed soft-wrap boundary when the empty line
@@ -198,50 +204,70 @@ impl<G> TextLayout<G> {
     /// Move one shaped cluster boundary to the left.
     ///
     /// Movement follows the prepared text's cluster model, not UTF-8 scalar
-    /// boundaries. When movement is possible, the returned caret maps to a
-    /// different insertion byte from `position`. At hard newlines and collapsed
-    /// soft-wrap-boundary whitespace, the returned [`CaretPosition`] preserves
-    /// the visual side reached by moving from the right, such as `AfterCluster`
-    /// for the boundary character when landing immediately after it.
+    /// boundaries. When movement crosses a visual line boundary, the returned
+    /// [`CaretPosition`] is the nearest visually distinct caret position to the
+    /// left, not a same-geometry intermediate anchor.
     pub fn previous_caret_position(&self, position: CaretPosition) -> CaretPosition {
-        let byte_index = position.insertion_byte_hint();
         if let CaretPosition::BeforeCluster { cluster_byte_start } = position {
-            if let Some(cluster) = self
-                .iter_clusters()
-                .map(|(_, _, cluster)| cluster)
-                .find(|cluster| cluster.byte_start == cluster_byte_start)
+            if let Some((line_idx, cluster_idx, cluster)) =
+                self.find_exact_cluster(cluster_byte_start)
             {
-                if let Some(previous) = self
-                    .iter_clusters_rev()
-                    .find(|(_, _, previous)| {
-                        previous.byte_end == cluster.byte_start
-                            && (previous.is_hard_break || previous.is_soft_wrap_boundary)
-                    })
-                    .map(|(_, _, previous)| previous)
-                {
-                    return CaretPosition::AfterCluster {
-                        cluster_byte_start: previous.byte_start,
-                        cluster_byte_end: previous.byte_end,
-                    };
+                if cluster_idx == 0 {
+                    if let Some(previous) = self
+                        .lines
+                        .get(..line_idx)
+                        .and_then(|lines| lines.iter().rev().find_map(|line| line.clusters.last()))
+                        .filter(|previous| previous.byte_end == cluster.byte_start)
+                    {
+                        if previous.is_hard_break || previous.is_soft_wrap_boundary {
+                            return CaretPosition::BeforeCluster {
+                                cluster_byte_start: previous.byte_start,
+                            };
+                        }
+                    }
                 }
             }
         }
+
+        let byte_index = position.insertion_byte_hint();
         let Some(target_byte) = self.previous_insertion_boundary(byte_index) else {
             return self.caret_position_at_insertion_byte(0);
         };
-        self.caret_position_for_movement_target(target_byte)
+        self.caret_position_before_insertion_boundary(target_byte)
             .unwrap_or_else(|| self.caret_position_at_insertion_byte(target_byte))
     }
 
     /// Move one shaped cluster boundary to the right.
     ///
     /// Movement follows the prepared text's cluster model, not UTF-8 scalar
-    /// boundaries. When movement is possible, the returned caret maps to a
-    /// different insertion byte from `position`. At hard newlines and collapsed
-    /// soft-wrap-boundary whitespace, the returned [`CaretPosition`] preserves
-    /// the visual side reached by moving from the left, such as `BeforeCluster`
-    /// for the boundary character when landing immediately before it.
+    /// boundaries. When movement crosses a visual line boundary, the returned
+    /// [`CaretPosition`] is the nearest visually distinct caret position to the
+    /// right, not a same-geometry intermediate anchor.
     pub fn next_caret_position(&self, position: CaretPosition) -> CaretPosition {
+        match position {
+            CaretPosition::BeforeCluster { cluster_byte_start } => {
+                if let Some((line_idx, cluster_idx, cluster)) =
+                    self.find_exact_cluster(cluster_byte_start)
+                {
+                    if cluster.is_hard_break || cluster.is_soft_wrap_boundary {
+                        return CaretPosition::AfterCluster {
+                            cluster_byte_start: cluster.byte_start,
+                            cluster_byte_end: cluster.byte_end,
+                        };
+                    }
+
+                    if self.next_cluster_after(line_idx, cluster_idx).is_none() {
+                        return CaretPosition::AfterCluster {
+                            cluster_byte_start: cluster.byte_start,
+                            cluster_byte_end: cluster.byte_end,
+                        };
+                    }
+                }
+            }
+            CaretPosition::AfterCluster { .. } => {}
+            CaretPosition::EmptyText => {}
+        }
+
         let byte_index = position.insertion_byte_hint();
         let Some(target_byte) = self.next_insertion_boundary(byte_index) else {
             return self
@@ -252,9 +278,10 @@ impl<G> TextLayout<G> {
                 })
                 .unwrap_or(CaretPosition::EmptyText);
         };
-        self.caret_position_for_movement_target(target_byte)
+        self.caret_position_after_insertion_boundary(target_byte)
             .unwrap_or_else(|| self.caret_position_at_insertion_byte(target_byte))
     }
+
     fn find_caret_cluster(
         &self,
         position: CaretPosition,
@@ -267,8 +294,7 @@ impl<G> TextLayout<G> {
             CaretPosition::EmptyText => return None,
         };
 
-        self.iter_clusters()
-            .find(|(_, _, cluster)| cluster.byte_start == cluster_byte_start)
+        self.find_exact_cluster(cluster_byte_start)
             .or_else(|| {
                 self.iter_clusters().find(|(_, _, cluster)| {
                     cluster_byte_start <= cluster.byte_start
@@ -276,6 +302,77 @@ impl<G> TextLayout<G> {
                 })
             })
             .or_else(|| self.iter_clusters().next_back())
+    }
+
+    fn find_exact_cluster(
+        &self,
+        cluster_byte_start: usize,
+    ) -> Option<(usize, usize, &WorkingCluster)> {
+        self.iter_clusters()
+            .find(|(_, _, cluster)| cluster.byte_start == cluster_byte_start)
+    }
+
+    fn next_cluster_after(
+        &self,
+        line_idx: usize,
+        cluster_idx: usize,
+    ) -> Option<(usize, usize, &WorkingCluster)> {
+        self.lines
+            .iter()
+            .enumerate()
+            .skip(line_idx)
+            .flat_map(|(candidate_line_idx, line)| {
+                let start_idx = if candidate_line_idx == line_idx {
+                    cluster_idx + 1
+                } else {
+                    0
+                };
+                line.clusters.iter().enumerate().skip(start_idx).map(
+                    move |(candidate_cluster_idx, cluster)| {
+                        (candidate_line_idx, candidate_cluster_idx, cluster)
+                    },
+                )
+            })
+            .next()
+    }
+
+    fn caret_position_before_insertion_boundary(
+        &self,
+        target_byte: usize,
+    ) -> Option<CaretPosition> {
+        if let Some((_, _, cluster)) = self
+            .iter_clusters()
+            .find(|(_, _, cluster)| cluster.byte_start == target_byte)
+        {
+            return Some(CaretPosition::BeforeCluster {
+                cluster_byte_start: cluster.byte_start,
+            });
+        }
+
+        self.iter_clusters()
+            .find(|(_, _, cluster)| cluster.byte_end == target_byte)
+            .map(|(_, _, cluster)| CaretPosition::AfterCluster {
+                cluster_byte_start: cluster.byte_start,
+                cluster_byte_end: cluster.byte_end,
+            })
+    }
+
+    fn caret_position_after_insertion_boundary(&self, target_byte: usize) -> Option<CaretPosition> {
+        if let Some((_, _, cluster)) = self
+            .iter_clusters()
+            .find(|(_, _, cluster)| cluster.byte_start == target_byte)
+        {
+            return Some(CaretPosition::BeforeCluster {
+                cluster_byte_start: cluster.byte_start,
+            });
+        }
+
+        self.iter_clusters()
+            .find(|(_, _, cluster)| cluster.byte_end == target_byte)
+            .map(|(_, _, cluster)| CaretPosition::AfterCluster {
+                cluster_byte_start: cluster.byte_start,
+                cluster_byte_end: cluster.byte_end,
+            })
     }
 
     fn empty_line_caret_position(&self, line_idx: usize) -> CaretPosition {
@@ -310,29 +407,6 @@ impl<G> TextLayout<G> {
             .min()
     }
 
-    fn caret_position_for_movement_target(&self, target_byte: usize) -> Option<CaretPosition> {
-        if let Some((_, _, cluster)) = self.iter_clusters().find(|(_, _, cluster)| {
-            (cluster.is_hard_break || cluster.is_soft_wrap_boundary)
-                && cluster.byte_end == target_byte
-        }) {
-            return Some(CaretPosition::AfterCluster {
-                cluster_byte_start: cluster.byte_start,
-                cluster_byte_end: cluster.byte_end,
-            });
-        }
-
-        if let Some((_, _, cluster)) = self.iter_clusters().find(|(_, _, cluster)| {
-            (cluster.is_hard_break || cluster.is_soft_wrap_boundary)
-                && cluster.byte_start == target_byte
-        }) {
-            return Some(CaretPosition::BeforeCluster {
-                cluster_byte_start: cluster.byte_start,
-            });
-        }
-
-        None
-    }
-
     fn iter_clusters(&self) -> impl DoubleEndedIterator<Item = (usize, usize, &WorkingCluster)> {
         self.lines.iter().enumerate().flat_map(|(line_idx, line)| {
             line.clusters
@@ -340,20 +414,6 @@ impl<G> TextLayout<G> {
                 .enumerate()
                 .map(move |(cluster_idx, cluster)| (line_idx, cluster_idx, cluster))
         })
-    }
-
-    fn iter_clusters_rev(&self) -> impl Iterator<Item = (usize, usize, &WorkingCluster)> {
-        self.lines
-            .iter()
-            .enumerate()
-            .rev()
-            .flat_map(|(line_idx, line)| {
-                line.clusters
-                    .iter()
-                    .enumerate()
-                    .rev()
-                    .map(move |(cluster_idx, cluster)| (line_idx, cluster_idx, cluster))
-            })
     }
 
     fn first_cluster(&self) -> Option<&WorkingCluster> {

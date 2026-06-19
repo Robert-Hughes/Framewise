@@ -480,10 +480,12 @@ pub struct LineMetrics {
     /// Byte end index of the line in the original string (exclusive).
     ///
     /// `byte_start..byte_end` is the source range represented by this visual
-    /// line. A line's `byte_end` is not, by itself, a complete caret position:
-    /// at soft-wrap boundaries, the previous line's end and the next line's
-    /// start may share an insertion boundary while corresponding to different
-    /// [`CaretPosition`] values.
+    /// line. A line's `byte_end` is not, by itself, a complete caret position.
+    /// At mid-word soft wraps, the previous line's trailing edge and the next
+    /// line's leading edge may share one insertion byte but need distinct
+    /// [`CaretPosition`] values to preserve visual affinity. At hard newlines
+    /// and collapsed soft-wrap whitespace, the visual sides are source-distinct
+    /// positions before and after the boundary cluster.
     ///
     /// If the line ends with a hard newline (`\n`), this is the byte index
     /// immediately *after* the `\n` character, so the range `byte_start..byte_end`
@@ -768,12 +770,20 @@ pub struct LayoutGlyph<G> {
 
 /// A visual caret anchor in prepared text with a cheap insertion-byte hint.
 ///
-/// This is deliberately richer than an insertion byte index. At hard line
-/// breaks and soft-wrap boundaries, two visually distinct caret positions can
-/// map to the same source insertion boundary: the trailing edge of the previous
-/// visual line and the leading edge of the following visual line. A byte-only
-/// API cannot preserve that distinction during hit-testing, caret movement, or
-/// editor feedback.
+/// This is deliberately richer than an insertion byte index. Some visual line
+/// boundaries need more information than a plain insertion byte can carry.
+///
+/// For a soft wrap inserted between clusters with no source boundary character,
+/// the trailing edge of the previous visual line and the leading edge of the
+/// following visual line can map to the same source insertion byte.
+/// `CaretPosition` preserves that visual affinity.
+///
+/// For hard newlines and visually collapsed whitespace at soft-wrap
+/// boundaries, the two visual sides are source-distinct positions around a real
+/// cluster: before/after the newline or before/after the collapsed whitespace.
+/// These are not the same insertion boundary, but they still require explicit
+/// before/after cluster representation so hit-testing, caret geometry, and
+/// editor feedback can choose the intended visual side.
 ///
 /// `cluster_byte_start` identifies the cluster being visually anchored to. For
 /// [`BeforeCluster`](Self::BeforeCluster), it is also the insertion byte. For

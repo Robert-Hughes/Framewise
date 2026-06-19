@@ -4,13 +4,13 @@ Working notes, TODOs, open questions, and half-baked ideas.
 
 ## Current Work
 
-- target perf from before text system refactor: 95 fps spec page, 40fps on text edit demo page, 2 fps editing big text
-- current perf: 80,18,18
+- Home, then Left bug
+- Home/End should use LineMetrics, not hit-test, and then before/after cluster for the first/last cluster on the line (roughly)
 
 - Text Edit
   - Improve and test
     - flickering due to advance caret on frame n, then frame n+1 scrolls it into view. Account for this during same frame?
-    - Ctrl+Up/Down?
+    - flickering when adding chars to end of a long line in a centre-aligned, non wrap box (e.g. the styling demo one)
   - Consider
     - newline policy reject - is this useful? What about trim after first newline?
     - newline policy - how is enter rejected? Even for replace-with-space?
@@ -403,6 +403,7 @@ The "App-Managed State" option would require either a trait layer (so the widget
 - Early-out from widget functions if it's offscreen or completely clipped
 - Resizing window is v. slow
 - Large text edits get very slow!
+- If layout params are fixed in an axis, do not compute expensive intrinsic size for that axis. If both axes are fixed, do not compute intrinsic size at all.
 
 ## API Ergonomics
 

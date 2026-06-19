@@ -1995,6 +1995,47 @@ mod tests {
         state.selection_anchor = byte.map(|byte| caret_position_at_byte(&state.value, byte));
     }
 
+    fn press_text_event(
+        edit_spec: TextEditSpec,
+        state: &mut TextEditState,
+        event: TextEvent,
+        focus_system: &mut FocusSystem,
+        text_backend: &mut TestTextBackend,
+    ) {
+        focus_system.begin_frame();
+        let mut input = Input::default();
+        input.text_events.push(event);
+        raw::text_edit(
+            edit_spec,
+            state,
+            &input,
+            focus_system,
+            text_backend,
+            &mut DrawCommands::new(),
+        );
+        focus_system.end_frame();
+    }
+
+    fn caret_geom_for_text_edit(
+        edit_spec: &TextEditSpec,
+        state: &TextEditState,
+        text_backend: &mut TestTextBackend,
+    ) -> crate::text::CaretGeom {
+        let text_style =
+            super::to_text_style(edit_spec.style, edit_spec.wrap, edit_spec.line_align);
+        let prepared =
+            super::raw::prepare_text_edit_layout(&state.value, edit_spec, text_style, text_backend);
+        prepared.layout.caret_geom(state.caret)
+    }
+
+    fn focused_text_edit_state(text: &str, focus_system: &mut FocusSystem) -> TextEditState {
+        let mut state = TextEditState::new(text);
+        focus_system.take_keyboard_focus(state.focus_id);
+        focus_system.end_frame();
+        state.had_keyboard_focus = true;
+        state
+    }
+
     #[test]
     fn idle_wrapped_text_edit_uses_one_prepared_layout() {
         let mut text_backend = CountingTextBackend::default();
@@ -6720,6 +6761,175 @@ mod tests {
             },
             "Home on visual line 1 should use the line-start anchor"
         );
+    }
+
+    #[test]
+    fn text_edit_home_then_left_from_visual_line_start_moves_visibly_mid_word_soft_wrap() {
+        let mut text_backend = TestTextBackend;
+        let mut focus_system = FocusSystem::new();
+        let mut state = focused_text_edit_state("abcde", &mut focus_system);
+
+        let mut edit_spec = spec();
+        edit_spec.wrap = true;
+        edit_spec.rect = Rect::new(0.0, 0.0, 33.0, 100.0);
+
+        set_caret_byte(&mut state, 3);
+        press_text_event(
+            edit_spec.clone(),
+            &mut state,
+            TextEvent::CaretHome {
+                shift: false,
+                ctrl: false,
+            },
+            &mut focus_system,
+            &mut text_backend,
+        );
+
+        let home_geom = caret_geom_for_text_edit(&edit_spec, &state, &mut text_backend);
+        assert_eq!(
+            state.caret,
+            CaretPosition::BeforeCluster {
+                cluster_byte_start: 2,
+            }
+        );
+
+        press_text_event(
+            edit_spec.clone(),
+            &mut state,
+            TextEvent::CaretLeft {
+                shift: false,
+                ctrl: false,
+            },
+            &mut focus_system,
+            &mut text_backend,
+        );
+
+        let left_geom = caret_geom_for_text_edit(&edit_spec, &state, &mut text_backend);
+        assert_eq!(
+            state.caret,
+            CaretPosition::BeforeCluster {
+                cluster_byte_start: 1,
+            }
+        );
+        assert_ne!(
+            left_geom, home_geom,
+            "Left after Home must move to the previous visual line, not another same-geometry caret"
+        );
+        assert!(left_geom.y_top < home_geom.y_top);
+        assert!(left_geom.x > home_geom.x);
+    }
+
+    #[test]
+    fn text_edit_home_then_left_from_visual_line_start_moves_visibly_collapsed_soft_wrap_space() {
+        let mut text_backend = TestTextBackend;
+        let mut focus_system = FocusSystem::new();
+        let mut state = focused_text_edit_state("hello world", &mut focus_system);
+
+        let mut edit_spec = spec();
+        edit_spec.wrap = true;
+        edit_spec.rect = Rect::new(0.0, 0.0, 56.0, 100.0);
+
+        set_caret_byte(&mut state, 8);
+        press_text_event(
+            edit_spec.clone(),
+            &mut state,
+            TextEvent::CaretHome {
+                shift: false,
+                ctrl: false,
+            },
+            &mut focus_system,
+            &mut text_backend,
+        );
+
+        let home_geom = caret_geom_for_text_edit(&edit_spec, &state, &mut text_backend);
+        assert_eq!(
+            state.caret,
+            CaretPosition::BeforeCluster {
+                cluster_byte_start: 6,
+            }
+        );
+
+        press_text_event(
+            edit_spec.clone(),
+            &mut state,
+            TextEvent::CaretLeft {
+                shift: false,
+                ctrl: false,
+            },
+            &mut focus_system,
+            &mut text_backend,
+        );
+
+        let left_geom = caret_geom_for_text_edit(&edit_spec, &state, &mut text_backend);
+        assert_eq!(
+            state.caret,
+            CaretPosition::BeforeCluster {
+                cluster_byte_start: 5,
+            }
+        );
+        assert_ne!(
+            left_geom, home_geom,
+            "Left after Home must move to the previous visual line end, not after the collapsed space on the same geometry"
+        );
+        assert!(left_geom.y_top < home_geom.y_top);
+        assert!(left_geom.x > home_geom.x);
+    }
+
+    #[test]
+    fn text_edit_home_then_left_from_visual_line_start_moves_visibly_hard_newline() {
+        let mut text_backend = TestTextBackend;
+        let mut focus_system = FocusSystem::new();
+        let mut state = focused_text_edit_state("hello\nworld", &mut focus_system);
+
+        let mut edit_spec = spec();
+        edit_spec.wrap = true;
+        edit_spec.newline_policy = NewlinePolicy::Allow;
+        edit_spec.rect = Rect::new(0.0, 0.0, 200.0, 100.0);
+
+        set_caret_byte(&mut state, 8);
+        press_text_event(
+            edit_spec.clone(),
+            &mut state,
+            TextEvent::CaretHome {
+                shift: false,
+                ctrl: false,
+            },
+            &mut focus_system,
+            &mut text_backend,
+        );
+
+        let home_geom = caret_geom_for_text_edit(&edit_spec, &state, &mut text_backend);
+        assert_eq!(
+            state.caret,
+            CaretPosition::BeforeCluster {
+                cluster_byte_start: 6,
+            }
+        );
+
+        press_text_event(
+            edit_spec.clone(),
+            &mut state,
+            TextEvent::CaretLeft {
+                shift: false,
+                ctrl: false,
+            },
+            &mut focus_system,
+            &mut text_backend,
+        );
+
+        let left_geom = caret_geom_for_text_edit(&edit_spec, &state, &mut text_backend);
+        assert_eq!(
+            state.caret,
+            CaretPosition::BeforeCluster {
+                cluster_byte_start: 5,
+            }
+        );
+        assert_ne!(
+            left_geom, home_geom,
+            "Left after Home must move to the previous visual line end, not after the newline on the same geometry"
+        );
+        assert!(left_geom.y_top < home_geom.y_top);
+        assert!(left_geom.x > home_geom.x);
     }
 
     #[test]

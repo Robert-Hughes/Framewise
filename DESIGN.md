@@ -353,16 +353,23 @@ cluster boundaries are the conservative baseline.
 
 ## Caret Positions Are Visual Anchors
 
-A text insertion boundary may have two visual positions. This occurs at line
-boundaries where the end of one visual line and the start of the next visual
-line are adjacent in the source text. Editor-facing caret APIs therefore use
-`CaretPosition`, which anchors the caret before or after a specific shaped
-cluster.
+Some visual line boundaries need more information than a plain insertion byte
+can carry. Editor-facing caret APIs therefore use `CaretPosition`, which
+anchors the caret before or after a specific shaped cluster.
 
-At ordinary boundaries, `AfterCluster(previous)` and `BeforeCluster(next)`
-usually map to the same insertion byte index and the same visual x/y. At
-soft-wrap boundaries they can map to the same insertion byte index but different
-visual geometries.
+For a soft wrap inserted between clusters with no source boundary character, the
+trailing edge of the previous visual line and the leading edge of the following
+visual line can map to the same source insertion byte. `CaretPosition` preserves
+that visual affinity:
+
+```text
+ab|
+|cd
+```
+
+- `AfterCluster('b')` is the end of the previous visual line.
+- `BeforeCluster('c')` is the start of the following visual line.
+- Both carry the same insertion byte.
 
 Hard newline clusters are explicit boundary clusters:
 
@@ -372,8 +379,9 @@ abc\n
 
 - `BeforeCluster('\n')` is the end of the previous visual line.
 - `AfterCluster('\n')` is the start of the following visual line.
+- These are source-distinct insertion positions around the newline cluster.
 
-Collapsed soft-wrap whitespace follows the same visual-anchor model:
+Collapsed soft-wrap whitespace also has a real source cluster:
 
 ```text
 abc.    // trailing space collapsed by soft wrap
@@ -382,6 +390,8 @@ abc.    // trailing space collapsed by soft wrap
 - `BeforeCluster(' ')` is the end of the previous visual line.
 - `AfterCluster(' ')` is the start of the following empty visual line when
   terminal wrapped whitespace creates one.
+- These are source-distinct insertion positions around the collapsed whitespace
+  cluster.
 
 Editing operations still use insertion byte indices for mutation. The visual
 caret position is converted to an insertion byte only at the point where text is

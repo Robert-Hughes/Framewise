@@ -809,7 +809,7 @@ fn hit_test_round_trips_to_boundaries() {
 }
 
 #[test]
-fn caret_position_distinguishes_before_and_after_newline_cluster() {
+fn caret_positions_distinguish_hard_newline_sides() {
     let layout = layout("a\nb", TextFlow::single_line(), TextBounds::UNBOUNDED);
 
     let before = layout.caret_geom(CaretPosition::BeforeCluster {
@@ -825,6 +825,21 @@ fn caret_position_distinguishes_before_and_after_newline_cluster() {
     assert_eq!(after.y_top, 16.0);
     assert_eq!(after.x, 0.0);
     assert_eq!(
+        CaretPosition::BeforeCluster {
+            cluster_byte_start: 1,
+        }
+        .insertion_byte_hint(),
+        1
+    );
+    assert_eq!(
+        CaretPosition::AfterCluster {
+            cluster_byte_start: 1,
+            cluster_byte_end: 2,
+        }
+        .insertion_byte_hint(),
+        2
+    );
+    assert_eq!(
         layout.hit_test_caret(Vec2::new(100.0, 1.0)),
         CaretPosition::BeforeCluster {
             cluster_byte_start: 1,
@@ -833,7 +848,7 @@ fn caret_position_distinguishes_before_and_after_newline_cluster() {
 }
 
 #[test]
-fn caret_navigation_chooses_newline_side_by_direction() {
+fn caret_navigation_hard_newline_moves_between_source_distinct_sides() {
     let layout = layout("a\nb", TextFlow::single_line(), TextBounds::UNBOUNDED);
 
     assert_eq!(
@@ -857,6 +872,14 @@ fn caret_navigation_chooses_newline_side_by_direction() {
         layout.previous_caret_position(CaretPosition::BeforeCluster {
             cluster_byte_start: 2,
         }),
+        CaretPosition::BeforeCluster {
+            cluster_byte_start: 1,
+        }
+    );
+    assert_eq!(
+        layout.next_caret_position(CaretPosition::BeforeCluster {
+            cluster_byte_start: 1,
+        }),
         CaretPosition::AfterCluster {
             cluster_byte_start: 1,
             cluster_byte_end: 2,
@@ -865,7 +888,7 @@ fn caret_navigation_chooses_newline_side_by_direction() {
 }
 
 #[test]
-fn collapsed_soft_wrap_space_has_newline_like_caret_and_hit_test_behavior() {
+fn caret_positions_distinguish_collapsed_soft_wrap_space_sides() {
     let layout = layout(
         "hello world",
         wrap_word_cluster_drop(),
@@ -885,6 +908,21 @@ fn collapsed_soft_wrap_space_has_newline_like_caret_and_hit_test_behavior() {
     assert_eq!(after.y_top, 16.0);
     assert_eq!(after.x, 0.0);
     assert_eq!(
+        CaretPosition::BeforeCluster {
+            cluster_byte_start: 5,
+        }
+        .insertion_byte_hint(),
+        5
+    );
+    assert_eq!(
+        CaretPosition::AfterCluster {
+            cluster_byte_start: 5,
+            cluster_byte_end: 6,
+        }
+        .insertion_byte_hint(),
+        6
+    );
+    assert_eq!(
         layout.hit_test_caret(Vec2::new(100.0, 1.0)),
         CaretPosition::BeforeCluster {
             cluster_byte_start: 5,
@@ -893,7 +931,61 @@ fn collapsed_soft_wrap_space_has_newline_like_caret_and_hit_test_behavior() {
 }
 
 #[test]
-fn caret_position_distinguishes_soft_wrap_boundary_space_sides() {
+fn caret_positions_distinguish_mid_word_soft_wrap_visual_affinity() {
+    let layout = layout("abcde", wrap_word_cluster_drop(), TextBounds::width(16.1));
+
+    let previous_line_end = CaretPosition::AfterCluster {
+        cluster_byte_start: 1,
+        cluster_byte_end: 2,
+    };
+    let next_line_start = CaretPosition::BeforeCluster {
+        cluster_byte_start: 2,
+    };
+    let previous_geom = layout.caret_geom(previous_line_end);
+    let next_geom = layout.caret_geom(next_line_start);
+
+    assert_eq!(previous_line_end.insertion_byte_hint(), 2);
+    assert_eq!(next_line_start.insertion_byte_hint(), 2);
+    assert_ne!(previous_geom, next_geom);
+    assert_eq!(previous_geom.y_top, 0.0);
+    assert_eq!(previous_geom.x, 16.0);
+    assert_eq!(next_geom.y_top, 16.0);
+    assert_eq!(next_geom.x, 0.0);
+    assert_eq!(
+        layout.hit_test_caret(Vec2::new(100.0, 1.0)),
+        previous_line_end
+    );
+    assert_eq!(layout.hit_test_caret(Vec2::new(0.0, 17.0)), next_line_start);
+}
+
+#[test]
+fn caret_navigation_mid_word_soft_wrap_moves_between_insertion_positions() {
+    let layout = layout("abcde", wrap_word_cluster_drop(), TextBounds::width(16.1));
+
+    let previous_line_end = CaretPosition::AfterCluster {
+        cluster_byte_start: 1,
+        cluster_byte_end: 2,
+    };
+    let next_line_start = CaretPosition::BeforeCluster {
+        cluster_byte_start: 2,
+    };
+
+    assert_eq!(
+        layout.previous_caret_position(next_line_start),
+        CaretPosition::BeforeCluster {
+            cluster_byte_start: 1,
+        }
+    );
+    assert_eq!(
+        layout.next_caret_position(previous_line_end),
+        CaretPosition::BeforeCluster {
+            cluster_byte_start: 3,
+        }
+    );
+}
+
+#[test]
+fn caret_position_at_insertion_byte_uses_following_anchor_for_collapsed_soft_wrap_space() {
     let layout = layout(
         "hello world",
         wrap_word_cluster_drop(),
@@ -1535,7 +1627,7 @@ fn caret_navigation_moves_by_cluster_boundaries() {
 }
 
 #[test]
-fn test_caret_geom_soft_wrap_boundaries() {
+fn caret_geom_collapsed_soft_wrap_space_uses_previous_and_following_lines() {
     let layout = layout(
         "hello world",
         wrap_word_cluster_drop(),
@@ -1568,7 +1660,7 @@ fn test_caret_geom_soft_wrap_boundaries() {
 }
 
 #[test]
-fn caret_navigation_chooses_soft_wrap_boundary_space_side_by_direction() {
+fn caret_navigation_collapsed_soft_wrap_space_moves_between_source_distinct_sides() {
     let layout = layout(
         "hello world",
         wrap_word_cluster_drop(),
@@ -1586,6 +1678,14 @@ fn caret_navigation_chooses_soft_wrap_boundary_space_side_by_direction() {
     assert_eq!(
         layout.previous_caret_position(CaretPosition::BeforeCluster {
             cluster_byte_start: 6,
+        }),
+        CaretPosition::BeforeCluster {
+            cluster_byte_start: 5,
+        }
+    );
+    assert_eq!(
+        layout.next_caret_position(CaretPosition::BeforeCluster {
+            cluster_byte_start: 5,
         }),
         CaretPosition::AfterCluster {
             cluster_byte_start: 5,
