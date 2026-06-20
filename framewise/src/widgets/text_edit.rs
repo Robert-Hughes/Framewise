@@ -10,18 +10,18 @@ use crate::{
     },
     types::{ClipRect, Color, Layer, Rect, Vec2},
     widget::{InputInfo, LayoutInfo, WidgetContext},
-    widgets::scroll_area::ScrollState,
+    widgets::scroll_area::{ScrollAreaStyle, ScrollState},
 };
+
+const TEXT_EDIT_SCROLLBAR_WIDTH: f32 = 5.0;
 
 pub mod raw {
     use super::*;
     use crate::widgets::{
         scroll_area::raw::{end_scroll_area, ScrollAreaSpec},
-        scroll_area::{ScrollAreaStyle, ScrollAxis, ScrollExtent, ScrollLen},
-        ScrollbarVisibility, SliderStyle,
+        scroll_area::{ScrollAxis, ScrollExtent, ScrollLen},
+        ScrollbarVisibility,
     };
-
-    const TEXT_EDIT_SCROLLBAR_WIDTH: f32 = 5.0;
 
     #[derive(Debug, Clone, PartialEq)]
     pub struct TextEditSpec {
@@ -882,32 +882,7 @@ pub mod raw {
             },
             clip_rect: spec.clip_rect,
             time: spec.time,
-            style: ScrollAreaStyle {
-                scrollbar_width: TEXT_EDIT_SCROLLBAR_WIDTH,
-                scrollbar_style: SliderStyle {
-                    track_color: Color::linear_rgba(
-                        spec.style.border.r,
-                        spec.style.border.g,
-                        spec.style.border.b,
-                        0.04,
-                    ),
-                    track_border_color: Some(spec.style.border),
-                    thumb_color: spec.style.border,
-                    thumb_border_color: Color::TRANSPARENT,
-                    thumb_border_width: 0.0,
-                    thumb_hover_color: spec.style.focus,
-                    thumb_drag_color: spec.style.focus,
-                    focus: spec.style.focus,
-                    focus_width: 1.0,
-                    focus_offset: 1.0,
-                    thickness: 0.0,
-                    thumb_size: 0.0,
-                    scrollbar_mode: true,
-                    disabled_alpha: 0.4,
-                    scrollbar_thumb_margin: 0.0,
-                },
-                corner_color: None,
-            },
+            style: spec.style.scroll_area_style,
             layer: spec.layer,
             keyboard_focusable: false,
         };
@@ -1763,11 +1738,16 @@ pub struct TextEditStyle {
     pub caret_color: Color,
     pub caret_width: f32,
     pub select_color: Color,
+    pub scroll_area_style: ScrollAreaStyle,
     pub disabled_alpha: f32,
 }
 
 impl TextEditStyle {
     pub fn from_theme(theme: &crate::theme::Theme) -> Self {
+        let mut scroll_area_style = ScrollAreaStyle::from_theme(theme);
+        scroll_area_style.scrollbar_width = TEXT_EDIT_SCROLLBAR_WIDTH;
+        scroll_area_style.scrollbar_style.scrollbar_thumb_margin = 0.0;
+
         Self {
             background: theme.paper_elev,
             background_hovered: Color::WHITE,
@@ -1792,6 +1772,7 @@ impl TextEditStyle {
             caret_color: theme.rust,
             caret_width: 2.0,
             select_color: theme.rust_soft,
+            scroll_area_style,
             disabled_alpha: 0.55,
         }
     }
@@ -2378,6 +2359,28 @@ mod tests {
         assert_eq!(builder.style.unwrap().size, 99.0);
     }
 
+    #[test]
+    fn test_text_edit_style_scroll_area_defaults() {
+        let theme = crate::theme::Theme::framewise();
+        let style = TextEditStyle::from_theme(&theme);
+        assert_eq!(
+            style.scroll_area_style.scrollbar_width,
+            TEXT_EDIT_SCROLLBAR_WIDTH
+        );
+        assert_eq!(style.scroll_area_style.corner_color, Some(theme.paper_elev));
+        assert_eq!(
+            style.scroll_area_style.scrollbar_style.track_border_color,
+            Some(theme.line_soft)
+        );
+        assert_eq!(
+            style
+                .scroll_area_style
+                .scrollbar_style
+                .scrollbar_thumb_margin,
+            0.0
+        );
+    }
+
     fn spec() -> TextEditSpec {
         let mut style = TextEditStyle::from_theme(&crate::theme::Theme::framewise());
         style.padding_x = 4.0;
@@ -2449,8 +2452,6 @@ mod tests {
     }
 
     fn has_text_edit_scrollbar(cmds: &DrawCommands, bounds: Rect) -> bool {
-        const TEXT_EDIT_SCROLLBAR_WIDTH: f32 = 5.0;
-
         cmds.iter().any(|cmd| match cmd {
             DrawCmd::FillRect { rect, .. } => {
                 let inside_bounds = rect.x >= bounds.x

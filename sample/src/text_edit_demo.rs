@@ -384,6 +384,7 @@ pub(crate) fn draw_text_edit_demo_content<'a, 'b, CF>(
             caret_width: 3.0,
             select_color: Color::from_srgb_f32(121.0 / 255.0, 199.0 / 255.0, 184.0 / 255.0, 0.28),
             disabled_alpha: 0.42,
+            ..TextEditStyle::from_theme(&theme)
         };
 
         text_edit(
