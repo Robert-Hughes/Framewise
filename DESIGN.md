@@ -47,8 +47,14 @@ The backend boundary is deliberately narrow:
   and each shaped cluster carries the union of those bounds in
   cluster/baseline-local coordinates. Framewise also uses this API to shape
   marker text, such as the overflow ellipsis, and never mutates shaped output.
-- `TextBackend::line_metrics` supplies line height and baseline offset through
-  `TextLineLayoutMetrics`.
+  `shape_text` is called on one hard-line source segment or Framewise-owned
+  marker string at a time. Framewise splits hard newlines before backend shaping
+  and creates hard-newline layout clusters itself; marker text such as the
+  overflow ellipsis is shaped through the same API and later remapped into
+  source-text coordinates where needed.
+- `TextBackend::line_metrics` supplies whole-logical-pixel line height and
+  baseline offset through `TextLineLayoutMetrics`; `line_height` must be at
+  least `1`.
 - `TextBackend::prepare_glyph` turns one visible laid-out glyph into an
   optional `DrawGlyph`.
 
@@ -331,10 +337,10 @@ non-empty line, it may cause a soft wrap; if it cannot fit even on an empty
 line, the fallback chain applies.
 
 The one exception is the soft-wrap boundary-space rule described above. When a
-single whitespace cluster becomes the boundary between two visual lines, that
-cluster may remain in the previous line with zero advance rather than producing
-a whitespace-only visual line. Adjacent whitespace remains preserved and
-participates in wrapping normally.
+single whitespace cluster becomes the boundary after earlier non-whitespace
+content on the same visual line, that cluster may remain in the previous line
+with zero advance. Other whitespace remains preserved and may form its own
+visual line.
 
 `OverflowX::Drop`, `OverflowX::Keep`, and ellipsis fitting also operate on whole
 clusters. Ellipsis fitting trims whole clusters before appending the Framewise
