@@ -7,8 +7,8 @@ Working notes, TODOs, open questions, and half-baked ideas.
 
 - Text Edit
   - auto-sizing to height of text (like VS Code commit message)
-    - can use intrinsic size calculation, if we pass the remaining available LayoutSpace as a 'hint' to the calc_intrinsic_size (maybe rename to something better?) then text edit can auto height if it has a max width!
-    - after layout changes, do a review pass to make sure things are consistent/not left over from old intrinsic naming etc.
+    - can use size-request calculation, if we pass the remaining available SizeOffer to the raw size helper then text edit can auto height if it has a max width!
+    - after layout changes, do a review pass to make sure things are consistent/not left over from old size/request naming etc.
     - add auto-sizing width & height to demo page (width up to a max, then wraps)
 
   - Copy/paste integration with the OS (apparently not working!)
@@ -175,7 +175,7 @@ All require `AxisBound::Exact` on the divided axis (a committed far edge), the s
     alignment); we keep only the first for now. Consider making it plural (e.g.
     `violations: Vec<LayoutViolation>` or a small inline array) later if surfacing all
     of them proves useful.
-- A deferred child can fault at *both* `begin_layout` and `end_layout` for the same
+- A deferred child can fault at *both* `begin_deferred_layout` and `end_deferred_layout` for the same
     reason (e.g. Center on an AtMost cross axis is unsatisfiable at both points), so the
     `Highlight` policy draws two overlapping red outlines for one child. Genuine (two
     resolution points) but noisy. Consider de-duplicating per child/frame, or only
@@ -398,7 +398,7 @@ The "App-Managed State" option would require either a trait layer (so the widget
 - Resizing window is v. slow
 - Large text edits get very slow!
   - especially clicking and dragging a large selection (or shift + pg down)
-- If layout params are fixed in an axis, do not compute expensive intrinsic size for that axis. If both axes are fixed, do not compute intrinsic size at all.
+- If layout params are fixed in an axis, do not compute an expensive size request for that axis. If both axes are fixed, do not compute a size request at all.
 
 ## API Ergonomics
 

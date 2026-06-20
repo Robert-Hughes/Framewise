@@ -52,7 +52,8 @@ pub fn begin_demo_page<'a, 'b, T: TextBackend, L: Layout, CF>(
 
     let size_spec = framewise::widgets::scroll_area::raw::ScrollAreaSizeSpec {};
     let layout_params = ColumnLayoutParams::auto().fill_x().fill_y();
-    let offer = parent_ctx.peek_offer(Clone::clone(&layout_params));
+    #[allow(clippy::clone_on_copy)]
+    let offer = parent_ctx.peek_offer(layout_params.clone());
     let size_request = framewise::widgets::scroll_area::raw::size_scroll_area(&size_spec, offer);
     let bounds = parent_ctx.layout(layout_params, size_request);
     let input = parent_ctx.input;

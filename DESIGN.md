@@ -901,7 +901,7 @@ pub fn button<T, S, CF>(
         text: spec.text,
         style: spec.style,
     };
-    let offer = ctx.peek_offer(layout_params);
+    let offer = ctx.peek_offer(layout_params.clone());
     let request = raw::size_button(&size_spec, offer, ctx.text_backend);
     let rect = ctx.layout(layout_params, request);
     let raw_spec = raw::ButtonSpec {
