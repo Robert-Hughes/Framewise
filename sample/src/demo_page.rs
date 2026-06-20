@@ -1,10 +1,10 @@
 use framewise::{
     draw::DrawCommands,
     focus::FocusSystem,
-    layout::{Layout, LayoutState},
+    layout::{Layout, LayoutState, SizeOffer},
     layouts::linear::ColumnState,
     widgets::label::{
-        raw::{LabelCalcSizeRequestSpec, LabelSpec as RawLabelSpec},
+        raw::{LabelSizeSpec, LabelSpec as RawLabelSpec},
         LabelSpecBuilder, LabelStyle,
     },
     ColumnLayoutParams, LayoutViolationPolicy, Rect, TextBackend, WidgetContext,
@@ -50,9 +50,11 @@ pub fn begin_demo_page<'a, 'b, T: TextBackend, L: Layout, CF>(
         .defaults_from_theme(&parent_ctx.theme)
         .build();
 
-    let calc_spec = framewise::widgets::scroll_area::raw::ScrollAreaCalcSizeRequestSpec {};
-    let size_request =
-        framewise::widgets::scroll_area::raw::calc_scroll_area_intrinsic_size(&calc_spec);
+    let size_spec = framewise::widgets::scroll_area::raw::ScrollAreaSizeSpec {};
+    let size_request = framewise::widgets::scroll_area::raw::size_scroll_area(
+        &size_spec,
+        framewise::layout::SizeOffer::UNBOUNDED,
+    );
     let bounds = parent_ctx.layout(ColumnLayoutParams::auto().fill_x().fill_y(), size_request);
     let input = parent_ctx.input;
     let raw_spec = framewise::widgets::scroll_area::raw::ScrollAreaSpec {
@@ -91,12 +93,13 @@ pub fn begin_demo_page<'a, 'b, T: TextBackend, L: Layout, CF>(
 
     let label_spec = LabelSpecBuilder::new().text(title).style(title_style);
     let label_spec = label_spec.build();
-    let label_spec = LabelCalcSizeRequestSpec {
+    let label_spec = LabelSizeSpec {
         text: label_spec.text,
         style: label_spec.style,
     };
-    let label_request = framewise::widgets::label::raw::calc_label_request_size(
+    let label_request = framewise::widgets::label::raw::size_label(
         &label_spec,
+        SizeOffer::UNBOUNDED,
         parent_ctx.text_backend,
     );
     let title_h = label_request.preferred.map_or(24.0, |p| p.y);

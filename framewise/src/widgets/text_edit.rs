@@ -2,7 +2,7 @@ use crate::{
     draw::{DrawCmd, DrawCommands},
     focus::{FocusId, FocusSystem},
     input::{Input, TextEvent},
-    layout::{Align, LayoutState, SizeRequest},
+    layout::{Align, LayoutState, SizeOffer, SizeRequest},
     text::{
         layout_text, CaretPosition, FontId, LineEndKind, LineHeight, LineMetrics, TextBackend,
         TextBounds, TextFlow, TextLayout, TextLineAlign, TextStyle,
@@ -39,7 +39,7 @@ pub mod raw {
     }
 
     #[derive(Debug, Clone, PartialEq)]
-    pub struct TextEditCalcSizeRequestSpec {
+    pub struct TextEditSizeSpec {
         pub style: super::TextEditStyle,
         pub wrap: bool,
         pub line_align: TextLineAlign,
@@ -138,9 +138,10 @@ pub mod raw {
         (scroll_outer_height / line_height).floor().max(1.0) as usize
     }
 
-    /// Calculate a text edit's size request from its current state and size-request spec.
-    pub fn calc_text_edit_intrinsic_size<T: TextBackend>(
-        spec: &TextEditCalcSizeRequestSpec,
+    /// Return the size this text edit would request under offer and its current state.
+    pub fn size_text_edit<T: TextBackend>(
+        spec: &TextEditSizeSpec,
+        _offer: SizeOffer,
         state: &TextEditState,
         text_backend: &mut T,
     ) -> SizeRequest {
@@ -1844,12 +1845,13 @@ pub fn text_edit<T: TextBackend, S: LayoutState, CF>(
     state: &mut TextEditState,
 ) -> TextEditResult {
     let spec = builder.defaults_from_theme(&ctx.theme).build();
-    let calc_spec = raw::TextEditCalcSizeRequestSpec {
+    let size_spec = raw::TextEditSizeSpec {
         style: spec.style,
         wrap: spec.wrap,
         line_align: spec.line_align,
     };
-    let size_request = raw::calc_text_edit_intrinsic_size(&calc_spec, state, ctx.text_backend);
+    let offer = ctx.peek_offer(layout_params.clone());
+    let size_request = raw::size_text_edit(&size_spec, offer, state, ctx.text_backend);
     let rect = ctx.layout(layout_params, size_request);
     let raw_spec = raw::TextEditSpec {
         rect,

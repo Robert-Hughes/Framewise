@@ -2,7 +2,7 @@ use crate::{
     draw::{DrawCmd, DrawCommands},
     focus::{FocusId, FocusSystem},
     input::Input,
-    layout::{LayoutState, SizeRequest},
+    layout::{LayoutState, SizeOffer, SizeRequest},
     text::TextBackend,
     types::{ClipRect, Color, Layer, Rect, Vec2},
     widget::{InputInfo, LayoutInfo, WidgetContext},
@@ -22,7 +22,7 @@ pub mod raw {
     }
 
     #[derive(Debug, Clone, PartialEq)]
-    pub struct RadioCalcSizeRequestSpec {
+    pub struct RadioSizeSpec {
         pub style: super::RadioStyle,
     }
 
@@ -33,8 +33,8 @@ pub mod raw {
         pub content_bounds: Rect,
     }
 
-    /// Calculate a radio button's size request from its size-request spec.
-    pub fn calc_radio_request_size(spec: &RadioCalcSizeRequestSpec) -> SizeRequest {
+    /// Return the size this radio button would request under offer.
+    pub fn size_radio(spec: &RadioSizeSpec, _offer: SizeOffer) -> SizeRequest {
         SizeRequest::preferred(Vec2::new(spec.style.radius * 2.0, spec.style.radius * 2.0))
     }
 
@@ -273,8 +273,9 @@ pub fn radio<T: TextBackend, S: LayoutState, CF>(
     state: &mut RadioState,
 ) -> RadioResult {
     let spec = builder.defaults_from_theme(&ctx.theme).build();
-    let calc_spec = raw::RadioCalcSizeRequestSpec { style: spec.style };
-    let size_request = raw::calc_radio_request_size(&calc_spec);
+    let size_spec = raw::RadioSizeSpec { style: spec.style };
+    let offer = ctx.peek_offer(layout_params.clone());
+    let size_request = raw::size_radio(&size_spec, offer);
     let rect = ctx.layout(layout_params, size_request);
     let raw_spec = raw::RadioSpec {
         layer: ctx.layer,
@@ -323,16 +324,17 @@ pub fn labelled_radio<T: TextBackend, S: LayoutState, CF>(
     }
 
     // Calculate size requests using the official functions of both widgets.
-    let radio_calc_spec = raw::RadioCalcSizeRequestSpec { style: spec.style };
-    let radio_request = raw::calc_radio_request_size(&radio_calc_spec);
+    let offer = ctx.peek_offer(layout_params.clone());
+    let radio_size_spec = raw::RadioSizeSpec { style: spec.style };
+    let radio_request = raw::size_radio(&radio_size_spec, offer);
     let radio_size = radio_request.preferred.unwrap();
 
-    let label_calc_spec = crate::widgets::label::raw::LabelCalcSizeRequestSpec {
+    let label_size_spec = crate::widgets::label::raw::LabelSizeSpec {
         text: label_text,
         style: label_style,
     };
     let label_request =
-        crate::widgets::label::raw::calc_label_request_size(&label_calc_spec, ctx.text_backend);
+        crate::widgets::label::raw::size_label(&label_size_spec, offer, ctx.text_backend);
     let label_size = label_request.preferred.unwrap();
 
     let gap = 8.0;
@@ -1215,11 +1217,11 @@ mod tests {
     }
 
     #[test]
-    fn test_calc_radio_request_size() {
+    fn test_size_radio() {
         let theme = crate::theme::Theme::default();
         let style = RadioStyle::from_theme(&theme);
-        let spec = raw::RadioCalcSizeRequestSpec { style };
-        let size_request = raw::calc_radio_request_size(&spec);
+        let spec = raw::RadioSizeSpec { style };
+        let size_request = raw::size_radio(&spec, SizeOffer::UNBOUNDED);
         assert_eq!(size_request, SizeRequest::preferred(Vec2::new(14.0, 14.0)));
     }
 

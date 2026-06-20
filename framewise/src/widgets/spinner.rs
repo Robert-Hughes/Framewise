@@ -1,6 +1,6 @@
 use crate::{
     draw::{DrawCmd, DrawCommands},
-    layout::{LayoutState, SizeRequest},
+    layout::{LayoutState, SizeOffer, SizeRequest},
     text::TextBackend,
     types::{Color, Layer, Rect, Vec2},
     widget::{LayoutInfo, WidgetContext},
@@ -19,13 +19,13 @@ pub mod raw {
     }
 
     #[derive(Debug, Clone, PartialEq)]
-    pub struct SpinnerCalcSizeRequestSpec {}
+    pub struct SpinnerSizeSpec {}
 
     #[derive(Debug, Clone, PartialEq)]
     pub struct SpinnerResult {}
 
     /// Calculate a spinner's size request. Currently returns UNKNOWN.
-    pub fn calc_spinner_intrinsic_size(_spec: &SpinnerCalcSizeRequestSpec) -> SizeRequest {
+    pub fn size_spinner(_spec: &SpinnerSizeSpec, _offer: SizeOffer) -> SizeRequest {
         SizeRequest::UNKNOWN
     }
 
@@ -231,8 +231,9 @@ pub fn spinner<T: TextBackend, S: LayoutState, CF>(
     layout_params: S::Params,
 ) -> SpinnerResult {
     let spec = builder.defaults_from_theme(&ctx.theme).build();
-    let calc_spec = raw::SpinnerCalcSizeRequestSpec {};
-    let size_request = raw::calc_spinner_intrinsic_size(&calc_spec);
+    let size_spec = raw::SpinnerSizeSpec {};
+    let offer = ctx.peek_offer(layout_params.clone());
+    let size_request = raw::size_spinner(&size_spec, offer);
     let rect = ctx.layout(layout_params, size_request);
     let raw_spec = raw::SpinnerSpec {
         rect,

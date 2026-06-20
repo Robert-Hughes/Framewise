@@ -373,15 +373,19 @@ fn button_preferred_width<T: TextBackend>(
     text_backend: &mut T,
 ) -> f32 {
     let spec = ButtonSpecBuilder::new().text(text).style(style).build();
-    let spec = framewise::widgets::button::raw::ButtonCalcSizeRequestSpec {
+    let spec = framewise::widgets::button::raw::ButtonSizeSpec {
         text: spec.text,
         style: spec.style,
     };
 
-    framewise::widgets::button::raw::calc_button_intrinsic_size(&spec, text_backend)
-        .preferred
-        .expect("button size request should report preferred size")
-        .x
+    framewise::widgets::button::raw::size_button(
+        &spec,
+        framewise::layout::SizeOffer::UNBOUNDED,
+        text_backend,
+    )
+    .preferred
+    .expect("button size request should report preferred size")
+    .x
 }
 
 #[cfg(feature = "button")]

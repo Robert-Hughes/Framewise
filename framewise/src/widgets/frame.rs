@@ -1,7 +1,7 @@
 use crate::{
     draw::{DrawCmd, DrawCommands},
     focus::FocusSystem,
-    layout::{Layout, LayoutState},
+    layout::{Layout, LayoutState, SizeOffer},
     text::TextBackend,
     types::{Color, Layer, Rect, Vec2},
     widget::WidgetContext,
@@ -19,7 +19,7 @@ pub mod raw {
     }
 
     #[derive(Debug, Clone, Copy, PartialEq)]
-    pub struct FrameCalcSizeRequestSpec {
+    pub struct FrameSizeSpec {
         pub style: super::FrameStyle,
     }
 
@@ -43,9 +43,7 @@ pub mod raw {
     /// minimum size derived from padding and border width alone, so that a frame
     /// with no children does not collapse to a degenerate zero rect.
     ///
-    pub fn calc_frame_intrinsic_size(
-        spec: &FrameCalcSizeRequestSpec,
-    ) -> crate::layout::SizeRequest {
+    pub fn size_frame(spec: &FrameSizeSpec, _offer: SizeOffer) -> crate::layout::SizeRequest {
         let _ = spec;
         crate::layout::SizeRequest::UNKNOWN
     }
@@ -369,16 +367,16 @@ mod tests {
     }
 
     #[test]
-    fn test_calc_frame_intrinsic_size() {
+    fn test_size_frame() {
         let style = FrameStyle {
             background: Color::WHITE,
             border: Color::BLACK,
             border_width: 2.0,
             padding: 4.0,
         };
-        let spec = raw::FrameCalcSizeRequestSpec { style };
+        let spec = raw::FrameSizeSpec { style };
         assert_eq!(
-            raw::calc_frame_intrinsic_size(&spec),
+            raw::size_frame(&spec, SizeOffer::UNBOUNDED),
             crate::layout::SizeRequest::UNKNOWN
         );
     }

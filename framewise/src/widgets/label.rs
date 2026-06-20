@@ -2,7 +2,7 @@
 use crate::focus::FocusSystem;
 use crate::{
     draw::{DrawCmd, DrawCommands},
-    layout::LayoutState,
+    layout::{LayoutState, SizeOffer},
     types::{Color, Layer, Rect, Vec2},
     widget::{LayoutInfo, WidgetContext},
     TextBackend,
@@ -22,7 +22,7 @@ pub mod raw {
     }
 
     #[derive(Debug, Clone, PartialEq)]
-    pub struct LabelCalcSizeRequestSpec<'a> {
+    pub struct LabelSizeSpec<'a> {
         pub text: &'a str,
         pub style: super::LabelStyle,
     }
@@ -32,9 +32,10 @@ pub mod raw {
         pub content_bounds: Rect,
     }
 
-    /// Calculate a label's size request from its size-request spec.
-    pub fn calc_label_request_size<T: TextBackend>(
-        spec: &LabelCalcSizeRequestSpec,
+    /// Return the size this label would request under offer.
+    pub fn size_label<T: TextBackend>(
+        spec: &LabelSizeSpec,
+        _offer: SizeOffer,
         text_backend: &mut T,
     ) -> crate::layout::SizeRequest {
         let layout = layout_text(
@@ -199,11 +200,12 @@ pub fn label<'a, T: TextBackend, S: LayoutState, CF>(
     layout_params: S::Params,
 ) -> LabelResult {
     let spec = builder.defaults_from_theme(&ctx.theme).build();
-    let calc_spec = raw::LabelCalcSizeRequestSpec {
+    let size_spec = raw::LabelSizeSpec {
         text: spec.text,
         style: spec.style,
     };
-    let size_request = raw::calc_label_request_size(&calc_spec, ctx.text_backend);
+    let offer = ctx.peek_offer(layout_params.clone());
+    let size_request = raw::size_label(&size_spec, offer, ctx.text_backend);
     let rect = ctx.layout(layout_params, size_request);
     let raw_spec = raw::LabelSpec {
         layer: ctx.layer,
@@ -664,14 +666,14 @@ mod tests {
     }
 
     #[test]
-    fn test_calc_label_request_size() {
+    fn test_size_label() {
         let mut ts = TestTextBackend;
         let theme = crate::theme::Theme::default();
-        let spec = raw::LabelCalcSizeRequestSpec {
+        let spec = raw::LabelSizeSpec {
             text: "Hello",
             style: LabelStyle::from_theme(&theme),
         };
-        let i = raw::calc_label_request_size(&spec, &mut ts);
+        let i = raw::size_label(&spec, SizeOffer::UNBOUNDED, &mut ts);
         assert_eq!(i.preferred, Some(Vec2::new(40.0, 16.0)));
     }
 
@@ -701,17 +703,17 @@ mod tests {
     }
 
     #[test]
-    fn test_calc_label_request_size_with_custom_flow() {
+    fn test_size_label_with_custom_flow() {
         let mut ts = TestTextBackend;
         let flow = crate::text::TextFlow::wrapped();
         let theme = crate::theme::Theme::default();
         let mut style = LabelStyle::from_theme(&theme);
         style.text_style.flow = flow;
-        let spec = raw::LabelCalcSizeRequestSpec {
+        let spec = raw::LabelSizeSpec {
             text: "Hello World",
             style,
         };
-        let i = raw::calc_label_request_size(&spec, &mut ts);
+        let i = raw::size_label(&spec, SizeOffer::UNBOUNDED, &mut ts);
         assert_eq!(i.preferred, Some(Vec2::new(88.0, 16.0)));
     }
 

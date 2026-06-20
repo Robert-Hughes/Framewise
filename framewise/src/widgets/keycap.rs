@@ -1,6 +1,6 @@
 use crate::{
     draw::{DrawCmd, DrawCommands},
-    layout::LayoutState,
+    layout::{LayoutState, SizeOffer},
     text::{layout_text, TextBackend},
     types::{Color, Layer, Rect, Vec2},
     widget::{LayoutInfo, WidgetContext},
@@ -18,7 +18,7 @@ pub mod raw {
     }
 
     #[derive(Debug, Clone, PartialEq)]
-    pub struct KeycapCalcSizeRequestSpec<'a> {
+    pub struct KeycapSizeSpec<'a> {
         pub text: &'a str,
         pub style: super::KeycapStyle,
     }
@@ -28,9 +28,10 @@ pub mod raw {
         pub content_bounds: Rect,
     }
 
-    /// Calculate a keycap's size request from its size-request spec.
-    pub fn calc_keycap_intrinsic_size<T: TextBackend>(
-        spec: &KeycapCalcSizeRequestSpec,
+    /// Return the size this keycap would request under offer.
+    pub fn size_keycap<T: TextBackend>(
+        spec: &KeycapSizeSpec,
+        _offer: SizeOffer,
         text_backend: &mut T,
     ) -> crate::layout::SizeRequest {
         let layout = layout_text(
@@ -213,11 +214,12 @@ pub fn keycap<'a, T: TextBackend, S: LayoutState, CF>(
     layout_params: S::Params,
 ) -> KeycapResult {
     let spec = builder.defaults_from_theme(&ctx.theme).build();
-    let calc_spec = raw::KeycapCalcSizeRequestSpec {
+    let size_spec = raw::KeycapSizeSpec {
         text: spec.text,
         style: spec.style,
     };
-    let size_request = raw::calc_keycap_intrinsic_size(&calc_spec, ctx.text_backend);
+    let offer = ctx.peek_offer(layout_params.clone());
+    let size_request = raw::size_keycap(&size_spec, offer, ctx.text_backend);
     let rect = ctx.layout(layout_params, size_request);
     let raw_spec = raw::KeycapSpec {
         layer: ctx.layer,

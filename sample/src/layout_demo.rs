@@ -39,7 +39,7 @@ use framewise::{
     widget::WidgetContext,
     widgets::button::{
         button,
-        raw::{calc_button_intrinsic_size, ButtonCalcSizeRequestSpec},
+        raw::{size_button, ButtonSizeSpec},
         ButtonSpecBuilder, ButtonState, ButtonStyle,
     },
     widgets::label::{label, LabelSpecBuilder},
@@ -663,11 +663,14 @@ pub(crate) fn draw_layout_page_content<'a, 'b, CF>(
                     .style(secondary)
                     .defaults_from_theme(&theme)
                     .build();
-                let spec = ButtonCalcSizeRequestSpec {
+                let spec = ButtonSizeSpec {
                     text: spec.text,
                     style: spec.style,
                 };
-                calc_button_intrinsic_size(&spec, ts).preferred.unwrap().x
+                size_button(&spec, framewise::layout::SizeOffer::UNBOUNDED, ts)
+                    .preferred
+                    .unwrap()
+                    .x
             };
             let w_filter = measure(right.text_backend, "Filter");
             let w_sort = measure(right.text_backend, "Sort");

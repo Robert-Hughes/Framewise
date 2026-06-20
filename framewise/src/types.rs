@@ -66,7 +66,7 @@ impl Rect {
     /// stamped with this rect are patched with the real bounds at `end`.
     ///
     /// Distinct from [`PLACEHOLDER`](Self::PLACEHOLDER) (all-NaN), which marks a
-    /// rect not resolved *at all* — the leaf `calc_*_intrinsic_size` case, where
+    /// rect not resolved *at all* — the leaf `size_*` case, where
     /// even the origin is unknown before the layout step runs.
     pub const fn pending_extent(x: f32, y: f32) -> Self {
         Self {

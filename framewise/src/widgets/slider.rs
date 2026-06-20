@@ -2,7 +2,7 @@ use crate::{
     draw::{DrawCmd, DrawCommands},
     focus::{FocusId, FocusSystem},
     input::Input,
-    layout::LayoutState,
+    layout::{LayoutState, SizeOffer},
     text::TextBackend,
     types::{ClipRect, Color, Layer, Rect, Vec2},
     widget::{InputInfo, LayoutInfo, WidgetContext},
@@ -41,7 +41,7 @@ pub mod raw {
     }
 
     #[derive(Debug, Clone, PartialEq)]
-    pub struct SliderCalcSizeRequestSpec {}
+    pub struct SliderSizeSpec {}
 
     #[derive(Debug, Clone, PartialEq)]
     pub struct SliderResult {
@@ -56,9 +56,7 @@ pub mod raw {
     /// [`SizeRequest::UNKNOWN`]. A later revision may report a cross-axis minimum
     /// derived from `style.thumb_size`.
     ///
-    pub fn calc_slider_intrinsic_size(
-        spec: &SliderCalcSizeRequestSpec,
-    ) -> crate::layout::SizeRequest {
+    pub fn size_slider(spec: &SliderSizeSpec, _offer: SizeOffer) -> crate::layout::SizeRequest {
         let _ = spec;
         crate::layout::SizeRequest::UNKNOWN
     }
@@ -904,8 +902,9 @@ pub fn slider<T: TextBackend, S: LayoutState, CF>(
     state: &mut SliderState,
 ) -> SliderResult {
     let spec = builder.defaults_from_theme(&ctx.theme).build();
-    let calc_spec = raw::SliderCalcSizeRequestSpec {};
-    let size_request = raw::calc_slider_intrinsic_size(&calc_spec);
+    let size_spec = raw::SliderSizeSpec {};
+    let offer = ctx.peek_offer(layout_params.clone());
+    let size_request = raw::size_slider(&size_spec, offer);
     let rect = ctx.layout(layout_params, size_request);
     let raw_spec = raw::SliderSpec {
         rect,
@@ -2470,11 +2469,11 @@ mod tests {
     }
 
     #[test]
-    fn test_calc_slider_intrinsic_size() {
+    fn test_size_slider() {
         // A slider's size is caller-driven; it reports no size request.
-        let spec = raw::SliderCalcSizeRequestSpec {};
+        let spec = raw::SliderSizeSpec {};
         assert_eq!(
-            raw::calc_slider_intrinsic_size(&spec),
+            raw::size_slider(&spec, SizeOffer::UNBOUNDED),
             crate::layout::SizeRequest::UNKNOWN
         );
     }

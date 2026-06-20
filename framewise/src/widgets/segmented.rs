@@ -2,7 +2,7 @@ use crate::{
     draw::{DrawCmd, DrawCommands},
     focus::{FocusId, FocusSystem},
     input::Input,
-    layout::LayoutState,
+    layout::{LayoutState, SizeOffer},
     text::{layout_text, TextBackend},
     types::{ClipRect, Color, Layer, Rect, Vec2},
     widget::{InputInfo, LayoutInfo, WidgetContext},
@@ -23,7 +23,7 @@ pub mod raw {
     }
 
     #[derive(Debug, Clone, PartialEq)]
-    pub struct SegmentedCalcSizeRequestSpec<'a> {
+    pub struct SegmentedSizeSpec<'a> {
         pub items: &'a [&'a str],
         pub style: super::SegmentedStyle,
     }
@@ -35,9 +35,10 @@ pub mod raw {
         pub content_bounds: Rect,
     }
 
-    /// Calculate a segmented control's size request from its size-request spec.
-    pub fn calc_segmented_intrinsic_size<T: TextBackend>(
-        spec: &SegmentedCalcSizeRequestSpec,
+    /// Return the size this segmented control would request under offer.
+    pub fn size_segmented<T: TextBackend>(
+        spec: &SegmentedSizeSpec,
+        _offer: SizeOffer,
         text_backend: &mut T,
     ) -> crate::layout::SizeRequest {
         let s = spec.style;
@@ -368,11 +369,12 @@ pub fn segmented<'a, T: TextBackend, S: LayoutState, CF>(
     state: &mut SegmentedState,
 ) -> SegmentedResult {
     let spec = builder.defaults_from_theme(&ctx.theme).build();
-    let calc_spec = raw::SegmentedCalcSizeRequestSpec {
+    let size_spec = raw::SegmentedSizeSpec {
         items: spec.items,
         style: spec.style,
     };
-    let size_request = raw::calc_segmented_intrinsic_size(&calc_spec, ctx.text_backend);
+    let offer = ctx.peek_offer(layout_params.clone());
+    let size_request = raw::size_segmented(&size_spec, offer, ctx.text_backend);
     let rect = ctx.layout(layout_params, size_request);
     let raw_spec = raw::SegmentedSpec {
         layer: ctx.layer,

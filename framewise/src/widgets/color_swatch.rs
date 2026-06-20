@@ -1,6 +1,6 @@
 use crate::{
     draw::{DrawCmd, DrawCommands},
-    layout::LayoutState,
+    layout::{LayoutState, SizeOffer},
     text::TextBackend,
     types::{Color, Layer, Rect},
     widget::{LayoutInfo, WidgetContext},
@@ -19,7 +19,7 @@ pub mod raw {
     }
 
     #[derive(Debug, Clone, PartialEq)]
-    pub struct ColorSwatchCalcSizeRequestSpec {}
+    pub struct ColorSwatchSizeSpec {}
 
     #[derive(Debug, Clone, PartialEq)]
     pub struct ColorSwatchResult {
@@ -31,8 +31,9 @@ pub mod raw {
     /// A color swatch has no inherent preferred size. This returns
     /// [`SizeRequest::UNKNOWN`].
     ///
-    pub fn calc_color_swatch_intrinsic_size(
-        spec: &ColorSwatchCalcSizeRequestSpec,
+    pub fn size_color_swatch(
+        spec: &ColorSwatchSizeSpec,
+        _offer: SizeOffer,
     ) -> crate::layout::SizeRequest {
         let _ = spec;
         crate::layout::SizeRequest::UNKNOWN
@@ -133,8 +134,9 @@ pub fn color_swatch<T: TextBackend, S: LayoutState, CF>(
     layout_params: S::Params,
 ) -> ColorSwatchResult {
     let spec = builder.defaults_from_theme(&ctx.theme).build();
-    let calc_spec = raw::ColorSwatchCalcSizeRequestSpec {};
-    let size_request = raw::calc_color_swatch_intrinsic_size(&calc_spec);
+    let size_spec = raw::ColorSwatchSizeSpec {};
+    let offer = ctx.peek_offer(layout_params.clone());
+    let size_request = raw::size_color_swatch(&size_spec, offer);
     let rect = ctx.layout(layout_params, size_request);
     let raw_spec = raw::ColorSwatchSpec {
         layer: ctx.layer,

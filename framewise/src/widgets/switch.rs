@@ -2,7 +2,7 @@ use crate::{
     draw::{DrawCmd, DrawCommands},
     focus::{FocusId, FocusSystem},
     input::Input,
-    layout::{LayoutState, SizeRequest},
+    layout::{LayoutState, SizeOffer, SizeRequest},
     text::TextBackend,
     types::{ClipRect, Color, Layer, Rect, Vec2},
     widget::{InputInfo, LayoutInfo, WidgetContext},
@@ -22,7 +22,7 @@ pub mod raw {
     }
 
     #[derive(Debug, Clone, PartialEq)]
-    pub struct SwitchCalcSizeRequestSpec {
+    pub struct SwitchSizeSpec {
         pub style: super::SwitchStyle,
     }
 
@@ -33,8 +33,8 @@ pub mod raw {
         pub content_bounds: Rect,
     }
 
-    /// Calculate a switch's size request from its size-request spec.
-    pub fn calc_switch_request_size(spec: &SwitchCalcSizeRequestSpec) -> SizeRequest {
+    /// Return the size this switch would request under offer.
+    pub fn size_switch(spec: &SwitchSizeSpec, _offer: SizeOffer) -> SizeRequest {
         SizeRequest::preferred(spec.style.size)
     }
 
@@ -280,8 +280,9 @@ pub fn switch<T: TextBackend, S: LayoutState, CF>(
     state: &mut SwitchState,
 ) -> SwitchResult {
     let spec = builder.defaults_from_theme(&ctx.theme).build();
-    let calc_spec = raw::SwitchCalcSizeRequestSpec { style: spec.style };
-    let size_request = raw::calc_switch_request_size(&calc_spec);
+    let size_spec = raw::SwitchSizeSpec { style: spec.style };
+    let offer = ctx.peek_offer(layout_params.clone());
+    let size_request = raw::size_switch(&size_spec, offer);
     let rect = ctx.layout(layout_params, size_request);
     let raw_spec = raw::SwitchSpec {
         rect,
@@ -330,16 +331,17 @@ pub fn labelled_switch<T: TextBackend, S: LayoutState, CF>(
     }
 
     // Calculate size requests using the official functions of both widgets.
-    let switch_calc_spec = raw::SwitchCalcSizeRequestSpec { style: spec.style };
-    let switch_request = raw::calc_switch_request_size(&switch_calc_spec);
+    let offer = ctx.peek_offer(layout_params.clone());
+    let switch_size_spec = raw::SwitchSizeSpec { style: spec.style };
+    let switch_request = raw::size_switch(&switch_size_spec, offer);
     let switch_size = switch_request.preferred.unwrap();
 
-    let label_calc_spec = crate::widgets::label::raw::LabelCalcSizeRequestSpec {
+    let label_size_spec = crate::widgets::label::raw::LabelSizeSpec {
         text: label_text,
         style: label_style,
     };
     let label_request =
-        crate::widgets::label::raw::calc_label_request_size(&label_calc_spec, ctx.text_backend);
+        crate::widgets::label::raw::size_label(&label_size_spec, offer, ctx.text_backend);
     let label_size = label_request.preferred.unwrap();
 
     let gap = 8.0;
@@ -1225,11 +1227,11 @@ mod tests {
     }
 
     #[test]
-    fn test_calc_switch_request_size() {
+    fn test_size_switch() {
         let theme = crate::theme::Theme::default();
         let style = SwitchStyle::from_theme(&theme);
-        let spec = raw::SwitchCalcSizeRequestSpec { style };
-        let size_request = raw::calc_switch_request_size(&spec);
+        let spec = raw::SwitchSizeSpec { style };
+        let size_request = raw::size_switch(&spec, SizeOffer::UNBOUNDED);
         assert_eq!(size_request, SizeRequest::preferred(Vec2::new(30.0, 16.0)));
     }
 

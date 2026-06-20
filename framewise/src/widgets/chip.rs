@@ -2,7 +2,7 @@ use crate::{
     draw::{DrawCmd, DrawCommands},
     focus::{FocusId, FocusSystem},
     input::Input,
-    layout::LayoutState,
+    layout::{LayoutState, SizeOffer},
     types::{ClipRect, Color, Layer, Rect, Vec2},
     widget::{InputInfo, LayoutInfo, WidgetContext},
     TextBackend,
@@ -25,7 +25,7 @@ pub mod raw {
     }
 
     #[derive(Debug, Clone, PartialEq)]
-    pub struct ChipCalcSizeRequestSpec<'a> {
+    pub struct ChipSizeSpec<'a> {
         pub text: &'a str,
         pub style: super::ChipStyle,
     }
@@ -37,9 +37,10 @@ pub mod raw {
         pub content_bounds: Rect,
     }
 
-    /// Calculate a chip's size request from its size-request spec.
-    pub fn calc_chip_intrinsic_size<T: TextBackend>(
-        spec: &ChipCalcSizeRequestSpec,
+    /// Return the size this chip would request under offer.
+    pub fn size_chip<T: TextBackend>(
+        spec: &ChipSizeSpec,
+        _offer: SizeOffer,
         text_backend: &mut T,
     ) -> crate::layout::SizeRequest {
         let layout = layout_text(
@@ -306,11 +307,12 @@ pub fn chip<'a, T: TextBackend, S: LayoutState, CF>(
     state: &mut ChipState,
 ) -> ChipResult {
     let spec = builder.defaults_from_theme(&ctx.theme).build();
-    let calc_spec = raw::ChipCalcSizeRequestSpec {
+    let size_spec = raw::ChipSizeSpec {
         text: spec.text,
         style: spec.style,
     };
-    let size_request = raw::calc_chip_intrinsic_size(&calc_spec, ctx.text_backend);
+    let offer = ctx.peek_offer(layout_params.clone());
+    let size_request = raw::size_chip(&size_spec, offer, ctx.text_backend);
     let rect = ctx.layout(layout_params, size_request);
     let raw_spec = raw::ChipSpec {
         layer: ctx.layer,

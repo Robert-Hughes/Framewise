@@ -1,7 +1,7 @@
 use crate::{
     draw::{DrawCmd, DrawCommands},
     focus::FocusSystem,
-    layout::{Layout, LayoutState},
+    layout::{Layout, LayoutState, SizeOffer},
     text::{layout_text, TextBackend},
     types::{Color, Layer, Rect, Vec2},
     widget::{LayoutInfo, WidgetContext},
@@ -22,7 +22,7 @@ pub mod raw {
     }
 
     #[derive(Debug, Clone, PartialEq)]
-    pub struct WindowCalcSizeRequestSpec {
+    pub struct WindowSizeSpec {
         pub status_bar: bool,
         pub style: super::WindowStyle,
     }
@@ -32,9 +32,7 @@ pub mod raw {
         pub content_bounds: Rect,
     }
 
-    pub fn calc_window_intrinsic_size(
-        spec: &WindowCalcSizeRequestSpec,
-    ) -> crate::layout::SizeRequest {
+    pub fn size_window(spec: &WindowSizeSpec, _offer: SizeOffer) -> crate::layout::SizeRequest {
         let s = spec.style;
         let status_h = if spec.status_bar {
             s.status_height
@@ -350,11 +348,12 @@ pub fn begin_window<'a, 'b, 'c, T: TextBackend, S: LayoutState, L: Layout, CF>(
         .defaults_from_theme(&ctx.theme)
         .buttons(buttons)
         .build();
-    let calc_spec = raw::WindowCalcSizeRequestSpec {
+    let size_spec = raw::WindowSizeSpec {
         status_bar: spec.status_bar,
         style: spec.style,
     };
-    let size_request = raw::calc_window_intrinsic_size(&calc_spec);
+    let offer = ctx.peek_offer(layout_params.clone());
+    let size_request = raw::size_window(&size_spec, offer);
     let bounds = ctx.layout(layout_params, size_request);
     let raw_spec = raw::WindowSpec {
         rect: bounds,

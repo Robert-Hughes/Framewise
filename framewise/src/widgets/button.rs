@@ -2,7 +2,7 @@ use crate::{
     draw::{DrawCmd, DrawCommands},
     focus::{FocusId, FocusSystem},
     input::Input,
-    layout::LayoutState,
+    layout::{LayoutState, SizeOffer},
     types::{ClipRect, Color, Layer, Rect, Vec2},
     widget::{InputInfo, LayoutInfo, WidgetContext},
     TextBackend,
@@ -24,7 +24,7 @@ pub mod raw {
     }
 
     #[derive(Debug, Clone, PartialEq)]
-    pub struct ButtonCalcSizeRequestSpec<'a> {
+    pub struct ButtonSizeSpec<'a> {
         pub text: &'a str,
         pub style: super::ButtonStyle,
     }
@@ -36,13 +36,14 @@ pub mod raw {
         pub content_bounds: Rect,
     }
 
-    /// Calculate a button's size request from its size-request spec.
+    /// Return the size this button would request under offer.
     ///
     /// The preferred width is the label width plus horizontal padding; the
     /// preferred height is the larger of the standard control height and the
     /// padded label height.
-    pub fn calc_button_intrinsic_size<T: TextBackend>(
-        spec: &ButtonCalcSizeRequestSpec,
+    pub fn size_button<T: TextBackend>(
+        spec: &ButtonSizeSpec,
+        _offer: SizeOffer,
         text_backend: &mut T,
     ) -> crate::layout::SizeRequest {
         let style = &spec.style;
@@ -440,11 +441,12 @@ pub fn button<'a, T: TextBackend, S: LayoutState, CF>(
     state: &mut ButtonState,
 ) -> ButtonResult {
     let spec = builder.defaults_from_theme(&ctx.theme).build();
-    let calc_spec = raw::ButtonCalcSizeRequestSpec {
+    let size_spec = raw::ButtonSizeSpec {
         text: spec.text,
         style: spec.style,
     };
-    let size_request = raw::calc_button_intrinsic_size(&calc_spec, ctx.text_backend);
+    let offer = ctx.peek_offer(layout_params.clone());
+    let size_request = raw::size_button(&size_spec, offer, ctx.text_backend);
     let rect = ctx.layout(layout_params, size_request);
     let raw_spec = raw::ButtonSpec {
         layer: ctx.layer,
@@ -1674,15 +1676,15 @@ mod tests {
     }
 
     #[test]
-    fn test_calc_button_intrinsic_size() {
+    fn test_size_button() {
         let mut ts = TestTextBackend;
-        let spec = raw::ButtonCalcSizeRequestSpec {
+        let spec = raw::ButtonSizeSpec {
             text: "Btn",
             style: ButtonStyle::primary_from_theme(&theme::Theme::default()),
         };
         // "Btn" = 3 chars * 8px = 24 wide, 16 tall (TestTextBackend).
         // width = 24 + 2*pad_x(14) = 52; height = max(16 + 2*pad_y(6), min_height 28) = 28.
-        let i = raw::calc_button_intrinsic_size(&spec, &mut ts);
+        let i = raw::size_button(&spec, SizeOffer::UNBOUNDED, &mut ts);
         assert_eq!(i.preferred, Some(Vec2::new(52.0, 28.0)));
     }
 
@@ -1713,5 +1715,39 @@ mod tests {
             &mut st,
         );
         assert_eq!(r.layout.bounds, Rect::new(10.0, 10.0, 60.0, 28.0));
+    }
+
+    #[test]
+    fn test_button_peek_offer_flow_does_not_move_sibling() {
+        use crate::layouts::{ColumnLayout, ColumnLayoutParams, ManualLayout};
+        let mut text_backend = TestTextBackend;
+        let mut focus = FocusSystem::new();
+        let input = Input::default();
+        let mut cmds = DrawCommands::new();
+        let mut ctx = WidgetContext::root(
+            theme::Theme::framewise(),
+            &mut text_backend,
+            &mut focus,
+            &input,
+            ManualLayout,
+            Rect::new(0.0, 0.0, 800.0, 600.0),
+            &mut cmds,
+        );
+        let mut col = ctx.child_with_layout(Rect::new(10.0, 10.0, 300.0, 400.0), ColumnLayout);
+        let mut st = ButtonState::default();
+
+        let button = super::button(
+            &mut col,
+            ButtonSpecBuilder::new().text("Save"),
+            ColumnLayoutParams::auto(),
+            &mut st,
+        );
+        let sibling = col.layout(
+            ColumnLayoutParams::fixed(20.0, 10.0),
+            crate::layout::SizeRequest::UNKNOWN,
+        );
+
+        assert_eq!(button.layout.bounds, Rect::new(10.0, 10.0, 60.0, 28.0));
+        assert_eq!(sibling, Rect::new(10.0, 38.0, 20.0, 10.0));
     }
 }

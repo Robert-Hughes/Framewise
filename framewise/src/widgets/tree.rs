@@ -1,6 +1,6 @@
 use crate::{
     draw::{DrawCmd, DrawCommands},
-    layout::{LayoutState, SizeRequest},
+    layout::{LayoutState, SizeOffer, SizeRequest},
     text::{layout_text, TextBackend, TextBounds, TextStyle},
     types::{Color, Layer, Rect, Vec2},
     widget::{LayoutInfo, WidgetContext},
@@ -18,7 +18,7 @@ pub mod raw {
     }
 
     #[derive(Debug, Clone, PartialEq)]
-    pub struct TreeCalcSizeRequestSpec<'a> {
+    pub struct TreeSizeSpec<'a> {
         pub items: &'a [super::TreeRow<'a>],
         pub style: super::TreeStyle,
     }
@@ -29,8 +29,8 @@ pub mod raw {
         pub content_bounds: Rect,
     }
 
-    /// Calculate a tree widget's size request from its size-request spec.
-    pub fn calc_tree_intrinsic_size(spec: &TreeCalcSizeRequestSpec) -> SizeRequest {
+    /// Return the size this tree widget would request under offer.
+    pub fn size_tree(spec: &TreeSizeSpec, _offer: SizeOffer) -> SizeRequest {
         let s = spec.style;
         let total_h = spec.items.len() as f32 * s.row_height + s.pad_y * 2.0;
         SizeRequest::preferred(Vec2::new(s.min_width, total_h))
@@ -310,11 +310,12 @@ pub fn tree<'a, T: TextBackend, S: LayoutState, CF>(
     layout_params: S::Params,
 ) -> TreeResult {
     let spec = builder.defaults_from_theme(&ctx.theme).build();
-    let calc_spec = raw::TreeCalcSizeRequestSpec {
+    let size_spec = raw::TreeSizeSpec {
         items: spec.items,
         style: spec.style,
     };
-    let size_request = raw::calc_tree_intrinsic_size(&calc_spec);
+    let offer = ctx.peek_offer(layout_params.clone());
+    let size_request = raw::size_tree(&size_spec, offer);
     let rect = ctx.layout(layout_params, size_request);
     let raw_spec = raw::TreeSpec {
         rect,
@@ -415,13 +416,13 @@ mod tests {
     }
 
     #[test]
-    fn test_calc_tree_intrinsic_size_empty() {
-        let spec = raw::TreeCalcSizeRequestSpec {
+    fn test_size_tree_empty() {
+        let spec = raw::TreeSizeSpec {
             items: &[],
             style: TreeStyle::from_theme(&crate::theme::Theme::framewise()),
         };
         let style = spec.style;
-        let size_request = raw::calc_tree_intrinsic_size(&spec);
+        let size_request = raw::size_tree(&spec, SizeOffer::UNBOUNDED);
         assert_eq!(
             size_request.preferred,
             Some(Vec2::new(style.min_width, style.pad_y * 2.0))
@@ -429,7 +430,7 @@ mod tests {
     }
 
     #[test]
-    fn test_calc_tree_intrinsic_size_with_items() {
+    fn test_size_tree_with_items() {
         let items = [
             TreeRow {
                 indent: 0,
@@ -446,12 +447,12 @@ mod tests {
                 selected: false,
             },
         ];
-        let spec = raw::TreeCalcSizeRequestSpec {
+        let spec = raw::TreeSizeSpec {
             items: &items,
             style: TreeStyle::from_theme(&crate::theme::Theme::framewise()),
         };
         let style = spec.style;
-        let size_request = raw::calc_tree_intrinsic_size(&spec);
+        let size_request = raw::size_tree(&spec, SizeOffer::UNBOUNDED);
         let expected_h = 2.0 * style.row_height + style.pad_y * 2.0;
         assert_eq!(
             size_request.preferred,

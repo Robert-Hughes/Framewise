@@ -2,7 +2,7 @@ use crate::{
     draw::{DrawCmd, DrawCommands},
     focus::{FocusId, FocusSystem},
     input::Input,
-    layout::{LayoutState, SizeRequest},
+    layout::{LayoutState, SizeOffer, SizeRequest},
     types::{ClipRect, Color, Layer, Rect, Vec2},
     widget::{InputInfo, LayoutInfo, WidgetContext},
     TextBackend,
@@ -23,7 +23,7 @@ pub mod raw {
     }
 
     #[derive(Debug, Clone, PartialEq)]
-    pub struct CheckboxCalcSizeRequestSpec {
+    pub struct CheckboxSizeSpec {
         pub style: super::CheckboxStyle,
     }
 
@@ -34,8 +34,8 @@ pub mod raw {
         pub content_bounds: Rect,
     }
 
-    /// Calculate a checkbox's size request from its size-request spec.
-    pub fn calc_checkbox_request_size(spec: &CheckboxCalcSizeRequestSpec) -> SizeRequest {
+    /// Return the size this checkbox would request under offer.
+    pub fn size_checkbox(spec: &CheckboxSizeSpec, _offer: SizeOffer) -> SizeRequest {
         SizeRequest::preferred(Vec2::new(spec.style.size, spec.style.size))
     }
 
@@ -338,8 +338,9 @@ pub fn checkbox<T: TextBackend, S: LayoutState, CF>(
     state: &mut CheckboxState,
 ) -> CheckboxResult {
     let spec = builder.defaults_from_theme(&ctx.theme).build();
-    let calc_spec = raw::CheckboxCalcSizeRequestSpec { style: spec.style };
-    let size_request = raw::calc_checkbox_request_size(&calc_spec);
+    let size_spec = raw::CheckboxSizeSpec { style: spec.style };
+    let offer = ctx.peek_offer(layout_params.clone());
+    let size_request = raw::size_checkbox(&size_spec, offer);
     let rect = ctx.layout(layout_params, size_request);
     let raw_spec = raw::CheckboxSpec {
         rect,
@@ -389,16 +390,17 @@ pub fn labelled_checkbox<T: TextBackend, S: LayoutState, CF>(
     }
 
     // Calculate size requests using the official functions of both widgets.
-    let checkbox_calc_spec = raw::CheckboxCalcSizeRequestSpec { style: spec.style };
-    let checkbox_request = raw::calc_checkbox_request_size(&checkbox_calc_spec);
+    let offer = ctx.peek_offer(layout_params.clone());
+    let checkbox_size_spec = raw::CheckboxSizeSpec { style: spec.style };
+    let checkbox_request = raw::size_checkbox(&checkbox_size_spec, offer);
     let checkbox_size = checkbox_request.preferred.unwrap();
 
-    let label_calc_spec = crate::widgets::label::raw::LabelCalcSizeRequestSpec {
+    let label_size_spec = crate::widgets::label::raw::LabelSizeSpec {
         text: label_text,
         style: label_style,
     };
     let label_request =
-        crate::widgets::label::raw::calc_label_request_size(&label_calc_spec, ctx.text_backend);
+        crate::widgets::label::raw::size_label(&label_size_spec, offer, ctx.text_backend);
     let label_size = label_request.preferred.unwrap();
 
     let gap = 8.0;
@@ -1589,11 +1591,11 @@ mod tests {
     }
 
     #[test]
-    fn test_calc_checkbox_request_size() {
+    fn test_size_checkbox() {
         let theme = crate::theme::Theme::default();
         let style = CheckboxStyle::from_theme(&theme);
-        let spec = raw::CheckboxCalcSizeRequestSpec { style };
-        let size_request = raw::calc_checkbox_request_size(&spec);
+        let spec = raw::CheckboxSizeSpec { style };
+        let size_request = raw::size_checkbox(&spec, SizeOffer::UNBOUNDED);
         assert_eq!(size_request, SizeRequest::preferred(Vec2::new(14.0, 14.0)));
     }
 

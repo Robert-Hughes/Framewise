@@ -1,6 +1,6 @@
 use crate::{
     draw::{DrawCmd, DrawCommands},
-    layout::{LayoutState, SizeRequest},
+    layout::{LayoutState, SizeOffer, SizeRequest},
     text::TextBackend,
     types::{Color, Layer, Rect},
     widget::{LayoutInfo, WidgetContext},
@@ -25,14 +25,14 @@ pub mod raw {
     }
 
     #[derive(Debug, Clone, PartialEq)]
-    pub struct ProgressBarCalcSizeRequestSpec {}
+    pub struct ProgressBarSizeSpec {}
 
     #[derive(Debug, Clone, PartialEq)]
     pub struct ProgressBarResult {}
 
     /// Calculate a progress bar's size request.
     /// Currently returns UNKNOWN as per user preference.
-    pub fn calc_progress_bar_intrinsic_size(_spec: &ProgressBarCalcSizeRequestSpec) -> SizeRequest {
+    pub fn size_progress_bar(_spec: &ProgressBarSizeSpec, _offer: SizeOffer) -> SizeRequest {
         SizeRequest::UNKNOWN
     }
 
@@ -194,8 +194,9 @@ pub fn progress_bar<T: TextBackend, S: LayoutState, CF>(
     layout_params: S::Params,
 ) -> ProgressBarResult {
     let spec = builder.defaults_from_theme(&ctx.theme).build();
-    let calc_spec = raw::ProgressBarCalcSizeRequestSpec {};
-    let size_request = raw::calc_progress_bar_intrinsic_size(&calc_spec);
+    let size_spec = raw::ProgressBarSizeSpec {};
+    let offer = ctx.peek_offer(layout_params.clone());
+    let size_request = raw::size_progress_bar(&size_spec, offer);
     let rect = ctx.layout(layout_params, size_request);
     let raw_spec = raw::ProgressBarSpec {
         layer: ctx.layer,

@@ -2,7 +2,7 @@ use crate::{
     draw::{DrawCmd, DrawCommands},
     focus::{FocusId, FocusSystem},
     input::Input,
-    layout::{AxisBound, Layout, LayoutSpace, LayoutState},
+    layout::{AxisBound, Layout, LayoutSpace, LayoutState, SizeOffer},
     text::TextBackend,
     types::{ClipRect, Color, Layer, Rect, Vec2},
     widget::{LayoutInfo, WidgetContext},
@@ -26,7 +26,7 @@ pub mod raw {
     }
 
     #[derive(Debug, Clone, PartialEq)]
-    pub struct ScrollAreaCalcSizeRequestSpec {}
+    pub struct ScrollAreaSizeSpec {}
 
     /// Carries the geometry resolved at `begin` that `end` needs to finish the
     /// area once the content extent is known. Scroll geometry (max_scroll, thumb
@@ -68,8 +68,9 @@ pub mod raw {
     /// [`SizeRequest::UNKNOWN`]. A later revision may report a minimum viewport
     /// size derived from the reserved scrollbar widths.
     ///
-    pub fn calc_scroll_area_intrinsic_size(
-        spec: &ScrollAreaCalcSizeRequestSpec,
+    pub fn size_scroll_area(
+        spec: &ScrollAreaSizeSpec,
+        _offer: SizeOffer,
     ) -> crate::layout::SizeRequest {
         let _ = spec;
         crate::layout::SizeRequest::UNKNOWN
@@ -787,8 +788,9 @@ pub fn begin_scroll_area<'a, 'b, T: TextBackend, S: LayoutState, L: Layout, CF>(
     impl FnOnce(&mut FocusSystem, &mut T, &mut DrawCommands, Rect) + 'b,
 > {
     let spec = builder.defaults_from_theme(&ctx.theme).build();
-    let calc_spec = raw::ScrollAreaCalcSizeRequestSpec {};
-    let size_request = raw::calc_scroll_area_intrinsic_size(&calc_spec);
+    let size_spec = raw::ScrollAreaSizeSpec {};
+    let offer = ctx.peek_offer(layout_params.clone());
+    let size_request = raw::size_scroll_area(&size_spec, offer);
     let bounds = ctx.layout(layout_params, size_request);
     let raw_spec = raw::ScrollAreaSpec {
         rect: bounds,

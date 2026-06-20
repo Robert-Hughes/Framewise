@@ -2,7 +2,7 @@
 use crate::focus::FocusSystem;
 use crate::{
     draw::{DrawCmd, DrawCommands},
-    layout::LayoutState,
+    layout::{LayoutState, SizeOffer},
     text::TextBackend,
     types::{Color, Layer, Rect, Vec2},
     widget::{LayoutInfo, WidgetContext},
@@ -20,7 +20,7 @@ pub mod raw {
     }
 
     #[derive(Debug, Clone, PartialEq)]
-    pub struct DividerCalcSizeRequestSpec {}
+    pub struct DividerSizeSpec {}
 
     #[derive(Debug, Clone, PartialEq)]
     pub struct DividerResult {}
@@ -30,9 +30,7 @@ pub mod raw {
     /// A divider has no inherent preferred size. This returns
     /// [`SizeRequest::UNKNOWN`].
     ///
-    pub fn calc_divider_intrinsic_size(
-        spec: &DividerCalcSizeRequestSpec,
-    ) -> crate::layout::SizeRequest {
+    pub fn size_divider(spec: &DividerSizeSpec, _offer: SizeOffer) -> crate::layout::SizeRequest {
         let _ = spec;
         crate::layout::SizeRequest::UNKNOWN
     }
@@ -120,8 +118,9 @@ pub fn divider<T: TextBackend, S: LayoutState, CF>(
     layout_params: S::Params,
 ) -> DividerResult {
     let spec = builder.defaults_from_theme(&ctx.theme).build();
-    let calc_spec = raw::DividerCalcSizeRequestSpec {};
-    let size_request = raw::calc_divider_intrinsic_size(&calc_spec);
+    let size_spec = raw::DividerSizeSpec {};
+    let offer = ctx.peek_offer(layout_params.clone());
+    let size_request = raw::size_divider(&size_spec, offer);
     let rect = ctx.layout(layout_params, size_request);
     let raw_spec = raw::DividerSpec {
         layer: ctx.layer,
