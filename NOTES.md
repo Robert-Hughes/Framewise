@@ -5,11 +5,6 @@ Working notes, TODOs, open questions, and half-baked ideas.
 ## Current Work
 
 - Text Edit
-  - check all the combinations of \n handling, wrapping, height etc. are meaningful (even if degenerate), to see if we want to tighten it up at all
-    - newline policy, wrap, alignment (vertical and horizontal)
-    - add to demo page?
-  - add helper functions to configure commonly used "single -line", "Muliline" etc., as these affect several differenmt proprties. Add these to the demo page
-
   - the ASCII art tables of wrapping examples in DESIGN.md (showing soft-wrap collapsed spaces etc.) are a nice compact form - use these directly for tests?
   - text_edit tests are very long! Many TextBackend implementations (search "impl TextBackend for"). Reduce duplication, use a common backend?
 
@@ -311,6 +306,8 @@ The "App-Managed State" option would require either a trait layer (so the widget
 - Tabs
 - Graphics / images
 - Animations (spinners, progress bars, animated scrolling)
+- Radio buttons
+  - Some concept of a 'group', such that only one is selected at a time. Bind to a value/int/enum and handle the individual radios automatically?
 
 - Button group seams
 - HTML removes inner right borders in .fw-btngroup. Rust draws adjacent full buttons, so once groups are switched to secondary/default, internal seams will likely look 2px thick unless the rects overlap by 1px or the button API gains per-side borders.

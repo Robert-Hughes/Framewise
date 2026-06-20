@@ -2044,6 +2044,37 @@ impl TextEditSpecBuilder {
         self
     }
 
+    /// Standard single-line text field.
+    ///
+    /// Newlines are replaced with spaces, soft wrapping is disabled, and the
+    /// text is vertically centred in the field.
+    pub fn single_line(self) -> Self {
+        self.newline_policy(NewlinePolicy::ReplaceWithSpace)
+            .wrap(false)
+            .vertical_align(Align::Center)
+            .line_align(TextLineAlign::Start)
+    }
+
+    /// Multiline editor with hard newlines preserved and no soft wrapping.
+    ///
+    /// Long lines can overflow horizontally and be scrolled.
+    pub fn multiline_unwrapped(self) -> Self {
+        self.newline_policy(NewlinePolicy::Preserve)
+            .wrap(false)
+            .vertical_align(Align::Start)
+            .line_align(TextLineAlign::Start)
+    }
+
+    /// Multiline editor with hard newlines preserved and soft wrapping enabled.
+    ///
+    /// This is the usual textarea-style configuration.
+    pub fn multiline_wrapped(self) -> Self {
+        self.newline_policy(NewlinePolicy::Preserve)
+            .wrap(true)
+            .vertical_align(Align::Start)
+            .line_align(TextLineAlign::Start)
+    }
+
     /// Fills unset fields from `theme`. Called automatically by high-level
     /// context functions.
     pub fn defaults_from_theme(mut self, theme: &crate::theme::Theme) -> Self {
