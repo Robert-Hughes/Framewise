@@ -17,7 +17,7 @@ pub mod raw {
     use super::*;
     use crate::widgets::{
         scroll_area::raw::{end_scroll_area, ScrollAreaSpec},
-        scroll_area::{ScrollAxis, ScrollExtent, ScrollLen},
+        scroll_area::{ScrollAreaStyle, ScrollAxis, ScrollExtent, ScrollLen},
         ScrollbarVisibility, SliderStyle,
     };
 
@@ -882,28 +882,31 @@ pub mod raw {
             },
             clip_rect: spec.clip_rect,
             time: spec.time,
-            scrollbar_width: TEXT_EDIT_SCROLLBAR_WIDTH,
-            scrollbar_style: SliderStyle {
-                track_color: Color::linear_rgba(
-                    spec.style.border.r,
-                    spec.style.border.g,
-                    spec.style.border.b,
-                    0.04,
-                ),
-                track_border_color: Some(spec.style.border),
-                thumb_color: spec.style.border,
-                thumb_border_color: Color::TRANSPARENT,
-                thumb_border_width: 0.0,
-                thumb_hover_color: spec.style.focus,
-                thumb_drag_color: spec.style.focus,
-                focus: spec.style.focus,
-                focus_width: 1.0,
-                focus_offset: 1.0,
-                thickness: 0.0,
-                thumb_size: 0.0,
-                scrollbar_mode: true,
-                disabled_alpha: 0.4,
-                scrollbar_thumb_margin: 0.0,
+            style: ScrollAreaStyle {
+                scrollbar_width: TEXT_EDIT_SCROLLBAR_WIDTH,
+                scrollbar_style: SliderStyle {
+                    track_color: Color::linear_rgba(
+                        spec.style.border.r,
+                        spec.style.border.g,
+                        spec.style.border.b,
+                        0.04,
+                    ),
+                    track_border_color: Some(spec.style.border),
+                    thumb_color: spec.style.border,
+                    thumb_border_color: Color::TRANSPARENT,
+                    thumb_border_width: 0.0,
+                    thumb_hover_color: spec.style.focus,
+                    thumb_drag_color: spec.style.focus,
+                    focus: spec.style.focus,
+                    focus_width: 1.0,
+                    focus_offset: 1.0,
+                    thickness: 0.0,
+                    thumb_size: 0.0,
+                    scrollbar_mode: true,
+                    disabled_alpha: 0.4,
+                    scrollbar_thumb_margin: 0.0,
+                },
+                corner_color: None,
             },
             layer: spec.layer,
             keyboard_focusable: false,
@@ -6588,10 +6591,13 @@ mod tests {
             },
             clip_rect: None,
             time: 0.0,
-            scrollbar_width: 10.0,
-            scrollbar_style: crate::widgets::SliderStyle::scrollbar_from_theme(
-                &crate::theme::Theme::default(),
-            ),
+            style: crate::widgets::scroll_area::ScrollAreaStyle {
+                scrollbar_width: 10.0,
+                scrollbar_style: crate::widgets::SliderStyle::scrollbar_from_theme(
+                    &crate::theme::Theme::default(),
+                ),
+                corner_color: Some(crate::theme::Theme::default().paper_elev),
+            },
             layer: Layer::default(),
             keyboard_focusable: true,
         };

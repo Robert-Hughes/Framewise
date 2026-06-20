@@ -20,8 +20,7 @@ pub mod raw {
         pub vertical: super::ScrollAxis,
         pub clip_rect: ClipRect,
         pub time: f64,
-        pub scrollbar_width: f32,
-        pub scrollbar_style: SliderStyle,
+        pub style: super::ScrollAreaStyle,
         pub keyboard_focusable: bool,
     }
 
@@ -46,10 +45,8 @@ pub mod raw {
         pub(super) needs_h: bool,
         pub(super) clip_rect: ClipRect,
         pub(super) time: f64,
-        pub(super) scrollbar_width: f32,
-        pub(super) scrollbar_style: SliderStyle,
+        pub(super) style: super::ScrollAreaStyle,
         pub(super) layer: Layer,
-        pub(super) corner_color: Option<Color>,
         pub(super) keyboard_focusable: bool,
     }
 
@@ -149,12 +146,12 @@ pub mod raw {
         let needs_v = axis_needs_bar(spec.vertical.extent, spec.vertical.vis, spec.rect.h); // vertical bar
 
         let content_w = if needs_v {
-            (spec.rect.w - spec.scrollbar_width).max(0.0)
+            (spec.rect.w - spec.style.scrollbar_width).max(0.0)
         } else {
             spec.rect.w
         };
         let content_h = if needs_h {
-            (spec.rect.h - spec.scrollbar_width).max(0.0)
+            (spec.rect.h - spec.style.scrollbar_width).max(0.0)
         } else {
             spec.rect.h
         };
@@ -181,10 +178,8 @@ pub mod raw {
             needs_h,
             clip_rect: spec.clip_rect,
             time: spec.time,
-            scrollbar_style: spec.scrollbar_style,
-            scrollbar_width: spec.scrollbar_width,
+            style: spec.style,
             layer: spec.layer,
-            corner_color: None,
             keyboard_focusable: spec.keyboard_focusable,
         };
 
@@ -245,7 +240,7 @@ pub mod raw {
             let track_rect = Rect::new(
                 token.content_bounds.right(),
                 token.rect.y,
-                token.scrollbar_width,
+                token.style.scrollbar_width,
                 token.content_bounds.h,
             );
 
@@ -257,7 +252,7 @@ pub mod raw {
                 page_step: token.content_bounds.h,
                 step: 40.0,
                 thumb_size_ratio: Some(view_ratio),
-                style: token.scrollbar_style,
+                style: token.style.scrollbar_style,
                 clip_rect: token.clip_rect,
                 claim_scroll_at_ends: false,
                 time: token.time,
@@ -293,7 +288,7 @@ pub mod raw {
                 token.rect.x,
                 token.content_bounds.bottom(),
                 token.content_bounds.w,
-                token.scrollbar_width,
+                token.style.scrollbar_width,
             );
 
             let slider_spec = crate::widgets::slider::raw::SliderSpec {
@@ -304,7 +299,7 @@ pub mod raw {
                 page_step: token.content_bounds.w,
                 step: 40.0,
                 thumb_size_ratio: Some(view_ratio),
-                style: token.scrollbar_style,
+                style: token.style.scrollbar_style,
                 clip_rect: token.clip_rect,
                 claim_scroll_at_ends: false,
                 time: token.time,
@@ -329,12 +324,12 @@ pub mod raw {
         }
 
         if token.needs_v && token.needs_h {
-            if let Some(corner_color) = token.corner_color {
+            if let Some(corner_color) = token.style.corner_color {
                 let corner_rect = Rect::new(
                     token.content_bounds.right(),
                     token.content_bounds.bottom(),
-                    token.scrollbar_width,
-                    token.scrollbar_width,
+                    token.style.scrollbar_width,
+                    token.style.scrollbar_width,
                 );
                 cmds.push(DrawCmd::FillRect {
                     anti_alias: false,
@@ -342,7 +337,7 @@ pub mod raw {
                     color: corner_color,
                     z: token.layer.get_z(),
                 });
-                if let Some(border_color) = token.scrollbar_style.track_border_color {
+                if let Some(border_color) = token.style.scrollbar_style.track_border_color {
                     // Left border of the corner
                     cmds.push(DrawCmd::StrokeLine {
                         anti_alias: false,
@@ -649,15 +644,32 @@ pub struct ScrollAreaResult<'b, T: TextBackend, LS: LayoutState, CF> {
     pub ctx: WidgetContext<'b, T, LS, CF>,
 }
 
+// ── Style ─────────────────────────────────────────────────────────────────────
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct ScrollAreaStyle {
+    pub scrollbar_width: f32,
+    pub scrollbar_style: SliderStyle,
+    pub corner_color: Option<Color>,
+}
+
+impl ScrollAreaStyle {
+    pub fn from_theme(theme: &crate::theme::Theme) -> Self {
+        Self {
+            scrollbar_width: theme.scrollbar_width,
+            scrollbar_style: SliderStyle::scrollbar_from_theme(theme),
+            corner_color: Some(theme.paper_elev),
+        }
+    }
+}
+
 // ── Spec ─────────────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct ScrollAreaSpec {
     pub horizontal: ScrollAxis,
     pub vertical: ScrollAxis,
-    pub scrollbar_width: f32,
-    pub scrollbar_style: SliderStyle,
-    pub corner_color: Option<Color>,
+    pub style: ScrollAreaStyle,
     pub keyboard_focusable: bool,
 }
 
@@ -667,9 +679,7 @@ pub struct ScrollAreaSpec {
 pub struct ScrollAreaSpecBuilder {
     pub horizontal: Option<ScrollAxis>,
     pub vertical: Option<ScrollAxis>,
-    pub scrollbar_width: Option<f32>,
-    pub scrollbar_style: Option<SliderStyle>,
-    pub corner_color: Option<Option<Color>>,
+    pub style: Option<ScrollAreaStyle>,
     pub keyboard_focusable: Option<bool>,
 }
 
@@ -688,18 +698,8 @@ impl ScrollAreaSpecBuilder {
         self
     }
 
-    pub fn scrollbar_width(mut self, scrollbar_width: f32) -> Self {
-        self.scrollbar_width = Some(scrollbar_width);
-        self
-    }
-
-    pub fn scrollbar_style(mut self, scrollbar_style: SliderStyle) -> Self {
-        self.scrollbar_style = Some(scrollbar_style);
-        self
-    }
-
-    pub fn corner_color(mut self, corner_color: Option<Color>) -> Self {
-        self.corner_color = Some(corner_color);
+    pub fn style(mut self, style: ScrollAreaStyle) -> Self {
+        self.style = Some(style);
         self
     }
 
@@ -711,16 +711,8 @@ impl ScrollAreaSpecBuilder {
     /// Fills unset fields from `theme`. Called automatically by high-level
     /// context functions.
     pub fn defaults_from_theme(mut self, theme: &crate::theme::Theme) -> Self {
-        if self.scrollbar_width.is_none() {
-            self.scrollbar_width = Some(theme.scrollbar_width);
-        }
-        if self.scrollbar_style.is_none() {
-            self.scrollbar_style = Some(crate::widgets::slider::SliderStyle::scrollbar_from_theme(
-                theme,
-            ));
-        }
-        if self.corner_color.is_none() {
-            self.corner_color = Some(Some(theme.paper_elev));
+        if self.style.is_none() {
+            self.style = Some(ScrollAreaStyle::from_theme(theme));
         }
         self
     }
@@ -732,13 +724,9 @@ impl ScrollAreaSpecBuilder {
                 extent: ScrollExtent::SCROLL,
                 vis: ScrollbarVisibility::Auto,
             }),
-            scrollbar_width: self.scrollbar_width.expect(
-                "scrollbar_width not set — call .scrollbar_width() or defaults_from_theme()",
-            ),
-            scrollbar_style: self.scrollbar_style.expect(
-                "scrollbar_style not set — call .scrollbar_style() or defaults_from_theme()",
-            ),
-            corner_color: self.corner_color.flatten(),
+            style: self
+                .style
+                .expect("style not set — call .style() or defaults_from_theme()"),
             keyboard_focusable: self.keyboard_focusable.unwrap_or(true),
         }
     }
@@ -821,15 +809,14 @@ pub fn begin_scroll_area<'a, 'b, T: TextBackend, S: LayoutState, L: Layout, CF>(
         vertical: spec.vertical,
         clip_rect: ctx.clip_rect,
         time: ctx.time,
-        scrollbar_width: spec.scrollbar_width,
-        scrollbar_style: spec.scrollbar_style,
+        style: spec.style,
         layer: ctx.layer,
         keyboard_focusable: spec.keyboard_focusable,
     };
     let input = ctx.input;
 
     let raw::ScrollAreaResult {
-        mut token,
+        token,
         content_bounds,
         offset,
         inner_space,
@@ -841,7 +828,6 @@ pub fn begin_scroll_area<'a, 'b, T: TextBackend, S: LayoutState, L: Layout, CF>(
         ctx.focus_system,
         ctx.cmds,
     );
-    token.corner_color = spec.corner_color;
 
     let offset_layout = crate::layouts::OffsetLayout {
         offset,
@@ -951,10 +937,14 @@ mod tests {
             },
             clip_rect,
             time,
-            scrollbar_width: theme::Theme::default().scrollbar_width,
-            scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
-                &theme::Theme::default(),
-            ),
+            style: ScrollAreaStyle {
+                scrollbar_width: theme::Theme::default().scrollbar_width,
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                    &theme::Theme::default(),
+                ),
+                corner_color: Some(theme::Theme::default().paper_elev),
+            },
+
             keyboard_focusable: true,
         };
         let mut cmds = DrawCommands::new();
@@ -1018,10 +1008,14 @@ mod tests {
                 },
                 clip_rect: None,
                 time: 0.0,
-                scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
-                    &theme::Theme::default(),
-                ),
+                style: ScrollAreaStyle {
+                    scrollbar_width: theme::Theme::default().scrollbar_width,
+                    scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                        &theme::Theme::default(),
+                    ),
+                    corner_color: Some(theme::Theme::default().paper_elev),
+                },
+
                 keyboard_focusable: true,
             };
             let mut cmds = DrawCommands::new();
@@ -1046,10 +1040,14 @@ mod tests {
                 },
                 clip_rect: Some(outer_r.content_bounds),
                 time: 0.0,
-                scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
-                    &theme::Theme::default(),
-                ),
+                style: ScrollAreaStyle {
+                    scrollbar_width: theme::Theme::default().scrollbar_width,
+                    scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                        &theme::Theme::default(),
+                    ),
+                    corner_color: Some(theme::Theme::default().paper_elev),
+                },
+
                 keyboard_focusable: true,
             };
             let inner_r = begin_scroll_area(
@@ -1131,10 +1129,14 @@ mod tests {
                 },
                 clip_rect: None,
                 time: 0.0,
-                scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
-                    &theme::Theme::default(),
-                ),
+                style: ScrollAreaStyle {
+                    scrollbar_width: theme::Theme::default().scrollbar_width,
+                    scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                        &theme::Theme::default(),
+                    ),
+                    corner_color: Some(theme::Theme::default().paper_elev),
+                },
+
                 keyboard_focusable: true,
             };
             let mut cmds = DrawCommands::new();
@@ -1210,10 +1212,14 @@ mod tests {
                 },
                 clip_rect: None,
                 time: 0.0,
-                scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
-                    &theme::Theme::default(),
-                ),
+                style: ScrollAreaStyle {
+                    scrollbar_width: theme::Theme::default().scrollbar_width,
+                    scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                        &theme::Theme::default(),
+                    ),
+                    corner_color: Some(theme::Theme::default().paper_elev),
+                },
+
                 keyboard_focusable: true,
             };
             let mut cmds = DrawCommands::new();
@@ -1310,10 +1316,14 @@ mod tests {
                 },
                 clip_rect: None,
                 time: 0.0,
-                scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
-                    &theme::Theme::default(),
-                ),
+                style: ScrollAreaStyle {
+                    scrollbar_width: theme::Theme::default().scrollbar_width,
+                    scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                        &theme::Theme::default(),
+                    ),
+                    corner_color: Some(theme::Theme::default().paper_elev),
+                },
+
                 keyboard_focusable: true,
             };
             let mut cmds = DrawCommands::new();
@@ -1362,10 +1372,14 @@ mod tests {
             },
             clip_rect: None,
             time: 0.0,
-            scrollbar_width: theme::Theme::default().scrollbar_width,
-            scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
-                &theme::Theme::default(),
-            ),
+            style: ScrollAreaStyle {
+                scrollbar_width: theme::Theme::default().scrollbar_width,
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                    &theme::Theme::default(),
+                ),
+                corner_color: Some(theme::Theme::default().paper_elev),
+            },
+
             keyboard_focusable: true,
         };
         let mut cmds = DrawCommands::new();
@@ -1399,10 +1413,14 @@ mod tests {
             },
             clip_rect: None,
             time: 0.0,
-            scrollbar_width: theme::Theme::default().scrollbar_width,
-            scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
-                &theme::Theme::default(),
-            ),
+            style: ScrollAreaStyle {
+                scrollbar_width: theme::Theme::default().scrollbar_width,
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                    &theme::Theme::default(),
+                ),
+                corner_color: Some(theme::Theme::default().paper_elev),
+            },
+
             keyboard_focusable: true,
         };
         let mut cmds = DrawCommands::new();
@@ -1437,10 +1455,14 @@ mod tests {
             },
             clip_rect: None,
             time: 0.0,
-            scrollbar_width: theme::Theme::default().scrollbar_width,
-            scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
-                &theme::Theme::default(),
-            ),
+            style: ScrollAreaStyle {
+                scrollbar_width: theme::Theme::default().scrollbar_width,
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                    &theme::Theme::default(),
+                ),
+                corner_color: Some(theme::Theme::default().paper_elev),
+            },
+
             keyboard_focusable: true,
         };
         let token = begin_scroll_area(spec, &mut state, &input, &mut focus_system, &mut cmds).token;
@@ -1492,10 +1514,14 @@ mod tests {
                 },
                 clip_rect: None,
                 time: 0.0,
-                scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
-                    &theme::Theme::default(),
-                ),
+                style: ScrollAreaStyle {
+                    scrollbar_width: theme::Theme::default().scrollbar_width,
+                    scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                        &theme::Theme::default(),
+                    ),
+                    corner_color: Some(theme::Theme::default().paper_elev),
+                },
+
                 keyboard_focusable: true,
             };
             let mut cmds = DrawCommands::new();
@@ -1517,10 +1543,14 @@ mod tests {
                 },
                 clip_rect: None,
                 time: 0.0,
-                scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
-                    &theme::Theme::default(),
-                ),
+                style: ScrollAreaStyle {
+                    scrollbar_width: theme::Theme::default().scrollbar_width,
+                    scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                        &theme::Theme::default(),
+                    ),
+                    corner_color: Some(theme::Theme::default().paper_elev),
+                },
+
                 keyboard_focusable: true,
             };
             let inner_token =
@@ -1581,10 +1611,14 @@ mod tests {
                 },
                 clip_rect: None,
                 time: 0.0,
-                scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
-                    &theme::Theme::default(),
-                ),
+                style: ScrollAreaStyle {
+                    scrollbar_width: theme::Theme::default().scrollbar_width,
+                    scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                        &theme::Theme::default(),
+                    ),
+                    corner_color: Some(theme::Theme::default().paper_elev),
+                },
+
                 keyboard_focusable: true,
             };
             let mut cmds = DrawCommands::new();
@@ -1605,10 +1639,14 @@ mod tests {
                 },
                 clip_rect: None,
                 time: 0.0,
-                scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
-                    &theme::Theme::default(),
-                ),
+                style: ScrollAreaStyle {
+                    scrollbar_width: theme::Theme::default().scrollbar_width,
+                    scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                        &theme::Theme::default(),
+                    ),
+                    corner_color: Some(theme::Theme::default().paper_elev),
+                },
+
                 keyboard_focusable: true,
             };
             let inner_token =
@@ -1662,10 +1700,14 @@ mod tests {
             },
             clip_rect: None,
             time: 0.0,
-            scrollbar_width: theme::Theme::default().scrollbar_width,
-            scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
-                &theme::Theme::default(),
-            ),
+            style: ScrollAreaStyle {
+                scrollbar_width: theme::Theme::default().scrollbar_width,
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                    &theme::Theme::default(),
+                ),
+                corner_color: Some(theme::Theme::default().paper_elev),
+            },
+
             keyboard_focusable: true,
         };
         let mut cmds = DrawCommands::new();
@@ -1757,10 +1799,14 @@ mod tests {
                 },
                 clip_rect: None,
                 time: 0.0,
-                scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
-                    &theme::Theme::default(),
-                ),
+                style: ScrollAreaStyle {
+                    scrollbar_width: theme::Theme::default().scrollbar_width,
+                    scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                        &theme::Theme::default(),
+                    ),
+                    corner_color: Some(theme::Theme::default().paper_elev),
+                },
+
                 keyboard_focusable: true,
             };
             let mut cmds = DrawCommands::new();
@@ -1803,10 +1849,14 @@ mod tests {
                 },
                 clip_rect: None,
                 time: 0.0,
-                scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
-                    &theme::Theme::default(),
-                ),
+                style: ScrollAreaStyle {
+                    scrollbar_width: theme::Theme::default().scrollbar_width,
+                    scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                        &theme::Theme::default(),
+                    ),
+                    corner_color: Some(theme::Theme::default().paper_elev),
+                },
+
                 keyboard_focusable: true,
             };
             let mut cmds = DrawCommands::new();
@@ -1833,10 +1883,14 @@ mod tests {
                 },
                 clip_rect: None,
                 time: 0.0,
-                scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
-                    &theme::Theme::default(),
-                ),
+                style: ScrollAreaStyle {
+                    scrollbar_width: theme::Theme::default().scrollbar_width,
+                    scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                        &theme::Theme::default(),
+                    ),
+                    corner_color: Some(theme::Theme::default().paper_elev),
+                },
+
                 keyboard_focusable: true,
             };
             let token_b = begin_scroll_area(spec_b, &mut b, &input, fs, &mut cmds).token;
@@ -1882,10 +1936,14 @@ mod tests {
                 },
                 clip_rect: None,
                 time: 0.0,
-                scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
-                    &theme::Theme::default(),
-                ),
+                style: ScrollAreaStyle {
+                    scrollbar_width: theme::Theme::default().scrollbar_width,
+                    scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                        &theme::Theme::default(),
+                    ),
+                    corner_color: Some(theme::Theme::default().paper_elev),
+                },
+
                 keyboard_focusable: true,
             };
             let mut cmds = DrawCommands::new();
@@ -1930,10 +1988,14 @@ mod tests {
             },
             clip_rect: None,
             time: 0.0,
-            scrollbar_width: theme::Theme::default().scrollbar_width,
-            scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
-                &theme::Theme::default(),
-            ),
+            style: ScrollAreaStyle {
+                scrollbar_width: theme::Theme::default().scrollbar_width,
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                    &theme::Theme::default(),
+                ),
+                corner_color: Some(theme::Theme::default().paper_elev),
+            },
+
             keyboard_focusable: true,
         };
         // content shrunk: content_extent.y = 250 → max_scroll.y = 50
@@ -1982,10 +2044,14 @@ mod tests {
                 },
                 clip_rect: None,
                 time: 0.0,
-                scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
-                    &theme::Theme::default(),
-                ),
+                style: ScrollAreaStyle {
+                    scrollbar_width: theme::Theme::default().scrollbar_width,
+                    scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                        &theme::Theme::default(),
+                    ),
+                    corner_color: Some(theme::Theme::default().paper_elev),
+                },
+
                 keyboard_focusable: true,
             };
             let mut cmds = DrawCommands::new();
@@ -2031,10 +2097,14 @@ mod tests {
                 },
                 clip_rect: None,
                 time: 0.0,
-                scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
-                    &theme::Theme::default(),
-                ),
+                style: ScrollAreaStyle {
+                    scrollbar_width: theme::Theme::default().scrollbar_width,
+                    scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                        &theme::Theme::default(),
+                    ),
+                    corner_color: Some(theme::Theme::default().paper_elev),
+                },
+
                 keyboard_focusable: true,
             };
             let mut cmds = DrawCommands::new();
@@ -2083,10 +2153,14 @@ mod tests {
                 },
                 clip_rect: None,
                 time: 0.0,
-                scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
-                    &theme::Theme::default(),
-                ),
+                style: ScrollAreaStyle {
+                    scrollbar_width: theme::Theme::default().scrollbar_width,
+                    scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                        &theme::Theme::default(),
+                    ),
+                    corner_color: Some(theme::Theme::default().paper_elev),
+                },
+
                 keyboard_focusable: true,
             };
             let mut cmds = DrawCommands::new();
@@ -2139,10 +2213,14 @@ mod tests {
                 },
                 clip_rect: Some(clip),
                 time: 0.0,
-                scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
-                    &theme::Theme::default(),
-                ),
+                style: ScrollAreaStyle {
+                    scrollbar_width: theme::Theme::default().scrollbar_width,
+                    scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                        &theme::Theme::default(),
+                    ),
+                    corner_color: Some(theme::Theme::default().paper_elev),
+                },
+
                 keyboard_focusable: true,
             };
             let mut cmds = DrawCommands::new();
@@ -2211,10 +2289,14 @@ mod tests {
                 },
                 clip_rect: None,
                 time: 0.0,
-                scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
-                    &theme::Theme::default(),
-                ),
+                style: ScrollAreaStyle {
+                    scrollbar_width: theme::Theme::default().scrollbar_width,
+                    scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                        &theme::Theme::default(),
+                    ),
+                    corner_color: Some(theme::Theme::default().paper_elev),
+                },
+
                 keyboard_focusable: true,
             };
             let mut cmds = DrawCommands::new();
@@ -2360,10 +2442,14 @@ mod tests {
                 },
                 clip_rect: None,
                 time: 0.0,
-                scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
-                    &theme::Theme::default(),
-                ),
+                style: ScrollAreaStyle {
+                    scrollbar_width: theme::Theme::default().scrollbar_width,
+                    scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                        &theme::Theme::default(),
+                    ),
+                    corner_color: Some(theme::Theme::default().paper_elev),
+                },
+
                 keyboard_focusable: true,
             };
             let mut cmds = DrawCommands::new();
@@ -2463,10 +2549,14 @@ mod tests {
             },
             clip_rect: None,
             time: 0.0,
-            scrollbar_width: theme::Theme::default().scrollbar_width,
-            scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
-                &theme::Theme::default(),
-            ),
+            style: ScrollAreaStyle {
+                scrollbar_width: theme::Theme::default().scrollbar_width,
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                    &theme::Theme::default(),
+                ),
+                corner_color: Some(theme::Theme::default().paper_elev),
+            },
+
             keyboard_focusable: true,
         };
         let mut cmds = DrawCommands::new();
@@ -2509,10 +2599,14 @@ mod tests {
             },
             clip_rect: None,
             time: 0.0,
-            scrollbar_width: theme::Theme::default().scrollbar_width,
-            scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
-                &theme::Theme::default(),
-            ),
+            style: ScrollAreaStyle {
+                scrollbar_width: theme::Theme::default().scrollbar_width,
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                    &theme::Theme::default(),
+                ),
+                corner_color: Some(theme::Theme::default().paper_elev),
+            },
+
             keyboard_focusable: true,
         };
         let token = begin_scroll_area(spec, &mut state, &input, &mut focus_system, &mut cmds).token;
@@ -2554,10 +2648,14 @@ mod tests {
             },
             clip_rect: None,
             time: 0.0,
-            scrollbar_width: theme::Theme::default().scrollbar_width,
-            scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
-                &theme::Theme::default(),
-            ),
+            style: ScrollAreaStyle {
+                scrollbar_width: theme::Theme::default().scrollbar_width,
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                    &theme::Theme::default(),
+                ),
+                corner_color: Some(theme::Theme::default().paper_elev),
+            },
+
             keyboard_focusable: true,
         };
         let mut cmds = DrawCommands::new();
@@ -2598,10 +2696,14 @@ mod tests {
             },
             clip_rect: Some(Rect::new(500.0, 500.0, 200.0, 200.0)),
             time: 0.0,
-            scrollbar_width: theme::Theme::default().scrollbar_width,
-            scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
-                &theme::Theme::default(),
-            ),
+            style: ScrollAreaStyle {
+                scrollbar_width: theme::Theme::default().scrollbar_width,
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                    &theme::Theme::default(),
+                ),
+                corner_color: Some(theme::Theme::default().paper_elev),
+            },
+
             keyboard_focusable: true,
         };
         let token = begin_scroll_area(spec, &mut state, &input, &mut focus_system, &mut cmds).token;
@@ -2646,10 +2748,14 @@ mod tests {
             },
             clip_rect: None,
             time: 0.0,
-            scrollbar_width: theme::Theme::default().scrollbar_width,
-            scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
-                &theme::Theme::default(),
-            ),
+            style: ScrollAreaStyle {
+                scrollbar_width: theme::Theme::default().scrollbar_width,
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                    &theme::Theme::default(),
+                ),
+                corner_color: Some(theme::Theme::default().paper_elev),
+            },
+
             keyboard_focusable: true,
         };
         let mut cmds = DrawCommands::new();
@@ -2682,10 +2788,14 @@ mod tests {
             },
             clip_rect: None,
             time: 0.0,
-            scrollbar_width: theme::Theme::default().scrollbar_width,
-            scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
-                &theme::Theme::default(),
-            ),
+            style: ScrollAreaStyle {
+                scrollbar_width: theme::Theme::default().scrollbar_width,
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                    &theme::Theme::default(),
+                ),
+                corner_color: Some(theme::Theme::default().paper_elev),
+            },
+
             keyboard_focusable: true,
         };
         let token = begin_scroll_area(spec, &mut state, &input, &mut focus_system, &mut cmds).token;
@@ -2720,10 +2830,14 @@ mod tests {
             },
             clip_rect: None,
             time: 0.0,
-            scrollbar_width: theme::Theme::default().scrollbar_width,
-            scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
-                &theme::Theme::default(),
-            ),
+            style: ScrollAreaStyle {
+                scrollbar_width: theme::Theme::default().scrollbar_width,
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                    &theme::Theme::default(),
+                ),
+                corner_color: Some(theme::Theme::default().paper_elev),
+            },
+
             keyboard_focusable: true,
         };
         let token = begin_scroll_area(spec, &mut state, &input, &mut focus_system, &mut cmds).token;
@@ -2802,10 +2916,14 @@ mod nested_bubbling_tests {
                 },
                 clip_rect: None,
                 time: 0.0,
-                scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
-                    &theme::Theme::default(),
-                ),
+                style: ScrollAreaStyle {
+                    scrollbar_width: theme::Theme::default().scrollbar_width,
+                    scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                        &theme::Theme::default(),
+                    ),
+                    corner_color: Some(theme::Theme::default().paper_elev),
+                },
+
                 keyboard_focusable: true,
             };
             let mut cmds = DrawCommands::new();
@@ -2830,10 +2948,14 @@ mod nested_bubbling_tests {
                 },
                 clip_rect: None,
                 time: 0.0,
-                scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
-                    &theme::Theme::default(),
-                ),
+                style: ScrollAreaStyle {
+                    scrollbar_width: theme::Theme::default().scrollbar_width,
+                    scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                        &theme::Theme::default(),
+                    ),
+                    corner_color: Some(theme::Theme::default().paper_elev),
+                },
+
                 keyboard_focusable: true,
             };
             let inner_token = begin_scroll_area(
@@ -2895,10 +3017,14 @@ mod nested_bubbling_tests {
                 },
                 clip_rect: None,
                 time: 0.0,
-                scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
-                    &theme::Theme::default(),
-                ),
+                style: ScrollAreaStyle {
+                    scrollbar_width: theme::Theme::default().scrollbar_width,
+                    scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                        &theme::Theme::default(),
+                    ),
+                    corner_color: Some(theme::Theme::default().paper_elev),
+                },
+
                 keyboard_focusable: true,
             };
             let mut cmds = DrawCommands::new();
@@ -2923,10 +3049,14 @@ mod nested_bubbling_tests {
                 },
                 clip_rect: None,
                 time: 0.0,
-                scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
-                    &theme::Theme::default(),
-                ),
+                style: ScrollAreaStyle {
+                    scrollbar_width: theme::Theme::default().scrollbar_width,
+                    scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                        &theme::Theme::default(),
+                    ),
+                    corner_color: Some(theme::Theme::default().paper_elev),
+                },
+
                 keyboard_focusable: true,
             };
             let inner_token = begin_scroll_area(
@@ -2988,10 +3118,14 @@ mod nested_bubbling_tests {
                 },
                 clip_rect: None,
                 time: 0.0,
-                scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
-                    &theme::Theme::default(),
-                ),
+                style: ScrollAreaStyle {
+                    scrollbar_width: theme::Theme::default().scrollbar_width,
+                    scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                        &theme::Theme::default(),
+                    ),
+                    corner_color: Some(theme::Theme::default().paper_elev),
+                },
+
                 keyboard_focusable: true,
             };
             let mut cmds = DrawCommands::new();
@@ -3016,10 +3150,14 @@ mod nested_bubbling_tests {
                 },
                 clip_rect: None,
                 time: 0.0,
-                scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
-                    &theme::Theme::default(),
-                ),
+                style: ScrollAreaStyle {
+                    scrollbar_width: theme::Theme::default().scrollbar_width,
+                    scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                        &theme::Theme::default(),
+                    ),
+                    corner_color: Some(theme::Theme::default().paper_elev),
+                },
+
                 keyboard_focusable: true,
             };
             let inner_token = begin_scroll_area(
@@ -3081,10 +3219,14 @@ mod nested_bubbling_tests {
                 },
                 clip_rect: None,
                 time: 0.0,
-                scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
-                    &theme::Theme::default(),
-                ),
+                style: ScrollAreaStyle {
+                    scrollbar_width: theme::Theme::default().scrollbar_width,
+                    scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                        &theme::Theme::default(),
+                    ),
+                    corner_color: Some(theme::Theme::default().paper_elev),
+                },
+
                 keyboard_focusable: true,
             };
             let mut cmds = DrawCommands::new();
@@ -3109,10 +3251,14 @@ mod nested_bubbling_tests {
                 },
                 clip_rect: None,
                 time: 0.0,
-                scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
-                    &theme::Theme::default(),
-                ),
+                style: ScrollAreaStyle {
+                    scrollbar_width: theme::Theme::default().scrollbar_width,
+                    scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                        &theme::Theme::default(),
+                    ),
+                    corner_color: Some(theme::Theme::default().paper_elev),
+                },
+
                 keyboard_focusable: true,
             };
             let inner_token = begin_scroll_area(
@@ -3178,10 +3324,14 @@ mod nested_bubbling_tests {
                 },
                 clip_rect: None,
                 time: 0.0,
-                scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
-                    &theme::Theme::default(),
-                ),
+                style: ScrollAreaStyle {
+                    scrollbar_width: theme::Theme::default().scrollbar_width,
+                    scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                        &theme::Theme::default(),
+                    ),
+                    corner_color: Some(theme::Theme::default().paper_elev),
+                },
+
                 keyboard_focusable: true,
             };
             let mut cmds = DrawCommands::new();
@@ -3207,10 +3357,14 @@ mod nested_bubbling_tests {
                 },
                 clip_rect: None,
                 time: 0.0,
-                scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
-                    &theme::Theme::default(),
-                ),
+                style: ScrollAreaStyle {
+                    scrollbar_width: theme::Theme::default().scrollbar_width,
+                    scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                        &theme::Theme::default(),
+                    ),
+                    corner_color: Some(theme::Theme::default().paper_elev),
+                },
+
                 keyboard_focusable: true,
             };
             let inner_token = begin_scroll_area(
@@ -3295,10 +3449,14 @@ mod nested_bubbling_tests {
                 },
                 clip_rect: None,
                 time: 0.0,
-                scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
-                    &theme::Theme::default(),
-                ),
+                style: ScrollAreaStyle {
+                    scrollbar_width: theme::Theme::default().scrollbar_width,
+                    scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                        &theme::Theme::default(),
+                    ),
+                    corner_color: Some(theme::Theme::default().paper_elev),
+                },
+
                 keyboard_focusable: true,
             };
             let mut cmds = DrawCommands::new();
@@ -3323,10 +3481,14 @@ mod nested_bubbling_tests {
                 },
                 clip_rect: None,
                 time: 0.0,
-                scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
-                    &theme::Theme::default(),
-                ),
+                style: ScrollAreaStyle {
+                    scrollbar_width: theme::Theme::default().scrollbar_width,
+                    scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                        &theme::Theme::default(),
+                    ),
+                    corner_color: Some(theme::Theme::default().paper_elev),
+                },
+
                 keyboard_focusable: true,
             };
             let inner_token = begin_scroll_area(
@@ -3403,10 +3565,14 @@ mod nested_bubbling_tests {
             },
             clip_rect: None,
             time: 0.0,
-            scrollbar_width: theme::Theme::default().scrollbar_width,
-            scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
-                &theme::Theme::default(),
-            ),
+            style: ScrollAreaStyle {
+                scrollbar_width: theme::Theme::default().scrollbar_width,
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                    &theme::Theme::default(),
+                ),
+                corner_color: Some(theme::Theme::default().paper_elev),
+            },
+
             keyboard_focusable: true,
         };
         let mut cmds = DrawCommands::new();
@@ -3450,10 +3616,14 @@ mod nested_bubbling_tests {
                 },
                 clip_rect: None,
                 time: 0.0,
-                scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
-                    &theme::Theme::default(),
-                ),
+                style: ScrollAreaStyle {
+                    scrollbar_width: theme::Theme::default().scrollbar_width,
+                    scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                        &theme::Theme::default(),
+                    ),
+                    corner_color: Some(theme::Theme::default().paper_elev),
+                },
+
                 keyboard_focusable: true,
             };
             let outer_token = begin_scroll_area(
@@ -3477,10 +3647,14 @@ mod nested_bubbling_tests {
                 },
                 clip_rect: None,
                 time: 0.0,
-                scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
-                    &theme::Theme::default(),
-                ),
+                style: ScrollAreaStyle {
+                    scrollbar_width: theme::Theme::default().scrollbar_width,
+                    scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                        &theme::Theme::default(),
+                    ),
+                    corner_color: Some(theme::Theme::default().paper_elev),
+                },
+
                 keyboard_focusable: true,
             };
             let inner_token = begin_scroll_area(
@@ -3535,10 +3709,14 @@ mod nested_bubbling_tests {
             },
             clip_rect: None,
             time: 0.0,
-            scrollbar_width: theme::Theme::default().scrollbar_width,
-            scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
-                &theme::Theme::default(),
-            ),
+            style: ScrollAreaStyle {
+                scrollbar_width: theme::Theme::default().scrollbar_width,
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                    &theme::Theme::default(),
+                ),
+                corner_color: Some(theme::Theme::default().paper_elev),
+            },
+
             keyboard_focusable: true,
         };
         let mut cmds = DrawCommands::new();
@@ -3582,10 +3760,14 @@ mod nested_bubbling_tests {
                 },
                 clip_rect: None,
                 time: 0.0,
-                scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
-                    &theme::Theme::default(),
-                ),
+                style: ScrollAreaStyle {
+                    scrollbar_width: theme::Theme::default().scrollbar_width,
+                    scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                        &theme::Theme::default(),
+                    ),
+                    corner_color: Some(theme::Theme::default().paper_elev),
+                },
+
                 keyboard_focusable: true,
             };
             let outer_token = begin_scroll_area(
@@ -3609,10 +3791,14 @@ mod nested_bubbling_tests {
                 },
                 clip_rect: None,
                 time: 0.0,
-                scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
-                    &theme::Theme::default(),
-                ),
+                style: ScrollAreaStyle {
+                    scrollbar_width: theme::Theme::default().scrollbar_width,
+                    scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                        &theme::Theme::default(),
+                    ),
+                    corner_color: Some(theme::Theme::default().paper_elev),
+                },
+
                 keyboard_focusable: true,
             };
             let inner_token = begin_scroll_area(
@@ -3689,10 +3875,14 @@ mod nested_bubbling_tests {
                 },
                 clip_rect: None,
                 time: 0.0,
-                scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
-                    &theme::Theme::default(),
-                ),
+                style: ScrollAreaStyle {
+                    scrollbar_width: theme::Theme::default().scrollbar_width,
+                    scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                        &theme::Theme::default(),
+                    ),
+                    corner_color: Some(theme::Theme::default().paper_elev),
+                },
+
                 keyboard_focusable: true,
             };
             let mut cmds = DrawCommands::new();
@@ -3717,10 +3907,14 @@ mod nested_bubbling_tests {
                 },
                 clip_rect: None,
                 time: 0.0,
-                scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
-                    &theme::Theme::default(),
-                ),
+                style: ScrollAreaStyle {
+                    scrollbar_width: theme::Theme::default().scrollbar_width,
+                    scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                        &theme::Theme::default(),
+                    ),
+                    corner_color: Some(theme::Theme::default().paper_elev),
+                },
+
                 keyboard_focusable: true,
             };
             let inner_token = begin_scroll_area(
@@ -3799,10 +3993,14 @@ mod nested_bubbling_tests {
                 },
                 clip_rect: None,
                 time: 0.0,
-                scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
-                    &theme::Theme::default(),
-                ),
+                style: ScrollAreaStyle {
+                    scrollbar_width: theme::Theme::default().scrollbar_width,
+                    scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                        &theme::Theme::default(),
+                    ),
+                    corner_color: Some(theme::Theme::default().paper_elev),
+                },
+
                 keyboard_focusable: true,
             };
             let mut cmds = DrawCommands::new();
@@ -3827,10 +4025,14 @@ mod nested_bubbling_tests {
                 },
                 clip_rect: None,
                 time: 0.0,
-                scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
-                    &theme::Theme::default(),
-                ),
+                style: ScrollAreaStyle {
+                    scrollbar_width: theme::Theme::default().scrollbar_width,
+                    scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                        &theme::Theme::default(),
+                    ),
+                    corner_color: Some(theme::Theme::default().paper_elev),
+                },
+
                 keyboard_focusable: true,
             };
             let inner_token = begin_scroll_area(
@@ -3902,10 +4104,14 @@ mod nested_bubbling_tests {
                 },
                 clip_rect: None,
                 time: 0.0,
-                scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
-                    &theme::Theme::default(),
-                ),
+                style: ScrollAreaStyle {
+                    scrollbar_width: theme::Theme::default().scrollbar_width,
+                    scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                        &theme::Theme::default(),
+                    ),
+                    corner_color: Some(theme::Theme::default().paper_elev),
+                },
+
                 keyboard_focusable: true,
             };
             let mut cmds = DrawCommands::new();
@@ -3930,10 +4136,14 @@ mod nested_bubbling_tests {
                 },
                 clip_rect: None,
                 time: 0.0,
-                scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
-                    &theme::Theme::default(),
-                ),
+                style: ScrollAreaStyle {
+                    scrollbar_width: theme::Theme::default().scrollbar_width,
+                    scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                        &theme::Theme::default(),
+                    ),
+                    corner_color: Some(theme::Theme::default().paper_elev),
+                },
+
                 keyboard_focusable: true,
             };
             let inner_token = begin_scroll_area(
@@ -4014,10 +4224,14 @@ mod nested_bubbling_tests {
             },
             clip_rect: None,
             time: 0.0,
-            scrollbar_width: theme::Theme::default().scrollbar_width,
-            scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
-                &theme::Theme::default(),
-            ),
+            style: ScrollAreaStyle {
+                scrollbar_width: theme::Theme::default().scrollbar_width,
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                    &theme::Theme::default(),
+                ),
+                corner_color: Some(theme::Theme::default().paper_elev),
+            },
+
             keyboard_focusable: true,
         };
         let mut cmds = DrawCommands::new();
@@ -4061,10 +4275,14 @@ mod nested_bubbling_tests {
                 },
                 clip_rect: None,
                 time: 0.0,
-                scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
-                    &theme::Theme::default(),
-                ),
+                style: ScrollAreaStyle {
+                    scrollbar_width: theme::Theme::default().scrollbar_width,
+                    scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                        &theme::Theme::default(),
+                    ),
+                    corner_color: Some(theme::Theme::default().paper_elev),
+                },
+
                 keyboard_focusable: true,
             };
             let outer_token = begin_scroll_area(
@@ -4088,10 +4306,14 @@ mod nested_bubbling_tests {
                 },
                 clip_rect: None,
                 time: 0.0,
-                scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
-                    &theme::Theme::default(),
-                ),
+                style: ScrollAreaStyle {
+                    scrollbar_width: theme::Theme::default().scrollbar_width,
+                    scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                        &theme::Theme::default(),
+                    ),
+                    corner_color: Some(theme::Theme::default().paper_elev),
+                },
+
                 keyboard_focusable: true,
             };
             let inner_token = begin_scroll_area(
@@ -4187,10 +4409,14 @@ mod nested_bubbling_tests {
                 },
                 clip_rect: None,
                 time: 0.0,
-                scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
-                    &theme::Theme::default(),
-                ),
+                style: ScrollAreaStyle {
+                    scrollbar_width: theme::Theme::default().scrollbar_width,
+                    scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                        &theme::Theme::default(),
+                    ),
+                    corner_color: Some(theme::Theme::default().paper_elev),
+                },
+
                 keyboard_focusable: true,
             };
             let mut cmds = DrawCommands::new();
@@ -4215,10 +4441,14 @@ mod nested_bubbling_tests {
                 },
                 clip_rect: None,
                 time: 0.0,
-                scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
-                    &theme::Theme::default(),
-                ),
+                style: ScrollAreaStyle {
+                    scrollbar_width: theme::Theme::default().scrollbar_width,
+                    scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                        &theme::Theme::default(),
+                    ),
+                    corner_color: Some(theme::Theme::default().paper_elev),
+                },
+
                 keyboard_focusable: true,
             };
             let middle_token = begin_scroll_area(
@@ -4242,10 +4472,14 @@ mod nested_bubbling_tests {
                 },
                 clip_rect: None,
                 time: 0.0,
-                scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
-                    &theme::Theme::default(),
-                ),
+                style: ScrollAreaStyle {
+                    scrollbar_width: theme::Theme::default().scrollbar_width,
+                    scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                        &theme::Theme::default(),
+                    ),
+                    corner_color: Some(theme::Theme::default().paper_elev),
+                },
+
                 keyboard_focusable: true,
             };
             let inner_token = begin_scroll_area(
@@ -4332,10 +4566,14 @@ mod nested_bubbling_tests {
                 },
                 clip_rect: None,
                 time: 0.0,
-                scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
-                    &theme::Theme::default(),
-                ),
+                style: ScrollAreaStyle {
+                    scrollbar_width: theme::Theme::default().scrollbar_width,
+                    scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                        &theme::Theme::default(),
+                    ),
+                    corner_color: Some(theme::Theme::default().paper_elev),
+                },
+
                 keyboard_focusable: true,
             };
             let mut cmds = DrawCommands::new();
@@ -4360,10 +4598,14 @@ mod nested_bubbling_tests {
                 },
                 clip_rect: None,
                 time: 0.0,
-                scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
-                    &theme::Theme::default(),
-                ),
+                style: ScrollAreaStyle {
+                    scrollbar_width: theme::Theme::default().scrollbar_width,
+                    scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                        &theme::Theme::default(),
+                    ),
+                    corner_color: Some(theme::Theme::default().paper_elev),
+                },
+
                 keyboard_focusable: true,
             };
             let middle_token = begin_scroll_area(
@@ -4387,10 +4629,14 @@ mod nested_bubbling_tests {
                 },
                 clip_rect: None,
                 time: 0.0,
-                scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
-                    &theme::Theme::default(),
-                ),
+                style: ScrollAreaStyle {
+                    scrollbar_width: theme::Theme::default().scrollbar_width,
+                    scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                        &theme::Theme::default(),
+                    ),
+                    corner_color: Some(theme::Theme::default().paper_elev),
+                },
+
                 keyboard_focusable: true,
             };
             let inner_token = begin_scroll_area(
@@ -4475,10 +4721,14 @@ mod nested_bubbling_tests {
                 },
                 clip_rect: None,
                 time: 0.0,
-                scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
-                    &theme::Theme::default(),
-                ),
+                style: ScrollAreaStyle {
+                    scrollbar_width: theme::Theme::default().scrollbar_width,
+                    scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                        &theme::Theme::default(),
+                    ),
+                    corner_color: Some(theme::Theme::default().paper_elev),
+                },
+
                 keyboard_focusable: true,
             };
             let mut cmds = DrawCommands::new();
@@ -4503,10 +4753,14 @@ mod nested_bubbling_tests {
                 },
                 clip_rect: None,
                 time: 0.0,
-                scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
-                    &theme::Theme::default(),
-                ),
+                style: ScrollAreaStyle {
+                    scrollbar_width: theme::Theme::default().scrollbar_width,
+                    scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                        &theme::Theme::default(),
+                    ),
+                    corner_color: Some(theme::Theme::default().paper_elev),
+                },
+
                 keyboard_focusable: true,
             };
             let middle_token = begin_scroll_area(
@@ -4530,10 +4784,14 @@ mod nested_bubbling_tests {
                 },
                 clip_rect: None,
                 time: 0.0,
-                scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
-                    &theme::Theme::default(),
-                ),
+                style: ScrollAreaStyle {
+                    scrollbar_width: theme::Theme::default().scrollbar_width,
+                    scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                        &theme::Theme::default(),
+                    ),
+                    corner_color: Some(theme::Theme::default().paper_elev),
+                },
+
                 keyboard_focusable: true,
             };
             let inner_token = begin_scroll_area(
@@ -4631,10 +4889,14 @@ mod nested_bubbling_tests {
             },
             clip_rect: None,
             time: 0.0,
-            scrollbar_width: theme::Theme::default().scrollbar_width,
-            scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
-                &theme::Theme::default(),
-            ),
+            style: ScrollAreaStyle {
+                scrollbar_width: theme::Theme::default().scrollbar_width,
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                    &theme::Theme::default(),
+                ),
+                corner_color: Some(theme::Theme::default().paper_elev),
+            },
+
             keyboard_focusable: true,
         };
         let mut cmds = DrawCommands::new();
@@ -4679,10 +4941,14 @@ mod nested_bubbling_tests {
                 },
                 clip_rect: None,
                 time: 0.0,
-                scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
-                    &theme::Theme::default(),
-                ),
+                style: ScrollAreaStyle {
+                    scrollbar_width: theme::Theme::default().scrollbar_width,
+                    scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                        &theme::Theme::default(),
+                    ),
+                    corner_color: Some(theme::Theme::default().paper_elev),
+                },
+
                 keyboard_focusable: true,
             };
             let outer_token = begin_scroll_area(
@@ -4706,10 +4972,14 @@ mod nested_bubbling_tests {
                 },
                 clip_rect: None,
                 time: 0.0,
-                scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
-                    &theme::Theme::default(),
-                ),
+                style: ScrollAreaStyle {
+                    scrollbar_width: theme::Theme::default().scrollbar_width,
+                    scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                        &theme::Theme::default(),
+                    ),
+                    corner_color: Some(theme::Theme::default().paper_elev),
+                },
+
                 keyboard_focusable: true,
             };
             let middle_token = begin_scroll_area(
@@ -4733,10 +5003,14 @@ mod nested_bubbling_tests {
                 },
                 clip_rect: None,
                 time: 0.0,
-                scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
-                    &theme::Theme::default(),
-                ),
+                style: ScrollAreaStyle {
+                    scrollbar_width: theme::Theme::default().scrollbar_width,
+                    scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                        &theme::Theme::default(),
+                    ),
+                    corner_color: Some(theme::Theme::default().paper_elev),
+                },
+
                 keyboard_focusable: true,
             };
             let inner_token = begin_scroll_area(
@@ -4843,10 +5117,14 @@ mod nested_bubbling_tests {
                 },
                 clip_rect: None,
                 time: 0.0,
-                scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
-                    &theme::Theme::default(),
-                ),
+                style: ScrollAreaStyle {
+                    scrollbar_width: theme::Theme::default().scrollbar_width,
+                    scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                        &theme::Theme::default(),
+                    ),
+                    corner_color: Some(theme::Theme::default().paper_elev),
+                },
+
                 keyboard_focusable: true,
             };
             let mut cmds = DrawCommands::new();
@@ -4871,10 +5149,14 @@ mod nested_bubbling_tests {
                 },
                 clip_rect: None,
                 time: 0.0,
-                scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
-                    &theme::Theme::default(),
-                ),
+                style: ScrollAreaStyle {
+                    scrollbar_width: theme::Theme::default().scrollbar_width,
+                    scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                        &theme::Theme::default(),
+                    ),
+                    corner_color: Some(theme::Theme::default().paper_elev),
+                },
+
                 keyboard_focusable: true,
             };
             let middle_token = begin_scroll_area(
@@ -4898,10 +5180,14 @@ mod nested_bubbling_tests {
                 },
                 clip_rect: None,
                 time: 0.0,
-                scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
-                    &theme::Theme::default(),
-                ),
+                style: ScrollAreaStyle {
+                    scrollbar_width: theme::Theme::default().scrollbar_width,
+                    scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                        &theme::Theme::default(),
+                    ),
+                    corner_color: Some(theme::Theme::default().paper_elev),
+                },
+
                 keyboard_focusable: true,
             };
             let inner_token = begin_scroll_area(
@@ -4987,10 +5273,14 @@ mod nested_bubbling_tests {
                 },
                 clip_rect: None,
                 time: 0.0,
-                scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
-                    &theme::Theme::default(),
-                ),
+                style: ScrollAreaStyle {
+                    scrollbar_width: theme::Theme::default().scrollbar_width,
+                    scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                        &theme::Theme::default(),
+                    ),
+                    corner_color: Some(theme::Theme::default().paper_elev),
+                },
+
                 keyboard_focusable: true,
             };
             let mut cmds = DrawCommands::new();
@@ -5015,10 +5305,14 @@ mod nested_bubbling_tests {
                 },
                 clip_rect: None,
                 time: 0.0,
-                scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
-                    &theme::Theme::default(),
-                ),
+                style: ScrollAreaStyle {
+                    scrollbar_width: theme::Theme::default().scrollbar_width,
+                    scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                        &theme::Theme::default(),
+                    ),
+                    corner_color: Some(theme::Theme::default().paper_elev),
+                },
+
                 keyboard_focusable: true,
             };
             let middle_token = begin_scroll_area(
@@ -5042,10 +5336,14 @@ mod nested_bubbling_tests {
                 },
                 clip_rect: None,
                 time: 0.0,
-                scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
-                    &theme::Theme::default(),
-                ),
+                style: ScrollAreaStyle {
+                    scrollbar_width: theme::Theme::default().scrollbar_width,
+                    scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                        &theme::Theme::default(),
+                    ),
+                    corner_color: Some(theme::Theme::default().paper_elev),
+                },
+
                 keyboard_focusable: true,
             };
             let inner_token = begin_scroll_area(
@@ -5129,10 +5427,14 @@ mod nested_bubbling_tests {
                 },
                 clip_rect: None,
                 time: 0.0,
-                scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
-                    &theme::Theme::default(),
-                ),
+                style: ScrollAreaStyle {
+                    scrollbar_width: theme::Theme::default().scrollbar_width,
+                    scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                        &theme::Theme::default(),
+                    ),
+                    corner_color: Some(theme::Theme::default().paper_elev),
+                },
+
                 keyboard_focusable: true,
             };
             let mut cmds = DrawCommands::new();
@@ -5157,10 +5459,14 @@ mod nested_bubbling_tests {
                 },
                 clip_rect: None,
                 time: 0.0,
-                scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
-                    &theme::Theme::default(),
-                ),
+                style: ScrollAreaStyle {
+                    scrollbar_width: theme::Theme::default().scrollbar_width,
+                    scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                        &theme::Theme::default(),
+                    ),
+                    corner_color: Some(theme::Theme::default().paper_elev),
+                },
+
                 keyboard_focusable: true,
             };
             let middle_token = begin_scroll_area(
@@ -5184,10 +5490,14 @@ mod nested_bubbling_tests {
                 },
                 clip_rect: None,
                 time: 0.0,
-                scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
-                    &theme::Theme::default(),
-                ),
+                style: ScrollAreaStyle {
+                    scrollbar_width: theme::Theme::default().scrollbar_width,
+                    scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                        &theme::Theme::default(),
+                    ),
+                    corner_color: Some(theme::Theme::default().paper_elev),
+                },
+
                 keyboard_focusable: true,
             };
             let inner_token = begin_scroll_area(
@@ -5283,10 +5593,14 @@ mod nested_bubbling_tests {
             },
             clip_rect: None,
             time: 0.0,
-            scrollbar_width: theme::Theme::default().scrollbar_width,
-            scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
-                &theme::Theme::default(),
-            ),
+            style: ScrollAreaStyle {
+                scrollbar_width: theme::Theme::default().scrollbar_width,
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                    &theme::Theme::default(),
+                ),
+                corner_color: Some(theme::Theme::default().paper_elev),
+            },
+
             keyboard_focusable: true,
         };
         let mut cmds = DrawCommands::new();
@@ -5331,10 +5645,14 @@ mod nested_bubbling_tests {
                 },
                 clip_rect: None,
                 time: 0.0,
-                scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
-                    &theme::Theme::default(),
-                ),
+                style: ScrollAreaStyle {
+                    scrollbar_width: theme::Theme::default().scrollbar_width,
+                    scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                        &theme::Theme::default(),
+                    ),
+                    corner_color: Some(theme::Theme::default().paper_elev),
+                },
+
                 keyboard_focusable: true,
             };
             let outer_token = begin_scroll_area(
@@ -5358,10 +5676,14 @@ mod nested_bubbling_tests {
                 },
                 clip_rect: None,
                 time: 0.0,
-                scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
-                    &theme::Theme::default(),
-                ),
+                style: ScrollAreaStyle {
+                    scrollbar_width: theme::Theme::default().scrollbar_width,
+                    scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                        &theme::Theme::default(),
+                    ),
+                    corner_color: Some(theme::Theme::default().paper_elev),
+                },
+
                 keyboard_focusable: true,
             };
             let middle_token = begin_scroll_area(
@@ -5385,10 +5707,14 @@ mod nested_bubbling_tests {
                 },
                 clip_rect: None,
                 time: 0.0,
-                scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
-                    &theme::Theme::default(),
-                ),
+                style: ScrollAreaStyle {
+                    scrollbar_width: theme::Theme::default().scrollbar_width,
+                    scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                        &theme::Theme::default(),
+                    ),
+                    corner_color: Some(theme::Theme::default().paper_elev),
+                },
+
                 keyboard_focusable: true,
             };
             let inner_token = begin_scroll_area(
@@ -5483,10 +5809,14 @@ mod nested_bubbling_tests {
                 },
                 clip_rect: None,
                 time: 0.0,
-                scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
-                    &theme::Theme::default(),
-                ),
+                style: ScrollAreaStyle {
+                    scrollbar_width: theme::Theme::default().scrollbar_width,
+                    scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                        &theme::Theme::default(),
+                    ),
+                    corner_color: Some(theme::Theme::default().paper_elev),
+                },
+
                 keyboard_focusable: true,
             };
             let mut cmds = DrawCommands::new();
@@ -5511,10 +5841,14 @@ mod nested_bubbling_tests {
                 },
                 clip_rect: None,
                 time: 0.0,
-                scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
-                    &theme::Theme::default(),
-                ),
+                style: ScrollAreaStyle {
+                    scrollbar_width: theme::Theme::default().scrollbar_width,
+                    scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                        &theme::Theme::default(),
+                    ),
+                    corner_color: Some(theme::Theme::default().paper_elev),
+                },
+
                 keyboard_focusable: true,
             };
             let inner_token = begin_scroll_area(
@@ -5586,10 +5920,14 @@ mod nested_bubbling_tests {
                 },
                 clip_rect: None,
                 time: 0.0,
-                scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
-                    &theme::Theme::default(),
-                ),
+                style: ScrollAreaStyle {
+                    scrollbar_width: theme::Theme::default().scrollbar_width,
+                    scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                        &theme::Theme::default(),
+                    ),
+                    corner_color: Some(theme::Theme::default().paper_elev),
+                },
+
                 keyboard_focusable: true,
             };
             let mut cmds = DrawCommands::new();
@@ -5614,10 +5952,14 @@ mod nested_bubbling_tests {
                 },
                 clip_rect: None,
                 time: 0.0,
-                scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
-                    &theme::Theme::default(),
-                ),
+                style: ScrollAreaStyle {
+                    scrollbar_width: theme::Theme::default().scrollbar_width,
+                    scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                        &theme::Theme::default(),
+                    ),
+                    corner_color: Some(theme::Theme::default().paper_elev),
+                },
+
                 keyboard_focusable: true,
             };
             let inner_token = begin_scroll_area(
@@ -5698,10 +6040,14 @@ mod nested_bubbling_tests {
                 },
                 clip_rect: None,
                 time: 0.0,
-                scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
-                    &theme::Theme::default(),
-                ),
+                style: ScrollAreaStyle {
+                    scrollbar_width: theme::Theme::default().scrollbar_width,
+                    scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                        &theme::Theme::default(),
+                    ),
+                    corner_color: Some(theme::Theme::default().paper_elev),
+                },
+
                 keyboard_focusable: true,
             };
             let mut cmds = DrawCommands::new();
@@ -5726,10 +6072,14 @@ mod nested_bubbling_tests {
                 },
                 clip_rect: None,
                 time: 0.0,
-                scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
-                    &theme::Theme::default(),
-                ),
+                style: ScrollAreaStyle {
+                    scrollbar_width: theme::Theme::default().scrollbar_width,
+                    scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                        &theme::Theme::default(),
+                    ),
+                    corner_color: Some(theme::Theme::default().paper_elev),
+                },
+
                 keyboard_focusable: true,
             };
             let inner_token = begin_scroll_area(
@@ -5794,10 +6144,14 @@ mod nested_bubbling_tests {
                 },
                 clip_rect: None,
                 time: 0.0,
-                scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
-                    &theme::Theme::default(),
-                ),
+                style: ScrollAreaStyle {
+                    scrollbar_width: theme::Theme::default().scrollbar_width,
+                    scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                        &theme::Theme::default(),
+                    ),
+                    corner_color: Some(theme::Theme::default().paper_elev),
+                },
+
                 keyboard_focusable: true,
             };
             let mut cmds = DrawCommands::new();
@@ -5822,10 +6176,14 @@ mod nested_bubbling_tests {
                 },
                 clip_rect: None,
                 time: 0.0,
-                scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
-                    &theme::Theme::default(),
-                ),
+                style: ScrollAreaStyle {
+                    scrollbar_width: theme::Theme::default().scrollbar_width,
+                    scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                        &theme::Theme::default(),
+                    ),
+                    corner_color: Some(theme::Theme::default().paper_elev),
+                },
+
                 keyboard_focusable: true,
             };
             let inner_token = begin_scroll_area(
@@ -5895,10 +6253,14 @@ mod nested_bubbling_tests {
                 },
                 clip_rect: None,
                 time: 0.0,
-                scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
-                    &theme::Theme::default(),
-                ),
+                style: ScrollAreaStyle {
+                    scrollbar_width: theme::Theme::default().scrollbar_width,
+                    scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                        &theme::Theme::default(),
+                    ),
+                    corner_color: Some(theme::Theme::default().paper_elev),
+                },
+
                 keyboard_focusable: true,
             };
             let mut cmds = DrawCommands::new();
@@ -5923,10 +6285,14 @@ mod nested_bubbling_tests {
                 },
                 clip_rect: None,
                 time: 0.0,
-                scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
-                    &theme::Theme::default(),
-                ),
+                style: ScrollAreaStyle {
+                    scrollbar_width: theme::Theme::default().scrollbar_width,
+                    scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                        &theme::Theme::default(),
+                    ),
+                    corner_color: Some(theme::Theme::default().paper_elev),
+                },
+
                 keyboard_focusable: true,
             };
             let inner_token = begin_scroll_area(
@@ -5985,10 +6351,14 @@ mod nested_bubbling_tests {
             },
             clip_rect: None,
             time: 0.0,
-            scrollbar_width: theme::Theme::default().scrollbar_width,
-            scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
-                &theme::Theme::default(),
-            ),
+            style: ScrollAreaStyle {
+                scrollbar_width: theme::Theme::default().scrollbar_width,
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                    &theme::Theme::default(),
+                ),
+                corner_color: Some(theme::Theme::default().paper_elev),
+            },
+
             keyboard_focusable: true,
         };
         let mut cmds = DrawCommands::new();
@@ -6031,10 +6401,14 @@ mod nested_bubbling_tests {
                 },
                 clip_rect: None,
                 time: 0.0,
-                scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
-                    &theme::Theme::default(),
-                ),
+                style: ScrollAreaStyle {
+                    scrollbar_width: theme::Theme::default().scrollbar_width,
+                    scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                        &theme::Theme::default(),
+                    ),
+                    corner_color: Some(theme::Theme::default().paper_elev),
+                },
+
                 keyboard_focusable: true,
             };
             let outer_token = begin_scroll_area(
@@ -6058,10 +6432,14 @@ mod nested_bubbling_tests {
                 },
                 clip_rect: None,
                 time: 0.0,
-                scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
-                    &theme::Theme::default(),
-                ),
+                style: ScrollAreaStyle {
+                    scrollbar_width: theme::Theme::default().scrollbar_width,
+                    scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                        &theme::Theme::default(),
+                    ),
+                    corner_color: Some(theme::Theme::default().paper_elev),
+                },
+
                 keyboard_focusable: true,
             };
             let inner_token = begin_scroll_area(
@@ -6123,10 +6501,14 @@ mod nested_bubbling_tests {
             },
             clip_rect: None,
             time: 0.0,
-            scrollbar_width: theme::Theme::default().scrollbar_width,
-            scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
-                &theme::Theme::default(),
-            ),
+            style: ScrollAreaStyle {
+                scrollbar_width: theme::Theme::default().scrollbar_width,
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                    &theme::Theme::default(),
+                ),
+                corner_color: Some(theme::Theme::default().paper_elev),
+            },
+
             keyboard_focusable: true,
         };
         let mut cmds = DrawCommands::new();
@@ -6169,10 +6551,14 @@ mod nested_bubbling_tests {
                 },
                 clip_rect: None,
                 time: 0.0,
-                scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
-                    &theme::Theme::default(),
-                ),
+                style: ScrollAreaStyle {
+                    scrollbar_width: theme::Theme::default().scrollbar_width,
+                    scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                        &theme::Theme::default(),
+                    ),
+                    corner_color: Some(theme::Theme::default().paper_elev),
+                },
+
                 keyboard_focusable: true,
             };
             let outer_token = begin_scroll_area(
@@ -6196,10 +6582,14 @@ mod nested_bubbling_tests {
                 },
                 clip_rect: None,
                 time: 0.0,
-                scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
-                    &theme::Theme::default(),
-                ),
+                style: ScrollAreaStyle {
+                    scrollbar_width: theme::Theme::default().scrollbar_width,
+                    scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                        &theme::Theme::default(),
+                    ),
+                    corner_color: Some(theme::Theme::default().paper_elev),
+                },
+
                 keyboard_focusable: true,
             };
             let inner_token = begin_scroll_area(
@@ -6268,10 +6658,14 @@ mod nested_bubbling_tests {
                 },
                 clip_rect: None,
                 time: 0.0,
-                scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
-                    &theme::Theme::default(),
-                ),
+                style: ScrollAreaStyle {
+                    scrollbar_width: theme::Theme::default().scrollbar_width,
+                    scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                        &theme::Theme::default(),
+                    ),
+                    corner_color: Some(theme::Theme::default().paper_elev),
+                },
+
                 keyboard_focusable: true,
             };
             let mut cmds = DrawCommands::new();
@@ -6296,10 +6690,14 @@ mod nested_bubbling_tests {
                 },
                 clip_rect: None,
                 time: 0.0,
-                scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
-                    &theme::Theme::default(),
-                ),
+                style: ScrollAreaStyle {
+                    scrollbar_width: theme::Theme::default().scrollbar_width,
+                    scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                        &theme::Theme::default(),
+                    ),
+                    corner_color: Some(theme::Theme::default().paper_elev),
+                },
+
                 keyboard_focusable: true,
             };
             let inner_token = begin_scroll_area(
@@ -6388,10 +6786,14 @@ mod nested_bubbling_tests {
                 },
                 clip_rect: None,
                 time: 0.0,
-                scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
-                    &theme::Theme::default(),
-                ),
+                style: ScrollAreaStyle {
+                    scrollbar_width: theme::Theme::default().scrollbar_width,
+                    scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                        &theme::Theme::default(),
+                    ),
+                    corner_color: Some(theme::Theme::default().paper_elev),
+                },
+
                 keyboard_focusable: true,
             };
             let mut cmds = DrawCommands::new();
@@ -6416,10 +6818,14 @@ mod nested_bubbling_tests {
                 },
                 clip_rect: None,
                 time: 0.0,
-                scrollbar_width: theme::Theme::default().scrollbar_width,
-                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
-                    &theme::Theme::default(),
-                ),
+                style: ScrollAreaStyle {
+                    scrollbar_width: theme::Theme::default().scrollbar_width,
+                    scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                        &theme::Theme::default(),
+                    ),
+                    corner_color: Some(theme::Theme::default().paper_elev),
+                },
+
                 keyboard_focusable: true,
             };
             let inner_token = begin_scroll_area(
@@ -6523,10 +6929,14 @@ mod nested_bubbling_tests {
             },
             clip_rect: None,
             time: 0.0,
-            scrollbar_width: theme::Theme::default().scrollbar_width,
-            scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
-                &theme::Theme::default(),
-            ),
+            style: ScrollAreaStyle {
+                scrollbar_width: theme::Theme::default().scrollbar_width,
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                    &theme::Theme::default(),
+                ),
+                corner_color: Some(theme::Theme::default().paper_elev),
+            },
+
             keyboard_focusable: true,
         };
         let r = raw::begin_scroll_area(spec, &mut state, &input, &mut focus_system, &mut cmds);
@@ -6560,10 +6970,14 @@ mod nested_bubbling_tests {
             },
             clip_rect: None,
             time: 0.0,
-            scrollbar_width: theme::Theme::default().scrollbar_width,
-            scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
-                &theme::Theme::default(),
-            ),
+            style: ScrollAreaStyle {
+                scrollbar_width: theme::Theme::default().scrollbar_width,
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                    &theme::Theme::default(),
+                ),
+                corner_color: Some(theme::Theme::default().paper_elev),
+            },
+
             keyboard_focusable: true,
         };
         let r = raw::begin_scroll_area(spec, &mut state, &input, &mut focus_system, &mut cmds);
@@ -6641,10 +7055,14 @@ mod nested_bubbling_tests {
             },
             clip_rect: None,
             time: 0.0,
-            scrollbar_width: theme::Theme::default().scrollbar_width,
-            scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
-                &theme::Theme::default(),
-            ),
+            style: ScrollAreaStyle {
+                scrollbar_width: theme::Theme::default().scrollbar_width,
+                scrollbar_style: crate::widgets::slider::SliderStyle::scrollbar_from_theme(
+                    &theme::Theme::default(),
+                ),
+                corner_color: Some(theme::Theme::default().paper_elev),
+            },
+
             keyboard_focusable: false,
         };
 

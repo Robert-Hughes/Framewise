@@ -61,8 +61,7 @@ pub fn begin_demo_page<'a, 'b, T: TextBackend, L: Layout, CF>(
         vertical: spec.vertical,
         clip_rect: clip,
         time: parent_ctx.time,
-        scrollbar_width: spec.scrollbar_width,
-        scrollbar_style: spec.scrollbar_style,
+        style: spec.style,
         layer: parent_ctx.layer,
         keyboard_focusable: true,
     };

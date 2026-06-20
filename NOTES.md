@@ -14,7 +14,6 @@ Working notes, TODOs, open questions, and half-baked ideas.
   - add helper functions to configure commonly used "single -line", "Muliline" etc., as these affect several differenmt proprties. Add these to the demo page
 
   - the ASCII art tables of wrapping examples in DESIGN.md (showing soft-wrap collapsed spaces etc.) are a nice compact form - use these directly for tests?
-  - DummyTextSys assumes only one usage at a time, always returns handle=0. Dodgy!
   - text_edit tests are very long! Many TextBackend implementations (search "impl TextBackend for"). Reduce duplication, use a common backend?
 
   - Weird behaviour of ligatures(?) with repeated equals sign when soft-wrapping - moves over to left side of textbox, ignoring padding
