@@ -51,6 +51,13 @@ enum AppPage {
     TextEditDemo,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum FrameRateMode {
+    VsyncOn,
+    VsyncOff,
+    Fixed10Fps,
+}
+
 // ── App state ─────────────────────────────────────────────────────────────────
 
 struct GpuState {
@@ -100,7 +107,7 @@ struct App {
     clipboard: Option<arboard::Clipboard>,
     active_page: AppPage,
     debug_layout: bool,
-    vsync: bool,
+    frame_rate_mode: FrameRateMode,
     last_frame_instant: std::time::Instant,
     fps_sum_frame_time: f64,
     fps_frame_count: u32,
@@ -144,7 +151,7 @@ impl App {
             clipboard: arboard::Clipboard::new().ok(),
             active_page: AppPage::WidgetSpec,
             debug_layout: false,
-            vsync: true,
+            frame_rate_mode: FrameRateMode::VsyncOn,
             last_frame_instant: now,
             fps_sum_frame_time: 0.0,
             fps_frame_count: 0,
@@ -503,7 +510,11 @@ impl ApplicationHandler for App {
                             self.active_page = AppPage::TextEditDemo;
                         }
                         winit::keyboard::PhysicalKey::Code(winit::keyboard::KeyCode::F11) => {
-                            self.vsync = !self.vsync;
+                            self.frame_rate_mode = match self.frame_rate_mode {
+                                FrameRateMode::VsyncOn => FrameRateMode::VsyncOff,
+                                FrameRateMode::VsyncOff => FrameRateMode::Fixed10Fps,
+                                FrameRateMode::Fixed10Fps => FrameRateMode::VsyncOn,
+                            };
                             #[cfg(all(
                                 feature = "page_spec",
                                 feature = "window",
@@ -518,7 +529,7 @@ impl ApplicationHandler for App {
                                 feature = "menu"
                             ))]
                             {
-                                self.spec_page_state.widgets.iu_vsync.checked = self.vsync;
+                                self.spec_page_state.widgets.iu_vsync.checked = matches!(self.frame_rate_mode, FrameRateMode::VsyncOn);
                             }
                         }
                         winit::keyboard::PhysicalKey::Code(winit::keyboard::KeyCode::F12) => {
@@ -715,12 +726,21 @@ impl ApplicationHandler for App {
                     feature = "menu"
                 ))]
                 if self.active_page == AppPage::WidgetSpec {
-                    self.vsync = self.spec_page_state.widgets.iu_vsync.checked;
+                    let switch_checked = self.spec_page_state.widgets.iu_vsync.checked;
+                    let current_vsync_status = matches!(self.frame_rate_mode, FrameRateMode::VsyncOn);
+                    if switch_checked != current_vsync_status {
+                        self.frame_rate_mode = if switch_checked {
+                            FrameRateMode::VsyncOn
+                        } else {
+                            FrameRateMode::VsyncOff
+                        };
+                    }
                 }
 
                 if let Some(gpu) = &mut self.gpu {
                     let vsync_start = std::time::Instant::now();
-                    gpu.set_vsync(self.vsync);
+                    let vsync_enabled = matches!(self.frame_rate_mode, FrameRateMode::VsyncOn);
+                    gpu.set_vsync(vsync_enabled);
                     if is_first {
                         eprintln!(
                             "[STARTUP] [{:?}]   First set_vsync took {:?}",
@@ -733,11 +753,11 @@ impl ApplicationHandler for App {
                     match gpu.surface.get_current_texture() {
                         Ok(frame) => {
                             if is_first {
-                                eprintln!(
-                                    "[STARTUP] [{:?}]   First get_current_texture took {:?}",
-                                    self.start_time.elapsed(),
-                                    tex_start.elapsed()
-                                );
+                                  eprintln!(
+                                      "[STARTUP] [{:?}]   First get_current_texture took {:?}",
+                                      self.start_time.elapsed(),
+                                      tex_start.elapsed()
+                                  );
                             }
                             let view = frame
                                 .texture
@@ -759,22 +779,22 @@ impl ApplicationHandler for App {
                                 &mut text_backend,
                             );
                             if is_first {
-                                eprintln!(
-                                    "[STARTUP] [{:?}]   First Renderer::render took {:?}",
-                                    self.start_time.elapsed(),
-                                    render_start.elapsed()
-                                );
+                                  eprintln!(
+                                      "[STARTUP] [{:?}]   First Renderer::render took {:?}",
+                                      self.start_time.elapsed(),
+                                      render_start.elapsed()
+                                  );
                             }
 
                             let submit_start = std::time::Instant::now();
                             gpu.queue.submit(std::iter::once(encoder.finish()));
                             frame.present();
                             if is_first {
-                                eprintln!(
-                                    "[STARTUP] [{:?}]   First submit & present took {:?}",
-                                    self.start_time.elapsed(),
-                                    submit_start.elapsed()
-                                );
+                                  eprintln!(
+                                      "[STARTUP] [{:?}]   First submit & present took {:?}",
+                                      self.start_time.elapsed(),
+                                      submit_start.elapsed()
+                                  );
                             }
                         }
                         Err(e) => {
@@ -789,6 +809,15 @@ impl ApplicationHandler for App {
                         "[STARTUP] First RedrawRequested completed in {:?}",
                         redraw_start.elapsed()
                     );
+                }
+
+                // If in Fixed10Fps mode, sleep to cap the frame rate to 10 FPS.
+                if self.frame_rate_mode == FrameRateMode::Fixed10Fps {
+                    let elapsed = redraw_start.elapsed();
+                    let target_duration = std::time::Duration::from_millis(100);
+                    if elapsed < target_duration {
+                        std::thread::sleep(target_duration - elapsed);
+                    }
                 }
 
                 // Update FPS calculation and window title
@@ -808,10 +837,14 @@ impl ApplicationHandler for App {
                             0.0
                         };
                         if let Some(win) = &self.window {
-                            let vsync_suffix = if self.vsync { "" } else { " (VSYNC OFF)" };
+                            let mode_suffix = match self.frame_rate_mode {
+                                FrameRateMode::VsyncOn => "",
+                                FrameRateMode::VsyncOff => " (VSYNC OFF)",
+                                FrameRateMode::Fixed10Fps => " (10 FPS FIXED)",
+                            };
                             win.set_title(&format!(
                                 "Framewise Sample - {:.1} FPS{}",
-                                fps, vsync_suffix
+                                fps, mode_suffix
                             ));
                         }
                     }
