@@ -188,6 +188,159 @@ fn assert_line_ranges(layout: &TextLayout<u32>, ranges: &[(usize, usize)]) {
     assert_eq!(actual, ranges);
 }
 
+/// A compact wrapping fixture that describes visual lines as strings.
+///
+/// The `expected` rows are not rendered text; they are a source-preserving
+/// diagram of the layout. Literal spaces are ordinary preserved whitespace,
+/// empty strings are empty visual lines, and `~` is the only marker: a source
+/// whitespace cluster that is logically present on the previous visual line but
+/// collapsed to zero visual advance because it is a soft-wrap boundary.
+///
+/// For example, five 8 px columns with `"hello  world"` should be written as:
+///
+/// ```ignore
+/// WrapDiagramCase {
+///     name: "two spaces",
+///     width_cols: 5,
+///     input: "hello  world",
+///     expected: &["hello~", " ", "world"],
+/// }
+/// ```
+///
+/// That means the first space after `hello` is the collapsed boundary
+/// whitespace, while the second source space remains visible on its own line.
+struct WrapDiagramCase {
+    name: &'static str,
+    width_cols: usize,
+    input: &'static str,
+    expected: &'static [&'static str],
+}
+
+/// Converts a concrete layout into the wrap diagram format used by
+/// `WrapDiagramCase`.
+///
+/// Hard newlines are line boundaries, so they are accounted for by byte ranges
+/// and line end kinds rather than emitted into the diagram rows.
+fn encode_layout_diagram(text: &str, layout: &TextLayout<u32>) -> Vec<String> {
+    layout
+        .lines
+        .iter()
+        .map(|line| {
+            let mut out = String::new();
+
+            for cluster in &line.clusters {
+                if cluster.is_soft_wrap_boundary {
+                    out.push('~');
+                } else {
+                    let source = &text[cluster.byte_start..cluster.byte_end];
+                    if source != "\n" {
+                        out.push_str(source);
+                    }
+                }
+            }
+
+            out
+        })
+        .collect()
+}
+
+fn assert_wrap_diagram(case: WrapDiagramCase) {
+    let layout = layout(
+        case.input,
+        wrap_word_cluster_drop(),
+        TextBounds::width(case.width_cols as f32 * 8.0 + 0.1),
+    );
+
+    let actual = encode_layout_diagram(case.input, &layout);
+    assert_eq!(actual, case.expected, "{}", case.name);
+
+    assert_wrap_diagram_invariants(case.input, &layout, &actual, case.name);
+}
+
+fn assert_wrap_diagram_invariants(
+    text: &str,
+    layout: &TextLayout<u32>,
+    actual: &[String],
+    case_name: &str,
+) {
+    assert_eq!(
+        layout.metrics().line_count as usize,
+        actual.len(),
+        "{case_name}: diagram line count should match metrics"
+    );
+
+    assert_eq!(
+        layout.lines.len(),
+        actual.len(),
+        "{case_name}: diagram line count should match stored lines"
+    );
+
+    let mut next_byte_start = 0;
+    for (line_idx, line) in layout.lines.iter().enumerate() {
+        assert_eq!(
+            line.byte_start, next_byte_start,
+            "{case_name}: line {line_idx} should start where the previous line ended"
+        );
+        assert!(
+            line.byte_end >= line.byte_start,
+            "{case_name}: line {line_idx} should have a valid byte range"
+        );
+        next_byte_start = line.byte_end;
+
+        let diagram_soft_wrap_boundaries = actual[line_idx].matches('~').count();
+        let layout_soft_wrap_boundaries = line
+            .clusters
+            .iter()
+            .filter(|cluster| cluster.is_soft_wrap_boundary)
+            .count();
+        assert_eq!(
+            layout_soft_wrap_boundaries, diagram_soft_wrap_boundaries,
+            "{case_name}: line {line_idx} should encode every soft-wrap boundary"
+        );
+
+        if actual[line_idx].ends_with('~') {
+            assert_eq!(
+                line.end_kind,
+                LineEndKind::SoftWrapWhitespace,
+                "{case_name}: line {line_idx} ending in ~ should be a soft-wrap whitespace line"
+            );
+            assert!(
+                line.clusters
+                    .last()
+                    .is_some_and(|cluster| cluster.is_soft_wrap_boundary),
+                "{case_name}: line {line_idx} ending in ~ should end with a boundary cluster"
+            );
+        }
+
+        if line.end_kind == LineEndKind::SoftWrapWhitespace {
+            assert!(
+                actual[line_idx].contains('~'),
+                "{case_name}: soft-wrap whitespace line {line_idx} should contain ~"
+            );
+        }
+
+        let expected_logical_width =
+            actual[line_idx].chars().filter(|ch| *ch != '~').count() as f32 * 8.0;
+        assert_close(
+            line.logical_width,
+            expected_logical_width,
+            &format!("{case_name}: line {line_idx} logical width"),
+        );
+    }
+
+    assert_eq!(
+        next_byte_start,
+        text.len(),
+        "{case_name}: line ranges should account for the full source text"
+    );
+
+    assert_eq!(
+        layout.lines.last().map(|line| line.end_kind),
+        Some(LineEndKind::EndOfText),
+        "{case_name}: final line should end at end of text"
+    );
+}
+
 struct ApproxInkBackend;
 
 impl TextBackend for ApproxInkBackend {
@@ -627,133 +780,85 @@ fn overwide_whitespace_on_empty_line_uses_keep_fallbacks() {
 }
 
 #[test]
-fn soft_wrap_boundary_space_collapses_between_words() {
-    let layout = layout(
-        "hello world",
-        wrap_word_cluster_drop(),
-        TextBounds::width(40.1),
-    );
-
-    assert_eq!(layout.metrics().line_count, 2);
-    assert_eq!(visible(&layout), "helloworld");
-    assert_eq!(
-        (layout.lines[0].byte_start, layout.lines[0].byte_end),
-        (0, 6)
-    );
-    assert_eq!(
-        (layout.lines[1].byte_start, layout.lines[1].byte_end),
-        (6, 11)
-    );
-    assert_eq!(layout.lines[0].end_kind, LineEndKind::SoftWrapWhitespace);
-    assert_eq!(layout.lines[0].logical_width, 40.0);
-    assert!(
-        layout.lines[0]
-            .clusters
-            .last()
-            .unwrap()
-            .is_soft_wrap_boundary
-    );
+fn design_wrapping_examples_width_5() {
+    for case in [
+        WrapDiagramCase {
+            name: "single boundary space",
+            width_cols: 5,
+            input: "hello world",
+            expected: &["hello~", "world"],
+        },
+        WrapDiagramCase {
+            name: "two spaces",
+            width_cols: 5,
+            input: "hello  world",
+            expected: &["hello~", " ", "world"],
+        },
+        WrapDiagramCase {
+            name: "three spaces",
+            width_cols: 5,
+            input: "hello   world",
+            expected: &["hello~", "  ", "world"],
+        },
+        WrapDiagramCase {
+            name: "trailing space",
+            width_cols: 5,
+            input: "hello ",
+            expected: &["hello~", ""],
+        },
+        WrapDiagramCase {
+            name: "two trailing spaces",
+            width_cols: 5,
+            input: "hello  ",
+            expected: &["hello~", " "],
+        },
+        WrapDiagramCase {
+            name: "five leading spaces",
+            width_cols: 5,
+            input: "     hello",
+            expected: &["     ", "hello"],
+        },
+        WrapDiagramCase {
+            name: "six leading spaces",
+            width_cols: 5,
+            input: "      hello",
+            expected: &["     ~", "hello"],
+        },
+        WrapDiagramCase {
+            name: "hard newline",
+            width_cols: 5,
+            input: "hello\nworld",
+            expected: &["hello", "world"],
+        },
+        WrapDiagramCase {
+            name: "double hard newline",
+            width_cols: 5,
+            input: "hello\n\nworld",
+            expected: &["hello", "", "world"],
+        },
+    ] {
+        assert_wrap_diagram(case);
+    }
 }
 
 #[test]
-fn trailing_boundary_space_creates_empty_line_under_word_wrap() {
-    let layout = layout("hello ", wrap_word_cluster_drop(), TextBounds::width(40.1));
-
-    assert_eq!(layout.metrics().line_count, 2);
-    assert_eq!(
-        (layout.lines[0].byte_start, layout.lines[0].byte_end),
-        (0, 6)
-    );
-    assert_eq!(
-        (layout.lines[1].byte_start, layout.lines[1].byte_end),
-        (6, 6)
-    );
-    assert_eq!(layout.lines[0].end_kind, LineEndKind::SoftWrapWhitespace);
-    assert_eq!(layout.lines[1].end_kind, LineEndKind::EndOfText);
-    assert_eq!(layout.lines[0].logical_width, 40.0);
-    assert_eq!(layout.lines[1].logical_width, 0.0);
-    assert!(
-        layout.lines[0]
-            .clusters
-            .last()
-            .unwrap()
-            .is_soft_wrap_boundary
-    );
-}
-
-#[test]
-fn only_the_single_boundary_space_collapses() {
-    let layout = layout(
-        "hello  world",
-        wrap_word_cluster_drop(),
-        TextBounds::width(40.1),
-    );
-
-    assert_eq!(layout.metrics().line_count, 3);
-    assert_eq!(
-        (layout.lines[0].byte_start, layout.lines[0].byte_end),
-        (0, 6)
-    );
-    assert_eq!(
-        (layout.lines[1].byte_start, layout.lines[1].byte_end),
-        (6, 7)
-    );
-    assert_eq!(
-        (layout.lines[2].byte_start, layout.lines[2].byte_end),
-        (7, 12)
-    );
-    assert_eq!(layout.lines[0].logical_width, 40.0);
-    assert_eq!(layout.lines[1].logical_width, 8.0);
-}
-
-#[test]
-fn leading_spaces_are_preserved_and_only_overflowing_spaces_collapse() {
-    let five_spaces = layout(
-        "     hello",
-        wrap_word_cluster_drop(),
-        TextBounds::width(40.1),
-    );
-
-    assert_eq!(five_spaces.metrics().line_count, 2);
-    assert_eq!(
-        (
-            five_spaces.lines[0].byte_start,
-            five_spaces.lines[0].byte_end
-        ),
-        (0, 5)
-    );
-    assert_eq!(
-        (
-            five_spaces.lines[1].byte_start,
-            five_spaces.lines[1].byte_end
-        ),
-        (5, 10)
-    );
-    assert_eq!(five_spaces.lines[0].logical_width, 40.0);
-
-    let six_spaces = layout(
-        "      hello",
-        wrap_word_cluster_drop(),
-        TextBounds::width(40.1),
-    );
-
-    assert_eq!(six_spaces.metrics().line_count, 2);
-    assert_eq!(
-        (six_spaces.lines[0].byte_start, six_spaces.lines[0].byte_end),
-        (0, 6)
-    );
-    assert_eq!(
-        (six_spaces.lines[1].byte_start, six_spaces.lines[1].byte_end),
-        (6, 11)
-    );
-    assert_eq!(six_spaces.lines[0].logical_width, 40.0);
-    assert!(
-        six_spaces.lines[0]
-            .clusters
-            .last()
-            .unwrap()
-            .is_soft_wrap_boundary
-    );
+fn design_wrapping_examples_width_6() {
+    for case in [
+        WrapDiagramCase {
+            name: "width 6 single boundary space",
+            width_cols: 6,
+            input: "hello world",
+            expected: &["hello~", "world"],
+        },
+        WrapDiagramCase {
+            name: "width 6 double space before word",
+            width_cols: 6,
+            input: "hello  world",
+            expected: &["hello ~", "world"],
+        },
+    ] {
+        assert_wrap_diagram(case);
+    }
 }
 
 #[test]
@@ -2294,15 +2399,6 @@ fn right_aligned_soft_wrap_excludes_fitted_boundary_space_from_line_width() {
 
     assert_eq!(layout.lines[0].logical_width, line_width("hello", flow));
     assert!(layout.lines[0].logical_x > 0.0);
-}
-
-#[test]
-fn terminal_trailing_spaces_collapse_only_the_boundary_space() {
-    let layout = layout("hello  ", wrap_word_cluster_drop(), TextBounds::width(40.1));
-
-    assert_eq!(layout.metrics().line_count, 2);
-    assert_eq!(layout.lines[0].logical_width, 40.0);
-    assert_eq!(layout.lines[1].logical_width, 8.0);
 }
 
 #[test]
