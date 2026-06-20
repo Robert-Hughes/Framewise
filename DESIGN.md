@@ -530,7 +530,7 @@ The split is captured in one line: a **`LayoutSpace`** says *"what space do I ha
 
 We define two traits:
 
-1. **`Layout`**: The user-facing configuration (e.g., `ColumnLayout { spacing: 4.0 }`). It dictates the `Params` required to position a widget and provides a `begin(space: impl Into<LayoutSpace>)` method to instantiate the layout's state. A plain `Rect` is a fully-bounded space (`From<Rect>`), so the common `begin(some_rect)` call is unchanged; an axis only goes unbounded when a caller hands down a `LayoutSpace` that says so (see [Unbounded Axes](#unbounded-axes)).
+1. **`Layout`**: The user-facing configuration (e.g., `ColumnLayout { spacing: 4.0 }`). It dictates the `Params` required to position a widget and provides a `begin(space: impl Into<LayoutSpace>)` method to instantiate the layout's state. A plain `Rect` is a space with both axes `AxisBound::Exact` (`From<Rect>`), so the common `begin(some_rect)` call is unchanged; an axis only goes unbounded when a caller hands down a `LayoutSpace` that says so (see [Unbounded Axes](#unbounded-axes)).
 2. **`LayoutState`**: The mutable engine that lives inside the `WidgetContext`. It accumulates positions as widgets are added.
 
 The immediate placement call is `layout(params: S::Params, request: SizeRequest) -> Rect`. It merges three inputs: the caller's `params` (intent - fixed/auto/fill), the widget's size request (reported by a `size_*` companion under a `SizeOffer`, see [Size Offers and Requests](#size-offers-and-requests)), and the layout's own state (available space + cursor). Layouts that don't size from content (`ManualLayout`) ignore `request`; request-aware layouts (column/row/wrap) read it. There is still **no separate measuring pass over a retained tree** - the only extra work is the cheap, explicit spec measurement.
@@ -567,7 +567,7 @@ All layout files under the `layouts/` directory must maintain structural and sty
 - **Sizing & Parameters Consistency**:
   - Keep doc comments of equal detail across similar layout implementations.
   - Implement identical panic messages when validation fails (e.g., panicking on unbounded dimensions).
-  - Parameter ordering on layout methods must be consistent, starting with the layout parameters (e.g., `layout_params` or named request parameters) followed by `request: SizeRequest`.
+  - For methods that consume a widget size request, the layout params come first, followed by `request: SizeRequest`. Deferred end methods take the layout params followed by the resolved `extent: Vec2`.
 
 Differences in layouts are acceptable only when justified by distinct structural models (for example, `SplitRow` taking a declared item count, or `OffsetLayout` serving as a coordinate decorator).
 
@@ -586,6 +586,8 @@ The non-deferred widget path is:
 2. Call `size_*(..., offer) -> SizeRequest`.
 3. Call `layout(params, request) -> Rect`.
 4. Draw the widget into that `Rect`.
+
+High-level widgets normally use `WidgetContext::peek_offer`; layout implementations expose the lower-level `LayoutState::peek_offer`. `peek_offer` is optional, and widgets with offer-insensitive requests may skip it.
 
 Because no drawing happens until after `layout` returns, this path may support auto-sized centered or end-aligned widgets. The layout can learn the `SizeRequest`, resolve alignment from the final size, and only then hand a concrete `Rect` to the widget.
 
@@ -684,7 +686,7 @@ This keeps the type honest: size requesting runs before layout, so the widget re
 
 Most containers resolve their **own** bounds upfront. `begin_window` and `begin_scroll_area` call `layout(params, request)` at `begin`, construct a raw spec with the resulting concrete `Rect`, and only then call the raw function — so the raw layer always receives a fully-resolved rect, exactly per the High-level flow above. Their `*Result.layout` is a real `LayoutInfo`.
 
-A `Frame` cannot do this: its size depends on its children (e.g. `Extent::Auto` height should shrink-wrap its rows), which are not built until *after* `begin` returns. So `begin_frame` takes the deferred path via `child_with_deferred_layout` / `begin_deferred_layout`:
+A `Frame` cannot do this: its size depends on its children (e.g. `Size::Auto` height should shrink-wrap its rows), which are not built until *after* `begin` returns. So `begin_frame` takes the deferred path via `child_with_deferred_layout` / `begin_deferred_layout`:
 
 1. It hands the raw function a **provisional** rect — `Rect::pending_extent(x, y)` — at `begin`. The origin is genuinely known (it comes from the layout's `LayoutSpace`, whose origin is always concrete); only the extent is pending, so `w`/`h` are NaN. The raw `begin_frame` stamps placeholder `FillRect`/`PushClip` commands with this rect.
 2. Children are built into the inset space.

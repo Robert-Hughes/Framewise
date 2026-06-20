@@ -1,7 +1,8 @@
 use crate::draw::DrawCommands;
 use crate::focus::FocusSystem;
 use crate::layout::{
-    Layout, LayoutSpace, LayoutState, LayoutToken, LayoutViolation, SizeRequest, SpacerLayoutState,
+    Layout, LayoutSpace, LayoutState, LayoutToken, LayoutViolation, SizeOffer, SizeRequest,
+    SpacerLayoutState,
 };
 use crate::theme::Theme;
 use crate::types::{ClipRect, Layer, Rect, Vec2};
@@ -232,18 +233,19 @@ impl<'a, T: TextBackend, LS: LayoutState, CF> WidgetContext<'a, T, LS, CF> {
     ///
     /// ### Why this is deferred (begin/end), not eager (`layout`)
     /// A nested layout is itself a container, so its final size may depend on its
-    /// children (e.g. a column placed with `Extent::Auto` height should be as tall as
+    /// children (e.g. a column placed with `Size::Auto` height should be as tall as
     /// its rows). We therefore go through [`begin_deferred_layout`](LayoutState::begin_deferred_layout):
     /// the child is begun in the *provisional* [`LayoutSpace`] (which faithfully carries
     /// `AtMost`/`Unbounded` bounds rather than a flattened `Exact` rect), and the
     /// parent's cursor is only advanced in `on_finish`, once the child's measured content
     /// extent is known via [`end_deferred_layout`](LayoutState::end_deferred_layout).
     ///
-    /// When `placement` resolves to exact bounds (`Extent::Fixed`, or a `ManualLayout`
-    /// rect) this is equivalent to the old eager `layout()` call — `end_deferred_layout` ignores
-    /// the measured extent and returns the same rect — so existing fixed-size nesting is
-    /// unchanged. Only `Auto`/`Fill`-under-non-exact slots — which would otherwise panic
-    /// for lack of a size request — now fit to their children's content.
+    /// When `placement` resolves to exact bounds (`Size::Fixed`, `Placement::Fill`
+    /// under exact space, or a `ManualLayout` rect) this is equivalent to the old eager
+    /// `layout()` call — `end_deferred_layout` ignores the measured extent and returns
+    /// the same rect — so existing fixed-size nesting is unchanged. Only auto-sized
+    /// placement and fill-under-non-exact slots — which would otherwise panic for lack
+    /// of a size request — now fit to their children's content.
     pub fn child_with_layout<'c, L2: Layout>(
         &'c mut self,
         placement: LS::Params,
@@ -394,6 +396,22 @@ impl<'a, T: TextBackend, LS: LayoutState, CF> WidgetContext<'a, T, LS, CF> {
         rect
     }
 
+    /// Query the size bounds an immediate child would receive if laid out next with
+    /// these params.
+    ///
+    /// This is for widgets that will not emit anything before final placement.
+    /// Callers that do not need offer-sensitive sizing may skip this and call
+    /// [`layout`](WidgetContext::layout) directly with a precomputed [`SizeRequest`].
+    ///
+    /// This is non-mutating: it must not advance the layout cursor or reserve a
+    /// deferred placement. Because there is no final [`Rect`] to highlight at peek
+    /// time, any fallback offer is returned without drawing diagnostics; the later
+    /// [`layout`](WidgetContext::layout) call remains responsible for normal layout
+    /// violation handling.
+    pub fn peek_offer(&self, layout_params: LS::Params) -> SizeOffer {
+        self.layout_state.peek_offer(layout_params).value()
+    }
+
     /// Append draw commands to the context's accumulated list.
     pub fn append_cmds(&mut self, cmds: DrawCommands) {
         self.cmds.append(cmds);
@@ -507,7 +525,7 @@ mod tests {
         assert_eq!(second, Rect::new(64.0, 10.0, 40.0, 30.0));
     }
 
-    /// A bare nested layout placed with `Extent::Auto` should fit to its children:
+    /// A bare nested layout placed with auto-sized height should fit to its children:
     /// the parent's cursor must advance by the inner content's measured height. (The old
     /// eager path produced a 96px fallback box here; that case now fits to content.)
     #[test]
@@ -543,7 +561,7 @@ mod tests {
         assert_eq!(sibling.y, 60.0);
     }
 
-    /// Cross-axis counterpart: a nested layout with `Extent::Auto` width inside a row
+    /// Cross-axis counterpart: a nested layout with auto-sized width inside a row
     /// should fit to the width its children actually consumed, so the next sibling
     /// advances by that measured width — not by the fallback.
     #[test]
@@ -610,6 +628,78 @@ mod tests {
         // The fixed slot wins: cursor advanced by 50, not by the 200px of content.
         let sibling = ctx.layout(ColumnLayoutParams::fixed(50.0, 20.0), SizeRequest::UNKNOWN);
         assert_eq!(sibling.y, 50.0);
+    }
+
+    #[test]
+    fn widget_context_peek_offer_matches_layout_state_offer() {
+        let mut ts = TestTextBackend;
+        let mut focus = FocusSystem::new();
+        let input = Input::default();
+        let mut cmds = DrawCommands::new();
+
+        let ctx = WidgetContext::root(
+            Theme::framewise(),
+            &mut ts,
+            &mut focus,
+            &input,
+            ColumnLayout,
+            Rect::new(10.0, 20.0, 200.0, 300.0),
+            &mut cmds,
+        );
+
+        let offer = ctx.peek_offer(ColumnLayoutParams::auto().fill_x());
+
+        assert_eq!(offer.width, AxisBound::Exact(200.0));
+        assert_eq!(offer.height, AxisBound::AtMost(300.0));
+    }
+
+    #[test]
+    fn widget_context_peek_offer_does_not_advance_layout() {
+        let mut ts = TestTextBackend;
+        let mut focus = FocusSystem::new();
+        let input = Input::default();
+        let mut cmds = DrawCommands::new();
+
+        let mut ctx = WidgetContext::root(
+            Theme::framewise(),
+            &mut ts,
+            &mut focus,
+            &input,
+            ColumnLayout,
+            Rect::new(10.0, 20.0, 200.0, 300.0),
+            &mut cmds,
+        );
+
+        let _ = ctx.peek_offer(ColumnLayoutParams::auto().fill_x());
+        let rect = ctx.layout(ColumnLayoutParams::fixed(40.0, 30.0), SizeRequest::UNKNOWN);
+
+        assert_eq!(rect, Rect::new(10.0, 20.0, 40.0, 30.0));
+    }
+
+    #[test]
+    fn widget_context_peek_offer_reflects_remaining_space() {
+        let mut ts = TestTextBackend;
+        let mut focus = FocusSystem::new();
+        let input = Input::default();
+        let mut cmds = DrawCommands::new();
+
+        let mut ctx = WidgetContext::root(
+            Theme::framewise(),
+            &mut ts,
+            &mut focus,
+            &input,
+            ColumnLayout,
+            Rect::new(10.0, 20.0, 200.0, 300.0),
+            &mut cmds,
+        );
+
+        let first = ctx.layout(ColumnLayoutParams::fixed(80.0, 75.0), SizeRequest::UNKNOWN);
+        assert_eq!(first, Rect::new(10.0, 20.0, 80.0, 75.0));
+
+        let offer = ctx.peek_offer(ColumnLayoutParams::auto().fill_x());
+
+        assert_eq!(offer.width, AxisBound::Exact(200.0));
+        assert_eq!(offer.height, AxisBound::AtMost(225.0));
     }
 
     #[test]

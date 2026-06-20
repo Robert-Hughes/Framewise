@@ -83,7 +83,7 @@ impl LayoutState for WrapState {
         // Wrap before placing if this item would overflow the line — but never
         // wrap an item that is already at the start of a line (it just clips).
         // An unbounded width has no edge to overflow, so the flow never wraps.
-        self.advance_to_next_line_for_deferred_width(w);
+        self.advance_to_next_line_if_width_wraps(w);
 
         let r = Rect::new(self.current_x, self.current_y, w, h);
         self.content_w = self.content_w.max((self.current_x + w) - self.space.x);
@@ -110,7 +110,7 @@ impl LayoutState for WrapState {
 
         let width = AxisBound::Exact(w);
 
-        self.advance_to_next_line_for_deferred_width(w);
+        self.advance_to_next_line_if_width_wraps(w);
 
         let height = match layout_params.height {
             Placement::Sized {
@@ -227,7 +227,7 @@ impl WrapState {
         }
     }
 
-    fn advance_to_next_line_for_deferred_width(&mut self, width: f32) {
+    fn advance_to_next_line_if_width_wraps(&mut self, width: f32) {
         if self.would_wrap_width(width) {
             self.current_x = self.space.x;
             self.current_y += self.line_height + self.line_spacing;

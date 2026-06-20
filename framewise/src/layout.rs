@@ -652,7 +652,7 @@ mod tests {
     }
 
     #[test]
-    fn test_rect_converts_to_bounded_space() {
+    fn test_rect_converts_to_exact_space() {
         let space: LayoutSpace = Rect::new(1.0, 2.0, 30.0, 40.0).into();
         assert_eq!(
             space,
