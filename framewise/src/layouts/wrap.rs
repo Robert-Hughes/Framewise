@@ -68,24 +68,13 @@ impl LayoutState for WrapState {
         // before we can perform the wrap check (as wrap check depends on width `w`).
         // Therefore, when resolving the height, we must first predict if it wraps,
         // so we can resolve height against the remaining height of the correct line.
-        let at_line_start = self.current_x == self.space.x;
-        let overflows = match self.space.width {
-            AxisBound::Exact(width) | AxisBound::AtMost(width) => {
-                self.current_x + w > self.space.x + width
-            }
-            AxisBound::Unbounded => false,
-        };
-        let predicted_y = if !at_line_start && overflows {
+        let predicted_y = if self.would_wrap_width(w) {
             self.current_y + self.line_height + self.line_spacing
         } else {
             self.current_y
         };
 
-        let remaining_h = match self.space.height {
-            AxisBound::Exact(h) => AxisBound::Exact((h - (predicted_y - self.space.y)).max(0.0)),
-            AxisBound::AtMost(h) => AxisBound::AtMost((h - (predicted_y - self.space.y)).max(0.0)),
-            AxisBound::Unbounded => AxisBound::Unbounded,
-        };
+        let remaining_h = self.remaining_height_bound_at(predicted_y);
         let (h, v2) = layout_params
             .height
             .resolve_size(pref.map(|p| p.y), remaining_h)
@@ -94,18 +83,7 @@ impl LayoutState for WrapState {
         // Wrap before placing if this item would overflow the line — but never
         // wrap an item that is already at the start of a line (it just clips).
         // An unbounded width has no edge to overflow, so the flow never wraps.
-        let at_line_start = self.current_x == self.space.x;
-        let overflows = match self.space.width {
-            AxisBound::Exact(width) | AxisBound::AtMost(width) => {
-                self.current_x + w > self.space.x + width
-            }
-            AxisBound::Unbounded => false,
-        };
-        if !at_line_start && overflows {
-            self.current_x = self.space.x;
-            self.current_y += self.line_height + self.line_spacing;
-            self.line_height = 0.0;
-        }
+        self.advance_to_next_line_for_deferred_width(w);
 
         let r = Rect::new(self.current_x, self.current_y, w, h);
         self.content_w = self.content_w.max((self.current_x + w) - self.space.x);
@@ -114,10 +92,9 @@ impl LayoutState for WrapState {
         LayoutResult::from_parts(r, v1.or(v2))
     }
 
-    fn begin_layout<'a>(
+    fn begin_deferred_layout<'a>(
         &'a mut self,
         layout_params: Placement2D,
-        _request: SizeRequest,
     ) -> (LayoutResult<LayoutSpace>, LayoutToken<'a, Self>)
     where
         Self: Sized,
@@ -126,48 +103,24 @@ impl LayoutState for WrapState {
             Placement::Sized { size: Size::Fixed(w), .. } => w,
             Placement::Fill => match self.space.width {
                 AxisBound::Exact(w) => (w - (self.current_x - self.space.x)).max(0.0),
-                AxisBound::AtMost(_) | AxisBound::Unbounded => panic!("Layout panic: WrapLayout cannot resolve Placement::Fill under non-Exact bounds in begin_layout"),
+                AxisBound::AtMost(_) | AxisBound::Unbounded => panic!("Layout panic: WrapLayout cannot resolve Placement::Fill under non-Exact bounds in begin_deferred_layout"),
             },
-            Placement::Sized { size: Size::Auto, .. } => panic!("Layout panic: WrapLayout does not support Auto-sized deferred containers because wrapping must be resolved in begin_layout"),
+            Placement::Sized { size: Size::Auto, .. } => panic!("Layout panic: WrapLayout does not support Auto-sized deferred containers because wrapping must be resolved in begin_deferred_layout"),
         };
 
         let width = AxisBound::Exact(w);
 
-        let at_line_start = self.current_x == self.space.x;
-        let overflows = match self.space.width {
-            AxisBound::Exact(width) | AxisBound::AtMost(width) => {
-                self.current_x + w > self.space.x + width
-            }
-            AxisBound::Unbounded => false,
-        };
-        if !at_line_start && overflows {
-            self.current_x = self.space.x;
-            self.current_y += self.line_height + self.line_spacing;
-            self.line_height = 0.0;
-        }
+        self.advance_to_next_line_for_deferred_width(w);
 
         let height = match layout_params.height {
             Placement::Sized {
                 size: Size::Fixed(h),
                 ..
             } => AxisBound::Exact(h),
-            Placement::Fill => match self.space.height {
-                AxisBound::Exact(h) => {
-                    AxisBound::Exact((h - (self.current_y - self.space.y)).max(0.0))
-                }
-                AxisBound::AtMost(h) => {
-                    AxisBound::AtMost((h - (self.current_y - self.space.y)).max(0.0))
-                }
-                AxisBound::Unbounded => AxisBound::Unbounded,
-            },
+            Placement::Fill => self.remaining_height_bound(),
             Placement::Sized {
                 size: Size::Auto, ..
-            } => match self.space.height {
-                AxisBound::Exact(h) | AxisBound::AtMost(h) => {
-                    AxisBound::AtMost((h - (self.current_y - self.space.y)).max(0.0))
-                }
-                AxisBound::Unbounded => AxisBound::Unbounded,
-            },
+            } => at_most_if_bounded(self.remaining_height_bound()),
         };
 
         let space = LayoutSpace::new(self.current_x, self.current_y, width, height);
@@ -178,20 +131,18 @@ impl LayoutState for WrapState {
         (LayoutResult::Ok(space), token)
     }
 
-    fn end_layout(&mut self, layout_params: Placement2D, extent: Vec2) -> LayoutResult<Rect> {
+    fn end_deferred_layout(
+        &mut self,
+        layout_params: Placement2D,
+        extent: Vec2,
+    ) -> LayoutResult<Rect> {
         let pref = Some(extent);
         let (w, v1) = layout_params
             .width
             .resolve_size(pref.map(|p| p.x), self.space.width)
             .into_parts();
 
-        let remaining_h = match self.space.height {
-            AxisBound::Exact(h) => AxisBound::Exact((h - (self.current_y - self.space.y)).max(0.0)),
-            AxisBound::AtMost(h) => {
-                AxisBound::AtMost((h - (self.current_y - self.space.y)).max(0.0))
-            }
-            AxisBound::Unbounded => AxisBound::Unbounded,
-        };
+        let remaining_h = self.remaining_height_bound();
         let (h, v2) = layout_params
             .height
             .resolve_size(pref.map(|p| p.y), remaining_h)
@@ -225,7 +176,11 @@ impl WrapState {
     }
 
     fn remaining_height_bound(&self) -> AxisBound {
-        let consumed = self.current_y - self.space.y;
+        self.remaining_height_bound_at(self.current_y)
+    }
+
+    fn remaining_height_bound_at(&self, y: f32) -> AxisBound {
+        let consumed = y - self.space.y;
         match self.space.height {
             AxisBound::Exact(height) => AxisBound::Exact((height - consumed).max(0.0)),
             AxisBound::AtMost(height) => AxisBound::AtMost((height - consumed).max(0.0)),
@@ -256,6 +211,27 @@ impl WrapState {
             Placement::Sized {
                 size: Size::Auto, ..
             } => at_most_if_bounded(self.remaining_height_bound()),
+        }
+    }
+
+    fn would_wrap_width(&self, width: f32) -> bool {
+        if self.current_x == self.space.x {
+            return false;
+        }
+
+        match self.space.width {
+            AxisBound::Exact(bound) | AxisBound::AtMost(bound) => {
+                self.current_x + width > self.space.x + bound
+            }
+            AxisBound::Unbounded => false,
+        }
+    }
+
+    fn advance_to_next_line_for_deferred_width(&mut self, width: f32) {
+        if self.would_wrap_width(width) {
+            self.current_x = self.space.x;
+            self.current_y += self.line_height + self.line_spacing;
+            self.line_height = 0.0;
         }
     }
 }
@@ -415,6 +391,43 @@ mod tests {
     }
 
     #[test]
+    fn test_wrap_peek_offer_matches_deferred_space_bounds_for_allowed_cases() {
+        let params = [
+            Placement2D {
+                width: Placement::fixed(80.0),
+                height: Placement::auto(),
+            },
+            Placement2D {
+                width: Placement::fill(),
+                height: Placement::fill(),
+            },
+        ];
+
+        for params in params {
+            let mut peeked = WrapLayout {
+                spacing: 10.0,
+                line_spacing: 5.0,
+            }
+            .begin(Rect::new(0.0, 0.0, 250.0, 200.0));
+            let mut deferred = WrapLayout {
+                spacing: 10.0,
+                line_spacing: 5.0,
+            }
+            .begin(Rect::new(0.0, 0.0, 250.0, 200.0));
+            let _ = peeked
+                .layout(Placement2D::fixed(100.0, 40.0), SizeRequest::UNKNOWN)
+                .unwrap();
+            let _ = deferred
+                .layout(Placement2D::fixed(100.0, 40.0), SizeRequest::UNKNOWN)
+                .unwrap();
+
+            let offer = peeked.peek_offer(params).unwrap();
+            let (space_res, _token) = deferred.begin_deferred_layout(params);
+            assert_eq!(offer, SizeOffer::from(space_res.unwrap()));
+        }
+    }
+
+    #[test]
     fn test_wrap_layout_uses_request_and_does_not_wrap_first_item() {
         // A single item wider than the bounds stays on the first line (no wrap
         // at line start); auto width comes from the preferred requested size.
@@ -471,7 +484,7 @@ mod tests {
             width: Placement::fixed(40.0),
             height: Placement::auto(),
         };
-        let (space_res, token) = state.begin_layout(req1, SizeRequest::UNKNOWN);
+        let (space_res, token) = state.begin_deferred_layout(req1);
         let space = space_res.unwrap();
         // provisional space starts at current_x (50) and current_y (0)
         assert_eq!(space.x, 50.0);
@@ -479,7 +492,7 @@ mod tests {
 
         // child measures 40x30.
         // Item is placed at current_x = 50. x + w = 50 + 40 = 90 <= 100, no overflow.
-        let resolved_rect = token.end_layout(Vec2::new(40.0, 30.0)).unwrap();
+        let resolved_rect = token.end_deferred_layout(Vec2::new(40.0, 30.0)).unwrap();
         assert_eq!(resolved_rect, Rect::new(50.0, 0.0, 40.0, 30.0)); // cursor x now 50 + 40 + 10 = 100. line_height = max(20, 30) = 30.
 
         // Place next item of width 20.0. Under 100px width limit, cursor x = 100. 100 + 20 = 120 > 100, so it wraps.
@@ -487,14 +500,14 @@ mod tests {
             width: Placement::fixed(20.0),
             height: Placement::auto(),
         };
-        let (space2_res, token2) = state.begin_layout(req2, SizeRequest::UNKNOWN);
+        let (space2_res, token2) = state.begin_deferred_layout(req2);
         let space2 = space2_res.unwrap();
         // Under WrapLayout's upfront wrap resolution, space2 wraps to start of next line: (0.0, 35.0)
         assert_eq!(space2.x, 0.0);
         assert_eq!(space2.y, 35.0);
 
         // This item is width 20.
-        let resolved_rect2 = token2.end_layout(Vec2::new(20.0, 15.0)).unwrap();
+        let resolved_rect2 = token2.end_deferred_layout(Vec2::new(20.0, 15.0)).unwrap();
         assert_eq!(resolved_rect2, Rect::new(0.0, 35.0, 20.0, 15.0));
     }
 
@@ -587,13 +600,13 @@ mod tests {
                 width: Placement::fixed(80.0),
                 height: Placement::fill(),
             };
-            let (space_res, token) = state.begin_layout(req, SizeRequest::UNKNOWN);
+            let (space_res, token) = state.begin_deferred_layout(req);
             let space = space_res.unwrap();
-            // In begin_layout, remaining height on the wrapped line is Exact(70.0)
+            // In begin_deferred_layout, remaining height on the wrapped line is Exact(70.0)
             assert_eq!(space.height, AxisBound::Exact(70.0));
 
             // child completes layout with measured height of 50.0
-            let r = token.end_layout(Vec2::new(80.0, 50.0)).unwrap();
+            let r = token.end_deferred_layout(Vec2::new(80.0, 50.0)).unwrap();
             // Under Exact bounds, Fill height resolves to 70.0.
             assert_eq!(r.h, 70.0);
         }
@@ -622,13 +635,13 @@ mod tests {
                 width: Placement::fixed(80.0),
                 height: Placement::fill(),
             };
-            let (space_res, token) = state.begin_layout(req, SizeRequest::UNKNOWN);
+            let (space_res, token) = state.begin_deferred_layout(req);
             let space = space_res.unwrap();
-            // In begin_layout, remaining height on the wrapped line is AtMost(70.0)
+            // In begin_deferred_layout, remaining height on the wrapped line is AtMost(70.0)
             assert_eq!(space.height, AxisBound::AtMost(70.0));
 
             // child completes layout with measured height larger (90px)
-            let res = token.end_layout(Vec2::new(80.0, 90.0));
+            let res = token.end_deferred_layout(Vec2::new(80.0, 90.0));
             // Under AtMost bounds, Fill height is resolved using the child's extent, but clamped to the remaining 70.0.
             let (r, violation) = res.into_parts();
             assert_eq!(r.h, 70.0);
@@ -637,7 +650,7 @@ mod tests {
     }
 
     #[test]
-    fn test_wrap_begin_layout_propagates_bounds() {
+    fn test_wrap_begin_deferred_layout_propagates_bounds() {
         let parent_space =
             LayoutSpace::new(0.0, 0.0, AxisBound::Exact(250.0), AxisBound::Exact(200.0));
         let mut state = WrapLayout {
@@ -657,7 +670,7 @@ mod tests {
             width: Placement::fixed(80.0),
             height: Placement::auto(),
         };
-        let (space_res, _token) = state.begin_layout(req, SizeRequest::UNKNOWN);
+        let (space_res, _token) = state.begin_deferred_layout(req);
         let space = space_res.unwrap();
         assert_eq!(space.width, AxisBound::Exact(80.0));
         assert_eq!(space.height, AxisBound::AtMost(200.0));
@@ -678,7 +691,7 @@ mod tests {
             width: Placement::auto(),
             height: Placement::fixed(40.0),
         };
-        // Auto width under WrapLayout should panic during begin_layout
-        let _ = state.begin_layout(req, SizeRequest::UNKNOWN);
+        // Auto width under WrapLayout should panic during begin_deferred_layout
+        let _ = state.begin_deferred_layout(req);
     }
 }

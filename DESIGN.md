@@ -593,7 +593,7 @@ The deferred container path is:
 
 1. Call `begin_deferred_layout(params) -> (provisional LayoutSpace, token)`.
 2. Draw child widgets inside the provisional `LayoutSpace`.
-3. Call `end_deferred_layout(token, extent/request) -> Rect` to resolve the final container rectangle and advance the parent layout.
+3. Call `end_deferred_layout(token, extent) -> Rect` to resolve the final container rectangle and advance the parent layout.
 
 Deferred layout is stricter because child output may already have been emitted into the provisional space. A layout must reject any deferred case where the provisional origin might need to move later, such as an auto-sized centered/end-aligned container. This is the same rationale currently embedded in `WidgetContext::child_with_layout`: a nested layout is a container whose final size may depend on its children, so it begins in a provisional `LayoutSpace` preserving `AtMost`/`Unbounded` bounds and advances the parent cursor only when the child finishes.
 

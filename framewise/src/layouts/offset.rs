@@ -44,12 +44,11 @@ impl<InnerS: LayoutState> LayoutState for OffsetState<InnerS> {
         })
     }
 
-    fn begin_layout<'a>(
+    fn begin_deferred_layout<'a>(
         &'a mut self,
         layout_params: Self::Params,
-        request: SizeRequest,
     ) -> (LayoutResult<LayoutSpace>, LayoutToken<'a, Self>) {
-        let (space_res, _) = self.inner.begin_layout(layout_params.clone(), request);
+        let (space_res, _) = self.inner.begin_deferred_layout(layout_params.clone());
         let space_res = space_res.map(|mut space| {
             space.x -= self.offset.x;
             space.y -= self.offset.y;
@@ -62,12 +61,18 @@ impl<InnerS: LayoutState> LayoutState for OffsetState<InnerS> {
         (space_res, token)
     }
 
-    fn end_layout(&mut self, layout_params: Self::Params, extent: Vec2) -> LayoutResult<Rect> {
-        self.inner.end_layout(layout_params, extent).map(|mut r| {
-            r.x -= self.offset.x;
-            r.y -= self.offset.y;
-            r
-        })
+    fn end_deferred_layout(
+        &mut self,
+        layout_params: Self::Params,
+        extent: Vec2,
+    ) -> LayoutResult<Rect> {
+        self.inner
+            .end_deferred_layout(layout_params, extent)
+            .map(|mut r| {
+                r.x -= self.offset.x;
+                r.y -= self.offset.y;
+                r
+            })
     }
 
     fn resolve_space(&self) -> Rect {
@@ -161,14 +166,14 @@ mod tests {
             x: crate::layouts::linear::LinearCross::fixed(50.0),
             y: crate::layouts::linear::LinearMain::auto(),
         };
-        let (space_res, token) = state.begin_layout(req, SizeRequest::UNKNOWN);
+        let (space_res, token) = state.begin_deferred_layout(req);
         let space = space_res.unwrap();
 
         // Provisional space should be shifted by offset: space.x = 0.0 - 10.0 = -10.0
         assert_eq!(space.x, -10.0);
         assert_eq!(space.y, -20.0);
 
-        let resolved_rect = token.end_layout(Vec2::new(50.0, 40.0)).unwrap();
+        let resolved_rect = token.end_deferred_layout(Vec2::new(50.0, 40.0)).unwrap();
         // Rect resolved in inner layout is at (0, 0, 50, 40), then shifted: (-10, -20, 50, 40)
         assert_eq!(resolved_rect, Rect::new(-10.0, -20.0, 50.0, 40.0));
     }

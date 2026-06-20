@@ -65,7 +65,7 @@ pub enum LayoutViolationPolicy {
 /// `Panic` rethrows the violation message; `Highlight` draws a red outline over the
 /// fallback geometry and labels the violation message in red at its top-left corner.
 /// Every reaction path has a `TextBackend` in reach (the immediate `layout()`, and the
-/// deferred `begin_layout`/`end_layout` reactions, which receive it through the
+/// deferred `begin_deferred_layout`/`end_deferred_layout` reactions, which receive it through the
 /// `on_finish` closure), so the label is always drawn.
 pub fn react_layout_violation<T: TextBackend>(
     policy: LayoutViolationPolicy,
@@ -233,14 +233,14 @@ impl<'a, T: TextBackend, LS: LayoutState, CF> WidgetContext<'a, T, LS, CF> {
     /// ### Why this is deferred (begin/end), not eager (`layout`)
     /// A nested layout is itself a container, so its final size may depend on its
     /// children (e.g. a column placed with `Extent::Auto` height should be as tall as
-    /// its rows). We therefore go through [`begin_layout`](LayoutState::begin_layout):
+    /// its rows). We therefore go through [`begin_deferred_layout`](LayoutState::begin_deferred_layout):
     /// the child is begun in the *provisional* [`LayoutSpace`] (which faithfully carries
     /// `AtMost`/`Unbounded` bounds rather than a flattened `Exact` rect), and the
     /// parent's cursor is only advanced in `on_finish`, once the child's measured content
-    /// extent is known via [`end_layout`](LayoutState::end_layout).
+    /// extent is known via [`end_deferred_layout`](LayoutState::end_deferred_layout).
     ///
     /// When `placement` resolves to exact bounds (`Extent::Fixed`, or a `ManualLayout`
-    /// rect) this is equivalent to the old eager `layout()` call — `end_layout` ignores
+    /// rect) this is equivalent to the old eager `layout()` call — `end_deferred_layout` ignores
     /// the measured extent and returns the same rect — so existing fixed-size nesting is
     /// unchanged. Only `Auto`/`Fill`-under-non-exact slots — which would otherwise panic
     /// for lack of a size request — now fit to their children's content.
@@ -261,12 +261,11 @@ impl<'a, T: TextBackend, LS: LayoutState, CF> WidgetContext<'a, T, LS, CF> {
         let z = self.layer.get_z();
         let (child, _outer_space) = self.child_with_deferred_layout(
             placement,
-            SizeRequest::UNKNOWN,
             inner_layout,
             |_cmds, outer| ((), outer),
             move |(), token, content, _focus, text_backend, cmds| {
                 let (rect, violation) = token
-                    .end_layout(Vec2::new(content.w, content.h))
+                    .end_deferred_layout(Vec2::new(content.w, content.h))
                     .into_parts();
                 if let Some(v) = violation {
                     react_layout_violation(policy, text_backend, cmds, font, v, rect, z);
@@ -279,20 +278,20 @@ impl<'a, T: TextBackend, LS: LayoutState, CF> WidgetContext<'a, T, LS, CF> {
     /// Deferred-layout borrow harness shared by every fit-to-children container
     /// (`child_with_layout`, `frame`, …).
     ///
-    /// [`begin_layout`](LayoutState::begin_layout) is called *inside* this method, so the
+    /// [`begin_deferred_layout`](LayoutState::begin_deferred_layout) is called *inside* this method, so the
     /// [`LayoutToken`] it produces never crosses a `&mut self` boundary — that is what lets
     /// a single reusable constructor own the borrow-splitting that each container would
     /// otherwise hand-roll. The harness knows nothing about chrome (padding, borders,
     /// scroll offsets); the caller injects all space/rect math through two closures:
     ///
-    /// - `before_children` runs *between* `begin_layout` and constructing the child. It
+    /// - `before_children` runs *between* `begin_deferred_layout` and constructing the child. It
     ///   receives the draw-command buffer and the provisional outer [`LayoutSpace`], and
     ///   returns `(carried, inner_space)`: `carried` is handed to `after_children`, and
     ///   `inner_space` is the space the inner layout begins in.
     /// - `after_children` runs at [`finish`](WidgetContext::finish), once the child's
     ///   content rect is known. It receives `carried`, the [`LayoutToken`], the measured
     ///   content rect, and the focus/draw systems. The caller decides the outer extent by
-    ///   calling [`LayoutToken::end_layout`] and performs any retroactive draw patching.
+    ///   calling [`LayoutToken::end_deferred_layout`] and performs any retroactive draw patching.
     ///
     /// Returns the child context plus the provisional outer [`LayoutSpace`] (containers like
     /// `frame` need it for their `LayoutInfo`; bare callers ignore it).
@@ -300,7 +299,6 @@ impl<'a, T: TextBackend, LS: LayoutState, CF> WidgetContext<'a, T, LS, CF> {
     pub fn child_with_deferred_layout<'c, L2, U, Before, After>(
         &'c mut self,
         placement: LS::Params,
-        request: SizeRequest,
         inner_layout: L2,
         before_children: Before,
         after_children: After,
@@ -325,11 +323,11 @@ impl<'a, T: TextBackend, LS: LayoutState, CF> WidgetContext<'a, T, LS, CF> {
         let debug_layout = self.debug_layout; // Copied before the layout_state borrow below.
         let policy = self.layout_policy;
 
-        // begin_layout runs *here*: the token stays inside this body (captured into
+        // begin_deferred_layout runs *here*: the token stays inside this body (captured into
         // `on_finish` below) and never crosses a `&mut self` boundary, so the disjoint
         // field construction is legal and lives in exactly one place.
-        let (outer_space_res, token) = self.layout_state.begin_layout(placement, request);
-        // The begin_layout violation belongs to *this child's* placement; it is carried
+        let (outer_space_res, token) = self.layout_state.begin_deferred_layout(placement);
+        // The begin_deferred_layout violation belongs to *this child's* placement; it is carried
         // into the child below and reacted at the child's finish(), where its own
         // resolved_space gives the correct fallback rect. Each child carries its own,
         // so sibling violations are never dropped.
@@ -436,7 +434,7 @@ impl<
             resolved_space,
         );
 
-        // React to this context's own begin_layout violation (carried here so the
+        // React to this context's own begin_deferred_layout violation (carried here so the
         // fallback rect is concrete).
         if let Some(violation) = self.pending_violation {
             react_layout_violation(
@@ -665,11 +663,11 @@ mod tests {
         );
     }
 
-    /// Deferred path: a begin_layout violation must be carried on the *child* and
+    /// Deferred path: a begin_deferred_layout violation must be carried on the *child* and
     /// reacted at the child's own finish() — once per child. Regression guard for the
     /// bug where the violation was stashed on the parent (dropping all but the first).
     #[test]
-    fn test_highlight_policy_deferred_begin_layout_violation_per_child() {
+    fn test_highlight_policy_deferred_begin_violation_per_child() {
         let mut ts = TestTextBackend;
         let mut focus = FocusSystem::new();
         let input = Input::default();
@@ -681,13 +679,13 @@ mod tests {
             &mut focus,
             &input,
             ColumnLayout,
-            // AtMost width → a Fixed+Center child can't be centered at begin_layout.
+            // AtMost width → a Fixed+Center child can't be centered at begin_deferred_layout.
             LayoutSpace::new(0.0, 0.0, AxisBound::AtMost(100.0), AxisBound::Exact(200.0)),
             &mut cmds,
         );
         ctx.layout_policy = LayoutViolationPolicy::Highlight;
 
-        // Two deferred children, each violating alignment at begin_layout.
+        // Two deferred children, each violating alignment at begin_deferred_layout.
         for _ in 0..2 {
             let placement = ColumnLayoutParams::fixed(40.0, 20.0).align_x(Align::Center);
             let child = ctx.child_with_layout(placement, ColumnLayout);
@@ -695,9 +693,9 @@ mod tests {
         }
         ctx.finish();
 
-        // Center-on-AtMost faults at BOTH begin_layout and end_layout, so each child
+        // Center-on-AtMost faults at BOTH begin_deferred_layout and end_deferred_layout, so each child
         // contributes two highlights → 2 children × 2 = 4. The key point is that no
-        // child's violation is dropped. (The old bug stashed the begin_layout violation
+        // child's violation is dropped. (The old bug stashed the begin_deferred_layout violation
         // on the *parent* under an is_none() guard, dropping the 2nd child's → only 3.)
         let count = cmds
             .iter()

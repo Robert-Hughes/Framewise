@@ -29,10 +29,7 @@ impl LayoutState for ManualState {
     type Params = Rect;
 
     fn peek_offer(&self, layout_params: Rect) -> LayoutResult<SizeOffer> {
-        LayoutResult::Ok(SizeOffer::new(
-            AxisBound::Exact(layout_params.w),
-            AxisBound::Exact(layout_params.h),
-        ))
+        LayoutResult::Ok(Self::offer_for_rect(layout_params))
     }
 
     fn layout(&mut self, layout_params: Rect, _request: SizeRequest) -> LayoutResult<Rect> {
@@ -43,27 +40,15 @@ impl LayoutState for ManualState {
         // is unaffected by an unbounded axis.
         // The requested rect is origin-relative, so its far edge *is* the content
         // extent contribution (no need to subtract the origin back out).
-        self.content_extent.x = self.content_extent.x.max(layout_params.x + layout_params.w);
-        self.content_extent.y = self.content_extent.y.max(layout_params.y + layout_params.h);
-        LayoutResult::Ok(Rect::new(
-            self.space.x + layout_params.x,
-            self.space.y + layout_params.y,
-            layout_params.w,
-            layout_params.h,
-        ))
+        self.include_rect_in_content_extent(layout_params);
+        LayoutResult::Ok(self.rect_for_params(layout_params))
     }
 
-    fn begin_layout<'a>(
+    fn begin_deferred_layout<'a>(
         &'a mut self,
         layout_params: Rect,
-        _request: SizeRequest,
     ) -> (LayoutResult<LayoutSpace>, LayoutToken<'a, Self>) {
-        let space = LayoutSpace::new(
-            self.space.x + layout_params.x,
-            self.space.y + layout_params.y,
-            AxisBound::Exact(layout_params.w),
-            AxisBound::Exact(layout_params.h),
-        );
+        let space = self.space_for_rect(layout_params);
         let token = LayoutToken {
             state: self,
             params: layout_params,
@@ -71,19 +56,37 @@ impl LayoutState for ManualState {
         (LayoutResult::Ok(space), token)
     }
 
-    fn end_layout(&mut self, layout_params: Rect, _extent: Vec2) -> LayoutResult<Rect> {
-        self.content_extent.x = self.content_extent.x.max(layout_params.x + layout_params.w);
-        self.content_extent.y = self.content_extent.y.max(layout_params.y + layout_params.h);
-        LayoutResult::Ok(Rect::new(
-            self.space.x + layout_params.x,
-            self.space.y + layout_params.y,
-            layout_params.w,
-            layout_params.h,
-        ))
+    fn end_deferred_layout(&mut self, layout_params: Rect, _extent: Vec2) -> LayoutResult<Rect> {
+        self.include_rect_in_content_extent(layout_params);
+        LayoutResult::Ok(self.rect_for_params(layout_params))
     }
 
     fn resolve_space(&self) -> Rect {
         self.space.resolve(self.content_extent)
+    }
+}
+
+impl ManualState {
+    fn offer_for_rect(rect: Rect) -> SizeOffer {
+        SizeOffer::new(AxisBound::Exact(rect.w), AxisBound::Exact(rect.h))
+    }
+
+    fn space_for_rect(&self, rect: Rect) -> LayoutSpace {
+        LayoutSpace::new(
+            self.space.x + rect.x,
+            self.space.y + rect.y,
+            AxisBound::Exact(rect.w),
+            AxisBound::Exact(rect.h),
+        )
+    }
+
+    fn rect_for_params(&self, rect: Rect) -> Rect {
+        Rect::new(self.space.x + rect.x, self.space.y + rect.y, rect.w, rect.h)
+    }
+
+    fn include_rect_in_content_extent(&mut self, rect: Rect) {
+        self.content_extent.x = self.content_extent.x.max(rect.x + rect.w);
+        self.content_extent.y = self.content_extent.y.max(rect.y + rect.h);
     }
 }
 
@@ -224,7 +227,7 @@ mod tests {
         let parent_space = LayoutSpace::new(10.0, 10.0, AxisBound::Unbounded, AxisBound::Unbounded);
         let mut state = ManualLayout.begin(parent_space);
         let layout_param = Rect::new(20.0, 30.0, 50.0, 40.0);
-        let (space_res, token) = state.begin_layout(layout_param, SizeRequest::UNKNOWN);
+        let (space_res, token) = state.begin_deferred_layout(layout_param);
         let space = space_res.unwrap();
 
         // ManualLayout begins at logically shifted coordinate: (10.0+20.0, 10.0+30.0) = (30.0, 40.0)
@@ -233,7 +236,7 @@ mod tests {
         assert_eq!(space.width, AxisBound::Exact(50.0));
         assert_eq!(space.height, AxisBound::Exact(40.0));
 
-        let resolved_rect = token.end_layout(Vec2::new(15.0, 15.0)).unwrap();
+        let resolved_rect = token.end_deferred_layout(Vec2::new(15.0, 15.0)).unwrap();
         // Resolved rect should be exactly the requested rect shifted by origin
         assert_eq!(resolved_rect, Rect::new(30.0, 40.0, 50.0, 40.0));
 
@@ -242,10 +245,9 @@ mod tests {
     }
 
     #[test]
-    fn test_manual_begin_layout_propagates_exact_bounds() {
+    fn test_manual_begin_deferred_layout_propagates_exact_bounds() {
         let mut state = ManualLayout.begin(Rect::new(10.0, 20.0, 300.0, 400.0));
-        let (space_res, _token) =
-            state.begin_layout(Rect::new(5.0, 10.0, 100.0, 150.0), SizeRequest::UNKNOWN);
+        let (space_res, _token) = state.begin_deferred_layout(Rect::new(5.0, 10.0, 100.0, 150.0));
         let space = space_res.unwrap();
         assert_eq!(space.width, AxisBound::Exact(100.0));
         assert_eq!(space.height, AxisBound::Exact(150.0));

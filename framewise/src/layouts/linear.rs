@@ -509,39 +509,19 @@ impl<A: LinearAxis> LayoutState for LinearState<A> {
         self.place(params, pref)
     }
 
-    fn begin_layout<'a>(
+    fn begin_deferred_layout<'a>(
         &'a mut self,
         layout_params: Self::Params,
-        _request: SizeRequest,
     ) -> (LayoutResult<LayoutSpace>, LayoutToken<'a, Self>) {
         let params = A::orient_params(layout_params.clone());
 
         if self.is_closed {
-            let main = match params.main {
-                LinearMain::Fill => self.remaining_main_bound(),
-                LinearMain::Sized {
-                    size: Size::Fixed(size),
-                    ..
-                } => AxisBound::Exact(size),
-                LinearMain::Sized {
-                    size: Size::Auto, ..
-                } => at_most_if_bounded(self.remaining_main_bound()),
-            };
-            let cross = match params.cross {
-                LinearCross::Sized {
-                    size: Size::Fixed(size),
-                    ..
-                } => AxisBound::Exact(size),
-                LinearCross::Fill => self.space.cross,
-                LinearCross::Sized {
-                    size: Size::Auto, ..
-                } => at_most_if_bounded(self.space.cross),
-            };
+            let bounds = self.offer_bounds_for(params);
             let space = OrientedSpace {
                 origin_main: self.cursor_main + self.pending_spacing,
                 origin_cross: self.space.origin_cross,
-                main,
-                cross,
+                main: bounds.main,
+                cross: bounds.cross,
             };
             let token = LayoutToken {
                 state: self,
@@ -561,13 +541,13 @@ impl<A: LinearAxis> LayoutState for LinearState<A> {
 
         let mut end_violation = None;
         let mut main_origin = self.cursor_main + self.pending_spacing;
+        let bounds = self.offer_bounds_for(params);
 
         let main = match params.main {
-            LinearMain::Fill => self.remaining_main_bound(),
+            LinearMain::Fill => bounds.main,
             LinearMain::Sized { size, align } => match align {
                 MainAxisAlign::Append => match size {
-                    Size::Fixed(s) => AxisBound::Exact(s),
-                    Size::Auto => at_most_if_bounded(self.remaining_main_bound()),
+                    Size::Fixed(_) | Size::Auto => bounds.main,
                 },
                 MainAxisAlign::End => match size {
                     Size::Auto => {
@@ -594,17 +574,6 @@ impl<A: LinearAxis> LayoutState for LinearState<A> {
                     },
                 },
             },
-        };
-
-        let cross = match params.cross {
-            LinearCross::Sized {
-                size: Size::Fixed(size),
-                ..
-            } => AxisBound::Exact(size),
-            LinearCross::Fill => self.space.cross,
-            LinearCross::Sized {
-                size: Size::Auto, ..
-            } => at_most_if_bounded(self.space.cross),
         };
 
         let resolved_cross = match params.cross {
@@ -641,7 +610,7 @@ impl<A: LinearAxis> LayoutState for LinearState<A> {
             origin_main: main_origin,
             origin_cross: self.space.origin_cross + cross_offset,
             main,
-            cross,
+            cross: bounds.cross,
         };
         let token = LayoutToken {
             state: self,
@@ -656,7 +625,11 @@ impl<A: LinearAxis> LayoutState for LinearState<A> {
         )
     }
 
-    fn end_layout(&mut self, layout_params: Self::Params, extent: Vec2) -> LayoutResult<Rect> {
+    fn end_deferred_layout(
+        &mut self,
+        layout_params: Self::Params,
+        extent: Vec2,
+    ) -> LayoutResult<Rect> {
         let params = A::orient_params(layout_params);
         let pref = Some(A::orient_size(extent));
         self.place(params, pref)
@@ -672,7 +645,7 @@ impl<A: LinearAxis> LayoutState for LinearState<A> {
 }
 
 impl<A: LinearAxis> LinearState<A> {
-    fn offer_for(&self, params: OrientedPlacement) -> SizeOffer {
+    fn offer_bounds_for(&self, params: OrientedPlacement) -> OrientedBounds {
         let main = match params.main {
             LinearMain::Fill => self.remaining_main_bound(),
             LinearMain::Sized {
@@ -694,11 +667,17 @@ impl<A: LinearAxis> LinearState<A> {
             } => at_most_if_bounded(self.space.cross),
         };
 
+        OrientedBounds { main, cross }
+    }
+
+    fn offer_for(&self, params: OrientedPlacement) -> SizeOffer {
+        let bounds = self.offer_bounds_for(params);
+
         SizeOffer::from(A::physical_space(OrientedSpace {
             origin_main: 0.0,
             origin_cross: 0.0,
-            main,
-            cross,
+            main: bounds.main,
+            cross: bounds.cross,
         }))
     }
 
@@ -840,6 +819,12 @@ impl OrientedSpace {
 pub struct OrientedPlacement {
     main: LinearMain,
     cross: LinearCross,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+struct OrientedBounds {
+    main: AxisBound,
+    cross: AxisBound,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -1171,6 +1156,70 @@ mod tests {
     }
 
     #[test]
+    fn test_row_peek_offer_matches_deferred_space_bounds_for_allowed_cases() {
+        let params = [
+            RowLayoutParams::fixed(40.0, 20.0),
+            RowLayoutParams {
+                x: LinearMain::fill(),
+                y: LinearCross::fill(),
+            },
+            RowLayoutParams {
+                x: LinearMain::auto(),
+                y: LinearCross::auto(),
+            },
+        ];
+
+        for params in params {
+            let mut peeked = row().begin(Rect::new(0.0, 0.0, 200.0, 100.0));
+            let mut deferred = row().begin(Rect::new(0.0, 0.0, 200.0, 100.0));
+            let _ = peeked
+                .layout(RowLayoutParams::fixed(50.0, 20.0), SizeRequest::UNKNOWN)
+                .unwrap();
+            let _ = deferred
+                .layout(RowLayoutParams::fixed(50.0, 20.0), SizeRequest::UNKNOWN)
+                .unwrap();
+            peeked.spacer(10.0.into());
+            deferred.spacer(10.0.into());
+
+            let offer = peeked.peek_offer(params).unwrap();
+            let (space_res, _token) = deferred.begin_deferred_layout(params);
+            assert_eq!(offer, SizeOffer::from(space_res.unwrap()));
+        }
+    }
+
+    #[test]
+    fn test_column_peek_offer_matches_deferred_space_bounds_for_allowed_cases() {
+        let params = [
+            ColumnLayoutParams::fixed(40.0, 20.0),
+            ColumnLayoutParams {
+                x: LinearCross::fill(),
+                y: LinearMain::fill(),
+            },
+            ColumnLayoutParams {
+                x: LinearCross::auto(),
+                y: LinearMain::auto(),
+            },
+        ];
+
+        for params in params {
+            let mut peeked = column().begin(Rect::new(0.0, 0.0, 200.0, 100.0));
+            let mut deferred = column().begin(Rect::new(0.0, 0.0, 200.0, 100.0));
+            let _ = peeked
+                .layout(ColumnLayoutParams::fixed(50.0, 20.0), SizeRequest::UNKNOWN)
+                .unwrap();
+            let _ = deferred
+                .layout(ColumnLayoutParams::fixed(50.0, 20.0), SizeRequest::UNKNOWN)
+                .unwrap();
+            peeked.spacer(10.0.into());
+            deferred.spacer(10.0.into());
+
+            let offer = peeked.peek_offer(params).unwrap();
+            let (space_res, _token) = deferred.begin_deferred_layout(params);
+            assert_eq!(offer, SizeOffer::from(space_res.unwrap()));
+        }
+    }
+
+    #[test]
     fn test_row_layout() {
         let mut state = row().begin(Rect::new(10.0, 20.0, 100.0, 100.0));
         let r1 = state
@@ -1265,11 +1314,11 @@ mod tests {
                 x: LinearMain::fill(),
                 y: LinearCross::fixed(200.0),
             };
-            let (space_res, token) = state.begin_layout(req, SizeRequest::UNKNOWN);
+            let (space_res, token) = state.begin_deferred_layout(req);
             let space = space_res.unwrap();
             assert_eq!(space.width, AxisBound::Exact(70.0));
 
-            let r = token.end_layout(Vec2::new(50.0, 200.0)).unwrap();
+            let r = token.end_deferred_layout(Vec2::new(50.0, 200.0)).unwrap();
             assert_eq!(r.w, 70.0);
         }
 
@@ -1284,11 +1333,11 @@ mod tests {
                 x: LinearMain::fill(),
                 y: LinearCross::fixed(200.0),
             };
-            let (space_res, token) = state.begin_layout(req, SizeRequest::UNKNOWN);
+            let (space_res, token) = state.begin_deferred_layout(req);
             let space = space_res.unwrap();
             assert_eq!(space.width, AxisBound::AtMost(70.0));
 
-            let res = token.end_layout(Vec2::new(90.0, 200.0));
+            let res = token.end_deferred_layout(Vec2::new(90.0, 200.0));
             let (r, violation) = res.into_parts();
             assert_eq!(r.w, 70.0);
             assert!(violation.is_some());
@@ -1393,7 +1442,7 @@ mod tests {
             x: LinearMain::auto(),
             y: LinearCross::fill(),
         };
-        let (space_res, token) = state.begin_layout(req, SizeRequest::UNKNOWN);
+        let (space_res, token) = state.begin_deferred_layout(req);
         let space = space_res.unwrap();
 
         assert_eq!(space.x, 10.0);
@@ -1401,7 +1450,7 @@ mod tests {
         assert_eq!(space.width, AxisBound::Unbounded);
         assert_eq!(space.height, AxisBound::Exact(100.0));
 
-        let resolved_rect = token.end_layout(Vec2::new(60.0, 40.0)).unwrap();
+        let resolved_rect = token.end_deferred_layout(Vec2::new(60.0, 40.0)).unwrap();
         assert_eq!(resolved_rect, Rect::new(10.0, 10.0, 60.0, 100.0));
 
         state.spacer(5.0.into());
@@ -1420,7 +1469,7 @@ mod tests {
     }
 
     #[test]
-    fn test_row_begin_layout_propagates_bounds() {
+    fn test_row_begin_deferred_layout_propagates_bounds() {
         let parent_space =
             LayoutSpace::new(0.0, 0.0, AxisBound::Exact(400.0), AxisBound::Exact(150.0));
         let mut state = row().begin(parent_space);
@@ -1429,7 +1478,7 @@ mod tests {
             x: LinearMain::fixed(80.0),
             y: LinearCross::fill(),
         };
-        let (space_f_res, _token) = state.begin_layout(req_fixed, SizeRequest::UNKNOWN);
+        let (space_f_res, _token) = state.begin_deferred_layout(req_fixed);
         let space_f = space_f_res.unwrap();
         assert_eq!(space_f.width, AxisBound::Exact(80.0));
         assert_eq!(space_f.height, AxisBound::Exact(150.0));
@@ -1444,7 +1493,7 @@ mod tests {
             x: LinearMain::auto(),
             y: LinearCross::fill(),
         };
-        let (space_auto_res, _token) = state.begin_layout(req_auto, SizeRequest::UNKNOWN);
+        let (space_auto_res, _token) = state.begin_deferred_layout(req_auto);
         let space_auto = space_auto_res.unwrap();
         assert_eq!(space_auto.width, AxisBound::AtMost(315.0));
         assert_eq!(space_auto.height, AxisBound::Exact(150.0));
@@ -1461,7 +1510,7 @@ mod tests {
             x: LinearMain::fixed(80.0),
             y: LinearCross::auto().align(Align::Center),
         };
-        let _ = state.begin_layout(req, SizeRequest::UNKNOWN);
+        let _ = state.begin_deferred_layout(req);
     }
 
     #[test]
@@ -1495,8 +1544,8 @@ mod tests {
                 x: LinearMain::fixed(80.0),
                 y: LinearCross::fixed(100.0).align(Align::Center),
             };
-            let (_, token) = state.begin_layout(req, SizeRequest::UNKNOWN);
-            let _ = token.end_layout(Vec2::new(80.0, 100.0)).unwrap();
+            let (_, token) = state.begin_deferred_layout(req);
+            let _ = token.end_deferred_layout(Vec2::new(80.0, 100.0)).unwrap();
             assert_eq!(state.resolve_space().h, 300.0);
         }
     }
@@ -1638,11 +1687,11 @@ mod tests {
                 x: LinearCross::fixed(200.0),
                 y: LinearMain::fill(),
             };
-            let (space_res, token) = state.begin_layout(req, SizeRequest::UNKNOWN);
+            let (space_res, token) = state.begin_deferred_layout(req);
             let space = space_res.unwrap();
             assert_eq!(space.height, AxisBound::Exact(70.0));
 
-            let r = token.end_layout(Vec2::new(200.0, 50.0)).unwrap();
+            let r = token.end_deferred_layout(Vec2::new(200.0, 50.0)).unwrap();
             assert_eq!(r.h, 70.0);
         }
 
@@ -1657,11 +1706,11 @@ mod tests {
                 x: LinearCross::fixed(200.0),
                 y: LinearMain::fill(),
             };
-            let (space_res, token) = state.begin_layout(req, SizeRequest::UNKNOWN);
+            let (space_res, token) = state.begin_deferred_layout(req);
             let space = space_res.unwrap();
             assert_eq!(space.height, AxisBound::AtMost(70.0));
 
-            let res = token.end_layout(Vec2::new(200.0, 90.0));
+            let res = token.end_deferred_layout(Vec2::new(200.0, 90.0));
             let (r, violation) = res.into_parts();
             assert_eq!(r.h, 70.0);
             assert!(violation.is_some());
@@ -1790,7 +1839,7 @@ mod tests {
             x: LinearCross::fill(),
             y: LinearMain::auto(),
         };
-        let (space_res, token) = state.begin_layout(req, SizeRequest::UNKNOWN);
+        let (space_res, token) = state.begin_deferred_layout(req);
         let space = space_res.unwrap();
 
         assert_eq!(space.x, 0.0);
@@ -1798,7 +1847,7 @@ mod tests {
         assert_eq!(space.width, AxisBound::Exact(200.0));
         assert_eq!(space.height, AxisBound::Unbounded);
 
-        let resolved_rect = token.end_layout(Vec2::new(80.0, 50.0)).unwrap();
+        let resolved_rect = token.end_deferred_layout(Vec2::new(80.0, 50.0)).unwrap();
         assert_eq!(resolved_rect, Rect::new(0.0, 0.0, 200.0, 50.0));
 
         state.spacer(8.0.into());
@@ -1810,7 +1859,7 @@ mod tests {
     }
 
     #[test]
-    fn test_column_begin_layout_propagates_bounds() {
+    fn test_column_begin_deferred_layout_propagates_bounds() {
         let parent_space =
             LayoutSpace::new(0.0, 0.0, AxisBound::Exact(200.0), AxisBound::Exact(300.0));
         let mut state = column().begin(parent_space);
@@ -1819,7 +1868,7 @@ mod tests {
             x: LinearCross::fill(),
             y: LinearMain::fixed(50.0),
         };
-        let (space_f_res, _token) = state.begin_layout(req_fixed, SizeRequest::UNKNOWN);
+        let (space_f_res, _token) = state.begin_deferred_layout(req_fixed);
         let space_f = space_f_res.unwrap();
         assert_eq!(space_f.width, AxisBound::Exact(200.0));
         assert_eq!(space_f.height, AxisBound::Exact(50.0));
@@ -1834,7 +1883,7 @@ mod tests {
             x: LinearCross::auto(),
             y: LinearMain::fill(),
         };
-        let (space_fill_res, _token) = state.begin_layout(req_fill, SizeRequest::UNKNOWN);
+        let (space_fill_res, _token) = state.begin_deferred_layout(req_fill);
         let space_fill = space_fill_res.unwrap();
         assert_eq!(space_fill.width, AxisBound::AtMost(200.0));
         assert_eq!(space_fill.height, AxisBound::Exact(240.0));
@@ -1843,14 +1892,14 @@ mod tests {
             x: LinearCross::auto(),
             y: LinearMain::auto(),
         };
-        let (space_auto_res, _token) = state.begin_layout(req_auto, SizeRequest::UNKNOWN);
+        let (space_auto_res, _token) = state.begin_deferred_layout(req_auto);
         let space_auto = space_auto_res.unwrap();
         assert_eq!(space_auto.width, AxisBound::AtMost(200.0));
         assert_eq!(space_auto.height, AxisBound::AtMost(240.0));
     }
 
     #[test]
-    fn test_column_begin_layout_under_parent_at_most() {
+    fn test_column_begin_deferred_layout_under_parent_at_most() {
         let parent_space =
             LayoutSpace::new(0.0, 0.0, AxisBound::AtMost(150.0), AxisBound::AtMost(250.0));
         let mut state = column().begin(parent_space);
@@ -1859,7 +1908,7 @@ mod tests {
             x: LinearCross::fill(),
             y: LinearMain::auto(),
         };
-        let (space1_res, _token) = state.begin_layout(req1, SizeRequest::UNKNOWN);
+        let (space1_res, _token) = state.begin_deferred_layout(req1);
         let space1 = space1_res.unwrap();
         assert_eq!(space1.width, AxisBound::AtMost(150.0));
         assert_eq!(space1.height, AxisBound::AtMost(250.0));
@@ -1874,7 +1923,7 @@ mod tests {
             x: LinearCross::auto(),
             y: LinearMain::fill(),
         };
-        let (space2_res, _token) = state.begin_layout(req2, SizeRequest::UNKNOWN);
+        let (space2_res, _token) = state.begin_deferred_layout(req2);
         let space2 = space2_res.unwrap();
         assert_eq!(space2.width, AxisBound::AtMost(150.0));
         assert_eq!(space2.height, AxisBound::AtMost(205.0));
@@ -1890,12 +1939,12 @@ mod tests {
             x: LinearCross::fixed(80.0).align(Align::Center),
             y: LinearMain::fixed(40.0),
         };
-        let (space_res, token) = state.begin_layout(req, SizeRequest::UNKNOWN);
+        let (space_res, token) = state.begin_deferred_layout(req);
         let space = space_res.unwrap();
         assert_eq!(space.x, 70.0);
         assert_eq!(space.width, AxisBound::Exact(80.0));
 
-        let rect = token.end_layout(Vec2::new(80.0, 40.0)).unwrap();
+        let rect = token.end_deferred_layout(Vec2::new(80.0, 40.0)).unwrap();
         assert_eq!(rect, Rect::new(70.0, 10.0, 80.0, 40.0));
     }
 
@@ -1909,12 +1958,12 @@ mod tests {
             x: LinearCross::fill(),
             y: LinearMain::fixed(40.0),
         };
-        let (space_res, token) = state.begin_layout(req, SizeRequest::UNKNOWN);
+        let (space_res, token) = state.begin_deferred_layout(req);
         let space = space_res.unwrap();
         assert_eq!(space.x, 10.0);
         assert_eq!(space.width, AxisBound::Exact(200.0));
 
-        let rect = token.end_layout(Vec2::new(200.0, 40.0)).unwrap();
+        let rect = token.end_deferred_layout(Vec2::new(200.0, 40.0)).unwrap();
         assert_eq!(rect, Rect::new(10.0, 10.0, 200.0, 40.0));
     }
 
@@ -1928,12 +1977,12 @@ mod tests {
             x: LinearCross::auto(),
             y: LinearMain::fixed(40.0),
         };
-        let (space_res, token) = state.begin_layout(req, SizeRequest::UNKNOWN);
+        let (space_res, token) = state.begin_deferred_layout(req);
         let space = space_res.unwrap();
         assert_eq!(space.x, 10.0);
         assert_eq!(space.width, AxisBound::AtMost(200.0));
 
-        let rect = token.end_layout(Vec2::new(80.0, 40.0)).unwrap();
+        let rect = token.end_deferred_layout(Vec2::new(80.0, 40.0)).unwrap();
         assert_eq!(rect, Rect::new(10.0, 10.0, 80.0, 40.0));
     }
 
@@ -1948,7 +1997,7 @@ mod tests {
             x: LinearCross::auto().align(Align::Center),
             y: LinearMain::fixed(40.0),
         };
-        let _ = state.begin_layout(req, SizeRequest::UNKNOWN);
+        let _ = state.begin_deferred_layout(req);
     }
 
     #[test]
@@ -1982,8 +2031,8 @@ mod tests {
                 x: LinearCross::fixed(180.0).align(Align::Center),
                 y: LinearMain::fixed(32.0),
             };
-            let (_, token) = state.begin_layout(req, SizeRequest::UNKNOWN);
-            let _ = token.end_layout(Vec2::new(180.0, 32.0)).unwrap();
+            let (_, token) = state.begin_deferred_layout(req);
+            let _ = token.end_deferred_layout(Vec2::new(180.0, 32.0)).unwrap();
             assert_eq!(state.resolve_space().w, 400.0);
         }
     }
@@ -2113,13 +2162,13 @@ mod tests {
             x: LinearMain::fixed(25.0).align(MainAxisAlign::End),
             y: LinearCross::fixed(20.0),
         };
-        let (space_res, token) = state.begin_layout(req, SizeRequest::UNKNOWN);
+        let (space_res, token) = state.begin_deferred_layout(req);
         let space = space_res.unwrap();
         // Provisional space starts at: 10 + 100 - 25 = 85
         assert_eq!(space.x, 85.0);
         assert_eq!(space.width, AxisBound::Exact(25.0));
 
-        let r = token.end_layout(Vec2::new(25.0, 20.0)).unwrap();
+        let r = token.end_deferred_layout(Vec2::new(25.0, 20.0)).unwrap();
         assert_eq!(r, Rect::new(85.0, 20.0, 25.0, 20.0));
     }
 
@@ -2130,13 +2179,13 @@ mod tests {
             x: LinearCross::fixed(20.0),
             y: LinearMain::fixed(25.0).align(MainAxisAlign::End),
         };
-        let (space_res, token) = state.begin_layout(req, SizeRequest::UNKNOWN);
+        let (space_res, token) = state.begin_deferred_layout(req);
         let space = space_res.unwrap();
         // Provisional space starts at: 20 + 100 - 25 = 95
         assert_eq!(space.y, 95.0);
         assert_eq!(space.height, AxisBound::Exact(25.0));
 
-        let r = token.end_layout(Vec2::new(20.0, 25.0)).unwrap();
+        let r = token.end_deferred_layout(Vec2::new(20.0, 25.0)).unwrap();
         assert_eq!(r, Rect::new(10.0, 95.0, 20.0, 25.0));
     }
 
@@ -2167,10 +2216,10 @@ mod tests {
                 x: LinearMain::fixed(20.0).align(MainAxisAlign::End),
                 y: LinearCross::fixed(20.0),
             };
-            let (space_res, token) = state.begin_layout(req, SizeRequest::UNKNOWN);
+            let (space_res, token) = state.begin_deferred_layout(req);
             let space = space_res.unwrap();
             assert_eq!(space.x, 80.0);
-            let r = token.end_layout(Vec2::new(20.0, 20.0)).unwrap();
+            let r = token.end_deferred_layout(Vec2::new(20.0, 20.0)).unwrap();
             assert_eq!(r.x, 80.0);
         }
     }
@@ -2235,7 +2284,7 @@ mod tests {
                 .unwrap();
 
             let (space_res, _token) =
-                state.begin_layout(RowLayoutParams::fixed(10.0, 10.0), SizeRequest::UNKNOWN);
+                state.begin_deferred_layout(RowLayoutParams::fixed(10.0, 10.0));
             assert!(space_res.violation().is_some());
             assert_eq!(
                 space_res.violation().unwrap().kind,
@@ -2324,7 +2373,7 @@ mod tests {
                 x: LinearMain::fixed(20.0).align(MainAxisAlign::End),
                 y: LinearCross::fixed(20.0),
             };
-            let (space_res, token) = state.begin_layout(req, SizeRequest::UNKNOWN);
+            let (space_res, token) = state.begin_deferred_layout(req);
             let (prov_space, violation) = space_res.into_parts();
             // Falls back to append: origin_main starts at cursor (0.0)
             assert_eq!(prov_space.x, 0.0);
@@ -2336,7 +2385,7 @@ mod tests {
                 }
             ));
 
-            let r = token.end_layout(Vec2::new(20.0, 20.0)).value();
+            let r = token.end_deferred_layout(Vec2::new(20.0, 20.0)).value();
             assert_eq!(r.x, 0.0);
         }
     }
@@ -2349,6 +2398,6 @@ mod tests {
             x: LinearMain::auto().align(MainAxisAlign::End),
             y: LinearCross::fixed(20.0),
         };
-        let _ = state.begin_layout(req, SizeRequest::UNKNOWN);
+        let _ = state.begin_deferred_layout(req);
     }
 }

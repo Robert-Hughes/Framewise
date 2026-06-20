@@ -83,6 +83,19 @@ impl SplitRowState {
     fn slot_x(&self, i: usize) -> f32 {
         self.space.x + i as f32 * (self.slot_w + self.spacing)
     }
+
+    fn height_offer(&self, height: Placement) -> AxisBound {
+        match height {
+            Placement::Sized {
+                size: Size::Fixed(h),
+                ..
+            } => AxisBound::Exact(h),
+            Placement::Fill => self.space.height,
+            Placement::Sized {
+                size: Size::Auto, ..
+            } => at_most_if_bounded(self.space.height),
+        }
+    }
 }
 
 impl LayoutState for SplitRowState {
@@ -91,19 +104,7 @@ impl LayoutState for SplitRowState {
     fn peek_offer(&self, height: Placement) -> LayoutResult<SizeOffer> {
         LayoutResult::Ok(SizeOffer::new(
             AxisBound::Exact(self.slot_w),
-            match height {
-                Placement::Sized {
-                    size: Size::Fixed(h),
-                    ..
-                } => AxisBound::Exact(h),
-                Placement::Fill => self.space.height,
-                Placement::Sized {
-                    size: Size::Auto, ..
-                } => match self.space.height {
-                    AxisBound::Exact(h) | AxisBound::AtMost(h) => AxisBound::AtMost(h),
-                    AxisBound::Unbounded => AxisBound::Unbounded,
-                },
-            },
+            self.height_offer(height),
         ))
     }
 
@@ -130,10 +131,9 @@ impl LayoutState for SplitRowState {
         LayoutResult::from_parts(r, v1.or(v2))
     }
 
-    fn begin_layout<'a>(
+    fn begin_deferred_layout<'a>(
         &'a mut self,
         height: Placement,
-        _request: SizeRequest,
     ) -> (LayoutResult<LayoutSpace>, LayoutToken<'a, Self>)
     where
         Self: Sized,
@@ -145,19 +145,7 @@ impl LayoutState for SplitRowState {
             self.count
         );
         let width = AxisBound::Exact(self.slot_w);
-        let bound_height = match height {
-            Placement::Sized {
-                size: Size::Fixed(h),
-                ..
-            } => AxisBound::Exact(h),
-            Placement::Fill => self.space.height,
-            Placement::Sized {
-                size: Size::Auto, ..
-            } => match self.space.height {
-                AxisBound::Exact(h) | AxisBound::AtMost(h) => AxisBound::AtMost(h),
-                AxisBound::Unbounded => AxisBound::Unbounded,
-            },
-        };
+        let bound_height = self.height_offer(height);
 
         let (h, v1) = match height {
             Placement::Sized {
@@ -200,7 +188,7 @@ impl LayoutState for SplitRowState {
         (LayoutResult::from_parts(space, v1.or(v2)), token)
     }
 
-    fn end_layout(&mut self, height: Placement, extent: Vec2) -> LayoutResult<Rect> {
+    fn end_deferred_layout(&mut self, height: Placement, extent: Vec2) -> LayoutResult<Rect> {
         let w = self.slot_w;
         let (h, v1) = height
             .resolve_size(Some(extent.y), self.space.height)
@@ -218,6 +206,13 @@ impl LayoutState for SplitRowState {
 
     fn resolve_space(&self) -> Rect {
         self.space.resolve(Vec2::new(0.0, self.content_h))
+    }
+}
+
+fn at_most_if_bounded(bound: AxisBound) -> AxisBound {
+    match bound {
+        AxisBound::Exact(size) | AxisBound::AtMost(size) => AxisBound::AtMost(size),
+        AxisBound::Unbounded => AxisBound::Unbounded,
     }
 }
 
@@ -319,6 +314,28 @@ mod tests {
     }
 
     #[test]
+    fn test_split_row_peek_offer_matches_deferred_space_bounds_for_allowed_cases() {
+        let params = [Placement::fixed(20.0), Placement::fill(), Placement::auto()];
+
+        for params in params {
+            let state = SplitRow {
+                count: 4,
+                spacing: 0.0,
+            }
+            .begin(Rect::new(0.0, 0.0, 80.0, 30.0));
+            let mut deferred = SplitRow {
+                count: 4,
+                spacing: 0.0,
+            }
+            .begin(Rect::new(0.0, 0.0, 80.0, 30.0));
+
+            let offer = state.peek_offer(params).unwrap();
+            let (space_res, _token) = deferred.begin_deferred_layout(params);
+            assert_eq!(offer, SizeOffer::from(space_res.unwrap()));
+        }
+    }
+
+    #[test]
     fn test_split_row_fixed_height_aligns_center() {
         let mut state = SplitRow {
             count: 2,
@@ -341,11 +358,11 @@ mod tests {
             spacing: 0.0,
         }
         .begin(Rect::new(0.0, 0.0, 80.0, 30.0));
-        let (space_res, token) = state.begin_layout(Placement::fill(), SizeRequest::UNKNOWN);
+        let (space_res, token) = state.begin_deferred_layout(Placement::fill());
         let space = space_res.unwrap();
         assert_eq!(space.width, AxisBound::Exact(20.0)); // 80 / 4
         assert_eq!(space.x, 0.0);
-        let r = token.end_layout(Vec2::new(999.0, 30.0)).unwrap();
+        let r = token.end_deferred_layout(Vec2::new(999.0, 30.0)).unwrap();
         assert_eq!(r, Rect::new(0.0, 0.0, 20.0, 30.0));
         let next = state
             .layout(Placement::fill(), SizeRequest::UNKNOWN)
@@ -362,7 +379,7 @@ mod tests {
         }
         .begin(Rect::new(0.0, 0.0, 100.0, 50.0));
 
-        let _ = state.begin_layout(Placement::auto().align(Align::Center), SizeRequest::UNKNOWN);
+        let _ = state.begin_deferred_layout(Placement::auto().align(Align::Center));
     }
 
     #[test]

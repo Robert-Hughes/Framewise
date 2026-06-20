@@ -554,15 +554,15 @@ pub trait Layout {
     fn begin(self, space: impl Into<LayoutSpace>) -> Self::State;
 }
 
-#[must_use = "a LayoutToken must be finished with end_layout() to advance the parent layout"]
+#[must_use = "a LayoutToken must be finished with end_deferred_layout() to advance the parent layout"]
 pub struct LayoutToken<'a, LS: LayoutState> {
     pub state: &'a mut LS,
     pub params: LS::Params,
 }
 
 impl<'a, LS: LayoutState> LayoutToken<'a, LS> {
-    pub fn end_layout(self, extent: Vec2) -> LayoutResult<Rect> {
-        self.state.end_layout(self.params, extent)
+    pub fn end_deferred_layout(self, extent: Vec2) -> LayoutResult<Rect> {
+        self.state.end_deferred_layout(self.params, extent)
     }
 }
 
@@ -576,8 +576,8 @@ pub trait LayoutState {
     /// Callers that do not need offer-sensitive sizing may skip this and call
     /// `layout` directly with a precomputed `SizeRequest`.
     ///
-    /// Unlike `begin_layout`, this does not reserve a deferred placement and must
-    /// not advance layout state.
+    /// Unlike `begin_deferred_layout`, this does not reserve a deferred placement
+    /// and must not advance layout state.
     fn peek_offer(&self, layout_params: Self::Params) -> LayoutResult<SizeOffer>;
 
     /// Calculate the screen-space rectangle for a widget given the caller's
@@ -587,22 +587,26 @@ pub trait LayoutState {
     /// `request`; request-aware layouts (column/row/wrap) read it.
     fn layout(&mut self, layout_params: Self::Params, request: SizeRequest) -> LayoutResult<Rect>;
 
-    /// Begin a deferred layout (for fit-to-children containers).
-    /// Returns a provisional [`LayoutSpace`] and a [`LayoutToken`] that borrows this layout state.
+    /// Begin a deferred child placement.
     ///
-    /// `request` mirrors the same parameter on [`LayoutState::layout`]; layout
-    /// implementations may use it (e.g. to enforce a minimum size floor) or ignore it.
-    fn begin_layout<'a>(
+    /// The returned [`LayoutSpace`] may be used immediately to emit child widgets
+    /// before the deferred child's final size is known. Because drawing may happen
+    /// before `end_deferred_layout`, implementations must reject any case where
+    /// final placement could require moving already-emitted content.
+    fn begin_deferred_layout<'a>(
         &'a mut self,
         layout_params: Self::Params,
-        request: SizeRequest,
     ) -> (LayoutResult<LayoutSpace>, LayoutToken<'a, Self>)
     where
         Self: Sized;
 
-    /// End a deferred layout, providing the actual final accumulated content extent.
-    /// Returns the resolved concrete Rect of the container and advances the layout state.
-    fn end_layout(&mut self, layout_params: Self::Params, extent: Vec2) -> LayoutResult<Rect>;
+    /// Commit the deferred child extent, resolve the final rect, and advance the
+    /// parent layout state.
+    fn end_deferred_layout(
+        &mut self,
+        layout_params: Self::Params,
+        extent: Vec2,
+    ) -> LayoutResult<Rect>;
 
     /// The resolved concrete space Rect occupied by the entire layout (which might be
     /// bounded or accumulated), measured relative to parent coordinates but independent
