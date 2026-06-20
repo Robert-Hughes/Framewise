@@ -264,7 +264,7 @@ mod tests {
 
     #[test]
     fn test_keycap_visual() {
-        let mut text_backend = TestTextBackend;
+        let mut text_backend = TestTextBackend::default();
         let custom_bg = Color::from_srgb_u8(240, 240, 240, 255);
         let custom_shadow = Color::from_srgb_u8(10, 10, 10, 255);
         let custom_border = Color::from_srgb_u8(10, 10, 10, 255);
@@ -379,7 +379,7 @@ mod tests {
     fn test_high_level_explicit_placement_via_manual_layout() {
         use crate::layouts::ManualLayout;
         use crate::test_utils::TestTextBackend;
-        let mut text_backend = TestTextBackend;
+        let mut text_backend = TestTextBackend::default();
         let mut focus = FocusSystem::new();
         let input = crate::Input::default();
         let mut cmds = crate::draw::DrawCommands::new();
@@ -403,7 +403,7 @@ mod tests {
     fn test_keycap_bounds_and_content_bounds() {
         use crate::layouts::ManualLayout;
         use crate::test_utils::TestTextBackend;
-        let mut text_backend = TestTextBackend;
+        let mut text_backend = TestTextBackend::default();
         let mut focus = FocusSystem::new();
         let input = crate::Input::default();
         let mut cmds = crate::draw::DrawCommands::new();

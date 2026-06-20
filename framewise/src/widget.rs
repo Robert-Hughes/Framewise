@@ -502,7 +502,7 @@ mod tests {
     /// the child layout at those bounds — replacing the old layout()/begin() dance.
     #[test]
     fn child_with_layout_fuses_placement_and_begin() {
-        let mut ts = TestTextBackend;
+        let mut ts = TestTextBackend::default();
         let mut focus = FocusSystem::new();
         let input = Input::default();
         let mut cmds = DrawCommands::new();
@@ -538,7 +538,7 @@ mod tests {
     /// eager path produced a 96px fallback box here; that case now fits to content.)
     #[test]
     fn nested_auto_layout_fits_children() {
-        let mut ts = TestTextBackend;
+        let mut ts = TestTextBackend::default();
         let mut focus = FocusSystem::new();
         let input = Input::default();
         let mut cmds = DrawCommands::new();
@@ -576,7 +576,7 @@ mod tests {
     /// advances by that measured width — not by the fallback.
     #[test]
     fn nested_auto_width_fits_children() {
-        let mut ts = TestTextBackend;
+        let mut ts = TestTextBackend::default();
         let mut focus = FocusSystem::new();
         let input = Input::default();
         let mut cmds = DrawCommands::new();
@@ -613,7 +613,7 @@ mod tests {
     /// fixed 50px slot, yet the sibling still lands at y = 50.
     #[test]
     fn nested_fixed_slot_ignores_child_extent() {
-        let mut ts = TestTextBackend;
+        let mut ts = TestTextBackend::default();
         let mut focus = FocusSystem::new();
         let input = Input::default();
         let mut cmds = DrawCommands::new();
@@ -646,7 +646,7 @@ mod tests {
 
     #[test]
     fn widget_context_peek_offer_matches_layout_state_offer() {
-        let mut ts = TestTextBackend;
+        let mut ts = TestTextBackend::default();
         let mut focus = FocusSystem::new();
         let input = Input::default();
         let mut cmds = DrawCommands::new();
@@ -671,7 +671,7 @@ mod tests {
 
     #[test]
     fn widget_context_peek_offer_does_not_advance_layout() {
-        let mut ts = TestTextBackend;
+        let mut ts = TestTextBackend::default();
         let mut focus = FocusSystem::new();
         let input = Input::default();
         let mut cmds = DrawCommands::new();
@@ -696,7 +696,7 @@ mod tests {
 
     #[test]
     fn widget_context_peek_offer_reflects_remaining_space() {
-        let mut ts = TestTextBackend;
+        let mut ts = TestTextBackend::default();
         let mut focus = FocusSystem::new();
         let input = Input::default();
         let mut cmds = DrawCommands::new();
@@ -724,7 +724,7 @@ mod tests {
 
     #[test]
     fn test_highlight_policy_on_violation() {
-        let mut ts = TestTextBackend;
+        let mut ts = TestTextBackend::default();
         let mut focus = FocusSystem::new();
         let input = Input::default();
         let mut cmds = DrawCommands::new();
@@ -780,7 +780,7 @@ mod tests {
     /// bug where the violation was stashed on the parent (dropping all but the first).
     #[test]
     fn test_highlight_policy_deferred_begin_violation_per_child() {
-        let mut ts = TestTextBackend;
+        let mut ts = TestTextBackend::default();
         let mut focus = FocusSystem::new();
         let input = Input::default();
         let mut cmds = DrawCommands::new();

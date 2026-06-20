@@ -369,7 +369,7 @@ mod tests {
 
     fn chip_raw<'a>(spec: ChipSpec<'a>) -> (raw::ChipResult, DrawCommands) {
         let mut cmds = DrawCommands::new();
-        let mut text_backend = TestTextBackend;
+        let mut text_backend = TestTextBackend::default();
         let res = raw::post_layout_chip(
             spec,
             raw::ChipPreLayoutResult {
@@ -441,7 +441,7 @@ mod tests {
 
     #[test]
     fn test_chip_visual_active() {
-        let mut text_backend = TestTextBackend;
+        let mut text_backend = TestTextBackend::default();
         let mut state = ChipState {
             checked: true,
             ..Default::default()
@@ -516,7 +516,7 @@ mod tests {
         let mut focus_system = FocusSystem::new();
         focus_system.take_keyboard_focus(state.focus_id);
         focus_system.begin_frame();
-        let mut text_backend = TestTextBackend;
+        let mut text_backend = TestTextBackend::default();
         let spec = ChipSpec {
             layer: Layer::default(),
             rect: Rect::new(0.0, 0.0, 50.0, 22.0),
@@ -602,7 +602,7 @@ mod tests {
             ..Default::default()
         };
 
-        let mut text_backend = TestTextBackend;
+        let mut text_backend = TestTextBackend::default();
         let spec = ChipSpec {
             layer: Layer::default(),
             rect: Rect::new(0.0, 0.0, 50.0, 22.0),
@@ -645,7 +645,7 @@ mod tests {
             ..Default::default()
         };
 
-        let mut text_backend = TestTextBackend;
+        let mut text_backend = TestTextBackend::default();
         let spec = ChipSpec {
             layer: Layer::default(),
             rect: Rect::new(0.0, 0.0, 50.0, 22.0),
@@ -683,7 +683,7 @@ mod tests {
         let mut focus_system = FocusSystem::new();
         let mut state = ChipState::default();
         let mut input = Input::default();
-        let mut text_backend = TestTextBackend;
+        let mut text_backend = TestTextBackend::default();
 
         // Frame 1: Focus chip
         focus_system.take_keyboard_focus(state.focus_id);
@@ -785,7 +785,7 @@ mod tests {
     #[test]
     fn test_explicit_placement_via_manual_layout() {
         use crate::layouts::ManualLayout;
-        let mut text_backend = TestTextBackend;
+        let mut text_backend = TestTextBackend::default();
         let mut focus = FocusSystem::new();
         let input = crate::Input::default();
         let mut cmds = crate::draw::DrawCommands::new();

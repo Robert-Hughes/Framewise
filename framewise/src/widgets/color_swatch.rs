@@ -265,7 +265,7 @@ mod tests {
     #[test]
     fn test_high_level_explicit_placement_via_manual_layout() {
         use crate::layouts::ManualLayout;
-        let mut text_backend = TestTextBackend;
+        let mut text_backend = TestTextBackend::default();
         let mut focus = FocusSystem::new();
         let input = crate::Input::default();
         let mut cmds = crate::draw::DrawCommands::new();
@@ -292,7 +292,7 @@ mod tests {
     #[test]
     fn test_color_swatch_bounds_and_content_bounds() {
         use crate::layouts::ManualLayout;
-        let mut text_backend = TestTextBackend;
+        let mut text_backend = TestTextBackend::default();
         let mut focus = FocusSystem::new();
         let input = crate::Input::default();
         let mut cmds = crate::draw::DrawCommands::new();

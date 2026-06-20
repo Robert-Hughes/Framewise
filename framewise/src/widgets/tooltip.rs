@@ -309,7 +309,7 @@ mod tests {
 
     #[test]
     fn test_tooltip_visual_dark() {
-        let mut text_backend = TestTextBackend;
+        let mut text_backend = TestTextBackend::default();
         let spec = TooltipSpec {
             rect: Rect::new(0.0, 0.0, 100.0, 50.0),
             text: "Tooltip",
@@ -398,7 +398,7 @@ mod tests {
 
     #[test]
     fn test_tooltip_visual_rust() {
-        let mut text_backend = TestTextBackend;
+        let mut text_backend = TestTextBackend::default();
         let spec = TooltipSpec {
             rect: Rect::new(0.0, 0.0, 100.0, 50.0),
             text: "Tooltip",
@@ -488,7 +488,7 @@ mod tests {
     #[test]
     fn test_high_level_explicit_placement_via_manual_layout() {
         use crate::layouts::ManualLayout;
-        let mut text_backend = TestTextBackend;
+        let mut text_backend = TestTextBackend::default();
         let mut focus = FocusSystem::new();
         let input = crate::Input::default();
         let mut cmds = crate::draw::DrawCommands::new();
@@ -519,7 +519,7 @@ mod tests {
     fn test_tooltip_bounds_and_content_bounds() {
         use crate::layouts::ManualLayout;
         use crate::test_utils::TestTextBackend;
-        let mut text_backend = TestTextBackend;
+        let mut text_backend = TestTextBackend::default();
         let mut focus = FocusSystem::new();
         let input = crate::Input::default();
         let mut cmds = crate::draw::DrawCommands::new();

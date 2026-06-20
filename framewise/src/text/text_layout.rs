@@ -558,63 +558,17 @@ impl<G: Copy> Iterator for ResolvedGlyphIter<'_, G> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{
-        CaretPosition, DrawGlyph, FontId, PrepareGlyphRequest, PreparedGlyphToken, TextFlow,
-        TextLineLayoutMetrics,
-    };
+    use crate::{test_utils::TestTextBackend, CaretPosition, FontId, TextFlow};
 
-    struct BaselineBackend;
-
-    impl TextBackend for BaselineBackend {
-        type ShapedGlyphToken = u32;
-
-        fn line_metrics(&mut self, _style: TextStyle) -> TextLineLayoutMetrics {
-            TextLineLayoutMetrics {
-                line_height: 30.0,
-                baseline_offset: 7.0,
-            }
-        }
-
-        fn line_height(&mut self, _style: TextStyle) -> f32 {
-            30.0
-        }
-
-        fn shape_text(
-            &mut self,
-            text: &str,
-            _style: TextStyle,
-        ) -> super::super::SharedShapedText<u32> {
-            let clusters = text
-                .char_indices()
-                .map(|(byte_start, ch)| super::super::ShapedCluster {
-                    byte_start,
-                    byte_end: byte_start + ch.len_utf8(),
-                    advance: 8.0,
-                    is_whitespace: ch.is_whitespace(),
-                    glyphs: vec![crate::ShapedGlyph {
-                        token: ch as u32,
-                        x: 0.0,
-                        y: 0.0,
-                        advance: 8.0,
-                        approx_ink_bounds: Rect::new(0.0, 0.0, 8.0, 16.0),
-                    }],
-                    approx_ink_bounds: Rect::new(0.0, 0.0, 8.0, 16.0),
-                })
-                .collect();
-            std::rc::Rc::new(super::super::ShapedText { clusters })
-        }
-
-        fn prepare_glyph(&mut self, request: PrepareGlyphRequest<u32>) -> Option<DrawGlyph> {
-            Some(DrawGlyph {
-                token: PreparedGlyphToken(request.glyph as u64),
-                top_left: request.glyph_origin,
-            })
-        }
+    fn baseline_backend() -> TestTextBackend {
+        TestTextBackend::default()
+            .with_line_height(30.0)
+            .with_baseline_offset(7.0)
     }
 
     #[test]
     fn layout_uses_backend_baseline_offset_not_style_size() {
-        let mut backend = BaselineBackend;
+        let mut backend = baseline_backend();
         let style = TextStyle::new(FontId(0), 20.0, 400, TextFlow::single_line());
         let layout = layout_text(&mut backend, "x", style, TextBounds::UNBOUNDED);
 
@@ -624,7 +578,7 @@ mod tests {
 
     #[test]
     fn multiline_baselines_use_line_height_plus_baseline_offset() {
-        let mut backend = BaselineBackend;
+        let mut backend = baseline_backend();
         let style = TextStyle::new(FontId(0), 20.0, 400, TextFlow::single_line());
         let layout = layout_text(&mut backend, "x\ny", style, TextBounds::UNBOUNDED);
 
@@ -635,7 +589,7 @@ mod tests {
 
     #[test]
     fn caret_geometry_uses_line_height() {
-        let mut backend = BaselineBackend;
+        let mut backend = baseline_backend();
         let style = TextStyle::new(FontId(0), 20.0, 400, TextFlow::single_line());
         let layout = layout_text(&mut backend, "x\ny", style, TextBounds::UNBOUNDED);
 

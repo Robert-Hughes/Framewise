@@ -611,7 +611,7 @@ mod tests {
 
     fn select_dummy<'a>(spec: SelectSpec<'a>) -> (SelectResult, DrawCommands) {
         let mut cmds = DrawCommands::new();
-        let mut text_backend = TestTextBackend;
+        let mut text_backend = TestTextBackend::default();
         let result = post_layout_select_for_test(
             spec,
             &mut SelectState::default(),
@@ -707,7 +707,7 @@ mod tests {
 
     #[test]
     fn test_select_visual_open() {
-        let mut text_backend = TestTextBackend;
+        let mut text_backend = TestTextBackend::default();
         let items = vec!["Option 1", "Option 2", "Option 3"];
         let spec = SelectSpec {
             layer: Layer::default(),
@@ -951,7 +951,7 @@ mod tests {
             ..Default::default()
         };
 
-        let mut text_backend = TestTextBackend;
+        let mut text_backend = TestTextBackend::default();
         let items = vec!["Option 1", "Option 2"];
         let spec = SelectSpec {
             layer: Layer::default(),
@@ -994,7 +994,7 @@ mod tests {
             ..Default::default()
         };
 
-        let mut text_backend = TestTextBackend;
+        let mut text_backend = TestTextBackend::default();
         let items = vec!["Option 1", "Option 2"];
         let spec = SelectSpec {
             layer: Layer::default(),
@@ -1031,7 +1031,7 @@ mod tests {
         let mut focus_system = FocusSystem::new();
         let mut state = SelectState::default();
         let mut input = Input::default();
-        let mut text_backend = TestTextBackend;
+        let mut text_backend = TestTextBackend::default();
         let items = vec!["Option 1", "Option 2", "Option 3"];
 
         // Focus the widget first
@@ -1186,7 +1186,7 @@ mod tests {
     #[test]
     fn test_user_rect_not_overridden() {
         use crate::layouts::ManualLayout;
-        let mut text_backend = TestTextBackend;
+        let mut text_backend = TestTextBackend::default();
         let mut focus = FocusSystem::new();
         let input = crate::Input::default();
         let mut cmds = crate::draw::DrawCommands::new();

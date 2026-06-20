@@ -437,7 +437,7 @@ mod tests {
     #[test]
     fn test_high_level_container_fit_to_children() {
         use crate::layouts::ColumnLayoutParams;
-        let mut ts = TestTextBackend;
+        let mut ts = TestTextBackend::default();
         let mut focus = FocusSystem::new();
         let input = crate::Input::default();
         let mut cmds = DrawCommands::new();

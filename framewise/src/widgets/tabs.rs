@@ -421,7 +421,7 @@ mod tests {
 
     fn tabs_dummy<'a>(spec: TabsSpec<'a>, active_index: usize) -> (DrawCommands, raw::TabsResult) {
         let mut cmds = DrawCommands::new();
-        let mut text_backend = TestTextBackend;
+        let mut text_backend = TestTextBackend::default();
         let result = raw::post_layout_tabs(
             spec,
             raw::TabsPreLayoutResult {
@@ -535,7 +535,7 @@ mod tests {
         let mut focus_system = FocusSystem::new();
         focus_system.take_keyboard_focus(state.focus_id);
         focus_system.begin_frame();
-        let mut text_backend = TestTextBackend;
+        let mut text_backend = TestTextBackend::default();
         let items = ["Tab1", "Tab2"];
         let spec = make_spec(&items);
         let style = spec.style;
@@ -650,7 +650,7 @@ mod tests {
             ..Default::default()
         };
 
-        let mut text_backend = TestTextBackend;
+        let mut text_backend = TestTextBackend::default();
         let items = ["Tab1", "Tab2"];
         let spec = make_spec(&items);
 
@@ -686,7 +686,7 @@ mod tests {
             ..Default::default()
         };
 
-        let mut text_backend = TestTextBackend;
+        let mut text_backend = TestTextBackend::default();
         let items = ["Tab1", "Tab2"];
         let spec = TabsSpec {
             rect: Rect::new(0.0, 0.0, 300.0, 36.0),
@@ -724,7 +724,7 @@ mod tests {
         let mut focus_system = FocusSystem::new();
         let mut state = TabsState::default();
         let mut input = Input::default();
-        let mut text_backend = TestTextBackend;
+        let mut text_backend = TestTextBackend::default();
         let items = ["Tab1", "Tab2"];
 
         // Focus the widget
@@ -792,7 +792,7 @@ mod tests {
     #[test]
     fn test_explicit_placement_via_manual_layout() {
         use crate::layouts::ManualLayout;
-        let mut text_backend = TestTextBackend;
+        let mut text_backend = TestTextBackend::default();
         let mut focus = FocusSystem::new();
         let input = crate::Input::default();
         let mut cmds = crate::draw::DrawCommands::new();
@@ -820,7 +820,7 @@ mod tests {
 
     #[test]
     fn test_size_tabs() {
-        let mut ts = TestTextBackend;
+        let mut ts = TestTextBackend::default();
         let spec = raw::TabsPreLayoutSpec {
             items: &["Tab1", "Tab2"],
             style: TabsStyle::from_theme(&crate::theme::Theme::framewise()),

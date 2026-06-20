@@ -2664,7 +2664,7 @@ mod tests {
     fn test_high_level_explicit_placement_via_manual_layout() {
         use crate::layouts::ManualLayout;
         use crate::test_utils::TestTextBackend;
-        let mut text_backend = TestTextBackend;
+        let mut text_backend = TestTextBackend::default();
         let mut focus = FocusSystem::new();
         let input = crate::Input::default();
         let mut cmds = crate::draw::DrawCommands::new();

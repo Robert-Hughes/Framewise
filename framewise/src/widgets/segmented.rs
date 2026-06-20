@@ -433,7 +433,7 @@ mod tests {
         active_index: usize,
     ) -> (raw::SegmentedResult, DrawCommands) {
         let mut cmds = DrawCommands::new();
-        let mut text_backend = TestTextBackend;
+        let mut text_backend = TestTextBackend::default();
         let res = raw::post_layout_segmented(
             spec,
             raw::SegmentedPreLayoutResult {
@@ -531,7 +531,7 @@ mod tests {
         let mut focus_system = FocusSystem::new();
         focus_system.take_keyboard_focus(state.focus_id);
         focus_system.begin_frame();
-        let mut text_backend = TestTextBackend;
+        let mut text_backend = TestTextBackend::default();
         let items = ["A", "B"];
         let spec = SegmentedSpec {
             layer: Layer::default(),
@@ -630,7 +630,7 @@ mod tests {
             ..Default::default()
         };
 
-        let mut text_backend = TestTextBackend;
+        let mut text_backend = TestTextBackend::default();
         let items = ["A", "B"];
         let spec = SegmentedSpec {
             layer: Layer::default(),
@@ -673,7 +673,7 @@ mod tests {
             ..Default::default()
         };
 
-        let mut text_backend = TestTextBackend;
+        let mut text_backend = TestTextBackend::default();
         let items = ["A", "B"];
         let spec = SegmentedSpec {
             layer: Layer::default(),
@@ -711,7 +711,7 @@ mod tests {
         let mut focus_system = FocusSystem::new();
         let mut state = SegmentedState::default();
         let mut input = Input::default();
-        let mut text_backend = TestTextBackend;
+        let mut text_backend = TestTextBackend::default();
         let items = ["A", "B"];
 
         // Focus the widget
@@ -793,7 +793,7 @@ mod tests {
     #[test]
     fn test_high_level_explicit_placement_via_manual_layout() {
         use crate::layouts::ManualLayout;
-        let mut text_backend = TestTextBackend;
+        let mut text_backend = TestTextBackend::default();
         let mut focus = FocusSystem::new();
         let input = crate::Input::default();
         let mut cmds = crate::draw::DrawCommands::new();

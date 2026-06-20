@@ -1656,7 +1656,7 @@ mod tests {
     fn test_high_level_explicit_placement_via_manual_layout() {
         use crate::layouts::ManualLayout;
         use crate::test_utils::TestTextBackend;
-        let mut text_backend = TestTextBackend;
+        let mut text_backend = TestTextBackend::default();
         let mut focus = FocusSystem::new();
         let input = crate::Input::default();
         let mut cmds = crate::draw::DrawCommands::new();
@@ -1686,7 +1686,7 @@ mod tests {
     fn test_high_level_honors_user_style() {
         use crate::layouts::ManualLayout;
         use crate::test_utils::TestTextBackend;
-        let mut text_backend = TestTextBackend;
+        let mut text_backend = TestTextBackend::default();
         let mut focus = FocusSystem::new();
         let input = crate::Input::default();
         let mut cmds = crate::draw::DrawCommands::new();
@@ -1726,7 +1726,7 @@ mod tests {
     fn test_high_level_honors_allowed_checked_states() {
         use crate::layouts::ManualLayout;
         use crate::test_utils::TestTextBackend;
-        let mut text_backend = TestTextBackend;
+        let mut text_backend = TestTextBackend::default();
         let mut focus = FocusSystem::new();
         let input = crate::Input::default();
         let mut cmds = crate::draw::DrawCommands::new();
@@ -1773,7 +1773,7 @@ mod tests {
     #[test]
     fn test_labelled_checkbox_request_size() {
         use crate::layouts::ManualLayout;
-        let mut text_backend = crate::test_utils::TestTextBackend;
+        let mut text_backend = crate::test_utils::TestTextBackend::default();
         let mut focus = FocusSystem::new();
         let input = Input::default();
         let mut cmds = DrawCommands::new();
@@ -1814,7 +1814,7 @@ mod tests {
             &mut state,
             Vec2::new(40.0, 10.0),
             |state, input, focus, cmds| {
-                let mut text_backend = crate::test_utils::TestTextBackend;
+                let mut text_backend = crate::test_utils::TestTextBackend::default();
                 let mut output = crate::Output::default();
                 let mut ctx = WidgetContext::root(
                     crate::theme::Theme::framewise(),
@@ -1842,7 +1842,7 @@ mod tests {
     #[test]
     fn test_labelled_checkbox_disabled_label_visual() {
         use crate::layouts::ManualLayout;
-        let mut text_backend = crate::test_utils::TestTextBackend;
+        let mut text_backend = crate::test_utils::TestTextBackend::default();
         let mut focus = FocusSystem::new();
         let input = Input::default();
         let mut cmds = DrawCommands::new();

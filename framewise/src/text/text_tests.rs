@@ -10,7 +10,7 @@ fn style(flow: TextFlow) -> TextStyle {
 }
 
 fn layout(text: &str, flow: TextFlow, bounds: TextBounds) -> TextLayout<u32> {
-    let mut backend = TestTextBackend;
+    let mut backend = TestTextBackend::default();
     layout_text(&mut backend, text, style(flow), bounds)
 }
 
@@ -350,50 +350,6 @@ fn assert_wrap_diagram_invariants(
         Some(LineEndKind::EndOfText),
         "{case_name}: final line should end at end of text"
     );
-}
-
-struct ApproxInkBackend;
-
-impl TextBackend for ApproxInkBackend {
-    type ShapedGlyphToken = u32;
-
-    fn line_height(&mut self, _style: TextStyle) -> f32 {
-        20.0
-    }
-
-    fn shape_text(
-        &mut self,
-        text: &str,
-        _style: TextStyle,
-    ) -> SharedShapedText<Self::ShapedGlyphToken> {
-        let glyphs = vec![ShapedGlyph {
-            token: 1,
-            x: 2.0,
-            y: -12.0,
-            advance: 30.0,
-            approx_ink_bounds: Rect::new(-4.0, 3.0, 18.0, 10.0),
-        }];
-        std::rc::Rc::new(ShapedText {
-            clusters: vec![ShapedCluster {
-                byte_start: 0,
-                byte_end: text.len(),
-                advance: 30.0,
-                is_whitespace: false,
-                approx_ink_bounds: cluster_approx_ink_bounds(&glyphs),
-                glyphs,
-            }],
-        })
-    }
-
-    fn prepare_glyph(
-        &mut self,
-        request: PrepareGlyphRequest<Self::ShapedGlyphToken>,
-    ) -> Option<DrawGlyph> {
-        Some(DrawGlyph {
-            token: PreparedGlyphToken(request.glyph as u64),
-            top_left: request.glyph_origin,
-        })
-    }
 }
 
 struct CardTextBackend {
@@ -1361,7 +1317,7 @@ fn caret_geom_alignment_empty_lines_and_empty_text() {
 #[test]
 fn emit_glyphs_skips_backend_non_drawable_glyphs_and_offsets_origin() {
     let style = style(TextFlow::single_line());
-    let mut backend = TestTextBackend;
+    let mut backend = TestTextBackend::default();
     let layout = layout_text(&mut backend, "a b", style, TextBounds::UNBOUNDED);
     let mut commands = DrawCommands::new();
 
@@ -1389,7 +1345,7 @@ fn emit_glyphs_skips_backend_non_drawable_glyphs_and_offsets_origin() {
 #[test]
 fn resolved_glyphs_match_emitted_layout_origins() {
     let style = style(TextFlow::single_line());
-    let mut backend = TestTextBackend;
+    let mut backend = TestTextBackend::default();
     let layout = layout_text(&mut backend, "ab", style, TextBounds::UNBOUNDED);
     let origin = Vec2::new(10.0, 20.0);
     let mut commands = DrawCommands::new();
@@ -1439,7 +1395,7 @@ fn visible_glyph_count_includes_visible_ellipsis_glyphs() {
 #[test]
 fn emit_glyphs_omits_empty_runs() {
     let style = style(TextFlow::single_line());
-    let mut backend = TestTextBackend;
+    let mut backend = TestTextBackend::default();
     let layout = layout_text(&mut backend, "   ", style, TextBounds::UNBOUNDED);
     let mut commands = DrawCommands::new();
 
@@ -1625,7 +1581,11 @@ fn metrics_report_approx_ink_bounds_separately_from_logical_size() {
 
 #[test]
 fn layout_text_metrics_reports_backend_approx_ink_bounds() {
-    let mut backend = ApproxInkBackend;
+    let mut backend = TestTextBackend::default()
+        .with_line_height(20.0)
+        .with_default_advance(30.0)
+        .with_glyph_offset(Vec2::new(2.0, -12.0))
+        .with_glyph_ink_bounds(Rect::new(-4.0, 3.0, 18.0, 10.0));
     let layout = layout_text(
         &mut backend,
         "x",

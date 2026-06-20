@@ -271,7 +271,7 @@ mod tests {
 
     #[test]
     fn test_status_visual_ok() {
-        let mut text_backend = TestTextBackend;
+        let mut text_backend = TestTextBackend::default();
         let spec = StatusSpec {
             rect: Rect::new(0.0, 0.0, 100.0, 20.0),
             text: "Online",
@@ -339,7 +339,7 @@ mod tests {
 
     #[test]
     fn test_status_visual_warn() {
-        let mut text_backend = TestTextBackend;
+        let mut text_backend = TestTextBackend::default();
         let spec = StatusSpec {
             rect: Rect::new(0.0, 0.0, 100.0, 20.0),
             text: "Warning",
@@ -431,7 +431,7 @@ mod tests {
     #[test]
     fn test_high_level_explicit_placement_via_manual_layout() {
         use crate::layouts::ManualLayout;
-        let mut text_backend = TestTextBackend;
+        let mut text_backend = TestTextBackend::default();
         let mut focus = FocusSystem::new();
         let input = crate::Input::default();
         let mut cmds = crate::draw::DrawCommands::new();

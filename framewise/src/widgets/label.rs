@@ -245,126 +245,20 @@ mod tests {
     use super::raw::LabelSpec;
     use super::*;
     use crate::{
-        test_utils::TestTextBackend,
-        text::FontId,
-        text::{
-            cluster_approx_ink_bounds, PrepareGlyphRequest, ShapedCluster, ShapedGlyph, ShapedText,
-        },
-        theme, DrawGlyph, Input, PreparedGlyphToken,
+        test_utils::TestTextBackend, text::FontId, theme, DrawGlyph, Input, PreparedGlyphToken,
     };
 
-    struct RecordingTextSys {
-        font: Option<FontId>,
-    }
-
-    struct PlacementTextSys {
-        prepared_rect: Option<Rect>,
-    }
-
-    impl TextBackend for PlacementTextSys {
-        type ShapedGlyphToken = u32;
-
-        fn line_height(&mut self, _style: crate::text::TextStyle) -> f32 {
-            20.0
-        }
-
-        fn shape_text(
-            &mut self,
-            text: &str,
-            style: crate::text::TextStyle,
-        ) -> crate::text::SharedShapedText<Self::ShapedGlyphToken> {
-            if text.is_empty() {
-                return std::rc::Rc::new(ShapedText {
-                    clusters: Vec::new(),
-                });
-            }
-            let glyphs = vec![ShapedGlyph {
-                token: 1,
-                x: 0.0,
-                y: -style.size.round(),
-                advance: 30.0,
-                approx_ink_bounds: Rect::new(-4.0, 3.0, 18.0, 10.0),
-            }];
-            std::rc::Rc::new(ShapedText {
-                clusters: vec![ShapedCluster {
-                    byte_start: 0,
-                    byte_end: text.len(),
-                    advance: 30.0,
-                    is_whitespace: false,
-                    approx_ink_bounds: cluster_approx_ink_bounds(&glyphs),
-                    glyphs,
-                }],
-            })
-        }
-
-        fn prepare_glyph(
-            &mut self,
-            request: PrepareGlyphRequest<Self::ShapedGlyphToken>,
-        ) -> Option<DrawGlyph> {
-            self.prepared_rect = Some(Rect::new(
-                request.glyph_origin.x,
-                request.glyph_origin.y,
-                30.0,
-                20.0,
-            ));
-            Some(DrawGlyph {
-                token: PreparedGlyphToken(request.glyph as u64),
-                top_left: request.glyph_origin,
-            })
-        }
-    }
-
-    impl TextBackend for RecordingTextSys {
-        type ShapedGlyphToken = u32;
-
-        fn line_height(&mut self, _style: crate::text::TextStyle) -> f32 {
-            16.0
-        }
-
-        fn shape_text(
-            &mut self,
-            text: &str,
-            style: crate::text::TextStyle,
-        ) -> crate::text::SharedShapedText<Self::ShapedGlyphToken> {
-            self.font = Some(style.font);
-            if text.is_empty() {
-                return std::rc::Rc::new(ShapedText {
-                    clusters: Vec::new(),
-                });
-            }
-            let glyphs = vec![ShapedGlyph {
-                token: 1,
-                x: 0.0,
-                y: -style.size.round(),
-                advance: 1.0,
-                approx_ink_bounds: Rect::new(0.0, 0.0, 1.0, 16.0),
-            }];
-            std::rc::Rc::new(ShapedText {
-                clusters: vec![ShapedCluster {
-                    byte_start: 0,
-                    byte_end: text.len(),
-                    advance: 1.0,
-                    is_whitespace: false,
-                    approx_ink_bounds: cluster_approx_ink_bounds(&glyphs),
-                    glyphs,
-                }],
-            })
-        }
-
-        fn prepare_glyph(
-            &mut self,
-            request: PrepareGlyphRequest<Self::ShapedGlyphToken>,
-        ) -> Option<DrawGlyph> {
-            Some(DrawGlyph {
-                token: PreparedGlyphToken(request.glyph as u64),
-                top_left: request.glyph_origin,
-            })
-        }
+    fn placement_text_backend() -> TestTextBackend {
+        TestTextBackend::default()
+            .with_line_height(20.0)
+            .with_default_advance(30.0)
+            .with_glyph_offset(Vec2::new(0.0, -13.0))
+            .with_glyph_ink_bounds(Rect::new(-4.0, 3.0, 18.0, 10.0))
     }
 
     #[test]
     fn test_label_draws_text() {
-        let mut sys = TestTextBackend;
+        let mut sys = TestTextBackend::default();
         let spec = LabelSpec {
             layer: Layer::default(),
             rect: Rect::new(0.0, 0.0, 100.0, 50.0),
@@ -430,7 +324,7 @@ mod tests {
 
     #[test]
     fn test_label_rule() {
-        let mut sys = TestTextBackend;
+        let mut sys = TestTextBackend::default();
         let spec = LabelSpec {
             layer: Layer::default(),
             rect: Rect::new(0.0, 0.0, 100.0, 20.0),
@@ -513,7 +407,7 @@ mod tests {
 
     #[test]
     fn test_label_logical_content_placement_bottom_right() {
-        let mut sys = TestTextBackend;
+        let mut sys = TestTextBackend::default();
         let spec = LabelSpec {
             layer: Layer::default(),
             rect: Rect::new(10.0, 20.0, 100.0, 50.0),
@@ -573,9 +467,7 @@ mod tests {
 
     #[test]
     fn test_label_ink_content_placement_uses_ink_bounds() {
-        let mut sys = PlacementTextSys {
-            prepared_rect: None,
-        };
+        let mut sys = placement_text_backend();
         let spec = LabelSpec {
             layer: Layer::default(),
             rect: Rect::new(10.0, 20.0, 100.0, 50.0),
@@ -595,12 +487,15 @@ mod tests {
             &mut cmds,
         );
 
-        assert_eq!(sys.prepared_rect, Some(Rect::new(55.0, 37.0, 30.0, 20.0)));
+        assert_eq!(
+            sys.observations.prepared_glyph_rects.first().copied(),
+            Some(Rect::new(55.0, 37.0, 30.0, 20.0))
+        );
     }
 
     #[test]
     fn test_label_passes_spec_font_to_text_backend() {
-        let mut sys = RecordingTextSys { font: None };
+        let mut sys = TestTextBackend::default().with_default_advance(1.0);
         let expected = FontId(42);
         let spec = LabelSpec {
             layer: Layer::default(),
@@ -630,7 +525,13 @@ mod tests {
             &mut cmds,
         );
 
-        assert_eq!(sys.font, Some(expected));
+        assert_eq!(
+            sys.observations
+                .shaped_styles
+                .first()
+                .map(|style| style.font),
+            Some(expected)
+        );
     }
 
     #[test]
@@ -665,7 +566,7 @@ mod tests {
     #[test]
     fn test_high_level_explicit_placement_via_manual_layout() {
         use crate::layouts::ManualLayout;
-        let mut text_backend = TestTextBackend;
+        let mut text_backend = TestTextBackend::default();
         let mut focus = FocusSystem::new();
         let input = crate::Input::default();
         let mut cmds = crate::draw::DrawCommands::new();
@@ -688,7 +589,7 @@ mod tests {
     #[test]
     fn test_high_level_honors_user_style() {
         use crate::layouts::ManualLayout;
-        let mut text_backend = TestTextBackend;
+        let mut text_backend = TestTextBackend::default();
         let mut focus = FocusSystem::new();
         let input = crate::Input::default();
         let mut cmds = crate::draw::DrawCommands::new();
@@ -725,7 +626,7 @@ mod tests {
 
     #[test]
     fn test_size_label() {
-        let mut ts = TestTextBackend;
+        let mut ts = TestTextBackend::default();
         let theme = crate::theme::Theme::default();
         let spec = raw::LabelPreLayoutSpec {
             text: "Hello",
@@ -750,10 +651,10 @@ mod tests {
             SizeOffer::new(AxisBound::AtMost(100.0), AxisBound::AtMost(40.0)),
         ];
 
-        let mut ts = TestTextBackend;
+        let mut ts = TestTextBackend::default();
         let expected = raw::pre_layout_label(&spec, offers[0], &mut ts).size_request;
         for offer in offers {
-            let mut ts = TestTextBackend;
+            let mut ts = TestTextBackend::default();
             assert_eq!(
                 raw::pre_layout_label(&spec, offer, &mut ts).size_request,
                 expected
@@ -838,7 +739,7 @@ mod tests {
         }
 
         let calls = Rc::new(RefCell::new(Vec::new()));
-        let mut text_backend = TestTextBackend;
+        let mut text_backend = TestTextBackend::default();
         let mut focus = FocusSystem::new();
         let input = crate::Input::default();
         let mut cmds = crate::draw::DrawCommands::new();
@@ -865,7 +766,7 @@ mod tests {
     #[test]
     fn test_label_auto_layout_uses_size_request() {
         use crate::layouts::{ColumnLayout, ColumnLayoutParams, ManualLayout};
-        let mut text_backend = TestTextBackend;
+        let mut text_backend = TestTextBackend::default();
         let mut focus = FocusSystem::new();
         let input = Input::default();
         let mut cmds = DrawCommands::new();
@@ -891,7 +792,7 @@ mod tests {
 
     #[test]
     fn test_size_label_with_custom_flow() {
-        let mut ts = TestTextBackend;
+        let mut ts = TestTextBackend::default();
         let flow = crate::text::TextFlow::wrapped();
         let theme = crate::theme::Theme::default();
         let mut style = LabelStyle::from_theme(&theme);
@@ -907,7 +808,7 @@ mod tests {
     #[test]
     fn test_label_with_custom_flow() {
         use crate::layouts::ManualLayout;
-        let mut text_backend = TestTextBackend;
+        let mut text_backend = TestTextBackend::default();
         let mut focus = FocusSystem::new();
         let input = crate::Input::default();
         let mut cmds = crate::draw::DrawCommands::new();
