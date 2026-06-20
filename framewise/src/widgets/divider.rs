@@ -184,6 +184,23 @@ mod tests {
     }
 
     #[test]
+    fn test_size_divider_ignores_offer() {
+        use crate::layout::AxisBound;
+
+        let spec = raw::DividerSizeSpec {};
+        let offers = [
+            SizeOffer::UNBOUNDED,
+            SizeOffer::new(AxisBound::Exact(50.0), AxisBound::Exact(20.0)),
+            SizeOffer::new(AxisBound::AtMost(100.0), AxisBound::AtMost(40.0)),
+        ];
+
+        let expected = raw::size_divider(&spec, offers[0]);
+        for offer in offers {
+            assert_eq!(raw::size_divider(&spec, offer), expected);
+        }
+    }
+
+    #[test]
     fn test_high_level_explicit_placement_via_manual_layout() {
         use crate::layouts::ManualLayout;
         let mut text_backend = TestTextBackend;

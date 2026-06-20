@@ -681,6 +681,128 @@ mod tests {
     }
 
     #[test]
+    fn test_size_label_ignores_offer() {
+        use crate::layout::AxisBound;
+
+        let theme = crate::theme::Theme::default();
+        let spec = raw::LabelSizeSpec {
+            text: "Hello",
+            style: LabelStyle::from_theme(&theme),
+        };
+        let offers = [
+            SizeOffer::UNBOUNDED,
+            SizeOffer::new(AxisBound::Exact(50.0), AxisBound::Exact(20.0)),
+            SizeOffer::new(AxisBound::AtMost(100.0), AxisBound::AtMost(40.0)),
+        ];
+
+        let mut ts = TestTextBackend;
+        let expected = raw::size_label(&spec, offers[0], &mut ts);
+        for offer in offers {
+            let mut ts = TestTextBackend;
+            assert_eq!(raw::size_label(&spec, offer, &mut ts), expected);
+        }
+    }
+
+    #[test]
+    fn test_label_peeks_offer_before_layout() {
+        use crate::layout::{
+            AxisBound, Layout, LayoutResult, LayoutSpace, LayoutToken, SizeRequest,
+        };
+        use std::{cell::RefCell, rc::Rc};
+
+        #[derive(Clone)]
+        struct RecordingLayout {
+            calls: Rc<RefCell<Vec<&'static str>>>,
+        }
+
+        struct RecordingLayoutState {
+            calls: Rc<RefCell<Vec<&'static str>>>,
+        }
+
+        impl Layout for RecordingLayout {
+            type Params = ();
+            type State = RecordingLayoutState;
+
+            fn begin(self, _space: impl Into<LayoutSpace>) -> Self::State {
+                RecordingLayoutState { calls: self.calls }
+            }
+        }
+
+        impl crate::layout::LayoutState for RecordingLayoutState {
+            type Params = ();
+
+            fn peek_offer(&self, _layout_params: Self::Params) -> LayoutResult<SizeOffer> {
+                self.calls.borrow_mut().push("peek_offer");
+                LayoutResult::Ok(SizeOffer::new(
+                    AxisBound::Exact(123.0),
+                    AxisBound::AtMost(45.0),
+                ))
+            }
+
+            fn layout(
+                &mut self,
+                _layout_params: Self::Params,
+                _request: SizeRequest,
+            ) -> LayoutResult<Rect> {
+                self.calls.borrow_mut().push("layout");
+                LayoutResult::Ok(Rect::new(10.0, 20.0, 30.0, 40.0))
+            }
+
+            fn begin_deferred_layout<'a>(
+                &'a mut self,
+                layout_params: Self::Params,
+            ) -> (LayoutResult<LayoutSpace>, LayoutToken<'a, Self>) {
+                (
+                    LayoutResult::Ok(LayoutSpace::new(
+                        0.0,
+                        0.0,
+                        AxisBound::Exact(0.0),
+                        AxisBound::Exact(0.0),
+                    )),
+                    LayoutToken {
+                        state: self,
+                        params: layout_params,
+                    },
+                )
+            }
+
+            fn end_deferred_layout(
+                &mut self,
+                _layout_params: Self::Params,
+                _extent: Vec2,
+            ) -> LayoutResult<Rect> {
+                LayoutResult::Ok(Rect::new(0.0, 0.0, 0.0, 0.0))
+            }
+
+            fn resolve_space(&self) -> Rect {
+                Rect::new(0.0, 0.0, 0.0, 0.0)
+            }
+        }
+
+        let calls = Rc::new(RefCell::new(Vec::new()));
+        let mut text_backend = TestTextBackend;
+        let mut focus = FocusSystem::new();
+        let input = crate::Input::default();
+        let mut cmds = crate::draw::DrawCommands::new();
+        let mut ctx = crate::widget::WidgetContext::root(
+            crate::theme::Theme::framewise(),
+            &mut text_backend,
+            &mut focus,
+            &input,
+            RecordingLayout {
+                calls: calls.clone(),
+            },
+            Rect::new(0.0, 0.0, 800.0, 600.0),
+            &mut cmds,
+        );
+
+        let result = super::label(&mut ctx, LabelSpecBuilder::new().text("Hello"), ());
+
+        assert_eq!(&*calls.borrow(), &["peek_offer", "layout"]);
+        assert_eq!(result.layout.bounds, Rect::new(10.0, 20.0, 30.0, 40.0));
+    }
+
+    #[test]
     fn test_label_auto_layout_uses_size_request() {
         use crate::layouts::{ColumnLayout, ColumnLayoutParams, ManualLayout};
         let mut text_backend = TestTextBackend;

@@ -1693,6 +1693,28 @@ mod tests {
     }
 
     #[test]
+    fn test_size_button_ignores_offer() {
+        use crate::layout::AxisBound;
+
+        let spec = raw::ButtonSizeSpec {
+            text: "Btn",
+            style: ButtonStyle::primary_from_theme(&theme::Theme::default()),
+        };
+        let offers = [
+            SizeOffer::UNBOUNDED,
+            SizeOffer::new(AxisBound::Exact(50.0), AxisBound::Exact(20.0)),
+            SizeOffer::new(AxisBound::AtMost(100.0), AxisBound::AtMost(40.0)),
+        ];
+
+        let mut ts = TestTextBackend;
+        let expected = raw::size_button(&spec, offers[0], &mut ts);
+        for offer in offers {
+            let mut ts = TestTextBackend;
+            assert_eq!(raw::size_button(&spec, offer, &mut ts), expected);
+        }
+    }
+
+    #[test]
     fn test_button_auto_layout_uses_size_request() {
         use crate::layouts::{ColumnLayout, ColumnLayoutParams, ManualLayout};
         let mut text_backend = TestTextBackend;
