@@ -7,8 +7,6 @@ Working notes, TODOs, open questions, and half-baked ideas.
 
 - Text Edit
   - auto-sizing to height of text (like VS Code commit message)
-    - can use size-request calculation, if we pass the remaining available SizeOffer to the raw size helper then text edit can auto height if it has a max width!
-    - after layout changes, do a review pass to make sure things are consistent/not left over from old size/request naming etc.
     - add auto-sizing width & height to demo page (width up to a max, then wraps)
 
   - Copy/paste integration with the OS (apparently not working!)

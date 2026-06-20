@@ -1131,6 +1131,10 @@ pub mod raw {
                 text_style,
                 TextBounds {
                     max_width: Some(content_width),
+                    // Deliberately unbounded vertically for the TextEdit source-completeness
+                    // invariant. Even with OverflowY::Keep, passing max_height would allow the
+                    // layout engine to truncate processed lines, which would break caret and
+                    // selection mapping through TextLayout.
                     max_height: None,
                 },
             )
@@ -1443,13 +1447,24 @@ impl TextEditStyle {
     }
 }
 
+// TextEdit invariant:
+// The prepared TextLayout for state.value must be source-complete.
+// Editable text may overflow, scroll, wrap, or be clipped by the widget
+// viewport, but layout must not drop, ellipsise, or vertically truncate
+// clusters. Caret and selection state are mapped through TextLayout, so
+// losing clusters can turn non-empty text into EmptyText or reset the
+// logical insertion byte.
+//
+// Therefore wrapped TextEdit uses a clipping/keep flow rather than the
+// general paragraph `TextFlow::wrapped()` policy, which is allowed to drop
+// over-wide clusters and ellipsise vertical overflow.
 pub(crate) fn to_text_style(
     style: TextEditStyle,
     wrap: bool,
     line_align: TextLineAlign,
 ) -> TextStyle {
     let mut flow = if wrap {
-        TextFlow::wrapped()
+        TextFlow::clipped_viewport()
     } else {
         TextFlow::single_line()
     };
@@ -7185,5 +7200,31 @@ mod tests {
             size_limited.preferred.unwrap().y > size_unbounded.preferred.unwrap().y,
             "Auto-height wrapping should increase the preferred height when constrained by offer width"
         );
+    }
+
+    #[test]
+    fn test_narrow_text_edit_caret_reset() {
+        let mut text_backend = TestTextBackend;
+        let mut focus_system = FocusSystem::new();
+        let mut state = TextEditState::new("");
+        focus_system.take_keyboard_focus(state.focus_id);
+
+        let mut edit_spec = spec();
+        edit_spec.rect = Rect::new(0.0, 0.0, 10.0, 30.0);
+        edit_spec.wrap = true;
+
+        let mut input = Input::default();
+        input.text_events.push(TextEvent::Char('a'));
+
+        raw::text_edit(
+            edit_spec,
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut text_backend,
+            &mut DrawCommands::new(),
+        );
+
+        assert_eq!(caret_byte(&state), 1);
     }
 }
