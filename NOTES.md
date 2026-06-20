@@ -129,7 +129,7 @@ For SplitRow, do we want an option to have alignment within each 'cell', like if
 
 - Also if you want just a column of widgets with nice spacing between them, rather than the default of them all being tightly packed!
 
-- How do we handle cases where a layout doesn't have "enough" remaining space in the LayoutSpace to layout the next child - error? fallback?
+- How do we handle cases where a layout doesn't have "enough" remaining space in the LayoutSpace to layout the next child - error? fallback? overflow?
 
 - WrapLayout still panics - these should be layout violation errors! (Check other panics too!)
 

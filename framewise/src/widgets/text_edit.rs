@@ -2,7 +2,7 @@ use crate::{
     draw::{DrawCmd, DrawCommands},
     focus::{FocusId, FocusSystem},
     input::{Input, TextEvent},
-    layout::{Align, LayoutState, SizeOffer, SizeRequest},
+    layout::{Align, AxisBound, LayoutState, SizeOffer, SizeRequest},
     text::{
         layout_text, CaretPosition, FontId, LineEndKind, LineHeight, LineMetrics, TextBackend,
         TextBounds, TextFlow, TextLayout, TextLineAlign, TextStyle,
@@ -139,21 +139,32 @@ pub mod raw {
     }
 
     /// Return the size this text edit would request under `offer` and its current state.
-    ///
-    /// The current implementation ignores `offer` and measures text with
-    /// unbounded bounds. Auto-height wrapping is intentionally not implemented
-    /// yet.
     pub fn size_text_edit<T: TextBackend>(
         spec: &TextEditSizeSpec,
-        _offer: SizeOffer,
+        offer: SizeOffer,
         state: &TextEditState,
         text_backend: &mut T,
     ) -> SizeRequest {
+        let max_width = if spec.wrap {
+            match offer.width {
+                AxisBound::Exact(w) | AxisBound::AtMost(w) => {
+                    let text_w = w - (spec.style.border_width + spec.style.padding_x) * 2.0;
+                    Some(text_w.max(0.0))
+                }
+                AxisBound::Unbounded => None,
+            }
+        } else {
+            None
+        };
+
         let layout = layout_text(
             text_backend,
             &state.value,
             to_text_style(spec.style, spec.wrap, spec.line_align),
-            TextBounds::UNBOUNDED,
+            TextBounds {
+                max_width,
+                max_height: None,
+            },
         );
         let metrics = layout.metrics();
         SizeRequest::preferred(Vec2::new(
@@ -7140,6 +7151,39 @@ mod tests {
         assert!(
             has_correct_selection,
             "Selection highlight should cover the selected range [5..10] on Line 0"
+        );
+    }
+
+    #[test]
+    fn test_size_text_edit_auto_wrap_with_offer() {
+        let mut text_backend = TestTextBackend;
+        let theme = crate::theme::Theme::framewise();
+        let spec = TextEditSpecBuilder::new()
+            .wrap(true)
+            .defaults_from_theme(&theme)
+            .build();
+        let size_spec = raw::TextEditSizeSpec {
+            style: spec.style,
+            wrap: spec.wrap,
+            line_align: spec.line_align,
+        };
+
+        let state = TextEditState::new("abcdefghijklmnopqrst");
+
+        let size_unbounded =
+            raw::size_text_edit(&size_spec, SizeOffer::UNBOUNDED, &state, &mut text_backend);
+
+        let limit_width = 100.0;
+        let size_limited = raw::size_text_edit(
+            &size_spec,
+            SizeOffer::new(AxisBound::AtMost(limit_width), AxisBound::Unbounded),
+            &state,
+            &mut text_backend,
+        );
+
+        assert!(
+            size_limited.preferred.unwrap().y > size_unbounded.preferred.unwrap().y,
+            "Auto-height wrapping should increase the preferred height when constrained by offer width"
         );
     }
 }

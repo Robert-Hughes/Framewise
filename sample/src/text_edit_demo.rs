@@ -24,6 +24,7 @@ pub struct TextEditDemoState {
     pub te_styled: TextEditState,
     pub te_large: TextEditState,
     pub te_large_wrap: CheckboxState,
+    pub te_auto: TextEditState,
 }
 
 impl Default for TextEditDemoState {
@@ -57,6 +58,7 @@ impl Default for TextEditDemoState {
                 checked: CheckedState::Checked,
                 ..Default::default()
             },
+            te_auto: TextEditState::new("This is an auto-sized text edit. Typing here will resize the box automatically up to the width limit of the parent container."),
         }
     }
 }
@@ -420,6 +422,38 @@ pub(crate) fn draw_text_edit_demo_content<'a, 'b, CF>(
             ColumnLayoutParams::fixed(540.0, 520.0),
             &mut state.te_large,
         );
+
+        right.spacer(24.0);
+        label(
+            &mut right,
+            LabelSpecBuilder::new()
+                .text("8. Auto Size")
+                .style(section_header_style),
+            ColumnLayoutParams::auto(),
+        );
+        right.spacer(4.0);
+        label(
+            &mut right,
+            LabelSpecBuilder::new()
+                .text("An auto-sized text edit inside a nested layout that limits its width to 300px. The height and width will fit the content dynamically up to that limit.")
+                .style(desc_style),
+            ColumnLayoutParams::auto(),
+        );
+        right.spacer(10.0);
+
+        let mut limit_layout =
+            right.child_with_layout(ColumnLayoutParams::auto().fixed_x(300.0), ColumnLayout);
+
+        text_edit(
+            &mut limit_layout,
+            TextEditSpecBuilder::new()
+                .newline_policy(NewlinePolicy::Preserve)
+                .wrap(true),
+            ColumnLayoutParams::auto(),
+            &mut state.te_auto,
+        );
+
+        limit_layout.finish();
 
         right.finish();
     }
