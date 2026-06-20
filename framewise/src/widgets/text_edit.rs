@@ -1047,7 +1047,20 @@ pub mod raw {
             state.last_caret_move_time = spec.time;
 
             let padding = 16.0_f32;
-            let max_scroll_x = (inner_scroll_size.x - scroll_outer_rect.w).max(0.0);
+            let viewport = scroll_result.content_bounds;
+
+            let unscrolled_text_origin = text_origin_for_scroll(
+                &spec,
+                scroll_outer_rect,
+                metrics.logical_size,
+                prepared.block_align_offset_x,
+                Vec2::ZERO,
+            );
+
+            let text_origin_in_scroll_content = Vec2::new(
+                unscrolled_text_origin.x - viewport.x,
+                unscrolled_text_origin.y - viewport.y,
+            );
 
             // Determine the horizontal span of the target we want to keep in view.
             // If this is a bulk selection action with a non-empty selection, we target
@@ -1070,29 +1083,6 @@ pub mod raw {
                 }
             };
 
-            let target_left = sel_min_x - padding;
-            let target_right = sel_max_x - scroll_outer_rect.w + padding;
-
-            // Unified clamping logic for scrolling:
-            // - If the target span fits within the viewport (target_right <= target_left):
-            //   We clamp the current scroll to [target_right, target_left]. This ensures that the
-            //   entire target (selection or caret) is fully visible in the viewport.
-            // - If the target span is wider than the viewport (target_right > target_left):
-            //   We clamp to [target_left, target_right]. This scrolls only as far as necessary to
-            //   fill the viewport (aligning target_left or target_right depending on which direction
-            //   we are scrolling), or does not scroll at all if the viewport is already fully inside
-            //   the target range.
-            let (s_min, s_max) = if target_right <= target_left {
-                (target_right, target_left)
-            } else {
-                (target_left, target_right)
-            };
-
-            let target_scroll = state.scroll.offset.x.clamp(s_min, s_max);
-            state.scroll.offset.x = target_scroll.clamp(0.0, max_scroll_x);
-
-            let max_scroll_y = (inner_scroll_size.y - scroll_outer_rect.h).max(0.0);
-
             // Determine the vertical span of the target we want to keep in view.
             let (sel_min_y, sel_max_y) = match (selection_only_action, selection_byte) {
                 (true, Some(sel)) if sel != caret_byte => {
@@ -1113,17 +1103,30 @@ pub mod raw {
                 }
             };
 
-            let target_top = sel_min_y - padding;
-            let target_bottom = sel_max_y - scroll_outer_rect.h + padding;
+            let target_rect = Rect::from_ltrb(
+                text_origin_in_scroll_content.x + sel_min_x,
+                text_origin_in_scroll_content.y + sel_min_y,
+                text_origin_in_scroll_content.x + sel_max_x,
+                text_origin_in_scroll_content.y + sel_max_y,
+            );
 
-            let (s_min_y, s_max_y) = if target_bottom <= target_top {
-                (target_bottom, target_top)
-            } else {
-                (target_top, target_bottom)
-            };
+            state.scroll.offset.x = reveal_axis_scroll(
+                state.scroll.offset.x,
+                target_rect.x,
+                target_rect.right(),
+                viewport.w,
+                inner_scroll_size.x,
+                padding,
+            );
 
-            let target_scroll_y = state.scroll.offset.y.clamp(s_min_y, s_max_y);
-            state.scroll.offset.y = target_scroll_y.clamp(0.0, max_scroll_y);
+            state.scroll.offset.y = reveal_axis_scroll(
+                state.scroll.offset.y,
+                target_rect.y,
+                target_rect.bottom(),
+                viewport.h,
+                inner_scroll_size.y,
+                padding,
+            );
         }
 
         let draw_text_origin = text_origin_for_scroll(
@@ -1324,6 +1327,36 @@ pub mod raw {
             scroll_outer_rect.y + spec.style.padding_y - scroll_offset.y
         };
         Vec2::new(text_x, text_y)
+    }
+
+    /// Unified clamping logic for scrolling:
+    /// - If the target span fits within the viewport (target_end <= target_start):
+    ///   We clamp the current scroll to [target_end, target_start]. This ensures that the
+    ///   entire target (selection or caret) is fully visible in the viewport.
+    /// - If the target span is wider than the viewport (target_end > target_start):
+    ///   We clamp to [target_start, target_end]. This scrolls only as far as necessary to
+    ///   fill the viewport (aligning target_start or target_end depending on which direction
+    ///   we are scrolling), or does not scroll at all if the viewport is already fully inside
+    ///   the target range.
+    fn reveal_axis_scroll(
+        current: f32,
+        target_min: f32,
+        target_max: f32,
+        viewport_len: f32,
+        content_len: f32,
+        padding: f32,
+    ) -> f32 {
+        let target_start = target_min - padding;
+        let target_end = target_max - viewport_len + padding;
+
+        let (s_min, s_max) = if target_end <= target_start {
+            (target_end, target_start)
+        } else {
+            (target_start, target_end)
+        };
+
+        let max_scroll = (content_len - viewport_len).max(0.0);
+        current.clamp(s_min, s_max).clamp(0.0, max_scroll)
     }
 
     #[derive(Debug, Clone, PartialEq)]
@@ -4579,7 +4612,7 @@ mod tests {
         assert_eq!(state.scroll.offset.x, 0.0);
 
         // 2. Caret moves from 23 to 24 (x = 192): exceeds right threshold (198 - 16 = 182)
-        // Expected scroll = 192 - 198 + 16 = 10.0
+        // Expected scroll = (192 + 4.0) - 198 + 16 = 14.0
         set_caret_byte(&mut state, 23);
         input.text_events = vec![TextEvent::CaretRight {
             shift: false,
@@ -4595,7 +4628,7 @@ mod tests {
             &mut cmds,
         );
         assert_eq!(caret_byte(&state), 24);
-        assert_eq!(state.scroll.offset.x, 10.0);
+        assert_eq!(state.scroll.offset.x, 14.0);
 
         // 3. Caret moves from 34 to 35 (x = 280): exceeds right threshold
         // Expected scroll = 280 - 198 + 16 = 98.0, clamped to max_scroll (90.0)
@@ -4620,7 +4653,7 @@ mod tests {
         assert_eq!(caret_rect.x, 195.0);
 
         // 4. Move caret left from 3 to 2 (x = 16): below left threshold (98.0 + 16 = 114)
-        // Expected scroll = 16 - 16 = 0.0
+        // Expected scroll = (16 + 4.0) - 16 = 4.0
         set_caret_byte(&mut state, 3);
         input.text_events = vec![TextEvent::CaretLeft {
             shift: false,
@@ -4636,7 +4669,7 @@ mod tests {
             &mut cmds,
         );
         assert_eq!(caret_byte(&state), 2);
-        assert_eq!(state.scroll.offset.x, 0.0);
+        assert_eq!(state.scroll.offset.x, 4.0);
 
         // 5. Typing at the end of an overflowing line should update scroll and draw the
         // caret with that updated scroll offset in the same frame.
@@ -4674,6 +4707,89 @@ mod tests {
                 && caret_rect.x + caret_rect.w <= scroll_outer_rect.x + scroll_outer_rect.w,
             "typed-character caret reveal should affect same-frame drawing"
         );
+
+        // 6. Caret reveal horizontal scrolling with custom padding_x = 10.0
+        let mut edit_spec = spec();
+        edit_spec.style.padding_x = 10.0;
+
+        let mut state =
+            focused_text_edit_state("hello world how are you today doing", &mut focus_system);
+        focus_system.begin_frame();
+        let end = state.value.len();
+        set_caret_byte(&mut state, end - 1);
+        state.scroll.offset.x = 0.0;
+
+        let input = Input {
+            text_events: vec![TextEvent::CaretRight {
+                shift: false,
+                ctrl: false,
+            }],
+            ..Input::default()
+        };
+
+        let mut cmds = DrawCommands::new();
+        raw::post_layout_text_edit(
+            edit_spec.clone(),
+            raw::post_layout_only_pre_layout_result(&mut state),
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut text_backend,
+            &mut cmds,
+        );
+
+        assert_eq!(caret_byte(&state), end);
+        let visible_width = test_text_edit_scroll_outer_rect(&edit_spec).w;
+        let text_width = 280.0; // 35 chars * 8px
+        let expected_max_scroll = text_width + 2.0 * edit_spec.style.padding_x - visible_width;
+        assert_eq!(state.scroll.offset.x, expected_max_scroll);
+
+        // 7. Caret reveal horizontal scrolling with vertical scrollbar gutter and custom padding_x = 10.0
+        let mut edit_spec = spec();
+        edit_spec.style.padding_x = 10.0;
+        edit_spec.newline_policy = NewlinePolicy::Preserve;
+        edit_spec.vertical_align = Align::Start;
+        edit_spec.rect = Rect::new(0.0, 0.0, 200.0, 30.0);
+
+        let mut state =
+            focused_text_edit_state("x\nhello world how are you today doing", &mut focus_system);
+        focus_system.begin_frame();
+        let end = state.value.len();
+        set_caret_byte(&mut state, end - 1);
+        state.scroll.offset.x = 0.0;
+
+        let input = Input {
+            text_events: vec![TextEvent::CaretRight {
+                shift: false,
+                ctrl: false,
+            }],
+            ..Input::default()
+        };
+
+        let mut cmds = DrawCommands::new();
+        raw::post_layout_text_edit(
+            edit_spec.clone(),
+            raw::post_layout_only_pre_layout_result(&mut state),
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut text_backend,
+            &mut cmds,
+        );
+
+        assert_eq!(caret_byte(&state), end);
+        let content_clip_w = cmds
+            .iter()
+            .find_map(|cmd| match cmd {
+                DrawCmd::PushClip { rect } => Some(rect.w),
+                _ => None,
+            })
+            .expect("text edit should push a content clip");
+
+        let longest_line_width = 280.0; // "hello world how are you today doing" is 35 chars * 8px
+        let expected_max_scroll_sb =
+            longest_line_width + 2.0 * edit_spec.style.padding_x - content_clip_w;
+        assert_eq!(state.scroll.offset.x, expected_max_scroll_sb);
     }
 
     #[test]
@@ -4761,7 +4877,7 @@ mod tests {
         focus_system.end_frame();
         assert_eq!(selection_byte(&state), Some(0));
         assert_eq!(caret_byte(&state), 23);
-        assert_eq!(state.scroll.offset.x, 2.0);
+        assert_eq!(state.scroll.offset.x, 6.0);
 
         // Test case 3: Double-clicking the long word on the right should scroll the viewport right
         // just far enough to align the start of the word with the left edge of the viewport.
@@ -4786,7 +4902,7 @@ mod tests {
         focus_system.end_frame();
         assert_eq!(selection_byte(&state), Some(31));
         assert_eq!(caret_byte(&state), 55);
-        assert_eq!(state.scroll.offset.x, 232.0);
+        assert_eq!(state.scroll.offset.x, 236.0);
     }
 
     #[test]
@@ -5079,7 +5195,7 @@ mod tests {
         assert_eq!(state.scroll.offset.y, 0.0);
 
         // 2. Caret moves down from Line 2 to Line 3 (index 9, y_top = 48.0, height = 16.0): exceeds bottom threshold (58 - 16 = 42)
-        // Expected scroll = 64 - 58 + 16 = 22.0
+        // Expected scroll = (64 + 4.0) - 58 + 16 = 26.0
         set_caret_byte(&mut state, 6);
         input.text_events = vec![TextEvent::CaretDown { shift: false }];
         raw::post_layout_text_edit(
@@ -5091,7 +5207,7 @@ mod tests {
             &mut text_backend,
             &mut cmds,
         );
-        assert_eq!(state.scroll.offset.y, 22.0);
+        assert_eq!(state.scroll.offset.y, 26.0);
 
         // 3. Caret moves down to Line 9 (index 27, y_top = 144.0, height = 16.0): exceeds bottom threshold
         // Expected scroll = 160 - 58 + 16 = 118.0, clamped to max_scroll (110.0)
@@ -5109,7 +5225,7 @@ mod tests {
         assert_eq!(state.scroll.offset.y, 110.0);
 
         // 4. Caret moves up from Line 2 to Line 1 (index 3, y_top = 16.0, height = 16.0): below top threshold
-        // Expected scroll = 16 - 16 = 0.0
+        // Expected scroll = (16 + 4.0) - 16 = 4.0
         set_caret_byte(&mut state, 6);
         input.text_events = vec![TextEvent::CaretUp { shift: false }];
         raw::post_layout_text_edit(
@@ -5121,7 +5237,7 @@ mod tests {
             &mut text_backend,
             &mut cmds,
         );
-        assert_eq!(state.scroll.offset.y, 0.0);
+        assert_eq!(state.scroll.offset.y, 4.0);
     }
 
     #[test]
@@ -5195,7 +5311,7 @@ mod tests {
         focus_system.end_frame();
         assert_eq!(selection_byte(&state), Some(3));
         assert_eq!(caret_byte(&state), 5);
-        assert_eq!(state.scroll.offset.y, 0.0);
+        assert_eq!(state.scroll.offset.y, 4.0);
 
         // Test case 3: Double-clicking word on Line 9 (starts at byte index 27, y_top = 144.0)
         // when scroll.y = 100.0.

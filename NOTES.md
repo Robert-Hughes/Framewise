@@ -5,8 +5,8 @@ Working notes, TODOs, open questions, and half-baked ideas.
 ## Current Work
 
 - Text Edit
+  - scrollbars for text edits don't match the normal theme (see spec page scroll areas)! This is somewhat deliberate?
   - With scrollbar, there's a pixel or so outside the scrollbar but still inside the text_edit, so we get hovering highlight. But when over the scrollbar itself we don't get the hover! So it can flicker
-  - Scroll into view for horizontal scrolling doesn't seem to scroll enough when typing new text on the right edge
 
   - check all the combinations of \n handling, wrapping, height etc. are meaningful (even if degenerate), to see if we want to tighten it up at all
     - newline policy, wrap, alignment (vertical and horizontal)
@@ -15,7 +15,7 @@ Working notes, TODOs, open questions, and half-baked ideas.
 
   - the ASCII art tables of wrapping examples in DESIGN.md (showing soft-wrap collapsed spaces etc.) are a nice compact form - use these directly for tests?
   - DummyTextSys assumes only one usage at a time, always returns handle=0. Dodgy!
-  - text_edit tests are very long! Many TextSystem implementations. Reduce duplication, use a common 'testing' TextSystem (upgrade of DummyTextSystem?)
+  - text_edit tests are very long! Many TextBackend implementations (search "impl TextBackend for"). Reduce duplication, use a common backend?
 
   - Weird behaviour of ligatures(?) with repeated equals sign when soft-wrapping - moves over to left side of textbox, ignoring padding
 
