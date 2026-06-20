@@ -2002,8 +2002,10 @@ mod tests {
     use super::*;
 
     use crate::{
-        test_utils::TestTextBackend, DrawGlyph, PrepareGlyphRequest, PreparedGlyphToken,
-        SharedShapedText,
+        layouts::{ColumnLayout, ColumnLayoutParams},
+        test_utils::TestTextBackend,
+        theme::Theme,
+        DrawGlyph, PrepareGlyphRequest, PreparedGlyphToken, SharedShapedText,
     };
 
     #[derive(Default)]
@@ -2154,6 +2156,78 @@ mod tests {
         focus_system.end_frame();
         state.had_keyboard_focus = true;
         state
+    }
+
+    fn has_text_edit_scrollbar(cmds: &DrawCommands, bounds: Rect) -> bool {
+        const TEXT_EDIT_SCROLLBAR_WIDTH: f32 = 5.0;
+
+        cmds.iter().any(|cmd| match cmd {
+            DrawCmd::FillRect { rect, .. } => {
+                let inside_bounds = rect.x >= bounds.x
+                    && rect.y >= bounds.y
+                    && rect.right() <= bounds.right()
+                    && rect.bottom() <= bounds.bottom();
+                inside_bounds
+                    && ((rect.w == TEXT_EDIT_SCROLLBAR_WIDTH && rect.h <= bounds.h)
+                        || (rect.h == TEXT_EDIT_SCROLLBAR_WIDTH && rect.w <= bounds.w))
+            }
+            _ => false,
+        })
+    }
+
+    /// Regression test for autosized text_edit input flicker.
+    ///
+    /// A focused auto-sized text edit should apply same-frame text input before
+    /// requesting its size, so the frame that inserts a character is laid out
+    /// wide enough for the new value. Otherwise the widget draws the new text
+    /// into a rect sized for the old value and briefly shows scrollbars until
+    /// the next frame catches up.
+    #[test]
+    fn test_high_level_auto_sized_text_edit_sizes_same_frame_text_input() {
+        let mut text_backend = TestTextBackend;
+        let mut focus_system = FocusSystem::new();
+        let mut input = Input::default();
+        let mut cmds = DrawCommands::new();
+        let mut state = focused_text_edit_state("a", &mut focus_system);
+
+        input.text_events.push(TextEvent::Char('b'));
+
+        let theme = Theme::framewise();
+        let mut style = TextEditStyle::from_theme(&theme);
+        style.padding_x = 0.0;
+        style.padding_y = 0.0;
+        style.border_width = 0.0;
+        style.focus_width = 0.0;
+        style.min_height = 0.0;
+        style.error_stripe_width = 0.0;
+
+        let mut ctx = WidgetContext::root(
+            theme,
+            &mut text_backend,
+            &mut focus_system,
+            &input,
+            ColumnLayout::new(),
+            Rect::new(0.0, 0.0, 500.0, 100.0),
+            &mut cmds,
+        );
+
+        let result = text_edit(
+            &mut ctx,
+            TextEditSpecBuilder::new()
+                .style(style)
+                .wrap(false)
+                .newline_policy(NewlinePolicy::ReplaceWithSpace),
+            ColumnLayoutParams::auto(),
+            &mut state,
+        );
+        ctx.finish();
+
+        assert_eq!(state.value, "ab");
+        assert_eq!(result.layout.bounds.w, 16.0);
+        assert!(
+            !has_text_edit_scrollbar(&cmds, result.layout.bounds),
+            "same-frame text input should not render a transient scrollbar"
+        );
     }
 
     #[test]

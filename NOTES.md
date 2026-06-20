@@ -4,9 +4,6 @@ Working notes, TODOs, open questions, and half-baked ideas.
 
 ## Current Work
 
-- pre/post_layout widget split
-  - figure out container/deferred layout widgets
-
 - Text Edit
   - use pre/post_layout split to fix flickering on auto-size. Add unit test to check that new text performs the auto-size layout within that single frame.
 
