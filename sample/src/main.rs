@@ -22,6 +22,7 @@ mod text_edit_demo;
 
 use framewise::input::Input;
 use framewise::types::Vec2;
+use framewise::Output;
 
 use renderer::Renderer;
 use std::sync::Arc;
@@ -104,6 +105,7 @@ struct App {
     click_tracker: framewise::input::ClickTracker,
     modifiers: winit::keyboard::ModifiersState,
     input: Input,
+    output: Output,
     clipboard: Option<arboard::Clipboard>,
     active_page: AppPage,
     debug_layout: bool,
@@ -148,6 +150,7 @@ impl App {
             click_tracker: framewise::input::ClickTracker::new(),
             modifiers: winit::keyboard::ModifiersState::default(),
             input: Input::new(),
+            output: Output::new(),
             clipboard: arboard::Clipboard::new().ok(),
             active_page: AppPage::WidgetSpec,
             debug_layout: false,
@@ -225,6 +228,7 @@ impl App {
                         &mut self.button_page_state,
                         &mut self.focus_system,
                         &self.input,
+                        &mut self.output,
                         time,
                         win_size,
                         text_backend,
@@ -244,6 +248,7 @@ impl App {
                         &mut self.focus_system,
                         &mut self.spec_page_state,
                         &self.input,
+                        &mut self.output,
                         time,
                         win_size.0,
                         win_size.1,
@@ -263,6 +268,7 @@ impl App {
                         &mut self.clipboard,
                         &mut self.focus_system,
                         &self.input,
+                        &mut self.output,
                         time,
                         win_size,
                         text_backend,
@@ -281,6 +287,7 @@ impl App {
                         &mut self.frame_demo_state,
                         &mut self.focus_system,
                         &self.input,
+                        &mut self.output,
                         time,
                         win_size,
                         text_backend,
@@ -299,6 +306,7 @@ impl App {
                         &mut self.layout_demo_state,
                         &mut self.focus_system,
                         &self.input,
+                        &mut self.output,
                         time,
                         win_size,
                         text_backend,
@@ -317,6 +325,7 @@ impl App {
                         &mut self.label_page_state,
                         &mut self.focus_system,
                         &self.input,
+                        &mut self.output,
                         time,
                         win_size,
                         text_backend,
@@ -335,6 +344,7 @@ impl App {
                         &mut self.text_edit_demo_state,
                         &mut self.focus_system,
                         &self.input,
+                        &mut self.output,
                         time,
                         win_size,
                         text_backend,
@@ -711,6 +721,12 @@ impl ApplicationHandler for App {
                     );
                 }
 
+                if let Some(text) = self.output.new_clipboard_contents.take() {
+                    if let Some(cb) = &mut self.clipboard {
+                        let _ = cb.set_text(text);
+                    }
+                }
+                self.output.clear_frame_state();
                 self.input.clear_frame_state();
 
                 #[cfg(all(

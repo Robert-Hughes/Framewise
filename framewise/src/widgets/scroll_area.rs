@@ -6467,11 +6467,13 @@ mod nested_bubbling_tests {
         let mut cmds = crate::draw::DrawCommands::new();
         let placement = Rect::new(10.0, 20.0, 200.0, 40.0);
         let mut scroll_state = ScrollState::default();
+        let mut output = crate::Output::default();
         let mut ctx = crate::widget::WidgetContext::root(
             crate::theme::Theme::framewise(),
             &mut text_backend,
             &mut focus,
             &input,
+            &mut output,
             ManualLayout,
             Rect::new(0.0, 0.0, 800.0, 600.0),
             &mut cmds,
@@ -6583,11 +6585,13 @@ mod nested_bubbling_tests {
         let mut cmds = DrawCommands::new();
         let mut scroll_state = ScrollState::default();
 
+        let mut output = crate::Output::default();
         let mut ctx = crate::widget::WidgetContext::root(
             crate::theme::Theme::framewise(),
             &mut text_backend,
             &mut focus,
             &input,
+            &mut output,
             ManualLayout,
             Rect::new(0.0, 0.0, 800.0, 600.0),
             &mut cmds,

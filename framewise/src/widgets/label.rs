@@ -670,11 +670,13 @@ mod tests {
         let input = crate::Input::default();
         let mut cmds = crate::draw::DrawCommands::new();
         let placement = Rect::new(10.0, 20.0, 50.0, 30.0);
+        let mut output = crate::Output::default();
         let mut ctx = crate::widget::WidgetContext::root(
             crate::theme::Theme::framewise(),
             &mut text_backend,
             &mut focus,
             &input,
+            &mut output,
             ManualLayout,
             Rect::new(0.0, 0.0, 800.0, 600.0),
             &mut cmds,
@@ -690,11 +692,13 @@ mod tests {
         let mut focus = FocusSystem::new();
         let input = crate::Input::default();
         let mut cmds = crate::draw::DrawCommands::new();
+        let mut output = crate::Output::default();
         let mut ctx = crate::widget::WidgetContext::root(
             crate::theme::Theme::framewise(),
             &mut text_backend,
             &mut focus,
             &input,
+            &mut output,
             ManualLayout,
             Rect::new(0.0, 0.0, 800.0, 600.0),
             &mut cmds,
@@ -838,11 +842,13 @@ mod tests {
         let mut focus = FocusSystem::new();
         let input = crate::Input::default();
         let mut cmds = crate::draw::DrawCommands::new();
+        let mut output = crate::Output::default();
         let mut ctx = crate::widget::WidgetContext::root(
             crate::theme::Theme::framewise(),
             &mut text_backend,
             &mut focus,
             &input,
+            &mut output,
             RecordingLayout {
                 calls: calls.clone(),
             },
@@ -863,11 +869,13 @@ mod tests {
         let mut focus = FocusSystem::new();
         let input = Input::default();
         let mut cmds = DrawCommands::new();
+        let mut output = crate::Output::default();
         let mut ctx = WidgetContext::root(
             theme::Theme::framewise(),
             &mut text_backend,
             &mut focus,
             &input,
+            &mut output,
             ManualLayout,
             Rect::new(0.0, 0.0, 800.0, 600.0),
             &mut cmds,
@@ -903,11 +911,13 @@ mod tests {
         let mut focus = FocusSystem::new();
         let input = crate::Input::default();
         let mut cmds = crate::draw::DrawCommands::new();
+        let mut output = crate::Output::default();
         let mut ctx = crate::widget::WidgetContext::root(
             crate::theme::Theme::framewise(),
             &mut text_backend,
             &mut focus,
             &input,
+            &mut output,
             ManualLayout,
             Rect::new(0.0, 0.0, 800.0, 600.0),
             &mut cmds,

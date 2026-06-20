@@ -63,10 +63,12 @@ impl Default for TextEditDemoState {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn draw_text_edit_demo(
     state: &mut TextEditDemoState,
     focus_system: &mut FocusSystem,
     input: &Input,
+    output: &mut framewise::Output,
     time: f64,
     win_size: (f32, f32),
     text_backend: &mut SampleTextBackend,
@@ -87,6 +89,7 @@ pub fn draw_text_edit_demo(
         text_backend,
         focus_system,
         input,
+        output,
         ColumnLayout,
         space,
         &mut cmds,

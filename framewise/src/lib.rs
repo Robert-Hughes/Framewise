@@ -26,6 +26,7 @@ pub mod focus;
 pub mod input;
 pub mod layout;
 pub mod layouts;
+pub mod output;
 pub mod text;
 pub mod theme;
 pub mod types;
@@ -46,6 +47,7 @@ pub use layouts::{
     MainAxisAlign, ManualLayout, ManualState, OffsetLayout, OffsetState, RowLayout,
     RowLayoutParams, RowState, SplitRow, SplitRowState, WrapLayout, WrapState,
 };
+pub use output::Output;
 pub use text::{
     cluster_approx_ink_bounds, CaretGeom, CaretPosition, ContentPlacement, EllipsisFallback,
     FontId, FontRole, LineEndKind, LineHeight, LineMetrics, OverflowX, OverflowY,

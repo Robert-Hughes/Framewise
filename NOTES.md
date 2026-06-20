@@ -5,8 +5,6 @@ Working notes, TODOs, open questions, and half-baked ideas.
 ## Current Work
 
 - Text Edit
-  - use pre/post_layout split to fix flickering on auto-size. Add unit test to check that new text performs the auto-size layout within that single frame.
-
   - Copy/paste integration with the OS (apparently not working!)
   - caret cursor when mouse is over a text_edit
 

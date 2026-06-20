@@ -7,6 +7,7 @@ use crate::layout::{
 use crate::theme::Theme;
 use crate::types::{ClipRect, Layer, Rect, Vec2};
 use crate::Input;
+use crate::Output;
 use crate::TextBackend;
 
 // ── Common result fragments ───────────────────────────────────────────────────
@@ -136,6 +137,7 @@ pub struct WidgetContext<'a, T: TextBackend, LS: LayoutState, CF> {
     pub text_backend: &'a mut T,
     pub focus_system: &'a mut FocusSystem,
     pub input: &'a Input,
+    pub output: &'a mut Output,
     pub cmds: &'a mut DrawCommands,
 
     layout_state: LS,
@@ -152,12 +154,13 @@ impl<'a, T: TextBackend, LS: LayoutState>
     /// Creating a root context is a top-level entry point function that does not depend on any
     /// existing `WidgetContext` instance. This generic implementation is not tied to any concrete
     /// state, but instead resolves dynamically to any layout state `LS` via the generic layout constraint.
-    #[allow(clippy::type_complexity)]
+    #[allow(clippy::type_complexity, clippy::too_many_arguments)]
     pub fn root<L: crate::layout::Layout<State = LS>>(
         theme: Theme,
         text_backend: &'a mut T,
         focus_system: &'a mut FocusSystem,
         input: &'a Input,
+        output: &'a mut Output,
         layout: L,
         space: impl Into<crate::layout::LayoutSpace>,
         cmds: &'a mut DrawCommands,
@@ -171,6 +174,7 @@ impl<'a, T: TextBackend, LS: LayoutState>
             text_backend,
             focus_system,
             input,
+            output,
             layout_state: layout.begin(space.into()),
             layout_policy: LayoutViolationPolicy::default(),
             pending_violation: None,
@@ -200,6 +204,7 @@ impl<'a, T: TextBackend, LS: LayoutState, CF> WidgetContext<'a, T, LS, CF> {
             text_backend: self.text_backend,
             focus_system: self.focus_system,
             input: self.input,
+            output: self.output,
             layout_state: inner_layout_state,
             layout_policy: self.layout_policy,
             pending_violation: None,
@@ -354,6 +359,7 @@ impl<'a, T: TextBackend, LS: LayoutState, CF> WidgetContext<'a, T, LS, CF> {
             text_backend: self.text_backend,
             focus_system: self.focus_system,
             input: self.input,
+            output: self.output,
             cmds: self.cmds,
             layout_state: inner_layout.begin(inner_space),
             layout_policy: policy,
@@ -501,11 +507,13 @@ mod tests {
         let input = Input::default();
         let mut cmds = DrawCommands::new();
 
+        let mut output = Output::default();
         let mut ctx = WidgetContext::root(
             Theme::framewise(),
             &mut ts,
             &mut focus,
             &input,
+            &mut output,
             ManualLayout,
             Rect::new(0.0, 0.0, 800.0, 600.0),
             &mut cmds,
@@ -535,11 +543,13 @@ mod tests {
         let input = Input::default();
         let mut cmds = DrawCommands::new();
 
+        let mut output = Output::default();
         let mut ctx = WidgetContext::root(
             Theme::framewise(),
             &mut ts,
             &mut focus,
             &input,
+            &mut output,
             ColumnLayout,
             Rect::new(0.0, 0.0, 200.0, 600.0),
             &mut cmds,
@@ -571,11 +581,13 @@ mod tests {
         let input = Input::default();
         let mut cmds = DrawCommands::new();
 
+        let mut output = Output::default();
         let mut ctx = WidgetContext::root(
             Theme::framewise(),
             &mut ts,
             &mut focus,
             &input,
+            &mut output,
             RowLayout,
             Rect::new(0.0, 0.0, 600.0, 200.0),
             &mut cmds,
@@ -606,11 +618,13 @@ mod tests {
         let input = Input::default();
         let mut cmds = DrawCommands::new();
 
+        let mut output = Output::default();
         let mut ctx = WidgetContext::root(
             Theme::framewise(),
             &mut ts,
             &mut focus,
             &input,
+            &mut output,
             ColumnLayout,
             Rect::new(0.0, 0.0, 200.0, 600.0),
             &mut cmds,
@@ -637,11 +651,13 @@ mod tests {
         let input = Input::default();
         let mut cmds = DrawCommands::new();
 
+        let mut output = Output::default();
         let ctx = WidgetContext::root(
             Theme::framewise(),
             &mut ts,
             &mut focus,
             &input,
+            &mut output,
             ColumnLayout,
             Rect::new(10.0, 20.0, 200.0, 300.0),
             &mut cmds,
@@ -660,11 +676,13 @@ mod tests {
         let input = Input::default();
         let mut cmds = DrawCommands::new();
 
+        let mut output = Output::default();
         let mut ctx = WidgetContext::root(
             Theme::framewise(),
             &mut ts,
             &mut focus,
             &input,
+            &mut output,
             ColumnLayout,
             Rect::new(10.0, 20.0, 200.0, 300.0),
             &mut cmds,
@@ -683,11 +701,13 @@ mod tests {
         let input = Input::default();
         let mut cmds = DrawCommands::new();
 
+        let mut output = Output::default();
         let mut ctx = WidgetContext::root(
             Theme::framewise(),
             &mut ts,
             &mut focus,
             &input,
+            &mut output,
             ColumnLayout,
             Rect::new(10.0, 20.0, 200.0, 300.0),
             &mut cmds,
@@ -709,11 +729,13 @@ mod tests {
         let input = Input::default();
         let mut cmds = DrawCommands::new();
 
+        let mut output = Output::default();
         let mut ctx = WidgetContext::root(
             Theme::framewise(),
             &mut ts,
             &mut focus,
             &input,
+            &mut output,
             ColumnLayout,
             LayoutSpace::new(0.0, 0.0, AxisBound::AtMost(100.0), AxisBound::Exact(100.0)),
             &mut cmds,
@@ -763,11 +785,13 @@ mod tests {
         let input = Input::default();
         let mut cmds = DrawCommands::new();
 
+        let mut output = Output::default();
         let mut ctx = WidgetContext::root(
             Theme::framewise(),
             &mut ts,
             &mut focus,
             &input,
+            &mut output,
             ColumnLayout,
             // AtMost width → a Fixed+Center child can't be centered at begin_deferred_layout.
             LayoutSpace::new(0.0, 0.0, AxisBound::AtMost(100.0), AxisBound::Exact(200.0)),

@@ -42,10 +42,12 @@ pub struct ButtonPageState {
 
 // ── Draw ──────────────────────────────────────────────────────────────────────
 
+#[allow(clippy::too_many_arguments)]
 pub fn draw_button_page(
     state: &mut ButtonPageState,
     focus_system: &mut FocusSystem,
     input: &Input,
+    output: &mut framewise::Output,
     _time: f64,
     win_size: (f32, f32),
     text_backend: &mut SampleTextBackend,
@@ -66,6 +68,7 @@ pub fn draw_button_page(
         text_backend,
         focus_system,
         input,
+        output,
         ColumnLayout,
         space,
         &mut cmds,

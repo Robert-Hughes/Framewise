@@ -1909,7 +1909,6 @@ pub struct TextEditResult {
     pub layout: LayoutInfo,
     pub input: InputInfo,
     pub focused: bool,
-    pub clipboard_action: Option<ClipboardAction>,
 }
 
 // ── Spec ─────────────────────────────────────────────────────────────────────
@@ -2228,9 +2227,16 @@ pub fn text_edit<T: TextBackend, S: LayoutState, CF>(
         ctx.cmds,
     );
 
+    if let Some(action) = result.clipboard_action.as_ref() {
+        match action {
+            ClipboardAction::Copy(text) | ClipboardAction::Cut(text) => {
+                ctx.output.new_clipboard_contents = Some(text.clone());
+            }
+        }
+    }
+
     TextEditResult {
         layout: LayoutInfo::new(rect, result.content_bounds),
-        clipboard_action: result.clipboard_action,
         input: result.input,
         focused: result.focused,
     }
@@ -2441,11 +2447,13 @@ mod tests {
         style.min_height = 0.0;
         style.error_stripe_width = 0.0;
 
+        let mut output = crate::Output::default();
         let mut ctx = WidgetContext::root(
             theme,
             &mut text_backend,
             &mut focus_system,
             &input,
+            &mut output,
             ColumnLayout::new(),
             Rect::new(0.0, 0.0, 500.0, 100.0),
             &mut cmds,
@@ -2496,11 +2504,13 @@ mod tests {
         style.min_height = 0.0;
         style.error_stripe_width = 0.0;
 
+        let mut output = crate::Output::default();
         let mut ctx = WidgetContext::root(
             theme,
             &mut text_backend,
             &mut focus_system,
             &input,
+            &mut output,
             ColumnLayout::new(),
             Rect::new(0.0, 0.0, 500.0, 100.0),
             &mut cmds,
@@ -2538,11 +2548,13 @@ mod tests {
         input.text_events.push(TextEvent::Char('x'));
 
         let theme = Theme::framewise();
+        let mut output = crate::Output::default();
         let mut ctx = WidgetContext::root(
             theme,
             &mut text_backend,
             &mut focus_system,
             &input,
+            &mut output,
             ColumnLayout::new(),
             Rect::new(0.0, 0.0, 500.0, 100.0),
             &mut cmds,
@@ -4508,11 +4520,13 @@ mod tests {
         let input = crate::Input::default();
         let mut cmds = crate::draw::DrawCommands::new();
         let custom_rect = Rect::new(10.0, 20.0, 50.0, 30.0);
+        let mut output = crate::Output::default();
         let mut ctx = crate::widget::WidgetContext::root(
             crate::theme::Theme::framewise(),
             &mut text_backend,
             &mut focus,
             &input,
+            &mut output,
             ManualLayout,
             Rect::new(0.0, 0.0, 800.0, 600.0),
             &mut cmds,
@@ -8141,5 +8155,87 @@ mod tests {
                 assert_eq!(content_width, prepared_g.layout_width);
             }
         }
+    }
+
+    #[test]
+    fn test_high_level_text_edit_copy() {
+        let mut text_backend = TestTextBackend;
+        let mut focus_system = FocusSystem::new();
+        let mut state = TextEditState::new("hello world");
+
+        focus_system.take_keyboard_focus(state.focus_id);
+        focus_system.end_frame();
+
+        set_selection_byte(&mut state, Some(6));
+        set_caret_byte(&mut state, 11);
+        state.had_keyboard_focus = true;
+
+        let mut input = Input::default();
+        input.text_events.push(TextEvent::Copy);
+
+        let mut output = crate::Output::default();
+        let mut cmds = DrawCommands::new();
+        let mut ctx = WidgetContext::root(
+            Theme::framewise(),
+            &mut text_backend,
+            &mut focus_system,
+            &input,
+            &mut output,
+            ColumnLayout::new(),
+            Rect::new(0.0, 0.0, 500.0, 100.0),
+            &mut cmds,
+        );
+
+        let _res = text_edit(
+            &mut ctx,
+            TextEditSpecBuilder::new(),
+            ColumnLayoutParams::auto(),
+            &mut state,
+        );
+        ctx.finish();
+
+        assert_eq!(output.new_clipboard_contents.as_deref(), Some("world"));
+        assert_eq!(state.value, "hello world");
+    }
+
+    #[test]
+    fn test_high_level_text_edit_cut() {
+        let mut text_backend = TestTextBackend;
+        let mut focus_system = FocusSystem::new();
+        let mut state = TextEditState::new("hello world");
+
+        focus_system.take_keyboard_focus(state.focus_id);
+        focus_system.end_frame();
+
+        set_selection_byte(&mut state, Some(6));
+        set_caret_byte(&mut state, 11);
+        state.had_keyboard_focus = true;
+
+        let mut input = Input::default();
+        input.text_events.push(TextEvent::Cut);
+
+        let mut output = crate::Output::default();
+        let mut cmds = DrawCommands::new();
+        let mut ctx = WidgetContext::root(
+            Theme::framewise(),
+            &mut text_backend,
+            &mut focus_system,
+            &input,
+            &mut output,
+            ColumnLayout::new(),
+            Rect::new(0.0, 0.0, 500.0, 100.0),
+            &mut cmds,
+        );
+
+        let _res = text_edit(
+            &mut ctx,
+            TextEditSpecBuilder::new(),
+            ColumnLayoutParams::auto(),
+            &mut state,
+        );
+        ctx.finish();
+
+        assert_eq!(output.new_clipboard_contents.as_deref(), Some("world"));
+        assert_eq!(state.value, "hello ");
     }
 }

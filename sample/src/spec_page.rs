@@ -1294,11 +1294,13 @@ fn group_y<CF>(b: &mut WidgetContext<SampleTextBackend, ColumnState, CF>, text: 
 
 // ── Main function ─────────────────────────────────────────────────────────────
 
+#[allow(clippy::too_many_arguments)]
 pub fn draw_spec_page(
     ts: &mut SampleTextBackend,
     focus_system: &mut FocusSystem,
     state: &mut SpecPageState,
     input: &Input,
+    output: &mut framewise::Output,
     time: f64,
     win_w: f32,
     win_h: f32,
@@ -1313,6 +1315,7 @@ pub fn draw_spec_page(
         ts,
         focus_system,
         input,
+        output,
         ManualLayout,
         win_rect,
         &mut cmds,

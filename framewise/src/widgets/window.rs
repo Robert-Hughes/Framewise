@@ -444,11 +444,13 @@ mod tests {
         let input = crate::Input::default();
         let mut cmds = crate::draw::DrawCommands::new();
         let custom_rect = Rect::new(10.0, 20.0, 100.0, 80.0);
+        let mut output = crate::Output::default();
         let mut ctx = crate::widget::WidgetContext::root(
             crate::theme::Theme::framewise(),
             &mut text_backend,
             &mut focus,
             &input,
+            &mut output,
             ManualLayout,
             Rect::new(0.0, 0.0, 800.0, 600.0),
             &mut cmds,

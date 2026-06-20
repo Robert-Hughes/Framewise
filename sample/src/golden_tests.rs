@@ -22,11 +22,13 @@ mod spec_page_golden {
             focus_system.begin_frame();
 
             let mut cmds = DrawCommands::new();
+            let mut output = framewise::Output::default();
             let mut ctx = WidgetContext::root(
                 Theme::framewise(),
                 &mut text_backend,
                 &mut focus_system,
                 &input,
+                &mut output,
                 RowLayout,
                 LayoutSpace::unbounded_height(0.0, 0.0, 1200.0),
                 &mut cmds,
@@ -215,11 +217,13 @@ mod button_page_golden {
             focus_system.begin_frame();
 
             let mut cmds = DrawCommands::new();
+            let mut output = framewise::Output::default();
             let mut ctx = WidgetContext::root(
                 Theme::default(),
                 &mut text_backend,
                 &mut focus_system,
                 &input,
+                &mut output,
                 ColumnLayout,
                 LayoutSpace::unbounded_height(0.0, 0.0, 1600.0),
                 &mut cmds,
@@ -276,11 +280,13 @@ mod label_page_golden {
             focus_system.begin_frame();
 
             let mut cmds = DrawCommands::new();
+            let mut output = framewise::Output::default();
             let mut ctx = WidgetContext::root(
                 Theme::default(),
                 &mut text_backend,
                 &mut focus_system,
                 &input,
+                &mut output,
                 ColumnLayout,
                 LayoutSpace::unbounded_height(0.0, 0.0, 1600.0),
                 &mut cmds,
@@ -338,11 +344,13 @@ mod frame_page_golden {
             focus_system.begin_frame();
 
             let mut cmds = DrawCommands::new();
+            let mut output = framewise::Output::default();
             let mut ctx = WidgetContext::root(
                 Theme::default(),
                 &mut text_backend,
                 &mut focus_system,
                 &input,
+                &mut output,
                 ColumnLayout,
                 LayoutSpace::unbounded_height(0.0, 0.0, 1600.0),
                 &mut cmds,
@@ -400,11 +408,13 @@ mod layout_page_golden {
             focus_system.begin_frame();
 
             let mut cmds = DrawCommands::new();
+            let mut output = framewise::Output::default();
             let mut ctx = WidgetContext::root(
                 Theme::default(),
                 &mut text_backend,
                 &mut focus_system,
                 &input,
+                &mut output,
                 ColumnLayout,
                 LayoutSpace::unbounded_height(0.0, 0.0, 1600.0),
                 &mut cmds,
@@ -462,11 +472,13 @@ mod scroll_page_golden {
             focus_system.begin_frame();
 
             let mut cmds = DrawCommands::new();
+            let mut output = framewise::Output::default();
             let mut ctx = WidgetContext::root(
                 Theme::default(),
                 &mut text_backend,
                 &mut focus_system,
                 &input,
+                &mut output,
                 framewise::layouts::ColumnLayout,
                 LayoutSpace::unbounded_height(20.0, 20.0, 1560.0),
                 &mut cmds,
@@ -524,11 +536,13 @@ mod text_edit_page_golden {
             focus_system.begin_frame();
 
             let mut cmds = DrawCommands::new();
+            let mut output = framewise::Output::default();
             let mut ctx = WidgetContext::root(
                 Theme::default(),
                 &mut text_backend,
                 &mut focus_system,
                 &input,
+                &mut output,
                 ColumnLayout,
                 LayoutSpace::unbounded_height(0.0, 0.0, 1600.0),
                 &mut cmds,

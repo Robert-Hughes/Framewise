@@ -442,11 +442,13 @@ mod tests {
         let input = crate::Input::default();
         let mut cmds = DrawCommands::new();
 
+        let mut output = crate::Output::default();
         let mut ctx = WidgetContext::root(
             crate::theme::Theme::framewise(),
             &mut ts,
             &mut focus,
             &input,
+            &mut output,
             ColumnLayout,
             Rect::new(0.0, 0.0, 400.0, 600.0),
             &mut cmds,
