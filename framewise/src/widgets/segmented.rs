@@ -23,9 +23,14 @@ pub mod raw {
     }
 
     #[derive(Debug, Clone, PartialEq)]
-    pub struct SegmentedSizeSpec<'a> {
+    pub struct SegmentedPreLayoutSpec<'a> {
         pub items: &'a [&'a str],
         pub style: super::SegmentedStyle,
+    }
+
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct SegmentedPreLayoutResult {
+        pub size_request: crate::layout::SizeRequest,
     }
 
     #[derive(Debug, Clone, PartialEq)]
@@ -39,8 +44,18 @@ pub mod raw {
     ///
     /// This currently measures text with unbounded bounds; offer-sensitive
     /// wrapping is future work.
-    pub fn size_segmented<T: TextBackend>(
-        spec: &SegmentedSizeSpec,
+    pub fn pre_layout_segmented<T: TextBackend>(
+        spec: &SegmentedPreLayoutSpec,
+        offer: SizeOffer,
+        text_backend: &mut T,
+    ) -> SegmentedPreLayoutResult {
+        SegmentedPreLayoutResult {
+            size_request: size_segmented(spec, offer, text_backend),
+        }
+    }
+
+    fn size_segmented<T: TextBackend>(
+        spec: &SegmentedPreLayoutSpec,
         _offer: SizeOffer,
         text_backend: &mut T,
     ) -> crate::layout::SizeRequest {
@@ -65,8 +80,9 @@ pub mod raw {
     ///
     /// This is the raw implementation that takes all parameters explicitly.
     /// High-level wrappers should use this internally.
-    pub fn segmented<'a, T: TextBackend>(
+    pub fn post_layout_segmented<'a, T: TextBackend>(
         spec: SegmentedSpec<'a>,
+        _pre_layout: SegmentedPreLayoutResult,
         state: &mut SegmentedState,
         input: &Input,
         focus_system: &mut FocusSystem,
@@ -374,13 +390,13 @@ pub fn segmented<'a, T: TextBackend, S: LayoutState, CF>(
     state: &mut SegmentedState,
 ) -> SegmentedResult {
     let spec = builder.defaults_from_theme(&ctx.theme).build();
-    let size_spec = raw::SegmentedSizeSpec {
+    let pre_layout_spec = raw::SegmentedPreLayoutSpec {
         items: spec.items,
         style: spec.style,
     };
     let offer = ctx.peek_offer(layout_params.clone());
-    let size_request = raw::size_segmented(&size_spec, offer, ctx.text_backend);
-    let rect = ctx.layout(layout_params, size_request);
+    let pre_layout = raw::pre_layout_segmented(&pre_layout_spec, offer, ctx.text_backend);
+    let rect = ctx.layout(layout_params, pre_layout.size_request);
     let raw_spec = raw::SegmentedSpec {
         layer: ctx.layer,
         rect,
@@ -389,8 +405,9 @@ pub fn segmented<'a, T: TextBackend, S: LayoutState, CF>(
         disabled: spec.disabled,
         clip_rect: ctx.clip_rect,
     };
-    let result = raw::segmented(
+    let result = raw::post_layout_segmented(
         raw_spec,
+        pre_layout,
         state,
         ctx.input,
         ctx.focus_system,
@@ -418,8 +435,11 @@ mod tests {
     ) -> (raw::SegmentedResult, DrawCommands) {
         let mut cmds = DrawCommands::new();
         let mut text_backend = TestTextBackend;
-        let res = raw::segmented(
+        let res = raw::post_layout_segmented(
             spec,
+            raw::SegmentedPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut SegmentedState {
                 active_index,
                 ..Default::default()
@@ -524,8 +544,11 @@ mod tests {
         };
         let style = spec.style;
         let mut cmds = DrawCommands::new();
-        let _res = raw::segmented(
+        let _res = raw::post_layout_segmented(
             spec,
+            raw::SegmentedPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &Input::default(),
             &mut focus_system,
@@ -621,8 +644,11 @@ mod tests {
 
         let mut cmds = DrawCommands::new();
         focus_system.begin_frame();
-        raw::segmented(
+        raw::post_layout_segmented(
             spec,
+            raw::SegmentedPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input,
             &mut focus_system,
@@ -661,8 +687,11 @@ mod tests {
 
         let mut cmds = DrawCommands::new();
         focus_system.begin_frame();
-        raw::segmented(
+        raw::post_layout_segmented(
             spec,
+            raw::SegmentedPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input,
             &mut focus_system,
@@ -693,7 +722,7 @@ mod tests {
         input.key_pressed_right = true;
         let mut cmds = DrawCommands::new();
         focus_system.begin_frame();
-        raw::segmented(
+        raw::post_layout_segmented(
             SegmentedSpec {
                 layer: Layer::default(),
                 rect: Rect::new(0.0, 0.0, 200.0, 28.0),
@@ -701,6 +730,9 @@ mod tests {
                 disabled: false,
                 style: SegmentedStyle::from_theme(&crate::theme::Theme::framewise()),
                 clip_rect: None,
+            },
+            raw::SegmentedPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
             },
             &mut state,
             &input,
@@ -717,7 +749,7 @@ mod tests {
         input.key_pressed_left = true;
         let mut cmds = DrawCommands::new();
         focus_system.begin_frame();
-        raw::segmented(
+        raw::post_layout_segmented(
             SegmentedSpec {
                 layer: Layer::default(),
                 rect: Rect::new(0.0, 0.0, 200.0, 28.0),
@@ -725,6 +757,9 @@ mod tests {
                 disabled: false,
                 style: SegmentedStyle::from_theme(&crate::theme::Theme::framewise()),
                 clip_rect: None,
+            },
+            raw::SegmentedPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
             },
             &mut state,
             &input,

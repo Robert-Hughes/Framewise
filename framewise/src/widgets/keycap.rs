@@ -18,9 +18,14 @@ pub mod raw {
     }
 
     #[derive(Debug, Clone, PartialEq)]
-    pub struct KeycapSizeSpec<'a> {
+    pub struct KeycapPreLayoutSpec<'a> {
         pub text: &'a str,
         pub style: super::KeycapStyle,
+    }
+
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct KeycapPreLayoutResult {
+        pub size_request: crate::layout::SizeRequest,
     }
 
     #[derive(Debug, Clone, PartialEq)]
@@ -32,8 +37,18 @@ pub mod raw {
     ///
     /// This currently measures text with unbounded bounds; offer-sensitive
     /// wrapping is future work.
-    pub fn size_keycap<T: TextBackend>(
-        spec: &KeycapSizeSpec,
+    pub fn pre_layout_keycap<T: TextBackend>(
+        spec: &KeycapPreLayoutSpec,
+        offer: SizeOffer,
+        text_backend: &mut T,
+    ) -> KeycapPreLayoutResult {
+        KeycapPreLayoutResult {
+            size_request: size_keycap(spec, offer, text_backend),
+        }
+    }
+
+    fn size_keycap<T: TextBackend>(
+        spec: &KeycapPreLayoutSpec,
         _offer: SizeOffer,
         text_backend: &mut T,
     ) -> crate::layout::SizeRequest {
@@ -50,8 +65,9 @@ pub mod raw {
     ///
     /// This is the raw implementation that takes all parameters explicitly.
     /// High-level wrappers should use this internally.
-    pub fn keycap<T: TextBackend>(
+    pub fn post_layout_keycap<T: TextBackend>(
         spec: KeycapSpec<'_>,
+        _pre_layout: KeycapPreLayoutResult,
         text_backend: &mut T,
         cmds: &mut DrawCommands,
     ) -> KeycapResult {
@@ -219,20 +235,20 @@ pub fn keycap<'a, T: TextBackend, S: LayoutState, CF>(
     layout_params: S::Params,
 ) -> KeycapResult {
     let spec = builder.defaults_from_theme(&ctx.theme).build();
-    let size_spec = raw::KeycapSizeSpec {
+    let pre_layout_spec = raw::KeycapPreLayoutSpec {
         text: spec.text,
         style: spec.style,
     };
     let offer = ctx.peek_offer(layout_params.clone());
-    let size_request = raw::size_keycap(&size_spec, offer, ctx.text_backend);
-    let rect = ctx.layout(layout_params, size_request);
+    let pre_layout = raw::pre_layout_keycap(&pre_layout_spec, offer, ctx.text_backend);
+    let rect = ctx.layout(layout_params, pre_layout.size_request);
     let raw_spec = raw::KeycapSpec {
         layer: ctx.layer,
         rect,
         text: spec.text,
         style: spec.style,
     };
-    let result = raw::keycap(raw_spec, ctx.text_backend, ctx.cmds);
+    let result = raw::post_layout_keycap(raw_spec, pre_layout, ctx.text_backend, ctx.cmds);
     KeycapResult {
         layout: LayoutInfo::new(rect, result.content_bounds),
     }
@@ -276,7 +292,14 @@ mod tests {
             },
         };
         let mut cmds = DrawCommands::new();
-        let res = raw::keycap(spec, &mut text_backend, &mut cmds);
+        let res = raw::post_layout_keycap(
+            spec,
+            raw::KeycapPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
+            &mut text_backend,
+            &mut cmds,
+        );
 
         assert_eq!(
             res.content_bounds,

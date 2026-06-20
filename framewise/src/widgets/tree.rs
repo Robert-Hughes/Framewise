@@ -18,9 +18,14 @@ pub mod raw {
     }
 
     #[derive(Debug, Clone, PartialEq)]
-    pub struct TreeSizeSpec<'a> {
+    pub struct TreePreLayoutSpec<'a> {
         pub items: &'a [super::TreeRow<'a>],
         pub style: super::TreeStyle,
+    }
+
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct TreePreLayoutResult {
+        pub size_request: crate::layout::SizeRequest,
     }
 
     #[derive(Debug, Clone, PartialEq)]
@@ -33,7 +38,13 @@ pub mod raw {
     ///
     /// The current implementation ignores `offer` because the request is derived
     /// from row count and tree style.
-    pub fn size_tree(spec: &TreeSizeSpec, _offer: SizeOffer) -> SizeRequest {
+    pub fn pre_layout_tree(spec: &TreePreLayoutSpec, offer: SizeOffer) -> TreePreLayoutResult {
+        TreePreLayoutResult {
+            size_request: size_tree(spec, offer),
+        }
+    }
+
+    fn size_tree(spec: &TreePreLayoutSpec, _offer: SizeOffer) -> SizeRequest {
         let s = spec.style;
         let total_h = spec.items.len() as f32 * s.row_height + s.pad_y * 2.0;
         SizeRequest::preferred(Vec2::new(s.min_width, total_h))
@@ -43,8 +54,9 @@ pub mod raw {
     ///
     /// This is the raw implementation that takes all parameters explicitly.
     /// High-level wrappers should use this internally.
-    pub fn tree<'a, T: TextBackend>(
+    pub fn post_layout_tree<'a, T: TextBackend>(
         spec: TreeSpec<'a>,
+        _pre_layout: TreePreLayoutResult,
         text_backend: &mut T,
         cmds: &mut DrawCommands,
     ) -> TreeResult {
@@ -315,13 +327,13 @@ pub fn tree<'a, T: TextBackend, S: LayoutState, CF>(
     layout_params: S::Params,
 ) -> TreeResult {
     let spec = builder.defaults_from_theme(&ctx.theme).build();
-    let size_spec = raw::TreeSizeSpec {
+    let pre_layout_spec = raw::TreePreLayoutSpec {
         items: spec.items,
         style: spec.style,
     };
     let offer = ctx.peek_offer(layout_params.clone());
-    let size_request = raw::size_tree(&size_spec, offer);
-    let rect = ctx.layout(layout_params, size_request);
+    let pre_layout = raw::pre_layout_tree(&pre_layout_spec, offer);
+    let rect = ctx.layout(layout_params, pre_layout.size_request);
     let raw_spec = raw::TreeSpec {
         rect,
         items: spec.items,
@@ -329,7 +341,7 @@ pub fn tree<'a, T: TextBackend, S: LayoutState, CF>(
         layer: ctx.layer,
     };
 
-    let result = raw::tree(raw_spec, ctx.text_backend, ctx.cmds);
+    let result = raw::post_layout_tree(raw_spec, pre_layout, ctx.text_backend, ctx.cmds);
     TreeResult {
         layout: LayoutInfo::new(result.bounds, result.content_bounds),
     }
@@ -422,12 +434,12 @@ mod tests {
 
     #[test]
     fn test_size_tree_empty() {
-        let spec = raw::TreeSizeSpec {
+        let spec = raw::TreePreLayoutSpec {
             items: &[],
             style: TreeStyle::from_theme(&crate::theme::Theme::framewise()),
         };
         let style = spec.style;
-        let size_request = raw::size_tree(&spec, SizeOffer::UNBOUNDED);
+        let size_request = raw::pre_layout_tree(&spec, SizeOffer::UNBOUNDED).size_request;
         assert_eq!(
             size_request.preferred,
             Some(Vec2::new(style.min_width, style.pad_y * 2.0))
@@ -452,12 +464,12 @@ mod tests {
                 selected: false,
             },
         ];
-        let spec = raw::TreeSizeSpec {
+        let spec = raw::TreePreLayoutSpec {
             items: &items,
             style: TreeStyle::from_theme(&crate::theme::Theme::framewise()),
         };
         let style = spec.style;
-        let size_request = raw::size_tree(&spec, SizeOffer::UNBOUNDED);
+        let size_request = raw::pre_layout_tree(&spec, SizeOffer::UNBOUNDED).size_request;
         let expected_h = 2.0 * style.row_height + style.pad_y * 2.0;
         assert_eq!(
             size_request.preferred,

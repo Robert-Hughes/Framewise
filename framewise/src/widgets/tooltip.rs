@@ -19,9 +19,14 @@ pub mod raw {
     }
 
     #[derive(Debug, Clone, PartialEq)]
-    pub struct TooltipSizeSpec<'a> {
+    pub struct TooltipPreLayoutSpec<'a> {
         pub text: &'a str,
         pub style: super::TooltipStyle,
+    }
+
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct TooltipPreLayoutResult {
+        pub size_request: crate::layout::SizeRequest,
     }
 
     #[derive(Debug, Clone, PartialEq)]
@@ -34,8 +39,18 @@ pub mod raw {
     ///
     /// This currently measures text with unbounded bounds; offer-sensitive
     /// wrapping is future work.
-    pub fn size_tooltip<T: TextBackend>(
-        spec: &TooltipSizeSpec,
+    pub fn pre_layout_tooltip<T: TextBackend>(
+        spec: &TooltipPreLayoutSpec,
+        offer: SizeOffer,
+        text_backend: &mut T,
+    ) -> TooltipPreLayoutResult {
+        TooltipPreLayoutResult {
+            size_request: size_tooltip(spec, offer, text_backend),
+        }
+    }
+
+    fn size_tooltip<T: TextBackend>(
+        spec: &TooltipPreLayoutSpec,
         _offer: SizeOffer,
         text_backend: &mut T,
     ) -> crate::layout::SizeRequest {
@@ -56,8 +71,9 @@ pub mod raw {
     ///
     /// This is the raw implementation that takes all parameters explicitly.
     /// High-level wrappers should use this internally.
-    pub fn tooltip<T: TextBackend>(
+    pub fn post_layout_tooltip<T: TextBackend>(
         spec: TooltipSpec<'_>,
+        _pre_layout: TooltipPreLayoutResult,
         text_backend: &mut T,
         cmds: &mut DrawCommands,
     ) -> TooltipResult {
@@ -266,13 +282,13 @@ pub fn tooltip<'a, T: TextBackend, S: LayoutState, CF>(
     layout_params: S::Params,
 ) -> TooltipResult {
     let spec = builder.defaults_from_theme(&ctx.theme).build();
-    let size_spec = raw::TooltipSizeSpec {
+    let pre_layout_spec = raw::TooltipPreLayoutSpec {
         text: spec.text,
         style: spec.style,
     };
     let offer = ctx.peek_offer(layout_params.clone());
-    let size_request = raw::size_tooltip(&size_spec, offer, ctx.text_backend);
-    let rect = ctx.layout(layout_params, size_request);
+    let pre_layout = raw::pre_layout_tooltip(&pre_layout_spec, offer, ctx.text_backend);
+    let rect = ctx.layout(layout_params, pre_layout.size_request);
     let raw_spec = raw::TooltipSpec {
         rect,
         text: spec.text,
@@ -280,7 +296,7 @@ pub fn tooltip<'a, T: TextBackend, S: LayoutState, CF>(
         style: spec.style,
         layer: ctx.layer,
     };
-    let result = raw::tooltip(raw_spec, ctx.text_backend, ctx.cmds);
+    let result = raw::post_layout_tooltip(raw_spec, pre_layout, ctx.text_backend, ctx.cmds);
     TooltipResult {
         layout: LayoutInfo::new(result.bounds, result.content_bounds),
     }
@@ -304,7 +320,14 @@ mod tests {
         };
         let style = spec.style;
         let mut cmds = DrawCommands::new();
-        let res = raw::tooltip(spec, &mut text_backend, &mut cmds);
+        let res = raw::post_layout_tooltip(
+            spec,
+            raw::TooltipPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
+            &mut text_backend,
+            &mut cmds,
+        );
 
         assert_eq!(res.bounds, Rect::new(0.0, 0.0, 72.0, 27.0));
         assert_eq!(
@@ -386,7 +409,14 @@ mod tests {
         };
         let style = spec.style;
         let mut cmds = DrawCommands::new();
-        let res = raw::tooltip(spec, &mut text_backend, &mut cmds);
+        let res = raw::post_layout_tooltip(
+            spec,
+            raw::TooltipPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
+            &mut text_backend,
+            &mut cmds,
+        );
 
         assert_eq!(res.bounds, Rect::new(0.0, 0.0, 72.0, 27.0));
         assert_eq!(

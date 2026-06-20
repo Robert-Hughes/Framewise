@@ -23,9 +23,14 @@ pub mod raw {
     }
 
     #[derive(Debug, Clone, PartialEq)]
-    pub struct TabsSizeSpec<'a> {
+    pub struct TabsPreLayoutSpec<'a> {
         pub items: &'a [&'a str],
         pub style: super::TabsStyle,
+    }
+
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct TabsPreLayoutResult {
+        pub size_request: crate::layout::SizeRequest,
     }
 
     #[derive(Debug, Clone, PartialEq)]
@@ -39,8 +44,18 @@ pub mod raw {
     ///
     /// This currently measures text with unbounded bounds; offer-sensitive
     /// wrapping is future work.
-    pub fn size_tabs<T: TextBackend>(
-        spec: &TabsSizeSpec,
+    pub fn pre_layout_tabs<T: TextBackend>(
+        spec: &TabsPreLayoutSpec,
+        offer: SizeOffer,
+        text_backend: &mut T,
+    ) -> TabsPreLayoutResult {
+        TabsPreLayoutResult {
+            size_request: size_tabs(spec, offer, text_backend),
+        }
+    }
+
+    fn size_tabs<T: TextBackend>(
+        spec: &TabsPreLayoutSpec,
         _offer: SizeOffer,
         text_backend: &mut T,
     ) -> SizeRequest {
@@ -57,8 +72,9 @@ pub mod raw {
     ///
     /// This is the raw implementation that takes all parameters explicitly.
     /// High-level wrappers should use this internally.
-    pub fn tabs<'a, T: TextBackend>(
+    pub fn post_layout_tabs<'a, T: TextBackend>(
         spec: TabsSpec<'a>,
+        _pre_layout: TabsPreLayoutResult,
         state: &mut TabsState,
         input: &Input,
         focus_system: &mut FocusSystem,
@@ -353,13 +369,13 @@ pub fn tabs<'a, T: TextBackend, S: LayoutState, CF>(
     state: &mut TabsState,
 ) -> TabsResult {
     let spec = builder.defaults_from_theme(&ctx.theme).build();
-    let size_spec = raw::TabsSizeSpec {
+    let pre_layout_spec = raw::TabsPreLayoutSpec {
         items: spec.items,
         style: spec.style,
     };
     let offer = ctx.peek_offer(layout_params.clone());
-    let size_request = raw::size_tabs(&size_spec, offer, ctx.text_backend);
-    let rect = ctx.layout(layout_params, size_request);
+    let pre_layout = raw::pre_layout_tabs(&pre_layout_spec, offer, ctx.text_backend);
+    let rect = ctx.layout(layout_params, pre_layout.size_request);
     let raw_spec = raw::TabsSpec {
         rect,
         items: spec.items,
@@ -369,8 +385,9 @@ pub fn tabs<'a, T: TextBackend, S: LayoutState, CF>(
         layer: ctx.layer,
     };
 
-    let result = raw::tabs(
+    let result = raw::post_layout_tabs(
         raw_spec,
+        pre_layout,
         state,
         ctx.input,
         ctx.focus_system,
@@ -406,8 +423,11 @@ mod tests {
     fn tabs_dummy<'a>(spec: TabsSpec<'a>, active_index: usize) -> (DrawCommands, raw::TabsResult) {
         let mut cmds = DrawCommands::new();
         let mut text_backend = TestTextBackend;
-        let result = raw::tabs(
+        let result = raw::post_layout_tabs(
             spec,
+            raw::TabsPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut TabsState {
                 active_index,
                 ..Default::default()
@@ -521,8 +541,11 @@ mod tests {
         let spec = make_spec(&items);
         let style = spec.style;
         let mut cmds = DrawCommands::new();
-        let _res = raw::tabs(
+        let _res = raw::post_layout_tabs(
             spec,
+            raw::TabsPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &Input::default(),
             &mut focus_system,
@@ -634,8 +657,11 @@ mod tests {
 
         focus_system.begin_frame();
         let mut cmds = DrawCommands::new();
-        raw::tabs(
+        raw::post_layout_tabs(
             spec,
+            raw::TabsPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input,
             &mut focus_system,
@@ -674,8 +700,11 @@ mod tests {
 
         focus_system.begin_frame();
         let mut cmds = DrawCommands::new();
-        raw::tabs(
+        raw::post_layout_tabs(
             spec,
+            raw::TabsPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input,
             &mut focus_system,
@@ -706,8 +735,11 @@ mod tests {
         input.key_pressed_right = true;
         focus_system.begin_frame();
         let mut cmds = DrawCommands::new();
-        raw::tabs(
+        raw::post_layout_tabs(
             make_spec(&items),
+            raw::TabsPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input,
             &mut focus_system,
@@ -723,8 +755,11 @@ mod tests {
         input.key_pressed_left = true;
         focus_system.begin_frame();
         let mut cmds = DrawCommands::new();
-        raw::tabs(
+        raw::post_layout_tabs(
             make_spec(&items),
+            raw::TabsPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input,
             &mut focus_system,
@@ -785,12 +820,12 @@ mod tests {
     #[test]
     fn test_size_tabs() {
         let mut ts = TestTextBackend;
-        let spec = raw::TabsSizeSpec {
+        let spec = raw::TabsPreLayoutSpec {
             items: &["Tab1", "Tab2"],
             style: TabsStyle::from_theme(&crate::theme::Theme::framewise()),
         };
         // Tab1 = 4 chars * 8px = 32px + 2*18 pad = 68px; Tab2 = same = 68px; total = 136px
-        let size_request = raw::size_tabs(&spec, SizeOffer::UNBOUNDED, &mut ts);
+        let size_request = raw::pre_layout_tabs(&spec, SizeOffer::UNBOUNDED, &mut ts).size_request;
         assert_eq!(size_request.preferred, Some(Vec2::new(136.0, 36.0)));
     }
 }

@@ -39,11 +39,16 @@ pub mod raw {
     }
 
     #[derive(Debug, Clone, PartialEq)]
-    pub struct TextEditSizeSpec {
+    pub struct TextEditPreLayoutSpec {
         pub style: super::TextEditStyle,
         pub wrap: bool,
         pub line_align: TextLineAlign,
         pub error: bool,
+    }
+
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct TextEditPreLayoutResult {
+        pub size_request: crate::layout::SizeRequest,
     }
 
     #[derive(Debug, Clone, PartialEq)]
@@ -183,10 +188,21 @@ pub mod raw {
     // reserved vertical scrollbar gutter. Otherwise an auto-sized wrapped
     // TextEdit can request a width based on one content width, then be laid out
     // with a different content width and rewrap immediately.
-    pub fn size_text_edit<T: TextBackend>(
-        spec: &TextEditSizeSpec,
+    pub fn pre_layout_text_edit<T: TextBackend>(
+        spec: &TextEditPreLayoutSpec,
         offer: SizeOffer,
         state: &TextEditState,
+        text_backend: &mut T,
+    ) -> TextEditPreLayoutResult {
+        let size_request =
+            text_edit_size_request_for_value(spec, offer, &state.value, text_backend);
+        TextEditPreLayoutResult { size_request }
+    }
+
+    fn text_edit_size_request_for_value<T: TextBackend>(
+        spec: &TextEditPreLayoutSpec,
+        offer: SizeOffer,
+        value: &str,
         text_backend: &mut T,
     ) -> SizeRequest {
         let (max_width, reserved_vertical_width) = if spec.wrap {
@@ -210,7 +226,7 @@ pub mod raw {
 
         let layout = layout_text(
             text_backend,
-            &state.value,
+            value,
             to_text_style(spec.style, spec.wrap, spec.line_align),
             TextBounds {
                 max_width,
@@ -237,8 +253,9 @@ pub mod raw {
     ///
     /// This is the raw implementation that takes all parameters explicitly.
     /// High-level wrappers should use this internally.
-    pub fn text_edit<T: TextBackend>(
+    pub fn post_layout_text_edit<T: TextBackend>(
         spec: TextEditSpec,
+        _pre_layout: TextEditPreLayoutResult,
         state: &mut TextEditState,
         input: &Input,
         focus_system: &mut FocusSystem,
@@ -1931,15 +1948,15 @@ pub fn text_edit<T: TextBackend, S: LayoutState, CF>(
     state: &mut TextEditState,
 ) -> TextEditResult {
     let spec = builder.defaults_from_theme(&ctx.theme).build();
-    let size_spec = raw::TextEditSizeSpec {
+    let pre_layout_spec = raw::TextEditPreLayoutSpec {
         style: spec.style,
         wrap: spec.wrap,
         line_align: spec.line_align,
         error: spec.error,
     };
     let offer = ctx.peek_offer(layout_params.clone());
-    let size_request = raw::size_text_edit(&size_spec, offer, state, ctx.text_backend);
-    let rect = ctx.layout(layout_params, size_request);
+    let pre_layout = raw::pre_layout_text_edit(&pre_layout_spec, offer, state, ctx.text_backend);
+    let rect = ctx.layout(layout_params, pre_layout.size_request);
     let raw_spec = raw::TextEditSpec {
         rect,
         style: spec.style,
@@ -1954,8 +1971,9 @@ pub fn text_edit<T: TextBackend, S: LayoutState, CF>(
         vertical_align: spec.vertical_align,
         line_align: spec.line_align,
     };
-    let result = raw::text_edit(
+    let result = raw::post_layout_text_edit(
         raw_spec,
+        pre_layout,
         state,
         ctx.input,
         ctx.focus_system,
@@ -2140,8 +2158,11 @@ mod tests {
         edit_spec.rect = Rect::new(0.0, 0.0, 100.0, 30.0);
         edit_spec.wrap = true;
 
-        raw::text_edit(
+        raw::post_layout_text_edit(
             edit_spec,
+            raw::TextEditPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &Input::default(),
             &mut focus_system,
@@ -2185,10 +2206,28 @@ mod tests {
                 let mut spec2 = spec();
                 spec2.rect = Rect::new(50.0, 50.0, 100.0, 100.0);
 
-                let res1 =
-                    raw::text_edit(spec1, state1, input, focus_system, &mut text_backend, cmds);
-                let res2 =
-                    raw::text_edit(spec2, state2, input, focus_system, &mut text_backend, cmds);
+                let res1 = raw::post_layout_text_edit(
+                    spec1,
+                    raw::TextEditPreLayoutResult {
+                        size_request: crate::layout::SizeRequest::UNKNOWN,
+                    },
+                    state1,
+                    input,
+                    focus_system,
+                    &mut text_backend,
+                    cmds,
+                );
+                let res2 = raw::post_layout_text_edit(
+                    spec2,
+                    raw::TextEditPreLayoutResult {
+                        size_request: crate::layout::SizeRequest::UNKNOWN,
+                    },
+                    state2,
+                    input,
+                    focus_system,
+                    &mut text_backend,
+                    cmds,
+                );
                 (res1.input, res2.input)
             },
         );
@@ -2211,10 +2250,28 @@ mod tests {
                 let mut spec2 = spec();
                 spec2.rect = Rect::new(50.0, 50.0, 100.0, 100.0);
 
-                let res1 =
-                    raw::text_edit(spec1, state1, input, focus_system, &mut text_backend, cmds);
-                let res2 =
-                    raw::text_edit(spec2, state2, input, focus_system, &mut text_backend, cmds);
+                let res1 = raw::post_layout_text_edit(
+                    spec1,
+                    raw::TextEditPreLayoutResult {
+                        size_request: crate::layout::SizeRequest::UNKNOWN,
+                    },
+                    state1,
+                    input,
+                    focus_system,
+                    &mut text_backend,
+                    cmds,
+                );
+                let res2 = raw::post_layout_text_edit(
+                    spec2,
+                    raw::TextEditPreLayoutResult {
+                        size_request: crate::layout::SizeRequest::UNKNOWN,
+                    },
+                    state2,
+                    input,
+                    focus_system,
+                    &mut text_backend,
+                    cmds,
+                );
                 (res1.input, res2.input)
             },
         );
@@ -2234,8 +2291,11 @@ mod tests {
         input.text_events.push(TextEvent::Char('b'));
         input.text_events.push(TextEvent::Char('c'));
 
-        raw::text_edit(
+        raw::post_layout_text_edit(
             spec(),
+            raw::TextEditPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input,
             &mut focus_system,
@@ -2251,8 +2311,11 @@ mod tests {
             shift: false,
             ctrl: false,
         });
-        raw::text_edit(
+        raw::post_layout_text_edit(
             spec(),
+            raw::TextEditPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input,
             &mut focus_system,
@@ -2264,8 +2327,11 @@ mod tests {
         // Insert at cursor
         input.text_events.clear();
         input.text_events.push(TextEvent::Char('x'));
-        raw::text_edit(
+        raw::post_layout_text_edit(
             spec(),
+            raw::TextEditPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input,
             &mut focus_system,
@@ -2289,8 +2355,11 @@ mod tests {
         let mut input = Input::default();
         input.text_events.push(TextEvent::Backspace { ctrl: false });
 
-        raw::text_edit(
+        raw::post_layout_text_edit(
             spec(),
+            raw::TextEditPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input,
             &mut focus_system,
@@ -2302,8 +2371,11 @@ mod tests {
 
         input.text_events.clear();
         input.text_events.push(TextEvent::Delete { ctrl: false });
-        raw::text_edit(
+        raw::post_layout_text_edit(
             spec(),
+            raw::TextEditPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input,
             &mut focus_system,
@@ -2327,8 +2399,11 @@ mod tests {
         let mut input = Input::default();
         input.text_events.push(TextEvent::Backspace { ctrl: true });
 
-        raw::text_edit(
+        raw::post_layout_text_edit(
             spec(),
+            raw::TextEditPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input,
             &mut focus_system,
@@ -2340,8 +2415,11 @@ mod tests {
 
         input.text_events.clear();
         input.text_events.push(TextEvent::Delete { ctrl: true });
-        raw::text_edit(
+        raw::post_layout_text_edit(
             spec(),
+            raw::TextEditPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input,
             &mut focus_system,
@@ -2372,8 +2450,11 @@ mod tests {
             ctrl: false,
         });
 
-        raw::text_edit(
+        raw::post_layout_text_edit(
             spec(),
+            raw::TextEditPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input,
             &mut focus_system,
@@ -2385,8 +2466,11 @@ mod tests {
 
         input.text_events.clear();
         input.text_events.push(TextEvent::Char('a'));
-        raw::text_edit(
+        raw::post_layout_text_edit(
             spec(),
+            raw::TextEditPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input,
             &mut focus_system,
@@ -2416,8 +2500,11 @@ mod tests {
             ctrl: false,
         });
 
-        raw::text_edit(
+        raw::post_layout_text_edit(
             spec(),
+            raw::TextEditPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input,
             &mut focus_system,
@@ -2438,8 +2525,11 @@ mod tests {
             ctrl: false,
         });
 
-        raw::text_edit(
+        raw::post_layout_text_edit(
             spec(),
+            raw::TextEditPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input,
             &mut focus_system,
@@ -2471,8 +2561,11 @@ mod tests {
         };
 
         focus_system.begin_frame();
-        raw::text_edit(
+        raw::post_layout_text_edit(
             edit_spec.clone(),
+            raw::TextEditPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input,
             &mut focus_system,
@@ -2484,8 +2577,11 @@ mod tests {
         input.mouse_down = true;
         input.mouse_pressed = true;
         focus_system.begin_frame();
-        raw::text_edit(
+        raw::post_layout_text_edit(
             edit_spec.clone(),
+            raw::TextEditPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input,
             &mut focus_system,
@@ -2506,8 +2602,11 @@ mod tests {
         input.mouse_down = false;
         input.mouse_pressed = false;
         focus_system.begin_frame();
-        raw::text_edit(
+        raw::post_layout_text_edit(
             edit_spec,
+            raw::TextEditPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input,
             &mut focus_system,
@@ -2537,8 +2636,11 @@ mod tests {
         };
 
         focus_system.begin_frame();
-        raw::text_edit(
+        raw::post_layout_text_edit(
             spec(),
+            raw::TextEditPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input,
             &mut focus_system,
@@ -2550,8 +2652,11 @@ mod tests {
         input.mouse_down = true;
         input.mouse_pressed = true;
         focus_system.begin_frame();
-        raw::text_edit(
+        raw::post_layout_text_edit(
             spec(),
+            raw::TextEditPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input,
             &mut focus_system,
@@ -2579,8 +2684,11 @@ mod tests {
 
         // Frame 1: Warmup to establish hover claim
         focus_system.begin_frame();
-        raw::text_edit(
+        raw::post_layout_text_edit(
             spec(),
+            raw::TextEditPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input,
             &mut focus_system,
@@ -2593,8 +2701,11 @@ mod tests {
         input.mouse_down = true;
         input.mouse_pressed = true;
         focus_system.begin_frame();
-        raw::text_edit(
+        raw::post_layout_text_edit(
             spec(),
+            raw::TextEditPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input,
             &mut focus_system,
@@ -2610,8 +2721,11 @@ mod tests {
         input.mouse_pressed = false;
         input.mouse_pos.x += 24.0;
         focus_system.begin_frame();
-        raw::text_edit(
+        raw::post_layout_text_edit(
             spec(),
+            raw::TextEditPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input,
             &mut focus_system,
@@ -2625,8 +2739,11 @@ mod tests {
         // Frame 4: Mouse up / release
         input.mouse_down = false;
         focus_system.begin_frame();
-        raw::text_edit(
+        raw::post_layout_text_edit(
             spec(),
+            raw::TextEditPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input,
             &mut focus_system,
@@ -2656,8 +2773,11 @@ mod tests {
 
         // Frame 1: Warmup to establish hover claim
         focus_system.begin_frame();
-        raw::text_edit(
+        raw::post_layout_text_edit(
             spec(),
+            raw::TextEditPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input,
             &mut focus_system,
@@ -2671,8 +2791,11 @@ mod tests {
         input.mouse_pressed = true;
         input.mouse_click_count = 2;
         focus_system.begin_frame();
-        raw::text_edit(
+        raw::post_layout_text_edit(
             spec(),
+            raw::TextEditPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input,
             &mut focus_system,
@@ -2690,8 +2813,11 @@ mod tests {
         input.mouse_pressed = false;
         input.mouse_pos.x = 112.0 + spec().style.padding_x + spec().style.border_width;
         focus_system.begin_frame();
-        raw::text_edit(
+        raw::post_layout_text_edit(
             spec(),
+            raw::TextEditPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input,
             &mut focus_system,
@@ -2706,8 +2832,11 @@ mod tests {
         // Frame 4: Drag left to "hello" (byte index 2 -> pixel 16)
         input.mouse_pos.x = 16.0 + spec().style.padding_x + spec().style.border_width;
         focus_system.begin_frame();
-        raw::text_edit(
+        raw::post_layout_text_edit(
             spec(),
+            raw::TextEditPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input,
             &mut focus_system,
@@ -2733,8 +2862,11 @@ mod tests {
 
             // Frame 1: Hover
             focus_system.begin_frame();
-            raw::text_edit(
+            raw::post_layout_text_edit(
                 spec(),
+                raw::TextEditPreLayoutResult {
+                    size_request: crate::layout::SizeRequest::UNKNOWN,
+                },
                 &mut state,
                 &input,
                 &mut focus_system,
@@ -2748,8 +2880,11 @@ mod tests {
             input.mouse_pressed = true;
             input.mouse_click_count = 2;
             focus_system.begin_frame();
-            raw::text_edit(
+            raw::post_layout_text_edit(
                 spec(),
+                raw::TextEditPreLayoutResult {
+                    size_request: crate::layout::SizeRequest::UNKNOWN,
+                },
                 &mut state,
                 &input,
                 &mut focus_system,
@@ -2800,8 +2935,11 @@ mod tests {
 
             // Frame 1: Hover
             focus_system.begin_frame();
-            raw::text_edit(
+            raw::post_layout_text_edit(
                 edit_spec.clone(),
+                raw::TextEditPreLayoutResult {
+                    size_request: crate::layout::SizeRequest::UNKNOWN,
+                },
                 &mut state,
                 &input,
                 &mut focus_system,
@@ -2815,8 +2953,11 @@ mod tests {
             input.mouse_pressed = true;
             input.mouse_click_count = 2;
             focus_system.begin_frame();
-            raw::text_edit(
+            raw::post_layout_text_edit(
                 edit_spec,
+                raw::TextEditPreLayoutResult {
+                    size_request: crate::layout::SizeRequest::UNKNOWN,
+                },
                 &mut state,
                 &input,
                 &mut focus_system,
@@ -2862,8 +3003,11 @@ mod tests {
 
         input.mouse_pos = Vec2::new(5.0 + 8.0, 5.0 + 16.0 + 8.0);
         focus_system.begin_frame();
-        raw::text_edit(
+        raw::post_layout_text_edit(
             edit_spec.clone(),
+            raw::TextEditPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input,
             &mut focus_system,
@@ -2876,8 +3020,11 @@ mod tests {
         input.mouse_pressed = true;
         input.mouse_click_count = 3;
         focus_system.begin_frame();
-        raw::text_edit(
+        raw::post_layout_text_edit(
             edit_spec,
+            raw::TextEditPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input,
             &mut focus_system,
@@ -2907,8 +3054,11 @@ mod tests {
 
         input.mouse_pos = Vec2::new(5.0 + 8.0, 5.0 + 16.0 + 8.0);
         focus_system.begin_frame();
-        raw::text_edit(
+        raw::post_layout_text_edit(
             edit_spec.clone(),
+            raw::TextEditPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input,
             &mut focus_system,
@@ -2921,8 +3071,11 @@ mod tests {
         input.mouse_pressed = true;
         input.mouse_click_count = 3;
         focus_system.begin_frame();
-        raw::text_edit(
+        raw::post_layout_text_edit(
             edit_spec.clone(),
+            raw::TextEditPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input,
             &mut focus_system,
@@ -2938,8 +3091,11 @@ mod tests {
         input.mouse_pressed = false;
         input.mouse_pos = Vec2::new(5.0 + 16.0, 5.0 + 32.0 + 8.0);
         focus_system.begin_frame();
-        raw::text_edit(
+        raw::post_layout_text_edit(
             edit_spec.clone(),
+            raw::TextEditPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input,
             &mut focus_system,
@@ -2953,8 +3109,11 @@ mod tests {
 
         input.mouse_pos = Vec2::new(5.0 + 16.0, 5.0 + 8.0);
         focus_system.begin_frame();
-        raw::text_edit(
+        raw::post_layout_text_edit(
             edit_spec,
+            raw::TextEditPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input,
             &mut focus_system,
@@ -2983,8 +3142,11 @@ mod tests {
 
         input.mouse_pos = Vec2::new(5.0 + 16.0, 5.0 + 16.0 + 8.0);
         focus_system.begin_frame();
-        raw::text_edit(
+        raw::post_layout_text_edit(
             edit_spec.clone(),
+            raw::TextEditPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input,
             &mut focus_system,
@@ -2997,8 +3159,11 @@ mod tests {
         input.mouse_pressed = true;
         input.mouse_click_count = 3;
         focus_system.begin_frame();
-        raw::text_edit(
+        raw::post_layout_text_edit(
             edit_spec,
+            raw::TextEditPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input,
             &mut focus_system,
@@ -3026,8 +3191,11 @@ mod tests {
 
         input.mouse_pos = Vec2::new(5.0 + 8.0, 5.0 + 16.0 + 8.0);
         focus_system.begin_frame();
-        raw::text_edit(
+        raw::post_layout_text_edit(
             edit_spec.clone(),
+            raw::TextEditPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input,
             &mut focus_system,
@@ -3040,8 +3208,11 @@ mod tests {
         input.mouse_pressed = true;
         input.mouse_click_count = 4;
         focus_system.begin_frame();
-        raw::text_edit(
+        raw::post_layout_text_edit(
             edit_spec,
+            raw::TextEditPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input,
             &mut focus_system,
@@ -3068,8 +3239,11 @@ mod tests {
         let mut input = Input::default();
 
         let mut cmds = DrawCommands::new();
-        raw::text_edit(
+        raw::post_layout_text_edit(
             spec(),
+            raw::TextEditPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input,
             &mut focus_system,
@@ -3082,10 +3256,13 @@ mod tests {
         assert!(has_caret, "Caret should be visible initially");
 
         let mut cmds = DrawCommands::new();
-        raw::text_edit(
+        raw::post_layout_text_edit(
             TextEditSpec {
                 time: 0.6,
                 ..spec()
+            },
+            raw::TextEditPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
             },
             &mut state,
             &input,
@@ -3103,10 +3280,13 @@ mod tests {
             ctrl: false,
         });
         let mut cmds = DrawCommands::new();
-        raw::text_edit(
+        raw::post_layout_text_edit(
             TextEditSpec {
                 time: 0.6,
                 ..spec()
+            },
+            raw::TextEditPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
             },
             &mut state,
             &input,
@@ -3126,10 +3306,13 @@ mod tests {
 
         input.text_events.clear();
         let mut cmds = DrawCommands::new();
-        raw::text_edit(
+        raw::post_layout_text_edit(
             TextEditSpec {
                 time: 1.0,
                 ..spec()
+            },
+            raw::TextEditPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
             },
             &mut state,
             &input,
@@ -3143,10 +3326,13 @@ mod tests {
         assert!(has_caret, "Caret should stay visible for 0.5s after moving");
 
         let mut cmds = DrawCommands::new();
-        raw::text_edit(
+        raw::post_layout_text_edit(
             TextEditSpec {
                 time: 1.2,
                 ..spec()
+            },
+            raw::TextEditPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
             },
             &mut state,
             &input,
@@ -3172,10 +3358,13 @@ mod tests {
         focus_system.end_frame();
 
         let mut cmds = DrawCommands::new();
-        raw::text_edit(
+        raw::post_layout_text_edit(
             TextEditSpec {
                 time: 0.6,
                 ..spec()
+            },
+            raw::TextEditPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
             },
             &mut state,
             &Input::default(),
@@ -3210,8 +3399,11 @@ mod tests {
         };
 
         focus_system.begin_frame();
-        raw::text_edit(
+        raw::post_layout_text_edit(
             spec(),
+            raw::TextEditPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input,
             &mut focus_system,
@@ -3223,10 +3415,13 @@ mod tests {
         input.mouse_down = true;
         input.mouse_pressed = true;
         focus_system.begin_frame();
-        raw::text_edit(
+        raw::post_layout_text_edit(
             TextEditSpec {
                 time: 0.6,
                 ..spec()
+            },
+            raw::TextEditPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
             },
             &mut state,
             &input,
@@ -3240,10 +3435,13 @@ mod tests {
         input.mouse_pressed = false;
         let mut cmds = DrawCommands::new();
         focus_system.begin_frame();
-        raw::text_edit(
+        raw::post_layout_text_edit(
             TextEditSpec {
                 time: 0.6,
                 ..spec()
+            },
+            raw::TextEditPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
             },
             &mut state,
             &input,
@@ -3301,8 +3499,11 @@ mod tests {
         focus_system.take_keyboard_focus(state.focus_id);
         focus_system.end_frame();
 
-        raw::text_edit(
+        raw::post_layout_text_edit(
             spec(),
+            raw::TextEditPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input,
             &mut focus_system,
@@ -3330,8 +3531,11 @@ mod tests {
 
         // Frame 1: Warmup to establish hover claim
         focus_system.begin_frame();
-        raw::text_edit(
+        raw::post_layout_text_edit(
             spec(),
+            raw::TextEditPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input,
             &mut focus_system,
@@ -3344,8 +3548,11 @@ mod tests {
         focus_system.begin_frame();
         input.mouse_down = true;
         input.mouse_pressed = true;
-        raw::text_edit(
+        raw::post_layout_text_edit(
             spec(),
+            raw::TextEditPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input,
             &mut focus_system,
@@ -3357,8 +3564,11 @@ mod tests {
         // Frame 3: Mouse release
         focus_system.begin_frame();
         input.mouse_pressed = false;
-        raw::text_edit(
+        raw::post_layout_text_edit(
             spec(),
+            raw::TextEditPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input,
             &mut focus_system,
@@ -3385,8 +3595,11 @@ mod tests {
 
         // Frame 1: Warmup to establish hover claim
         focus_system.begin_frame();
-        raw::text_edit(
+        raw::post_layout_text_edit(
             spec(),
+            raw::TextEditPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input,
             &mut focus_system,
@@ -3399,8 +3612,11 @@ mod tests {
         input.mouse_pressed = true;
         input.mouse_down = true;
         focus_system.begin_frame();
-        raw::text_edit(
+        raw::post_layout_text_edit(
             spec(),
+            raw::TextEditPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input,
             &mut focus_system,
@@ -3436,8 +3652,11 @@ mod tests {
         };
 
         focus_system.begin_frame();
-        raw::text_edit(
+        raw::post_layout_text_edit(
             clipped_spec,
+            raw::TextEditPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input,
             &mut focus_system,
@@ -3468,8 +3687,11 @@ mod tests {
 
         let mut input = Input::default();
         input.text_events.push(TextEvent::Copy);
-        let res = raw::text_edit(
+        let res = raw::post_layout_text_edit(
             spec(),
+            raw::TextEditPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input,
             &mut focus_system,
@@ -3481,8 +3703,11 @@ mod tests {
 
         input.text_events.clear();
         input.text_events.push(TextEvent::Cut);
-        let res = raw::text_edit(
+        let res = raw::post_layout_text_edit(
             spec(),
+            raw::TextEditPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input,
             &mut focus_system,
@@ -3496,8 +3721,11 @@ mod tests {
 
         input.text_events.clear();
         input.text_events.push(TextEvent::Paste("rust".to_string()));
-        let res = raw::text_edit(
+        let res = raw::post_layout_text_edit(
             spec(),
+            raw::TextEditPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input,
             &mut focus_system,
@@ -3518,8 +3746,11 @@ mod tests {
         let mut state = TextEditState::new("hello");
         let input = Input::default();
         let mut cmds = DrawCommands::new();
-        raw::text_edit(
+        raw::post_layout_text_edit(
             spec(),
+            raw::TextEditPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input,
             &mut focus_system,
@@ -3577,8 +3808,11 @@ mod tests {
         let mut focus_system = FocusSystem::new_mocked(None, Some(state.focus_id));
         let mut cmds = DrawCommands::new();
 
-        raw::text_edit(
+        raw::post_layout_text_edit(
             spec(),
+            raw::TextEditPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input,
             &mut focus_system,
@@ -3599,10 +3833,13 @@ mod tests {
         let mut state = TextEditState::default();
         let mut cmds = DrawCommands::new();
 
-        raw::text_edit(
+        raw::post_layout_text_edit(
             TextEditSpec {
                 placeholder: Some("frame_buffer".to_string()),
                 ..spec()
+            },
+            raw::TextEditPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
             },
             &mut state,
             &Input::default(),
@@ -3623,10 +3860,13 @@ mod tests {
         state.had_keyboard_focus = true;
         let mut focused_cmds = DrawCommands::new();
 
-        raw::text_edit(
+        raw::post_layout_text_edit(
             TextEditSpec {
                 placeholder: Some("frame_buffer".to_string()),
                 ..spec()
+            },
+            raw::TextEditPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
             },
             &mut state,
             &Input::default(),
@@ -3654,8 +3894,11 @@ mod tests {
 
         let input = Input::default();
         let mut cmds = DrawCommands::new();
-        raw::text_edit(
+        raw::post_layout_text_edit(
             spec(),
+            raw::TextEditPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input,
             &mut focus_system,
@@ -3723,8 +3966,11 @@ mod tests {
 
         let input = Input::default();
         let mut cmds = DrawCommands::new();
-        raw::text_edit(
+        raw::post_layout_text_edit(
             spec(),
+            raw::TextEditPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input,
             &mut focus_system,
@@ -3800,10 +4046,13 @@ mod tests {
 
             let input = Input::default();
             let mut cmds = DrawCommands::new();
-            raw::text_edit(
+            raw::post_layout_text_edit(
                 TextEditSpec {
                     line_align,
                     ..spec()
+                },
+                raw::TextEditPreLayoutResult {
+                    size_request: crate::layout::SizeRequest::UNKNOWN,
                 },
                 &mut state,
                 &input,
@@ -3838,12 +4087,15 @@ mod tests {
         let input = Input::default();
         let mut cmds = DrawCommands::new();
 
-        raw::text_edit(
+        raw::post_layout_text_edit(
             TextEditSpec {
                 line_align: TextLineAlign::Center,
                 newline_policy: NewlinePolicy::Preserve,
                 rect: Rect::new(0.0, 0.0, 200.0, 60.0),
                 ..spec()
+            },
+            raw::TextEditPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
             },
             &mut state,
             &input,
@@ -3875,8 +4127,10 @@ mod tests {
         set_caret_byte(&mut state, end);
         state.scroll.offset.x = 0.0;
 
-        let mut input = Input::default();
-        input.text_events = vec![TextEvent::Char('y')];
+        let input = Input {
+            text_events: vec![TextEvent::Char('y')],
+            ..Input::default()
+        };
 
         let edit_spec = TextEditSpec {
             line_align: TextLineAlign::Center,
@@ -3885,8 +4139,11 @@ mod tests {
         };
 
         let mut cmds = DrawCommands::new();
-        raw::text_edit(
+        raw::post_layout_text_edit(
             edit_spec.clone(),
+            raw::TextEditPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input,
             &mut focus_system,
@@ -3917,8 +4174,11 @@ mod tests {
 
         let input = Input::default();
         let mut cmds = DrawCommands::new();
-        raw::text_edit(
+        raw::post_layout_text_edit(
             sp.clone(),
+            raw::TextEditPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input,
             &mut focus_system,
@@ -4016,8 +4276,11 @@ mod tests {
 
         // 1. Caret at start (0): scroll should be 0.0
         set_caret_byte(&mut state, 0);
-        raw::text_edit(
+        raw::post_layout_text_edit(
             spec(),
+            raw::TextEditPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input,
             &mut focus_system,
@@ -4033,8 +4296,11 @@ mod tests {
             shift: false,
             ctrl: false,
         }];
-        raw::text_edit(
+        raw::post_layout_text_edit(
             spec(),
+            raw::TextEditPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input,
             &mut focus_system,
@@ -4052,8 +4318,11 @@ mod tests {
             ctrl: false,
         }];
         let mut cmds = DrawCommands::new();
-        raw::text_edit(
+        raw::post_layout_text_edit(
             spec(),
+            raw::TextEditPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input,
             &mut focus_system,
@@ -4072,8 +4341,11 @@ mod tests {
             shift: false,
             ctrl: false,
         }];
-        raw::text_edit(
+        raw::post_layout_text_edit(
             spec(),
+            raw::TextEditPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input,
             &mut focus_system,
@@ -4092,12 +4364,17 @@ mod tests {
         set_caret_byte(&mut state, end);
         state.scroll.offset.x = 0.0;
 
-        let mut input = Input::default();
-        input.text_events = vec![TextEvent::Char('!')];
+        let input = Input {
+            text_events: vec![TextEvent::Char('!')],
+            ..Input::default()
+        };
 
         let mut cmds = DrawCommands::new();
-        raw::text_edit(
+        raw::post_layout_text_edit(
             spec(),
+            raw::TextEditPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input,
             &mut focus_system,
@@ -4151,8 +4428,11 @@ mod tests {
         // Warmup frame to establish hover
         input.mouse_pos = Vec2::new(10.0, 15.0);
         focus_system.begin_frame();
-        raw::text_edit(
+        raw::post_layout_text_edit(
             spec(),
+            raw::TextEditPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input,
             &mut focus_system,
@@ -4167,8 +4447,11 @@ mod tests {
         input.mouse_pressed = false;
         input.mouse_click_count = 0;
         focus_system.begin_frame();
-        raw::text_edit(
+        raw::post_layout_text_edit(
             spec(),
+            raw::TextEditPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input,
             &mut focus_system,
@@ -4189,8 +4472,11 @@ mod tests {
             15.0,
         );
         focus_system.begin_frame();
-        raw::text_edit(
+        raw::post_layout_text_edit(
             spec(),
+            raw::TextEditPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input,
             &mut focus_system,
@@ -4213,8 +4499,11 @@ mod tests {
             15.0,
         );
         focus_system.begin_frame();
-        raw::text_edit(
+        raw::post_layout_text_edit(
             spec(),
+            raw::TextEditPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input,
             &mut focus_system,
@@ -4245,8 +4534,11 @@ mod tests {
 
         let input = Input::default();
         let mut cmds = DrawCommands::new();
-        raw::text_edit(
+        raw::post_layout_text_edit(
             spec(),
+            raw::TextEditPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input,
             &mut focus_system,
@@ -4299,8 +4591,11 @@ mod tests {
 
         // Frame 1: Warmup to establish hover claim
         focus_system.begin_frame();
-        raw::text_edit(
+        raw::post_layout_text_edit(
             spec(),
+            raw::TextEditPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input,
             &mut focus_system,
@@ -4315,8 +4610,11 @@ mod tests {
         input.mouse_down = true;
 
         let mut cmds = DrawCommands::new();
-        raw::text_edit(
+        raw::post_layout_text_edit(
             spec(),
+            raw::TextEditPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input,
             &mut focus_system,
@@ -4352,8 +4650,11 @@ mod tests {
 
         let input = Input::default();
         let mut cmds = DrawCommands::new();
-        raw::text_edit(
+        raw::post_layout_text_edit(
             edit_spec.clone(),
+            raw::TextEditPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input,
             &mut focus_system,
@@ -4387,8 +4688,11 @@ mod tests {
         // Expected text_y = outer_rect.y + padding - offset.y = 1.0 + 4.0 - 0.0 = 5.0
         state.scroll.offset.y = 0.0;
         let mut cmds = DrawCommands::new();
-        raw::text_edit(
+        raw::post_layout_text_edit(
             edit_spec.clone(),
+            raw::TextEditPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input,
             &mut focus_system,
@@ -4445,8 +4749,11 @@ mod tests {
 
         // Frame 1: Warmup to establish hover claim
         focus_system.begin_frame();
-        raw::text_edit(
+        raw::post_layout_text_edit(
             edit_spec.clone(),
+            raw::TextEditPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input,
             &mut focus_system,
@@ -4461,8 +4768,11 @@ mod tests {
         input.mouse_down = true;
 
         let mut cmds = DrawCommands::new();
-        raw::text_edit(
+        raw::post_layout_text_edit(
             edit_spec.clone(),
+            raw::TextEditPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input,
             &mut focus_system,
@@ -4498,8 +4808,11 @@ mod tests {
 
         // 1. Caret at start (Line 0, index 0): scroll should be 0.0
         set_caret_byte(&mut state, 0);
-        raw::text_edit(
+        raw::post_layout_text_edit(
             edit_spec.clone(),
+            raw::TextEditPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input,
             &mut focus_system,
@@ -4512,8 +4825,11 @@ mod tests {
         // Expected scroll = 64 - 58 + 16 = 22.0
         set_caret_byte(&mut state, 6);
         input.text_events = vec![TextEvent::CaretDown { shift: false }];
-        raw::text_edit(
+        raw::post_layout_text_edit(
             edit_spec.clone(),
+            raw::TextEditPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input,
             &mut focus_system,
@@ -4526,8 +4842,11 @@ mod tests {
         // Expected scroll = 160 - 58 + 16 = 118.0, clamped to max_scroll (110.0)
         set_caret_byte(&mut state, 27);
         input.text_events = vec![TextEvent::CaretDown { shift: false }];
-        raw::text_edit(
+        raw::post_layout_text_edit(
             edit_spec.clone(),
+            raw::TextEditPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input,
             &mut focus_system,
@@ -4540,8 +4859,11 @@ mod tests {
         // Expected scroll = 16 - 16 = 0.0
         set_caret_byte(&mut state, 6);
         input.text_events = vec![TextEvent::CaretUp { shift: false }];
-        raw::text_edit(
+        raw::post_layout_text_edit(
             edit_spec.clone(),
+            raw::TextEditPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input,
             &mut focus_system,
@@ -4573,8 +4895,11 @@ mod tests {
 
         // Warmup frame
         focus_system.begin_frame();
-        raw::text_edit(
+        raw::post_layout_text_edit(
             edit_spec.clone(),
+            raw::TextEditPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input,
             &mut focus_system,
@@ -4587,8 +4912,11 @@ mod tests {
         state.scroll.offset.y = 50.0;
         input.text_events = vec![TextEvent::SelectAll];
         focus_system.begin_frame();
-        raw::text_edit(
+        raw::post_layout_text_edit(
             edit_spec.clone(),
+            raw::TextEditPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input,
             &mut focus_system,
@@ -4608,8 +4936,11 @@ mod tests {
         input.mouse_click_count = 2;
         input.mouse_pos = Vec2::new(5.0, 9.0);
         focus_system.begin_frame();
-        raw::text_edit(
+        raw::post_layout_text_edit(
             edit_spec.clone(),
+            raw::TextEditPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input,
             &mut focus_system,
@@ -4631,8 +4962,11 @@ mod tests {
         input.mouse_click_count = 2;
         input.mouse_pos = Vec2::new(5.0, 57.0);
         focus_system.begin_frame();
-        raw::text_edit(
+        raw::post_layout_text_edit(
             edit_spec.clone(),
+            raw::TextEditPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input,
             &mut focus_system,
@@ -4667,8 +5001,11 @@ mod tests {
                 shift: false,
                 ctrl: false,
             });
-            raw::text_edit(
+            raw::post_layout_text_edit(
                 spec(),
+                raw::TextEditPreLayoutResult {
+                    size_request: crate::layout::SizeRequest::UNKNOWN,
+                },
                 &mut state,
                 &input,
                 &mut focus_system,
@@ -4693,8 +5030,11 @@ mod tests {
                 shift: false,
                 ctrl: false,
             });
-            raw::text_edit(
+            raw::post_layout_text_edit(
                 spec(),
+                raw::TextEditPreLayoutResult {
+                    size_request: crate::layout::SizeRequest::UNKNOWN,
+                },
                 &mut state,
                 &input,
                 &mut focus_system,
@@ -4719,8 +5059,11 @@ mod tests {
                 shift: false,
                 ctrl: false,
             });
-            raw::text_edit(
+            raw::post_layout_text_edit(
                 spec(),
+                raw::TextEditPreLayoutResult {
+                    size_request: crate::layout::SizeRequest::UNKNOWN,
+                },
                 &mut state,
                 &input,
                 &mut focus_system,
@@ -4745,8 +5088,11 @@ mod tests {
                 shift: false,
                 ctrl: false,
             });
-            raw::text_edit(
+            raw::post_layout_text_edit(
                 spec(),
+                raw::TextEditPreLayoutResult {
+                    size_request: crate::layout::SizeRequest::UNKNOWN,
+                },
                 &mut state,
                 &input,
                 &mut focus_system,
@@ -4773,8 +5119,11 @@ mod tests {
                 shift: false,
                 ctrl: true,
             });
-            raw::text_edit(
+            raw::post_layout_text_edit(
                 spec(),
+                raw::TextEditPreLayoutResult {
+                    size_request: crate::layout::SizeRequest::UNKNOWN,
+                },
                 &mut state,
                 &input,
                 &mut focus_system,
@@ -4799,8 +5148,11 @@ mod tests {
                 shift: false,
                 ctrl: true,
             });
-            raw::text_edit(
+            raw::post_layout_text_edit(
                 spec(),
+                raw::TextEditPreLayoutResult {
+                    size_request: crate::layout::SizeRequest::UNKNOWN,
+                },
                 &mut state,
                 &input,
                 &mut focus_system,
@@ -4826,8 +5178,11 @@ mod tests {
                 shift: true,
                 ctrl: false,
             });
-            raw::text_edit(
+            raw::post_layout_text_edit(
                 spec(),
+                raw::TextEditPreLayoutResult {
+                    size_request: crate::layout::SizeRequest::UNKNOWN,
+                },
                 &mut state,
                 &input,
                 &mut focus_system,
@@ -4852,8 +5207,11 @@ mod tests {
                 shift: true,
                 ctrl: false,
             });
-            raw::text_edit(
+            raw::post_layout_text_edit(
                 spec(),
+                raw::TextEditPreLayoutResult {
+                    size_request: crate::layout::SizeRequest::UNKNOWN,
+                },
                 &mut state,
                 &input,
                 &mut focus_system,
@@ -4877,8 +5235,11 @@ mod tests {
                 shift: true,
                 ctrl: false,
             });
-            raw::text_edit(
+            raw::post_layout_text_edit(
                 spec(),
+                raw::TextEditPreLayoutResult {
+                    size_request: crate::layout::SizeRequest::UNKNOWN,
+                },
                 &mut state,
                 &input,
                 &mut focus_system,
@@ -4903,8 +5264,11 @@ mod tests {
                 shift: true,
                 ctrl: false,
             });
-            raw::text_edit(
+            raw::post_layout_text_edit(
                 spec(),
+                raw::TextEditPreLayoutResult {
+                    size_request: crate::layout::SizeRequest::UNKNOWN,
+                },
                 &mut state,
                 &input,
                 &mut focus_system,
@@ -4931,8 +5295,11 @@ mod tests {
                 shift: true,
                 ctrl: true,
             });
-            raw::text_edit(
+            raw::post_layout_text_edit(
                 spec(),
+                raw::TextEditPreLayoutResult {
+                    size_request: crate::layout::SizeRequest::UNKNOWN,
+                },
                 &mut state,
                 &input,
                 &mut focus_system,
@@ -4957,8 +5324,11 @@ mod tests {
                 shift: true,
                 ctrl: true,
             });
-            raw::text_edit(
+            raw::post_layout_text_edit(
                 spec(),
+                raw::TextEditPreLayoutResult {
+                    size_request: crate::layout::SizeRequest::UNKNOWN,
+                },
                 &mut state,
                 &input,
                 &mut focus_system,
@@ -4984,8 +5354,11 @@ mod tests {
                 shift: true,
                 ctrl: false,
             });
-            raw::text_edit(
+            raw::post_layout_text_edit(
                 spec(),
+                raw::TextEditPreLayoutResult {
+                    size_request: crate::layout::SizeRequest::UNKNOWN,
+                },
                 &mut state,
                 &input,
                 &mut focus_system,
@@ -5009,8 +5382,11 @@ mod tests {
                 shift: true,
                 ctrl: false,
             });
-            raw::text_edit(
+            raw::post_layout_text_edit(
                 spec(),
+                raw::TextEditPreLayoutResult {
+                    size_request: crate::layout::SizeRequest::UNKNOWN,
+                },
                 &mut state,
                 &input,
                 &mut focus_system,
@@ -5036,10 +5412,13 @@ mod tests {
 
             let mut input = Input::default();
             input.text_events.push(TextEvent::CaretUp { shift: false });
-            raw::text_edit(
+            raw::post_layout_text_edit(
                 TextEditSpec {
                     newline_policy: NewlinePolicy::Preserve,
                     ..spec()
+                },
+                raw::TextEditPreLayoutResult {
+                    size_request: crate::layout::SizeRequest::UNKNOWN,
                 },
                 &mut state,
                 &input,
@@ -5064,10 +5443,13 @@ mod tests {
 
             let mut input = Input::default();
             input.text_events.push(TextEvent::CaretUp { shift: false });
-            raw::text_edit(
+            raw::post_layout_text_edit(
                 TextEditSpec {
                     newline_policy: NewlinePolicy::Preserve,
                     ..spec()
+                },
+                raw::TextEditPreLayoutResult {
+                    size_request: crate::layout::SizeRequest::UNKNOWN,
                 },
                 &mut state,
                 &input,
@@ -5094,10 +5476,13 @@ mod tests {
             input
                 .text_events
                 .push(TextEvent::CaretDown { shift: false });
-            raw::text_edit(
+            raw::post_layout_text_edit(
                 TextEditSpec {
                     newline_policy: NewlinePolicy::Preserve,
                     ..spec()
+                },
+                raw::TextEditPreLayoutResult {
+                    size_request: crate::layout::SizeRequest::UNKNOWN,
                 },
                 &mut state,
                 &input,
@@ -5124,10 +5509,13 @@ mod tests {
             input
                 .text_events
                 .push(TextEvent::CaretDown { shift: false });
-            raw::text_edit(
+            raw::post_layout_text_edit(
                 TextEditSpec {
                     newline_policy: NewlinePolicy::Preserve,
                     ..spec()
+                },
+                raw::TextEditPreLayoutResult {
+                    size_request: crate::layout::SizeRequest::UNKNOWN,
                 },
                 &mut state,
                 &input,
@@ -5161,8 +5549,11 @@ mod tests {
             // Shift+Up
             let mut input = Input::default();
             input.text_events.push(TextEvent::CaretUp { shift: true });
-            raw::text_edit(
+            raw::post_layout_text_edit(
                 edit_spec.clone(),
+                raw::TextEditPreLayoutResult {
+                    size_request: crate::layout::SizeRequest::UNKNOWN,
+                },
                 &mut state,
                 &input,
                 &mut focus_system,
@@ -5175,8 +5566,11 @@ mod tests {
             // Shift+Down
             input.text_events.clear();
             input.text_events.push(TextEvent::CaretDown { shift: true });
-            raw::text_edit(
+            raw::post_layout_text_edit(
                 edit_spec.clone(),
+                raw::TextEditPreLayoutResult {
+                    size_request: crate::layout::SizeRequest::UNKNOWN,
+                },
                 &mut state,
                 &input,
                 &mut focus_system,
@@ -5189,8 +5583,11 @@ mod tests {
             // Shift+Down again
             input.text_events.clear();
             input.text_events.push(TextEvent::CaretDown { shift: true });
-            raw::text_edit(
+            raw::post_layout_text_edit(
                 edit_spec,
+                raw::TextEditPreLayoutResult {
+                    size_request: crate::layout::SizeRequest::UNKNOWN,
+                },
                 &mut state,
                 &input,
                 &mut focus_system,
@@ -5214,8 +5611,11 @@ mod tests {
 
             let mut input = Input::default();
             input.text_events.push(TextEvent::CaretUp { shift: false });
-            raw::text_edit(
+            raw::post_layout_text_edit(
                 spec(),
+                raw::TextEditPreLayoutResult {
+                    size_request: crate::layout::SizeRequest::UNKNOWN,
+                },
                 &mut state,
                 &input,
                 &mut focus_system,
@@ -5241,8 +5641,11 @@ mod tests {
                 shift: false,
                 ctrl: false,
             });
-            raw::text_edit(
+            raw::post_layout_text_edit(
                 spec(),
+                raw::TextEditPreLayoutResult {
+                    size_request: crate::layout::SizeRequest::UNKNOWN,
+                },
                 &mut state,
                 &input,
                 &mut focus_system,
@@ -5303,10 +5706,13 @@ mod tests {
         {
             // Preserve
             let mut state = TextEditState::new("hello\nworld");
-            raw::text_edit(
+            raw::post_layout_text_edit(
                 TextEditSpec {
                     newline_policy: NewlinePolicy::Preserve,
                     ..spec()
+                },
+                raw::TextEditPreLayoutResult {
+                    size_request: crate::layout::SizeRequest::UNKNOWN,
                 },
                 &mut state,
                 &Input::default(),
@@ -5318,10 +5724,13 @@ mod tests {
 
             // ReplaceWithSpace
             let mut state = TextEditState::new("hello\nworld");
-            raw::text_edit(
+            raw::post_layout_text_edit(
                 TextEditSpec {
                     newline_policy: NewlinePolicy::ReplaceWithSpace,
                     ..spec()
+                },
+                raw::TextEditPreLayoutResult {
+                    size_request: crate::layout::SizeRequest::UNKNOWN,
                 },
                 &mut state,
                 &Input::default(),
@@ -5333,10 +5742,13 @@ mod tests {
 
             // TrimAfterFirstNewline
             let mut state = TextEditState::new("hello\nworld");
-            raw::text_edit(
+            raw::post_layout_text_edit(
                 TextEditSpec {
                     newline_policy: NewlinePolicy::TrimAfterFirstNewline,
                     ..spec()
+                },
+                raw::TextEditPreLayoutResult {
+                    size_request: crate::layout::SizeRequest::UNKNOWN,
                 },
                 &mut state,
                 &Input::default(),
@@ -5348,10 +5760,13 @@ mod tests {
 
             // Normalization check under Preserve
             let mut state = TextEditState::new("hello\r\nworld\rfoo");
-            raw::text_edit(
+            raw::post_layout_text_edit(
                 TextEditSpec {
                     newline_policy: NewlinePolicy::Preserve,
                     ..spec()
+                },
+                raw::TextEditPreLayoutResult {
+                    size_request: crate::layout::SizeRequest::UNKNOWN,
                 },
                 &mut state,
                 &Input::default(),
@@ -5368,14 +5783,19 @@ mod tests {
             let mut state = TextEditState::new("x");
             set_caret_byte(&mut state, 1);
             state.had_keyboard_focus = true;
-            let mut input = Input::default();
-            input.text_events = vec![TextEvent::Paste("a\nb".to_string())];
+            let input = Input {
+                text_events: vec![TextEvent::Paste("a\nb".to_string())],
+                ..Input::default()
+            };
             focus_system.begin_frame();
             focus_system.take_keyboard_focus(state.focus_id);
-            raw::text_edit(
+            raw::post_layout_text_edit(
                 TextEditSpec {
                     newline_policy: NewlinePolicy::Preserve,
                     ..spec()
+                },
+                raw::TextEditPreLayoutResult {
+                    size_request: crate::layout::SizeRequest::UNKNOWN,
                 },
                 &mut state,
                 &input,
@@ -5389,14 +5809,19 @@ mod tests {
             let mut state = TextEditState::new("x");
             set_caret_byte(&mut state, 1);
             state.had_keyboard_focus = true;
-            let mut input = Input::default();
-            input.text_events = vec![TextEvent::Paste("a\nb".to_string())];
+            let input = Input {
+                text_events: vec![TextEvent::Paste("a\nb".to_string())],
+                ..Input::default()
+            };
             focus_system.begin_frame();
             focus_system.take_keyboard_focus(state.focus_id);
-            raw::text_edit(
+            raw::post_layout_text_edit(
                 TextEditSpec {
                     newline_policy: NewlinePolicy::ReplaceWithSpace,
                     ..spec()
+                },
+                raw::TextEditPreLayoutResult {
+                    size_request: crate::layout::SizeRequest::UNKNOWN,
                 },
                 &mut state,
                 &input,
@@ -5410,14 +5835,19 @@ mod tests {
             let mut state = TextEditState::new("x");
             set_caret_byte(&mut state, 1);
             state.had_keyboard_focus = true;
-            let mut input = Input::default();
-            input.text_events = vec![TextEvent::Paste("a\nb".to_string())];
+            let input = Input {
+                text_events: vec![TextEvent::Paste("a\nb".to_string())],
+                ..Input::default()
+            };
             focus_system.begin_frame();
             focus_system.take_keyboard_focus(state.focus_id);
-            raw::text_edit(
+            raw::post_layout_text_edit(
                 TextEditSpec {
                     newline_policy: NewlinePolicy::TrimAfterFirstNewline,
                     ..spec()
+                },
+                raw::TextEditPreLayoutResult {
+                    size_request: crate::layout::SizeRequest::UNKNOWN,
                 },
                 &mut state,
                 &input,
@@ -5432,14 +5862,19 @@ mod tests {
             set_caret_byte(&mut state, 0);
             set_selection_byte(&mut state, Some(2));
             state.had_keyboard_focus = true;
-            let mut input = Input::default();
-            input.text_events = vec![TextEvent::Paste("\nab".to_string())]; // processes to empty string
+            let input = Input {
+                text_events: vec![TextEvent::Paste("\nab".to_string())], // processes to empty string
+                ..Input::default()
+            };
             focus_system.begin_frame();
             focus_system.take_keyboard_focus(state.focus_id);
-            raw::text_edit(
+            raw::post_layout_text_edit(
                 TextEditSpec {
                     newline_policy: NewlinePolicy::TrimAfterFirstNewline,
                     ..spec()
+                },
+                raw::TextEditPreLayoutResult {
+                    size_request: crate::layout::SizeRequest::UNKNOWN,
                 },
                 &mut state,
                 &input,
@@ -5458,14 +5893,19 @@ mod tests {
             let mut state = TextEditState::new("abc");
             set_caret_byte(&mut state, 1);
             state.had_keyboard_focus = true;
-            let mut input = Input::default();
-            input.key_pressed_enter = true;
+            let input = Input {
+                key_pressed_enter: true,
+                ..Input::default()
+            };
             focus_system.begin_frame();
             focus_system.take_keyboard_focus(state.focus_id);
-            raw::text_edit(
+            raw::post_layout_text_edit(
                 TextEditSpec {
                     newline_policy: NewlinePolicy::Preserve,
                     ..spec()
+                },
+                raw::TextEditPreLayoutResult {
+                    size_request: crate::layout::SizeRequest::UNKNOWN,
                 },
                 &mut state,
                 &input,
@@ -5479,14 +5919,19 @@ mod tests {
             let mut state = TextEditState::new("abc");
             set_caret_byte(&mut state, 1);
             state.had_keyboard_focus = true;
-            let mut input = Input::default();
-            input.key_pressed_enter = true;
+            let input = Input {
+                key_pressed_enter: true,
+                ..Input::default()
+            };
             focus_system.begin_frame();
             focus_system.take_keyboard_focus(state.focus_id);
-            raw::text_edit(
+            raw::post_layout_text_edit(
                 TextEditSpec {
                     newline_policy: NewlinePolicy::ReplaceWithSpace,
                     ..spec()
+                },
+                raw::TextEditPreLayoutResult {
+                    size_request: crate::layout::SizeRequest::UNKNOWN,
                 },
                 &mut state,
                 &input,
@@ -5500,14 +5945,19 @@ mod tests {
             let mut state = TextEditState::new("abc");
             set_caret_byte(&mut state, 1);
             state.had_keyboard_focus = true;
-            let mut input = Input::default();
-            input.key_pressed_enter = true;
+            let input = Input {
+                key_pressed_enter: true,
+                ..Input::default()
+            };
             focus_system.begin_frame();
             focus_system.take_keyboard_focus(state.focus_id);
-            raw::text_edit(
+            raw::post_layout_text_edit(
                 TextEditSpec {
                     newline_policy: NewlinePolicy::TrimAfterFirstNewline,
                     ..spec()
+                },
+                raw::TextEditPreLayoutResult {
+                    size_request: crate::layout::SizeRequest::UNKNOWN,
                 },
                 &mut state,
                 &input,
@@ -5541,8 +5991,11 @@ mod tests {
         };
 
         // Initialize/prepare the layout once
-        raw::text_edit(
+        raw::post_layout_text_edit(
             edit_spec.clone(),
+            raw::TextEditPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input,
             &mut focus_system,
@@ -5554,8 +6007,11 @@ mod tests {
         set_caret_byte(&mut state, 5);
         set_selection_byte(&mut state, None);
         input.text_events = vec![TextEvent::CaretDown { shift: false }];
-        raw::text_edit(
+        raw::post_layout_text_edit(
             edit_spec.clone(),
+            raw::TextEditPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input,
             &mut focus_system,
@@ -5566,8 +6022,11 @@ mod tests {
 
         // 2. Arrow Up from Line 1 to Line 0
         input.text_events = vec![TextEvent::CaretUp { shift: false }];
-        raw::text_edit(
+        raw::post_layout_text_edit(
             edit_spec.clone(),
+            raw::TextEditPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input,
             &mut focus_system,
@@ -5579,8 +6038,11 @@ mod tests {
         // 3. Boundary Condition: Arrow Up on first line
         set_caret_byte(&mut state, 2);
         input.text_events = vec![TextEvent::CaretUp { shift: false }];
-        raw::text_edit(
+        raw::post_layout_text_edit(
             edit_spec.clone(),
+            raw::TextEditPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input,
             &mut focus_system,
@@ -5592,8 +6054,11 @@ mod tests {
         // 4. Boundary Condition: Arrow Down on last line
         set_caret_byte(&mut state, 14);
         input.text_events = vec![TextEvent::CaretDown { shift: false }];
-        raw::text_edit(
+        raw::post_layout_text_edit(
             edit_spec.clone(),
+            raw::TextEditPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input,
             &mut focus_system,
@@ -5606,8 +6071,11 @@ mod tests {
         set_caret_byte(&mut state, 2);
         set_selection_byte(&mut state, None);
         input.text_events = vec![TextEvent::CaretDown { shift: true }];
-        raw::text_edit(
+        raw::post_layout_text_edit(
             edit_spec.clone(),
+            raw::TextEditPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input,
             &mut focus_system,
@@ -5638,8 +6106,11 @@ mod tests {
         focus_system.begin_frame();
         focus_system.take_keyboard_focus(state.focus_id);
 
-        raw::text_edit(
+        raw::post_layout_text_edit(
             edit_spec.clone(),
+            raw::TextEditPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input,
             &mut focus_system,
@@ -5650,8 +6121,11 @@ mod tests {
         set_caret_byte(&mut state, 2);
         set_selection_byte(&mut state, None);
         input.key_pressed_page_down = true;
-        raw::text_edit(
+        raw::post_layout_text_edit(
             edit_spec.clone(),
+            raw::TextEditPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input,
             &mut focus_system,
@@ -5663,8 +6137,11 @@ mod tests {
 
         input.key_pressed_page_down = false;
         input.key_pressed_page_up = true;
-        raw::text_edit(
+        raw::post_layout_text_edit(
             edit_spec.clone(),
+            raw::TextEditPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input,
             &mut focus_system,
@@ -5676,8 +6153,11 @@ mod tests {
         set_caret_byte(&mut state, 29);
         input.key_pressed_page_up = false;
         input.key_pressed_page_down = true;
-        raw::text_edit(
+        raw::post_layout_text_edit(
             edit_spec.clone(),
+            raw::TextEditPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input,
             &mut focus_system,
@@ -5689,8 +6169,11 @@ mod tests {
         set_caret_byte(&mut state, 9);
         input.key_pressed_page_down = false;
         input.key_pressed_page_up = true;
-        raw::text_edit(
+        raw::post_layout_text_edit(
             edit_spec,
+            raw::TextEditPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input,
             &mut focus_system,
@@ -5718,8 +6201,11 @@ mod tests {
         focus_system.begin_frame();
         focus_system.take_keyboard_focus(state.focus_id);
 
-        raw::text_edit(
+        raw::post_layout_text_edit(
             edit_spec.clone(),
+            raw::TextEditPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input,
             &mut focus_system,
@@ -5732,8 +6218,11 @@ mod tests {
         set_caret_byte(&mut state, 5);
         set_selection_byte(&mut state, None);
         input.key_pressed_page_down = true;
-        raw::text_edit(
+        raw::post_layout_text_edit(
             edit_spec.clone(),
+            raw::TextEditPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input,
             &mut focus_system,
@@ -5747,8 +6236,11 @@ mod tests {
         set_caret_byte(&mut state, 25);
         input.key_pressed_page_down = false;
         input.key_pressed_page_up = true;
-        raw::text_edit(
+        raw::post_layout_text_edit(
             edit_spec,
+            raw::TextEditPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input,
             &mut focus_system,
@@ -5776,8 +6268,11 @@ mod tests {
         focus_system.begin_frame();
         focus_system.take_keyboard_focus(state.focus_id);
 
-        raw::text_edit(
+        raw::post_layout_text_edit(
             edit_spec.clone(),
+            raw::TextEditPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input,
             &mut focus_system,
@@ -5789,8 +6284,11 @@ mod tests {
         set_selection_byte(&mut state, None);
         input.key_pressed_page_down = true;
         input.modifier_shift = true;
-        raw::text_edit(
+        raw::post_layout_text_edit(
             edit_spec,
+            raw::TextEditPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input,
             &mut focus_system,
@@ -5855,8 +6353,11 @@ mod tests {
             )
             .token;
 
-            raw::text_edit(
+            raw::post_layout_text_edit(
                 edit_spec.clone(),
+                raw::TextEditPreLayoutResult {
+                    size_request: crate::layout::SizeRequest::UNKNOWN,
+                },
                 &mut state,
                 &input,
                 &mut focus_system,
@@ -5915,8 +6416,11 @@ mod tests {
         };
 
         // Warm-up frame so the widget knows the layout.
-        raw::text_edit(
+        raw::post_layout_text_edit(
             edit_spec.clone(),
+            raw::TextEditPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &Input::default(),
             &mut focus_system,
@@ -5933,8 +6437,11 @@ mod tests {
             shift: false,
             ctrl: false,
         }];
-        raw::text_edit(
+        raw::post_layout_text_edit(
             edit_spec.clone(),
+            raw::TextEditPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input,
             &mut focus_system,
@@ -5955,8 +6462,11 @@ mod tests {
             shift: false,
             ctrl: false,
         }];
-        raw::text_edit(
+        raw::post_layout_text_edit(
             edit_spec.clone(),
+            raw::TextEditPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input,
             &mut focus_system,
@@ -5977,8 +6487,11 @@ mod tests {
             shift: false,
             ctrl: false,
         }];
-        raw::text_edit(
+        raw::post_layout_text_edit(
             edit_spec.clone(),
+            raw::TextEditPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input,
             &mut focus_system,
@@ -5998,8 +6511,11 @@ mod tests {
             shift: false,
             ctrl: false,
         }];
-        raw::text_edit(
+        raw::post_layout_text_edit(
             edit_spec.clone(),
+            raw::TextEditPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input,
             &mut focus_system,
@@ -6019,8 +6535,11 @@ mod tests {
             shift: true,
             ctrl: false,
         }];
-        raw::text_edit(
+        raw::post_layout_text_edit(
             edit_spec.clone(),
+            raw::TextEditPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input,
             &mut focus_system,
@@ -6045,8 +6564,11 @@ mod tests {
             shift: true,
             ctrl: false,
         }];
-        raw::text_edit(
+        raw::post_layout_text_edit(
             edit_spec.clone(),
+            raw::TextEditPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input,
             &mut focus_system,
@@ -6071,8 +6593,11 @@ mod tests {
             shift: false,
             ctrl: true,
         }];
-        raw::text_edit(
+        raw::post_layout_text_edit(
             edit_spec.clone(),
+            raw::TextEditPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input,
             &mut focus_system,
@@ -6093,8 +6618,11 @@ mod tests {
             shift: false,
             ctrl: true,
         }];
-        raw::text_edit(
+        raw::post_layout_text_edit(
             edit_spec.clone(),
+            raw::TextEditPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input,
             &mut focus_system,
@@ -6115,8 +6643,11 @@ mod tests {
             shift: true,
             ctrl: true,
         }];
-        raw::text_edit(
+        raw::post_layout_text_edit(
             edit_spec.clone(),
+            raw::TextEditPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input,
             &mut focus_system,
@@ -6141,8 +6672,11 @@ mod tests {
             shift: true,
             ctrl: true,
         }];
-        raw::text_edit(
+        raw::post_layout_text_edit(
             edit_spec.clone(),
+            raw::TextEditPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input,
             &mut focus_system,
@@ -6176,11 +6710,14 @@ mod tests {
 
         let input = Input::default();
         let mut cmds = DrawCommands::new();
-        raw::text_edit(
+        raw::post_layout_text_edit(
             TextEditSpec {
                 rect: Rect::new(0.0, 0.0, 200.0, 100.0),
                 newline_policy: NewlinePolicy::Preserve,
                 ..spec()
+            },
+            raw::TextEditPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
             },
             &mut state,
             &input,
@@ -6268,13 +6805,16 @@ mod tests {
 
         let input = Input::default();
         let mut cmds = DrawCommands::new();
-        raw::text_edit(
+        raw::post_layout_text_edit(
             TextEditSpec {
                 rect: Rect::new(0.0, 0.0, 200.0, 100.0),
                 newline_policy: NewlinePolicy::Preserve,
                 wrap: true,
                 vertical_align: Align::Start,
                 ..spec()
+            },
+            raw::TextEditPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
             },
             &mut state,
             &input,
@@ -6316,11 +6856,14 @@ mod tests {
 
         let input = Input::default();
         let mut cmds = DrawCommands::new();
-        raw::text_edit(
+        raw::post_layout_text_edit(
             TextEditSpec {
                 rect: Rect::new(0.0, 0.0, 200.0, 100.0),
                 newline_policy: NewlinePolicy::Preserve,
                 ..spec()
+            },
+            raw::TextEditPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
             },
             &mut state,
             &input,
@@ -6450,8 +6993,11 @@ mod tests {
         let mut input = Input::default();
         input.text_events.push(TextEvent::CaretUp { shift: false });
 
-        raw::text_edit(
+        raw::post_layout_text_edit(
             spec_error,
+            raw::TextEditPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input,
             &mut focus_system,
@@ -6481,8 +7027,11 @@ mod tests {
                 line_align: TextLineAlign::Start,
                 ..spec()
             };
-            raw::text_edit(
+            raw::post_layout_text_edit(
                 edit_spec,
+                raw::TextEditPreLayoutResult {
+                    size_request: crate::layout::SizeRequest::UNKNOWN,
+                },
                 &mut state,
                 &input,
                 &mut focus_system,
@@ -6512,8 +7061,11 @@ mod tests {
                 line_align: TextLineAlign::Center,
                 ..spec()
             };
-            raw::text_edit(
+            raw::post_layout_text_edit(
                 edit_spec,
+                raw::TextEditPreLayoutResult {
+                    size_request: crate::layout::SizeRequest::UNKNOWN,
+                },
                 &mut state,
                 &input,
                 &mut focus_system,
@@ -6541,8 +7093,11 @@ mod tests {
                 line_align: TextLineAlign::End,
                 ..spec()
             };
-            raw::text_edit(
+            raw::post_layout_text_edit(
                 edit_spec,
+                raw::TextEditPreLayoutResult {
+                    size_request: crate::layout::SizeRequest::UNKNOWN,
+                },
                 &mut state,
                 &input,
                 &mut focus_system,
@@ -6586,8 +7141,11 @@ mod tests {
 
             // Frame 1: Warmup to claim hover
             focus_system.begin_frame();
-            raw::text_edit(
+            raw::post_layout_text_edit(
                 edit_spec.clone(),
+                raw::TextEditPreLayoutResult {
+                    size_request: crate::layout::SizeRequest::UNKNOWN,
+                },
                 &mut state,
                 &click_input,
                 &mut focus_system,
@@ -6600,8 +7158,11 @@ mod tests {
             click_input.mouse_pressed = true;
             click_input.mouse_down = true;
             focus_system.begin_frame();
-            raw::text_edit(
+            raw::post_layout_text_edit(
                 edit_spec,
+                raw::TextEditPreLayoutResult {
+                    size_request: crate::layout::SizeRequest::UNKNOWN,
+                },
                 &mut state,
                 &click_input,
                 &mut focus_system,
@@ -6917,8 +7478,11 @@ mod tests {
 
         let input = Input::default();
         let mut cmds = DrawCommands::new();
-        raw::text_edit(
+        raw::post_layout_text_edit(
             edit_spec.clone(),
+            raw::TextEditPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input,
             &mut focus_system,
@@ -6974,8 +7538,11 @@ mod tests {
         };
 
         focus_system.begin_frame();
-        raw::text_edit(
+        raw::post_layout_text_edit(
             edit_spec.clone(),
+            raw::TextEditPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &click_input,
             &mut focus_system,
@@ -6988,8 +7555,11 @@ mod tests {
         click_input.mouse_down = true;
 
         focus_system.begin_frame();
-        raw::text_edit(
+        raw::post_layout_text_edit(
             edit_spec,
+            raw::TextEditPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &click_input,
             &mut focus_system,
@@ -7016,8 +7586,11 @@ mod tests {
         edit_spec.rect = Rect::new(0.0, 0.0, 200.0, 40.0); // height 40px -> viewport h = 38px
         edit_spec.newline_policy = NewlinePolicy::Preserve;
 
-        raw::text_edit(
+        raw::post_layout_text_edit(
             edit_spec,
+            raw::TextEditPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input,
             &mut focus_system,
@@ -7062,8 +7635,11 @@ mod tests {
         let mut edit_spec = spec();
         edit_spec.rect = Rect::new(0.0, 0.0, 200.0, 40.0); // width 200px -> viewport w = 198px
 
-        raw::text_edit(
+        raw::post_layout_text_edit(
             edit_spec,
+            raw::TextEditPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input,
             &mut focus_system,
@@ -7148,8 +7724,11 @@ mod tests {
             shift: false,
             ctrl: false,
         });
-        raw::text_edit(
+        raw::post_layout_text_edit(
             edit_spec.clone(),
+            raw::TextEditPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input,
             &mut focus_system,
@@ -7168,8 +7747,11 @@ mod tests {
             shift: false,
             ctrl: false,
         });
-        raw::text_edit(
+        raw::post_layout_text_edit(
             edit_spec,
+            raw::TextEditPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input,
             &mut focus_system,
@@ -7197,8 +7779,11 @@ mod tests {
 
         let mut cmds = DrawCommands::new();
         let input = Input::default();
-        raw::text_edit(
+        raw::post_layout_text_edit(
             edit_spec,
+            raw::TextEditPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input,
             &mut focus_system,
@@ -7232,7 +7817,7 @@ mod tests {
             .wrap(true)
             .defaults_from_theme(&theme)
             .build();
-        let size_spec = raw::TextEditSizeSpec {
+        let size_spec = raw::TextEditPreLayoutSpec {
             style: spec.style,
             wrap: spec.wrap,
             line_align: spec.line_align,
@@ -7242,15 +7827,17 @@ mod tests {
         let state = TextEditState::new("abcdefghijklmnopqrst");
 
         let size_unbounded =
-            raw::size_text_edit(&size_spec, SizeOffer::UNBOUNDED, &state, &mut text_backend);
+            raw::pre_layout_text_edit(&size_spec, SizeOffer::UNBOUNDED, &state, &mut text_backend)
+                .size_request;
 
         let limit_width = 100.0;
-        let size_limited = raw::size_text_edit(
+        let size_limited = raw::pre_layout_text_edit(
             &size_spec,
             SizeOffer::new(AxisBound::AtMost(limit_width), AxisBound::Unbounded),
             &state,
             &mut text_backend,
-        );
+        )
+        .size_request;
 
         assert!(
             size_limited.preferred.unwrap().y > size_unbounded.preferred.unwrap().y,
@@ -7272,8 +7859,11 @@ mod tests {
         let mut input = Input::default();
         input.text_events.push(TextEvent::Char('a'));
 
-        raw::text_edit(
+        raw::post_layout_text_edit(
             edit_spec,
+            raw::TextEditPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input,
             &mut focus_system,
@@ -7295,98 +7885,105 @@ mod tests {
         let state = TextEditState::new("abcdefghij"); // 10 chars * 8px = 80px
 
         // A. Wrapped bounded offer accounts for padding and border
-        let size_spec_a = raw::TextEditSizeSpec {
+        let size_spec_a = raw::TextEditPreLayoutSpec {
             style,
             wrap: true,
             line_align: TextLineAlign::Start,
             error: false,
         };
-        let size_a = raw::size_text_edit(
+        let size_a = raw::pre_layout_text_edit(
             &size_spec_a,
             SizeOffer::new(AxisBound::AtMost(100.0), AxisBound::Unbounded),
             &state,
             &mut text_backend,
-        );
+        )
+        .size_request;
         assert_eq!(size_a.preferred.unwrap().x, 97.0);
 
         // B. Wrapped bounded offer accounts for vertical scrollbar gutter
-        let size_b = raw::size_text_edit(
+        let size_b = raw::pre_layout_text_edit(
             &size_spec_a,
             SizeOffer::new(AxisBound::AtMost(88.0), AxisBound::Unbounded),
             &state,
             &mut text_backend,
-        );
+        )
+        .size_request;
         assert!(size_b.preferred.unwrap().y > size_a.preferred.unwrap().y);
 
         // C. Wrapped narrow bounded offer honours the gutter threshold
-        let size_c = raw::size_text_edit(
+        let size_c = raw::pre_layout_text_edit(
             &size_spec_a,
             SizeOffer::new(AxisBound::AtMost(20.0), AxisBound::Unbounded),
             &state,
             &mut text_backend,
-        );
+        )
+        .size_request;
         assert_eq!(size_c.preferred.unwrap().x, 20.0);
 
         // D. Error state affects sizing
-        let size_spec_d = raw::TextEditSizeSpec {
+        let size_spec_d = raw::TextEditPreLayoutSpec {
             style,
             wrap: true,
             line_align: TextLineAlign::Start,
             error: true,
         };
-        let size_d = raw::size_text_edit(
+        let size_d = raw::pre_layout_text_edit(
             &size_spec_d,
             SizeOffer::new(AxisBound::AtMost(100.0), AxisBound::Unbounded),
             &state,
             &mut text_backend,
-        );
+        )
+        .size_request;
         assert!(size_d.preferred.unwrap().y > size_a.preferred.unwrap().y);
         assert_eq!(size_d.preferred.unwrap().x, 97.0);
 
         // E. Non-error state does not include error stripe
         let state_short = TextEditState::new("abc"); // 3 chars = 24px
-        let size_spec_non_error = raw::TextEditSizeSpec {
+        let size_spec_non_error = raw::TextEditPreLayoutSpec {
             style,
             wrap: true,
             line_align: TextLineAlign::Start,
             error: false,
         };
-        let size_spec_error = raw::TextEditSizeSpec {
+        let size_spec_error = raw::TextEditPreLayoutSpec {
             style,
             wrap: true,
             line_align: TextLineAlign::Start,
             error: true,
         };
-        let size_non_error = raw::size_text_edit(
+        let size_non_error = raw::pre_layout_text_edit(
             &size_spec_non_error,
             SizeOffer::new(AxisBound::AtMost(100.0), AxisBound::Unbounded),
             &state_short,
             &mut text_backend,
-        );
-        let size_error = raw::size_text_edit(
+        )
+        .size_request;
+        let size_error = raw::pre_layout_text_edit(
             &size_spec_error,
             SizeOffer::new(AxisBound::AtMost(100.0), AxisBound::Unbounded),
             &state_short,
             &mut text_backend,
-        );
+        )
+        .size_request;
         assert_eq!(
             size_error.preferred.unwrap().x - size_non_error.preferred.unwrap().x,
             style.error_stripe_width
         );
 
         // F. Unwrapped sizing is not accidentally changed
-        let size_spec_f = raw::TextEditSizeSpec {
+        let size_spec_f = raw::TextEditPreLayoutSpec {
             style,
             wrap: false,
             line_align: TextLineAlign::Start,
             error: false,
         };
-        let size_f = raw::size_text_edit(
+        let size_f = raw::pre_layout_text_edit(
             &size_spec_f,
             SizeOffer::new(AxisBound::AtMost(100.0), AxisBound::Unbounded),
             &state,
             &mut text_backend,
-        );
+        )
+        .size_request;
         assert_eq!(size_f.preferred.unwrap().x, 92.0);
 
         // G. Shared-helper equivalence test

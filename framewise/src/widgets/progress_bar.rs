@@ -25,7 +25,12 @@ pub mod raw {
     }
 
     #[derive(Debug, Clone, PartialEq)]
-    pub struct ProgressBarSizeSpec {}
+    pub struct ProgressBarPreLayoutSpec {}
+
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct ProgressBarPreLayoutResult {
+        pub size_request: crate::layout::SizeRequest,
+    }
 
     #[derive(Debug, Clone, PartialEq)]
     pub struct ProgressBarResult {}
@@ -34,14 +39,27 @@ pub mod raw {
     ///
     /// The current implementation ignores `offer` because a progress bar's
     /// extent is caller-driven. This returns [`SizeRequest::UNKNOWN`].
-    pub fn size_progress_bar(_spec: &ProgressBarSizeSpec, _offer: SizeOffer) -> SizeRequest {
+    pub fn pre_layout_progress_bar(
+        spec: &ProgressBarPreLayoutSpec,
+        offer: SizeOffer,
+    ) -> ProgressBarPreLayoutResult {
+        ProgressBarPreLayoutResult {
+            size_request: size_progress_bar(spec, offer),
+        }
+    }
+
+    fn size_progress_bar(_spec: &ProgressBarPreLayoutSpec, _offer: SizeOffer) -> SizeRequest {
         SizeRequest::UNKNOWN
     }
 
     /// Low‑level progress bar draw function.
     ///
     /// Appends draw commands to `cmds`.
-    pub fn progress_bar(spec: ProgressBarSpec, cmds: &mut DrawCommands) {
+    pub fn post_layout_progress_bar(
+        spec: ProgressBarSpec,
+        _pre_layout: ProgressBarPreLayoutResult,
+        cmds: &mut DrawCommands,
+    ) {
         // Track: 3px high, centered vertically in the given rect.
         let track_h = spec.style.track_height;
         let track = Rect::new(
@@ -196,10 +214,10 @@ pub fn progress_bar<T: TextBackend, S: LayoutState, CF>(
     layout_params: S::Params,
 ) -> ProgressBarResult {
     let spec = builder.defaults_from_theme(&ctx.theme).build();
-    let size_spec = raw::ProgressBarSizeSpec {};
+    let pre_layout_spec = raw::ProgressBarPreLayoutSpec {};
     let offer = ctx.peek_offer(layout_params.clone());
-    let size_request = raw::size_progress_bar(&size_spec, offer);
-    let rect = ctx.layout(layout_params, size_request);
+    let pre_layout = raw::pre_layout_progress_bar(&pre_layout_spec, offer);
+    let rect = ctx.layout(layout_params, pre_layout.size_request);
     let raw_spec = raw::ProgressBarSpec {
         layer: ctx.layer,
         rect,
@@ -208,7 +226,7 @@ pub fn progress_bar<T: TextBackend, S: LayoutState, CF>(
         active: spec.active,
         style: spec.style,
     };
-    raw::progress_bar(raw_spec, ctx.cmds);
+    raw::post_layout_progress_bar(raw_spec, pre_layout, ctx.cmds);
     ProgressBarResult {
         layout: LayoutInfo::tight(rect),
     }
@@ -233,7 +251,13 @@ mod tests {
             style,
         };
         let mut cmds = DrawCommands::new();
-        raw::progress_bar(spec, &mut cmds);
+        raw::post_layout_progress_bar(
+            spec,
+            raw::ProgressBarPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
+            &mut cmds,
+        );
 
         assert_eq!(
             cmds,
@@ -266,7 +290,13 @@ mod tests {
             style,
         };
         let mut cmds = DrawCommands::new();
-        raw::progress_bar(spec, &mut cmds);
+        raw::post_layout_progress_bar(
+            spec,
+            raw::ProgressBarPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
+            &mut cmds,
+        );
 
         assert_eq!(
             cmds,
@@ -299,7 +329,13 @@ mod tests {
             style,
         };
         let mut cmds = DrawCommands::new();
-        raw::progress_bar(spec, &mut cmds);
+        raw::post_layout_progress_bar(
+            spec,
+            raw::ProgressBarPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
+            &mut cmds,
+        );
 
         assert_eq!(
             cmds,

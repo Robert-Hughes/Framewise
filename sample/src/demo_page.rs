@@ -3,10 +3,7 @@ use framewise::{
     focus::FocusSystem,
     layout::{Layout, LayoutState, SizeOffer},
     layouts::linear::ColumnState,
-    widgets::label::{
-        raw::{LabelSizeSpec, LabelSpec as RawLabelSpec},
-        LabelSpecBuilder, LabelStyle,
-    },
+    widgets::label::{raw::LabelSpec as RawLabelSpec, LabelSpecBuilder, LabelStyle},
     ColumnLayoutParams, LayoutViolationPolicy, Rect, TextBackend, WidgetContext,
 };
 
@@ -93,18 +90,21 @@ pub fn begin_demo_page<'a, 'b, T: TextBackend, L: Layout, CF>(
 
     let label_spec = LabelSpecBuilder::new().text(title).style(title_style);
     let label_spec = label_spec.build();
-    let label_spec = LabelSizeSpec {
+    let label_pre_layout_spec = framewise::widgets::label::raw::LabelPreLayoutSpec {
         text: label_spec.text,
         style: label_spec.style,
     };
     // The title is manually drawn into scroll content coordinates rather than
     // placed through parent_ctx.layout, so there is no layout offer to peek.
-    let label_request = framewise::widgets::label::raw::size_label(
-        &label_spec,
+    let label_pre_layout = framewise::widgets::label::raw::pre_layout_label(
+        &label_pre_layout_spec,
         SizeOffer::UNBOUNDED,
         parent_ctx.text_backend,
     );
-    let title_h = label_request.preferred.map_or(24.0, |p| p.y);
+    let title_h = label_pre_layout
+        .size_request
+        .preferred
+        .map_or(24.0, |p| p.y);
 
     // Draw the title using the offset coordinates of the scroll area, inset by pad
     let title_rect = Rect::new(
@@ -119,7 +119,12 @@ pub fn begin_demo_page<'a, 'b, T: TextBackend, L: Layout, CF>(
         style: title_style,
         layer: parent_ctx.layer,
     };
-    framewise::widgets::label::raw::label(spec, parent_ctx.text_backend, parent_ctx.cmds);
+    framewise::widgets::label::raw::post_layout_label(
+        spec,
+        label_pre_layout,
+        parent_ctx.text_backend,
+        parent_ctx.cmds,
+    );
 
     let offset_y = pad + title_h + 24.0;
     let mut adjusted_space = inner_space;

@@ -22,9 +22,14 @@ pub mod raw {
     }
 
     #[derive(Debug, Clone, PartialEq)]
-    pub struct LabelSizeSpec<'a> {
+    pub struct LabelPreLayoutSpec<'a> {
         pub text: &'a str,
         pub style: super::LabelStyle,
+    }
+
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct LabelPreLayoutResult {
+        pub size_request: crate::layout::SizeRequest,
     }
 
     #[derive(Debug, Clone, PartialEq)]
@@ -36,8 +41,18 @@ pub mod raw {
     ///
     /// This currently measures text with unbounded bounds; offer-sensitive
     /// wrapping is future work.
-    pub fn size_label<T: TextBackend>(
-        spec: &LabelSizeSpec,
+    pub fn pre_layout_label<T: TextBackend>(
+        spec: &LabelPreLayoutSpec,
+        offer: SizeOffer,
+        text_backend: &mut T,
+    ) -> LabelPreLayoutResult {
+        LabelPreLayoutResult {
+            size_request: size_label(spec, offer, text_backend),
+        }
+    }
+
+    fn size_label<T: TextBackend>(
+        spec: &LabelPreLayoutSpec,
         _offer: SizeOffer,
         text_backend: &mut T,
     ) -> crate::layout::SizeRequest {
@@ -54,8 +69,9 @@ pub mod raw {
     ///
     /// This is the raw implementation that takes all parameters explicitly.
     /// High-level wrappers should use this internally.
-    pub fn label<T: TextBackend>(
+    pub fn post_layout_label<T: TextBackend>(
         spec: LabelSpec,
+        _pre_layout: LabelPreLayoutResult,
         text_backend: &mut T,
         cmds: &mut DrawCommands,
     ) -> LabelResult {
@@ -204,13 +220,13 @@ pub fn label<'a, T: TextBackend, S: LayoutState, CF>(
     layout_params: S::Params,
 ) -> LabelResult {
     let spec = builder.defaults_from_theme(&ctx.theme).build();
-    let size_spec = raw::LabelSizeSpec {
+    let pre_layout_spec = raw::LabelPreLayoutSpec {
         text: spec.text,
         style: spec.style,
     };
     let offer = ctx.peek_offer(layout_params.clone());
-    let size_request = raw::size_label(&size_spec, offer, ctx.text_backend);
-    let rect = ctx.layout(layout_params, size_request);
+    let pre_layout = raw::pre_layout_label(&pre_layout_spec, offer, ctx.text_backend);
+    let rect = ctx.layout(layout_params, pre_layout.size_request);
     let raw_spec = raw::LabelSpec {
         layer: ctx.layer,
         rect,
@@ -218,7 +234,7 @@ pub fn label<'a, T: TextBackend, S: LayoutState, CF>(
         style: spec.style,
     };
 
-    let r = raw::label(raw_spec, ctx.text_backend, ctx.cmds);
+    let r = raw::post_layout_label(raw_spec, pre_layout, ctx.text_backend, ctx.cmds);
 
     LabelResult {
         layout: LayoutInfo::new(rect, r.content_bounds),
@@ -368,7 +384,14 @@ mod tests {
             },
         };
         let mut cmds = DrawCommands::new();
-        let res = raw::label(spec, &mut sys, &mut cmds);
+        let res = raw::post_layout_label(
+            spec,
+            raw::LabelPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
+            &mut sys,
+            &mut cmds,
+        );
 
         assert_eq!(res.content_bounds, Rect::new(0.0, 0.0, 100.0, 50.0));
         assert_eq!(
@@ -427,7 +450,14 @@ mod tests {
             },
         };
         let mut cmds = DrawCommands::new();
-        let res = raw::label(spec, &mut sys, &mut cmds);
+        let res = raw::post_layout_label(
+            spec,
+            raw::LabelPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
+            &mut sys,
+            &mut cmds,
+        );
         assert_eq!(res.content_bounds, Rect::new(0.0, 0.0, 100.0, 20.0));
         assert_eq!(
             cmds.commands(),
@@ -498,7 +528,14 @@ mod tests {
             },
         };
         let mut cmds = DrawCommands::new();
-        let _ = raw::label(spec, &mut sys, &mut cmds);
+        let _ = raw::post_layout_label(
+            spec,
+            raw::LabelPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
+            &mut sys,
+            &mut cmds,
+        );
 
         assert_eq!(
             cmds.commands(),
@@ -550,7 +587,14 @@ mod tests {
             },
         };
         let mut cmds = DrawCommands::new();
-        let _ = raw::label(spec, &mut sys, &mut cmds);
+        let _ = raw::post_layout_label(
+            spec,
+            raw::LabelPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
+            &mut sys,
+            &mut cmds,
+        );
 
         assert_eq!(sys.prepared_rect, Some(Rect::new(55.0, 37.0, 30.0, 20.0)));
     }
@@ -578,7 +622,14 @@ mod tests {
         };
 
         let mut cmds = DrawCommands::new();
-        let _ = raw::label(spec, &mut sys, &mut cmds);
+        let _ = raw::post_layout_label(
+            spec,
+            raw::LabelPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
+            &mut sys,
+            &mut cmds,
+        );
 
         assert_eq!(sys.font, Some(expected));
     }
@@ -673,11 +724,11 @@ mod tests {
     fn test_size_label() {
         let mut ts = TestTextBackend;
         let theme = crate::theme::Theme::default();
-        let spec = raw::LabelSizeSpec {
+        let spec = raw::LabelPreLayoutSpec {
             text: "Hello",
             style: LabelStyle::from_theme(&theme),
         };
-        let i = raw::size_label(&spec, SizeOffer::UNBOUNDED, &mut ts);
+        let i = raw::pre_layout_label(&spec, SizeOffer::UNBOUNDED, &mut ts).size_request;
         assert_eq!(i.preferred, Some(Vec2::new(40.0, 16.0)));
     }
 
@@ -686,7 +737,7 @@ mod tests {
         use crate::layout::AxisBound;
 
         let theme = crate::theme::Theme::default();
-        let spec = raw::LabelSizeSpec {
+        let spec = raw::LabelPreLayoutSpec {
             text: "Hello",
             style: LabelStyle::from_theme(&theme),
         };
@@ -697,10 +748,13 @@ mod tests {
         ];
 
         let mut ts = TestTextBackend;
-        let expected = raw::size_label(&spec, offers[0], &mut ts);
+        let expected = raw::pre_layout_label(&spec, offers[0], &mut ts).size_request;
         for offer in offers {
             let mut ts = TestTextBackend;
-            assert_eq!(raw::size_label(&spec, offer, &mut ts), expected);
+            assert_eq!(
+                raw::pre_layout_label(&spec, offer, &mut ts).size_request,
+                expected
+            );
         }
     }
 
@@ -835,11 +889,11 @@ mod tests {
         let theme = crate::theme::Theme::default();
         let mut style = LabelStyle::from_theme(&theme);
         style.text_style.flow = flow;
-        let spec = raw::LabelSizeSpec {
+        let spec = raw::LabelPreLayoutSpec {
             text: "Hello World",
             style,
         };
-        let i = raw::size_label(&spec, SizeOffer::UNBOUNDED, &mut ts);
+        let i = raw::pre_layout_label(&spec, SizeOffer::UNBOUNDED, &mut ts).size_request;
         assert_eq!(i.preferred, Some(Vec2::new(88.0, 16.0)));
     }
 

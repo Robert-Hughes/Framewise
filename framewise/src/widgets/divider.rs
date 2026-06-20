@@ -20,7 +20,12 @@ pub mod raw {
     }
 
     #[derive(Debug, Clone, PartialEq)]
-    pub struct DividerSizeSpec {}
+    pub struct DividerPreLayoutSpec {}
+
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct DividerPreLayoutResult {
+        pub size_request: crate::layout::SizeRequest,
+    }
 
     #[derive(Debug, Clone, PartialEq)]
     pub struct DividerResult {}
@@ -30,7 +35,16 @@ pub mod raw {
     /// The current implementation ignores `offer` because a divider has no
     /// inherent preferred size. This returns [`SizeRequest::UNKNOWN`].
     ///
-    pub fn size_divider(spec: &DividerSizeSpec, _offer: SizeOffer) -> crate::layout::SizeRequest {
+    pub fn pre_layout_divider(
+        spec: &DividerPreLayoutSpec,
+        offer: SizeOffer,
+    ) -> DividerPreLayoutResult {
+        DividerPreLayoutResult {
+            size_request: size_divider(spec, offer),
+        }
+    }
+
+    fn size_divider(spec: &DividerPreLayoutSpec, _offer: SizeOffer) -> crate::layout::SizeRequest {
         let _ = spec;
         crate::layout::SizeRequest::UNKNOWN
     }
@@ -39,7 +53,11 @@ pub mod raw {
     ///
     /// This is the raw implementation that takes all parameters explicitly.
     /// High-level wrappers should use this internally.
-    pub fn divider(spec: DividerSpec, cmds: &mut DrawCommands) -> DividerResult {
+    pub fn post_layout_divider(
+        spec: DividerSpec,
+        _pre_layout: DividerPreLayoutResult,
+        cmds: &mut DrawCommands,
+    ) -> DividerResult {
         let mid_y = spec.rect.y + spec.rect.h * 0.5;
         cmds.push(DrawCmd::StrokeLine {
             anti_alias: false,
@@ -119,17 +137,17 @@ pub fn divider<T: TextBackend, S: LayoutState, CF>(
     layout_params: S::Params,
 ) -> DividerResult {
     let spec = builder.defaults_from_theme(&ctx.theme).build();
-    let size_spec = raw::DividerSizeSpec {};
+    let pre_layout_spec = raw::DividerPreLayoutSpec {};
     let offer = ctx.peek_offer(layout_params.clone());
-    let size_request = raw::size_divider(&size_spec, offer);
-    let rect = ctx.layout(layout_params, size_request);
+    let pre_layout = raw::pre_layout_divider(&pre_layout_spec, offer);
+    let rect = ctx.layout(layout_params, pre_layout.size_request);
     let raw_spec = raw::DividerSpec {
         layer: ctx.layer,
         rect,
         color: spec.color,
         width: spec.width,
     };
-    let _result = raw::divider(raw_spec, ctx.cmds);
+    let _result = raw::post_layout_divider(raw_spec, pre_layout, ctx.cmds);
 
     DividerResult {
         layout: LayoutInfo::tight(rect),
@@ -151,7 +169,13 @@ mod tests {
             width: 1.0,
         };
         let mut cmds = DrawCommands::new();
-        let _res = raw::divider(spec, &mut cmds);
+        let _res = raw::post_layout_divider(
+            spec,
+            raw::DividerPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
+            &mut cmds,
+        );
 
         assert_eq!(
             cmds,
@@ -188,16 +212,16 @@ mod tests {
     fn test_size_divider_ignores_offer() {
         use crate::layout::AxisBound;
 
-        let spec = raw::DividerSizeSpec {};
+        let spec = raw::DividerPreLayoutSpec {};
         let offers = [
             SizeOffer::UNBOUNDED,
             SizeOffer::new(AxisBound::Exact(50.0), AxisBound::Exact(20.0)),
             SizeOffer::new(AxisBound::AtMost(100.0), AxisBound::AtMost(40.0)),
         ];
 
-        let expected = raw::size_divider(&spec, offers[0]);
+        let expected = raw::pre_layout_divider(&spec, offers[0]).size_request;
         for offer in offers {
-            assert_eq!(raw::size_divider(&spec, offer), expected);
+            assert_eq!(raw::pre_layout_divider(&spec, offer).size_request, expected);
         }
     }
 

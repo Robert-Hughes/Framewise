@@ -22,8 +22,13 @@ pub mod raw {
     }
 
     #[derive(Debug, Clone, PartialEq)]
-    pub struct SwitchSizeSpec {
+    pub struct SwitchPreLayoutSpec {
         pub style: super::SwitchStyle,
+    }
+
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct SwitchPreLayoutResult {
+        pub size_request: crate::layout::SizeRequest,
     }
 
     #[derive(Debug, Clone, PartialEq)]
@@ -37,7 +42,16 @@ pub mod raw {
     ///
     /// The current implementation ignores `offer` because this widget's request
     /// is fixed by its style.
-    pub fn size_switch(spec: &SwitchSizeSpec, _offer: SizeOffer) -> SizeRequest {
+    pub fn pre_layout_switch(
+        spec: &SwitchPreLayoutSpec,
+        offer: SizeOffer,
+    ) -> SwitchPreLayoutResult {
+        SwitchPreLayoutResult {
+            size_request: size_switch(spec, offer),
+        }
+    }
+
+    fn size_switch(spec: &SwitchPreLayoutSpec, _offer: SizeOffer) -> SizeRequest {
         SizeRequest::preferred(spec.style.size)
     }
 
@@ -45,8 +59,9 @@ pub mod raw {
     ///
     /// This is the raw implementation that takes all parameters explicitly.
     /// High-level wrappers should use this internally.
-    pub fn switch(
+    pub fn post_layout_switch(
         spec: SwitchSpec,
+        _pre_layout: SwitchPreLayoutResult,
         state: &mut SwitchState,
         input: &Input,
         focus_system: &mut FocusSystem,
@@ -285,10 +300,10 @@ pub fn switch<T: TextBackend, S: LayoutState, CF>(
     state: &mut SwitchState,
 ) -> SwitchResult {
     let spec = builder.defaults_from_theme(&ctx.theme).build();
-    let size_spec = raw::SwitchSizeSpec { style: spec.style };
+    let pre_layout_spec = raw::SwitchPreLayoutSpec { style: spec.style };
     let offer = ctx.peek_offer(layout_params.clone());
-    let size_request = raw::size_switch(&size_spec, offer);
-    let rect = ctx.layout(layout_params, size_request);
+    let pre_layout = raw::pre_layout_switch(&pre_layout_spec, offer);
+    let rect = ctx.layout(layout_params, pre_layout.size_request);
     let raw_spec = raw::SwitchSpec {
         rect,
         disabled: spec.disabled,
@@ -296,7 +311,14 @@ pub fn switch<T: TextBackend, S: LayoutState, CF>(
         clip_rect: ctx.clip_rect,
         layer: ctx.layer,
     };
-    let result = raw::switch(raw_spec, state, ctx.input, ctx.focus_system, ctx.cmds);
+    let result = raw::post_layout_switch(
+        raw_spec,
+        pre_layout,
+        state,
+        ctx.input,
+        ctx.focus_system,
+        ctx.cmds,
+    );
 
     SwitchResult {
         layout: LayoutInfo::new(rect, result.content_bounds),
@@ -337,17 +359,20 @@ pub fn labelled_switch<T: TextBackend, S: LayoutState, CF>(
 
     // Query size requests using the official functions of both widgets.
     let offer = ctx.peek_offer(layout_params.clone());
-    let switch_size_spec = raw::SwitchSizeSpec { style: spec.style };
-    let switch_request = raw::size_switch(&switch_size_spec, offer);
-    let switch_size = switch_request.preferred.unwrap();
+    let switch_pre_layout_spec = raw::SwitchPreLayoutSpec { style: spec.style };
+    let switch_pre_layout = raw::pre_layout_switch(&switch_pre_layout_spec, offer);
+    let switch_size = switch_pre_layout.size_request.preferred.unwrap();
 
-    let label_size_spec = crate::widgets::label::raw::LabelSizeSpec {
+    let label_pre_layout_spec = crate::widgets::label::raw::LabelPreLayoutSpec {
         text: label_text,
         style: label_style,
     };
-    let label_request =
-        crate::widgets::label::raw::size_label(&label_size_spec, offer, ctx.text_backend);
-    let label_size = label_request.preferred.unwrap();
+    let label_pre_layout = crate::widgets::label::raw::pre_layout_label(
+        &label_pre_layout_spec,
+        offer,
+        ctx.text_backend,
+    );
+    let label_size = label_pre_layout.size_request.preferred.unwrap();
 
     let gap = 8.0;
     let combined_width = switch_size.x + gap + label_size.x;
@@ -365,7 +390,14 @@ pub fn labelled_switch<T: TextBackend, S: LayoutState, CF>(
         clip_rect: ctx.clip_rect,
         layer: ctx.layer,
     };
-    let result = raw::switch(raw_spec, state, ctx.input, ctx.focus_system, ctx.cmds);
+    let result = raw::post_layout_switch(
+        raw_spec,
+        switch_pre_layout,
+        state,
+        ctx.input,
+        ctx.focus_system,
+        ctx.cmds,
+    );
 
     // Draw the label text to the right of the control track
     let label_rect = Rect::new(
@@ -380,7 +412,12 @@ pub fn labelled_switch<T: TextBackend, S: LayoutState, CF>(
         text: label_text,
         style: label_style,
     };
-    crate::widgets::label::raw::label(raw_label_spec, ctx.text_backend, ctx.cmds);
+    crate::widgets::label::raw::post_layout_label(
+        raw_label_spec,
+        label_pre_layout,
+        ctx.text_backend,
+        ctx.cmds,
+    );
 
     SwitchResult {
         layout: LayoutInfo::new(rect, result.content_bounds),
@@ -412,15 +449,21 @@ mod tests {
         input: &Input,
         cmds: &mut DrawCommands,
     ) {
-        raw::switch(
+        raw::post_layout_switch(
             switch_spec(Rect::new(0.0, 0.0, 30.0, 16.0)),
+            raw::SwitchPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             state1,
             input,
             focus_system,
             cmds,
         );
-        raw::switch(
+        raw::post_layout_switch(
             switch_spec(Rect::new(0.0, 40.0, 30.0, 16.0)),
+            raw::SwitchPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             state2,
             input,
             focus_system,
@@ -438,15 +481,21 @@ mod tests {
             &mut state2,
             Vec2::new(75.0, 75.0),
             |state1, state2, input, focus_system, cmds| {
-                let res1 = raw::switch(
+                let res1 = raw::post_layout_switch(
                     switch_spec(Rect::new(0.0, 0.0, 100.0, 100.0)),
+                    raw::SwitchPreLayoutResult {
+                        size_request: crate::layout::SizeRequest::UNKNOWN,
+                    },
                     state1,
                     input,
                     focus_system,
                     cmds,
                 );
-                let res2 = raw::switch(
+                let res2 = raw::post_layout_switch(
                     switch_spec(Rect::new(50.0, 50.0, 100.0, 100.0)),
+                    raw::SwitchPreLayoutResult {
+                        size_request: crate::layout::SizeRequest::UNKNOWN,
+                    },
                     state2,
                     input,
                     focus_system,
@@ -468,15 +517,21 @@ mod tests {
             Vec2::new(75.0, 75.0),
             true,
             |state1, state2, input, focus_system, cmds| {
-                let res1 = raw::switch(
+                let res1 = raw::post_layout_switch(
                     switch_spec(Rect::new(0.0, 0.0, 100.0, 100.0)),
+                    raw::SwitchPreLayoutResult {
+                        size_request: crate::layout::SizeRequest::UNKNOWN,
+                    },
                     state1,
                     input,
                     focus_system,
                     cmds,
                 );
-                let res2 = raw::switch(
+                let res2 = raw::post_layout_switch(
                     switch_spec(Rect::new(50.0, 50.0, 100.0, 100.0)),
+                    raw::SwitchPreLayoutResult {
+                        size_request: crate::layout::SizeRequest::UNKNOWN,
+                    },
                     state2,
                     input,
                     focus_system,
@@ -565,8 +620,11 @@ mod tests {
         let s = spec.style;
         let r = Rect::new(10.0, 10.0, 30.0, 16.0);
         let mut cmds = DrawCommands::new();
-        raw::switch(
+        raw::post_layout_switch(
             spec,
+            raw::SwitchPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut SwitchState::default(),
             &Input::default(),
             &mut FocusSystem::new(),
@@ -613,8 +671,11 @@ mod tests {
         // Warmup frame
         focus_system.begin_frame();
         let mut cmds = DrawCommands::new();
-        raw::switch(
+        raw::post_layout_switch(
             switch_spec(Rect::new(10.0, 10.0, 30.0, 16.0)),
+            raw::SwitchPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input,
             &mut focus_system,
@@ -625,8 +686,11 @@ mod tests {
         // Evaluation frame
         focus_system.begin_frame();
         let mut cmds = DrawCommands::new();
-        raw::switch(
+        raw::post_layout_switch(
             switch_spec(Rect::new(10.0, 10.0, 30.0, 16.0)),
+            raw::SwitchPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input,
             &mut focus_system,
@@ -675,8 +739,11 @@ mod tests {
         // Warmup frame with mouse inside but not pressed
         focus_system.begin_frame();
         let mut cmds = DrawCommands::new();
-        raw::switch(
+        raw::post_layout_switch(
             switch_spec(Rect::new(10.0, 10.0, 30.0, 16.0)),
+            raw::SwitchPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input,
             &mut focus_system,
@@ -689,8 +756,11 @@ mod tests {
         input.mouse_pressed = true;
         focus_system.begin_frame();
         let mut cmds = DrawCommands::new();
-        raw::switch(
+        raw::post_layout_switch(
             switch_spec(Rect::new(10.0, 10.0, 30.0, 16.0)),
+            raw::SwitchPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input,
             &mut focus_system,
@@ -730,8 +800,11 @@ mod tests {
         let s = spec.style;
         let r = Rect::new(10.0, 10.0, 30.0, 16.0);
         let mut cmds = DrawCommands::new();
-        raw::switch(
+        raw::post_layout_switch(
             spec,
+            raw::SwitchPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut SwitchState {
                 checked: true,
                 ..Default::default()
@@ -784,8 +857,11 @@ mod tests {
         // Warmup frame
         focus_system.begin_frame();
         let mut cmds = DrawCommands::new();
-        raw::switch(
+        raw::post_layout_switch(
             switch_spec(Rect::new(10.0, 10.0, 30.0, 16.0)),
+            raw::SwitchPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input,
             &mut focus_system,
@@ -796,8 +872,11 @@ mod tests {
         // Evaluation frame
         focus_system.begin_frame();
         let mut cmds = DrawCommands::new();
-        raw::switch(
+        raw::post_layout_switch(
             switch_spec(Rect::new(10.0, 10.0, 30.0, 16.0)),
+            raw::SwitchPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input,
             &mut focus_system,
@@ -842,8 +921,11 @@ mod tests {
         let r = Rect::new(10.0, 10.0, 30.0, 16.0);
         let mut state = state;
         let mut cmds = DrawCommands::new();
-        raw::switch(
+        raw::post_layout_switch(
             spec,
+            raw::SwitchPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &Input::default(),
             &mut focus_system,
@@ -894,8 +976,11 @@ mod tests {
         let tint = |c: Color| Color::linear_rgba(c.r, c.g, c.b, c.a * alpha);
         let r = Rect::new(10.0, 10.0, 30.0, 16.0);
         let mut cmds = DrawCommands::new();
-        raw::switch(
+        raw::post_layout_switch(
             spec,
+            raw::SwitchPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut SwitchState::default(),
             &Input::default(),
             &mut FocusSystem::new(),
@@ -935,8 +1020,11 @@ mod tests {
             &mut state,
             Vec2::new(15.0, 15.0),
             |state, input, focus_system, cmds| {
-                raw::switch(
+                raw::post_layout_switch(
                     switch_spec(Rect::new(10.0, 10.0, 30.0, 16.0)),
+                    raw::SwitchPreLayoutResult {
+                        size_request: crate::layout::SizeRequest::UNKNOWN,
+                    },
                     state,
                     input,
                     focus_system,
@@ -958,8 +1046,11 @@ mod tests {
             focus_id,
             Vec2::new(15.0, 15.0),
             |state, input, focus_system, cmds| {
-                raw::switch(
+                raw::post_layout_switch(
                     switch_spec(Rect::new(10.0, 10.0, 30.0, 16.0)),
+                    raw::SwitchPreLayoutResult {
+                        size_request: crate::layout::SizeRequest::UNKNOWN,
+                    },
                     state,
                     input,
                     focus_system,
@@ -978,10 +1069,13 @@ mod tests {
             &mut state,
             Vec2::new(15.0, 15.0),
             |state, input, focus_system, cmds| {
-                raw::switch(
+                raw::post_layout_switch(
                     SwitchSpec {
                         clip_rect: Some(Rect::new(500.0, 500.0, 30.0, 16.0)),
                         ..switch_spec(Rect::new(10.0, 10.0, 30.0, 16.0))
+                    },
+                    raw::SwitchPreLayoutResult {
+                        size_request: crate::layout::SizeRequest::UNKNOWN,
                     },
                     state,
                     input,
@@ -1003,10 +1097,13 @@ mod tests {
             focus_id,
             Vec2::new(15.0, 15.0),
             |state, input, focus_system, cmds| {
-                raw::switch(
+                raw::post_layout_switch(
                     SwitchSpec {
                         disabled: true,
                         ..switch_spec(Rect::new(10.0, 10.0, 30.0, 16.0))
+                    },
+                    raw::SwitchPreLayoutResult {
+                        size_request: crate::layout::SizeRequest::UNKNOWN,
                     },
                     state,
                     input,
@@ -1029,13 +1126,31 @@ mod tests {
 
         focus_system.begin_frame();
         let mut cmds = DrawCommands::new();
-        raw::switch(spec(), &mut state, &input, &mut focus_system, &mut cmds);
+        raw::post_layout_switch(
+            spec(),
+            raw::SwitchPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut cmds,
+        );
         focus_system.take_keyboard_focus(state.focus_id);
         focus_system.end_frame();
 
         input.key_pressed_enter = true;
         focus_system.begin_frame();
-        let result = raw::switch(spec(), &mut state, &input, &mut focus_system, &mut cmds);
+        let result = raw::post_layout_switch(
+            spec(),
+            raw::SwitchPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut cmds,
+        );
         focus_system.end_frame();
 
         assert!(
@@ -1054,8 +1169,11 @@ mod tests {
             Vec2::new(15.0, 15.0),
             Vec2::new(150.0, 150.0),
             |state, input, focus_system, cmds| {
-                raw::switch(
+                raw::post_layout_switch(
                     switch_spec(Rect::new(10.0, 10.0, 30.0, 16.0)),
+                    raw::SwitchPreLayoutResult {
+                        size_request: crate::layout::SizeRequest::UNKNOWN,
+                    },
                     state,
                     input,
                     focus_system,
@@ -1078,15 +1196,21 @@ mod tests {
             Vec2::new(15.0, 115.0),
             false,
             |state1, state2, input, focus_system, cmds| {
-                let res1 = raw::switch(
+                let res1 = raw::post_layout_switch(
                     switch_spec(Rect::new(10.0, 10.0, 30.0, 16.0)),
+                    raw::SwitchPreLayoutResult {
+                        size_request: crate::layout::SizeRequest::UNKNOWN,
+                    },
                     state1,
                     input,
                     focus_system,
                     cmds,
                 );
-                let res2 = raw::switch(
+                let res2 = raw::post_layout_switch(
                     switch_spec(Rect::new(10.0, 110.0, 30.0, 16.0)),
+                    raw::SwitchPreLayoutResult {
+                        size_request: crate::layout::SizeRequest::UNKNOWN,
+                    },
                     state2,
                     input,
                     focus_system,
@@ -1111,8 +1235,11 @@ mod tests {
             &mut state,
             focus_id,
             |state, input, focus_system, cmds| {
-                raw::switch(
+                raw::post_layout_switch(
                     switch_spec(Rect::new(10.0, 10.0, 30.0, 16.0)),
+                    raw::SwitchPreLayoutResult {
+                        size_request: crate::layout::SizeRequest::UNKNOWN,
+                    },
                     state,
                     input,
                     focus_system,
@@ -1134,8 +1261,11 @@ mod tests {
             &mut state,
             focus_id,
             |state, input, focus_system, cmds| {
-                raw::switch(
+                raw::post_layout_switch(
                     switch_spec(Rect::new(10.0, 10.0, 30.0, 16.0)),
+                    raw::SwitchPreLayoutResult {
+                        size_request: crate::layout::SizeRequest::UNKNOWN,
+                    },
                     state,
                     input,
                     focus_system,
@@ -1235,8 +1365,8 @@ mod tests {
     fn test_size_switch() {
         let theme = crate::theme::Theme::default();
         let style = SwitchStyle::from_theme(&theme);
-        let spec = raw::SwitchSizeSpec { style };
-        let size_request = raw::size_switch(&spec, SizeOffer::UNBOUNDED);
+        let spec = raw::SwitchPreLayoutSpec { style };
+        let size_request = raw::pre_layout_switch(&spec, SizeOffer::UNBOUNDED).size_request;
         assert_eq!(size_request, SizeRequest::preferred(Vec2::new(30.0, 16.0)));
     }
 
@@ -1245,8 +1375,11 @@ mod tests {
         let spec = switch_spec(Rect::new(10.0, 10.0, 30.0, 20.0));
         let s = spec.style;
         let mut cmds = DrawCommands::new();
-        raw::switch(
+        raw::post_layout_switch(
             spec,
+            raw::SwitchPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut SwitchState::default(),
             &Input::default(),
             &mut FocusSystem::new(),

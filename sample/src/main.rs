@@ -529,7 +529,8 @@ impl ApplicationHandler for App {
                                 feature = "menu"
                             ))]
                             {
-                                self.spec_page_state.widgets.iu_vsync.checked = matches!(self.frame_rate_mode, FrameRateMode::VsyncOn);
+                                self.spec_page_state.widgets.iu_vsync.checked =
+                                    matches!(self.frame_rate_mode, FrameRateMode::VsyncOn);
                             }
                         }
                         winit::keyboard::PhysicalKey::Code(winit::keyboard::KeyCode::F12) => {
@@ -727,7 +728,8 @@ impl ApplicationHandler for App {
                 ))]
                 if self.active_page == AppPage::WidgetSpec {
                     let switch_checked = self.spec_page_state.widgets.iu_vsync.checked;
-                    let current_vsync_status = matches!(self.frame_rate_mode, FrameRateMode::VsyncOn);
+                    let current_vsync_status =
+                        matches!(self.frame_rate_mode, FrameRateMode::VsyncOn);
                     if switch_checked != current_vsync_status {
                         self.frame_rate_mode = if switch_checked {
                             FrameRateMode::VsyncOn
@@ -753,11 +755,11 @@ impl ApplicationHandler for App {
                     match gpu.surface.get_current_texture() {
                         Ok(frame) => {
                             if is_first {
-                                  eprintln!(
-                                      "[STARTUP] [{:?}]   First get_current_texture took {:?}",
-                                      self.start_time.elapsed(),
-                                      tex_start.elapsed()
-                                  );
+                                eprintln!(
+                                    "[STARTUP] [{:?}]   First get_current_texture took {:?}",
+                                    self.start_time.elapsed(),
+                                    tex_start.elapsed()
+                                );
                             }
                             let view = frame
                                 .texture
@@ -779,22 +781,22 @@ impl ApplicationHandler for App {
                                 &mut text_backend,
                             );
                             if is_first {
-                                  eprintln!(
-                                      "[STARTUP] [{:?}]   First Renderer::render took {:?}",
-                                      self.start_time.elapsed(),
-                                      render_start.elapsed()
-                                  );
+                                eprintln!(
+                                    "[STARTUP] [{:?}]   First Renderer::render took {:?}",
+                                    self.start_time.elapsed(),
+                                    render_start.elapsed()
+                                );
                             }
 
                             let submit_start = std::time::Instant::now();
                             gpu.queue.submit(std::iter::once(encoder.finish()));
                             frame.present();
                             if is_first {
-                                  eprintln!(
-                                      "[STARTUP] [{:?}]   First submit & present took {:?}",
-                                      self.start_time.elapsed(),
-                                      submit_start.elapsed()
-                                  );
+                                eprintln!(
+                                    "[STARTUP] [{:?}]   First submit & present took {:?}",
+                                    self.start_time.elapsed(),
+                                    submit_start.elapsed()
+                                );
                             }
                         }
                         Err(e) => {

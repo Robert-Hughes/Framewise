@@ -326,7 +326,7 @@ fn card_label_glyph_counts_by_line(
 ) -> Vec<usize> {
     let mut backend = CardTextBackend { line_height };
     let mut cmds = DrawCommands::new();
-    raw_label::label(
+    raw_label::post_layout_label(
         raw_label::LabelSpec {
             layer: Layer::default(),
             rect,
@@ -338,6 +338,9 @@ fn card_label_glyph_counts_by_line(
                 rule: false,
                 rule_color: Color::BLACK,
             },
+        },
+        raw_label::LabelPreLayoutResult {
+            size_request: crate::layout::SizeRequest::UNKNOWN,
         },
         &mut backend,
         &mut cmds,

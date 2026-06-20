@@ -41,7 +41,12 @@ pub mod raw {
     }
 
     #[derive(Debug, Clone, PartialEq)]
-    pub struct SliderSizeSpec {}
+    pub struct SliderPreLayoutSpec {}
+
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct SliderPreLayoutResult {
+        pub size_request: crate::layout::SizeRequest,
+    }
 
     #[derive(Debug, Clone, PartialEq)]
     pub struct SliderResult {
@@ -57,7 +62,16 @@ pub mod raw {
     /// [`SizeRequest::UNKNOWN`]. A later revision may report a cross-axis minimum
     /// derived from `style.thumb_size`.
     ///
-    pub fn size_slider(spec: &SliderSizeSpec, _offer: SizeOffer) -> crate::layout::SizeRequest {
+    pub fn pre_layout_slider(
+        spec: &SliderPreLayoutSpec,
+        offer: SizeOffer,
+    ) -> SliderPreLayoutResult {
+        SliderPreLayoutResult {
+            size_request: size_slider(spec, offer),
+        }
+    }
+
+    fn size_slider(spec: &SliderPreLayoutSpec, _offer: SizeOffer) -> crate::layout::SizeRequest {
         let _ = spec;
         crate::layout::SizeRequest::UNKNOWN
     }
@@ -66,8 +80,9 @@ pub mod raw {
     ///
     /// This is the raw implementation that takes all parameters explicitly.
     /// High-level wrappers should use this internally.
-    pub fn slider(
+    pub fn post_layout_slider(
         spec: SliderSpec,
+        _pre_layout: SliderPreLayoutResult,
         state: &mut SliderState,
         input: &Input,
         focus_system: &mut FocusSystem,
@@ -905,10 +920,10 @@ pub fn slider<T: TextBackend, S: LayoutState, CF>(
     state: &mut SliderState,
 ) -> SliderResult {
     let spec = builder.defaults_from_theme(&ctx.theme).build();
-    let size_spec = raw::SliderSizeSpec {};
+    let pre_layout_spec = raw::SliderPreLayoutSpec {};
     let offer = ctx.peek_offer(layout_params.clone());
-    let size_request = raw::size_slider(&size_spec, offer);
-    let rect = ctx.layout(layout_params, size_request);
+    let pre_layout = raw::pre_layout_slider(&pre_layout_spec, offer);
+    let rect = ctx.layout(layout_params, pre_layout.size_request);
     let raw_spec = raw::SliderSpec {
         rect,
         min: spec.min,
@@ -926,7 +941,16 @@ pub fn slider<T: TextBackend, S: LayoutState, CF>(
         layer: ctx.layer,
     };
 
-    let result = raw::slider(raw_spec, state, ctx.input, ctx.focus_system, ctx.cmds);
+    let result = raw::post_layout_slider(
+        raw_spec,
+        raw::SliderPreLayoutResult {
+            size_request: crate::layout::SizeRequest::UNKNOWN,
+        },
+        state,
+        ctx.input,
+        ctx.focus_system,
+        ctx.cmds,
+    );
     SliderResult {
         layout: LayoutInfo::tight(rect),
         input: result.input,
@@ -954,8 +978,26 @@ mod tests {
                 let mut spec2 = test_spec(0.0, 100.0, false);
                 spec2.rect = Rect::new(50.0, 50.0, 100.0, 100.0);
 
-                let res1 = raw::slider(spec1, state1, input, focus_system, cmds);
-                let res2 = raw::slider(spec2, state2, input, focus_system, cmds);
+                let res1 = raw::post_layout_slider(
+                    spec1,
+                    raw::SliderPreLayoutResult {
+                        size_request: crate::layout::SizeRequest::UNKNOWN,
+                    },
+                    state1,
+                    input,
+                    focus_system,
+                    cmds,
+                );
+                let res2 = raw::post_layout_slider(
+                    spec2,
+                    raw::SliderPreLayoutResult {
+                        size_request: crate::layout::SizeRequest::UNKNOWN,
+                    },
+                    state2,
+                    input,
+                    focus_system,
+                    cmds,
+                );
                 (res1.input, res2.input)
             },
         );
@@ -977,8 +1019,26 @@ mod tests {
                 let mut spec2 = test_spec(0.0, 100.0, false);
                 spec2.rect = Rect::new(50.0, 50.0, 100.0, 100.0);
 
-                let res1 = raw::slider(spec1, state1, input, focus_system, cmds);
-                let res2 = raw::slider(spec2, state2, input, focus_system, cmds);
+                let res1 = raw::post_layout_slider(
+                    spec1,
+                    raw::SliderPreLayoutResult {
+                        size_request: crate::layout::SizeRequest::UNKNOWN,
+                    },
+                    state1,
+                    input,
+                    focus_system,
+                    cmds,
+                );
+                let res2 = raw::post_layout_slider(
+                    spec2,
+                    raw::SliderPreLayoutResult {
+                        size_request: crate::layout::SizeRequest::UNKNOWN,
+                    },
+                    state2,
+                    input,
+                    focus_system,
+                    cmds,
+                );
                 (res1.input, res2.input)
             },
         );
@@ -1001,8 +1061,11 @@ mod tests {
         // Frame 1: register_keyboard claims
         focus_system.begin_frame();
         let mut cmds = DrawCommands::new();
-        raw::slider(
+        raw::post_layout_slider(
             spec.clone(),
+            raw::SliderPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input,
             &mut focus_system,
@@ -1013,8 +1076,11 @@ mod tests {
         // Frame 2: Page Up
         focus_system.begin_frame();
         input.key_pressed_page_up = true;
-        raw::slider(
+        raw::post_layout_slider(
             spec.clone(),
+            raw::SliderPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input,
             &mut focus_system,
@@ -1027,8 +1093,11 @@ mod tests {
         focus_system.begin_frame();
         input.key_pressed_page_up = false;
         input.key_pressed_page_down = true;
-        raw::slider(
+        raw::post_layout_slider(
             spec.clone(),
+            raw::SliderPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input,
             &mut focus_system,
@@ -1039,8 +1108,11 @@ mod tests {
 
         input.key_pressed_page_down = false;
         input.key_pressed_home = true;
-        raw::slider(
+        raw::post_layout_slider(
             spec.clone(),
+            raw::SliderPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input,
             &mut focus_system,
@@ -1050,8 +1122,11 @@ mod tests {
 
         input.key_pressed_home = false;
         input.key_pressed_end = true;
-        raw::slider(
+        raw::post_layout_slider(
             spec.clone(),
+            raw::SliderPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input,
             &mut focus_system,
@@ -1080,8 +1155,11 @@ mod tests {
         input.mouse_pos = crate::types::Vec2::new(10.0, 10.0);
         focus_system.begin_frame();
         let mut cmds = DrawCommands::new();
-        raw::slider(
+        raw::post_layout_slider(
             spec.clone(),
+            raw::SliderPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input,
             &mut focus_system,
@@ -1095,8 +1173,11 @@ mod tests {
 
         focus_system.begin_frame();
         let mut cmds = DrawCommands::new();
-        raw::slider(
+        raw::post_layout_slider(
             spec.clone(),
+            raw::SliderPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input,
             &mut focus_system,
@@ -1110,8 +1191,11 @@ mod tests {
         input.mouse_pressed = false;
         input.mouse_pos.y = 50.0;
         focus_system.begin_frame();
-        raw::slider(
+        raw::post_layout_slider(
             spec.clone(),
+            raw::SliderPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input,
             &mut focus_system,
@@ -1134,8 +1218,11 @@ mod tests {
         input.mouse_pos = crate::types::Vec2::new(10.0, 80.0);
         focus_system.begin_frame();
         let mut cmds = DrawCommands::new();
-        raw::slider(
+        raw::post_layout_slider(
             spec.clone(),
+            raw::SliderPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input,
             &mut focus_system,
@@ -1150,8 +1237,11 @@ mod tests {
         // Frame 1: time=0.0. Should page down by 20.0
         focus_system.begin_frame();
         let mut cmds = DrawCommands::new();
-        raw::slider(
+        raw::post_layout_slider(
             spec.clone(),
+            raw::SliderPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input,
             &mut focus_system,
@@ -1165,10 +1255,13 @@ mod tests {
         // Frame 2: time=0.4 (before repeat). No change.
         input.mouse_pressed = false;
         focus_system.begin_frame();
-        raw::slider(
+        raw::post_layout_slider(
             SliderSpec {
                 time: 0.4,
                 ..spec.clone()
+            },
+            raw::SliderPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
             },
             &mut state,
             &input,
@@ -1180,10 +1273,13 @@ mod tests {
 
         // Frame 3: time=0.5 (trigger repeat). Should page down to 40.0
         focus_system.begin_frame();
-        raw::slider(
+        raw::post_layout_slider(
             SliderSpec {
                 time: 0.5,
                 ..spec.clone()
+            },
+            raw::SliderPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
             },
             &mut state,
             &input,
@@ -1196,10 +1292,13 @@ mod tests {
 
         // Frame 4: time=0.6 (trigger repeat again). Should page down to 60.0
         focus_system.begin_frame();
-        raw::slider(
+        raw::post_layout_slider(
             SliderSpec {
                 time: 0.6,
                 ..spec.clone()
+            },
+            raw::SliderPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
             },
             &mut state,
             &input,
@@ -1212,10 +1311,13 @@ mod tests {
         // Release mouse -> track clicking ends
         input.mouse_down = false;
         focus_system.begin_frame();
-        raw::slider(
+        raw::post_layout_slider(
             SliderSpec {
                 time: 0.7,
                 ..spec.clone()
+            },
+            raw::SliderPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
             },
             &mut state,
             &input,
@@ -1242,8 +1344,11 @@ mod tests {
         // Up decrements
         input.key_pressed_up = true;
         let mut cmds = DrawCommands::new();
-        raw::slider(
+        raw::post_layout_slider(
             spec.clone(),
+            raw::SliderPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input,
             &mut focus_system,
@@ -1259,8 +1364,11 @@ mod tests {
         // Down increments
         input.key_pressed_up = false;
         input.key_pressed_down = true;
-        raw::slider(
+        raw::post_layout_slider(
             spec.clone(),
+            raw::SliderPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input,
             &mut focus_system,
@@ -1276,8 +1384,11 @@ mod tests {
         // Left decrements (same as Up)
         input.key_pressed_down = false;
         input.key_pressed_left = true;
-        raw::slider(
+        raw::post_layout_slider(
             spec.clone(),
+            raw::SliderPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input,
             &mut focus_system,
@@ -1293,8 +1404,11 @@ mod tests {
         // Right increments (same as Down)
         input.key_pressed_left = false;
         input.key_pressed_right = true;
-        raw::slider(
+        raw::post_layout_slider(
             spec.clone(),
+            raw::SliderPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input,
             &mut focus_system,
@@ -1321,8 +1435,11 @@ mod tests {
         focus_system.take_keyboard_focus(horiz_state.focus_id);
 
         input.key_pressed_left = true;
-        raw::slider(
+        raw::post_layout_slider(
             horiz_spec.clone(),
+            raw::SliderPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut horiz_state,
             &input,
             &mut focus_system,
@@ -1332,8 +1449,11 @@ mod tests {
 
         input.key_pressed_left = false;
         input.key_pressed_right = true;
-        raw::slider(
+        raw::post_layout_slider(
             horiz_spec.clone(),
+            raw::SliderPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut horiz_state,
             &input,
             &mut focus_system,
@@ -1364,15 +1484,21 @@ mod tests {
             ..Default::default()
         };
         let mut cmds = DrawCommands::new();
-        raw::slider(
+        raw::post_layout_slider(
             spec.clone(),
+            raw::SliderPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state_a,
             &input,
             &mut focus_system,
             &mut cmds,
         );
-        raw::slider(
+        raw::post_layout_slider(
             spec.clone(),
+            raw::SliderPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state_b,
             &input,
             &mut focus_system,
@@ -1382,15 +1508,21 @@ mod tests {
 
         // Frame 2: confirm focus moved to slider_b
         focus_system.begin_frame();
-        raw::slider(
+        raw::post_layout_slider(
             spec.clone(),
+            raw::SliderPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state_a,
             &crate::input::Input::new(),
             &mut focus_system,
             &mut cmds,
         );
-        raw::slider(
+        raw::post_layout_slider(
             spec.clone(),
+            raw::SliderPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state_b,
             &crate::input::Input::new(),
             &mut focus_system,
@@ -1421,8 +1553,11 @@ mod tests {
         // Warmup frame to establish hover claim
         focus_system.begin_frame();
         let mut cmds = DrawCommands::new();
-        raw::slider(
+        raw::post_layout_slider(
             spec.clone(),
+            raw::SliderPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input,
             &mut focus_system,
@@ -1434,8 +1569,11 @@ mod tests {
         input.mouse_pressed = true;
         focus_system.begin_frame();
         let mut cmds = DrawCommands::new();
-        raw::slider(
+        raw::post_layout_slider(
             spec.clone(),
+            raw::SliderPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input,
             &mut focus_system,
@@ -1468,7 +1606,16 @@ mod tests {
 
         focus_system.begin_frame();
         let mut cmds = DrawCommands::new();
-        raw::slider(spec, &mut state, &input, &mut focus_system, &mut cmds);
+        raw::post_layout_slider(
+            spec,
+            raw::SliderPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut cmds,
+        );
         focus_system.end_frame();
 
         assert_eq!(
@@ -1495,8 +1642,11 @@ mod tests {
         // Frame 1: Register hover
         focus_system.begin_frame();
         let mut cmds = DrawCommands::new();
-        raw::slider(
+        raw::post_layout_slider(
             spec.clone(),
+            raw::SliderPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input,
             &mut focus_system,
@@ -1509,8 +1659,11 @@ mod tests {
         // Frame 2: Mouse wheel spun up (positive delta) -> value should decrease
         input.scroll_delta.y = 2.0;
         focus_system.begin_frame();
-        raw::slider(
+        raw::post_layout_slider(
             spec.clone(),
+            raw::SliderPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input,
             &mut focus_system,
@@ -1544,8 +1697,11 @@ mod tests {
         input.mouse_pos = crate::types::Vec2::new(10.0, 50.0);
         focus_system.begin_frame();
         let mut cmds = DrawCommands::new();
-        raw::slider(
+        raw::post_layout_slider(
             spec.clone(),
+            raw::SliderPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input,
             &mut focus_system,
@@ -1558,8 +1714,11 @@ mod tests {
         input.mouse_down = true;
         focus_system.begin_frame();
         let mut cmds = DrawCommands::new();
-        raw::slider(
+        raw::post_layout_slider(
             spec.clone(),
+            raw::SliderPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input,
             &mut focus_system,
@@ -1577,8 +1736,11 @@ mod tests {
         input.mouse_pressed = false;
         input.mouse_pos.y = 55.0;
         focus_system.begin_frame();
-        raw::slider(
+        raw::post_layout_slider(
             spec.clone(),
+            raw::SliderPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input,
             &mut focus_system,
@@ -1600,8 +1762,11 @@ mod tests {
         // Frame 3: drag to y=65 → delta=10 → val_delta=12.5 → value=68.75
         input.mouse_pos.y = 65.0;
         focus_system.begin_frame();
-        raw::slider(
+        raw::post_layout_slider(
             spec.clone(),
+            raw::SliderPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input,
             &mut focus_system,
@@ -1641,8 +1806,11 @@ mod tests {
         input.mouse_pos = crate::types::Vec2::new(10.0, 70.0);
         focus_system.begin_frame();
         let mut cmds = DrawCommands::new();
-        raw::slider(
+        raw::post_layout_slider(
             spec.clone(),
+            raw::SliderPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input,
             &mut focus_system,
@@ -1655,8 +1823,11 @@ mod tests {
         input.mouse_down = true;
         focus_system.begin_frame();
         let mut cmds = DrawCommands::new();
-        raw::slider(
+        raw::post_layout_slider(
             spec.clone(),
+            raw::SliderPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input,
             &mut focus_system,
@@ -1670,10 +1841,13 @@ mod tests {
         // Frame 2: hold, before repeat fires.
         input.mouse_pressed = false;
         focus_system.begin_frame();
-        raw::slider(
+        raw::post_layout_slider(
             SliderSpec {
                 time: 0.4,
                 ..spec.clone()
+            },
+            raw::SliderPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
             },
             &mut state,
             &input,
@@ -1687,10 +1861,13 @@ mod tests {
         // Expected: value clamps to cursor position (87.5), NOT 100.
         // cursor_val = (70/80) * 100 = 87.5
         focus_system.begin_frame();
-        raw::slider(
+        raw::post_layout_slider(
             SliderSpec {
                 time: 0.5,
                 ..spec.clone()
+            },
+            raw::SliderPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
             },
             &mut state,
             &input,
@@ -1707,10 +1884,13 @@ mod tests {
         // Frame 4: repeat fires again (t=0.6). Thumb now at y=70..90, cursor=70 inside → stop paging.
         // is_track_clicking must remain true so the drag transition can still fire.
         focus_system.begin_frame();
-        raw::slider(
+        raw::post_layout_slider(
             SliderSpec {
                 time: 0.6,
                 ..spec.clone()
+            },
+            raw::SliderPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
             },
             &mut state,
             &input,
@@ -1734,10 +1914,13 @@ mod tests {
         // snap: mouse_coord=75, track_start=0, thumb_len=20 → snapped=75-10=65 → value=65/80*100=81.25
         input.mouse_pos.y = 75.0;
         focus_system.begin_frame();
-        raw::slider(
+        raw::post_layout_slider(
             SliderSpec {
                 time: 0.65,
                 ..spec.clone()
+            },
+            raw::SliderPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
             },
             &mut state,
             &input,
@@ -1760,10 +1943,13 @@ mod tests {
         input.mouse_pressed = false;
         input.mouse_pos.y = 85.0;
         focus_system.begin_frame();
-        raw::slider(
+        raw::post_layout_slider(
             SliderSpec {
                 time: 0.7,
                 ..spec.clone()
+            },
+            raw::SliderPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
             },
             &mut state,
             &input,
@@ -1816,8 +2002,11 @@ mod tests {
         focus_system.begin_frame();
         // Standalone slider registers first (inner)
         let mut cmds = DrawCommands::new();
-        raw::slider(
+        raw::post_layout_slider(
             test_spec(0.0, 100.0, true),
+            raw::SliderPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input,
             &mut focus_system,
@@ -1854,8 +2043,11 @@ mod tests {
 
         focus_system.begin_frame();
         let mut cmds = DrawCommands::new();
-        raw::slider(
+        raw::post_layout_slider(
             test_spec(0.0, 100.0, true),
+            raw::SliderPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input,
             &mut focus_system,
@@ -1893,8 +2085,11 @@ mod tests {
 
         focus_system.begin_frame();
         let mut cmds = DrawCommands::new();
-        raw::slider(
+        raw::post_layout_slider(
             test_spec(0.0, 100.0, true),
+            raw::SliderPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input,
             &mut focus_system,
@@ -1934,8 +2129,11 @@ mod tests {
         focus_system.begin_frame();
         // Inner propagating slider at min: skips claim_scroll_up
         let mut cmds = DrawCommands::new();
-        raw::slider(
+        raw::post_layout_slider(
             test_spec(0.0, 100.0, false),
+            raw::SliderPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input,
             &mut focus_system,
@@ -1971,8 +2169,11 @@ mod tests {
 
         focus_system.begin_frame();
         let mut cmds = DrawCommands::new();
-        raw::slider(
+        raw::post_layout_slider(
             test_spec(0.0, 100.0, false),
+            raw::SliderPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input,
             &mut focus_system,
@@ -2009,8 +2210,11 @@ mod tests {
 
         focus_system.begin_frame();
         let mut cmds = DrawCommands::new();
-        raw::slider(
+        raw::post_layout_slider(
             test_spec(0.0, 100.0, false),
+            raw::SliderPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input,
             &mut focus_system,
@@ -2071,8 +2275,11 @@ mod tests {
         };
 
         focus_system.begin_frame();
-        raw::slider(
+        raw::post_layout_slider(
             spec.clone(),
+            raw::SliderPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input,
             &mut focus_system,
@@ -2106,8 +2313,11 @@ mod tests {
 
         focus_system.begin_frame();
         let mut cmds = DrawCommands::new();
-        raw::slider(
+        raw::post_layout_slider(
             disabled_spec(true),
+            raw::SliderPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input,
             &mut focus_system,
@@ -2134,8 +2344,11 @@ mod tests {
         let mut cmds = DrawCommands::new();
 
         focus_system.begin_frame();
-        raw::slider(
+        raw::post_layout_slider(
             spec.clone(),
+            raw::SliderPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input_none(),
             &mut focus_system,
@@ -2199,8 +2412,11 @@ mod tests {
         let input = Input::new();
         focus_system.begin_frame();
         let mut cmds = DrawCommands::new();
-        let _result = raw::slider(
+        let _result = raw::post_layout_slider(
             spec.clone(),
+            raw::SliderPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input,
             &mut focus_system,
@@ -2256,8 +2472,11 @@ mod tests {
 
         focus_system.begin_frame();
         let mut cmds = DrawCommands::new();
-        let _result = raw::slider(
+        let _result = raw::post_layout_slider(
             spec.clone(),
+            raw::SliderPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input,
             &mut focus_system,
@@ -2313,8 +2532,11 @@ mod tests {
         };
         focus_system.begin_frame();
         let mut cmds = DrawCommands::new();
-        let _result = raw::slider(
+        let _result = raw::post_layout_slider(
             spec.clone(),
+            raw::SliderPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input,
             &mut focus_system,
@@ -2368,8 +2590,11 @@ mod tests {
         let input = Input::new();
         focus_system.begin_frame();
         let mut cmds = DrawCommands::new();
-        let _result = raw::slider(
+        let _result = raw::post_layout_slider(
             spec.clone(),
+            raw::SliderPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input,
             &mut focus_system,
@@ -2474,9 +2699,9 @@ mod tests {
     #[test]
     fn test_size_slider() {
         // A slider's size is caller-driven; it reports no size request.
-        let spec = raw::SliderSizeSpec {};
+        let spec = raw::SliderPreLayoutSpec {};
         assert_eq!(
-            raw::size_slider(&spec, SizeOffer::UNBOUNDED),
+            raw::pre_layout_slider(&spec, SizeOffer::UNBOUNDED).size_request,
             crate::layout::SizeRequest::UNKNOWN
         );
     }
@@ -2499,8 +2724,11 @@ mod tests {
         input.mouse_pos = crate::types::Vec2::new(10.0, 25.0);
         focus_system.begin_frame();
         let mut cmds = DrawCommands::new();
-        raw::slider(
+        raw::post_layout_slider(
             spec.clone(),
+            raw::SliderPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input,
             &mut focus_system,
@@ -2513,8 +2741,11 @@ mod tests {
         input.mouse_down = true;
         focus_system.begin_frame();
         let mut cmds = DrawCommands::new();
-        raw::slider(
+        raw::post_layout_slider(
             spec.clone(),
+            raw::SliderPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input,
             &mut focus_system,
@@ -2529,10 +2760,13 @@ mod tests {
         // Frame 2: Hold, before repeat fires (t=0.4)
         input.mouse_pressed = false;
         focus_system.begin_frame();
-        raw::slider(
+        raw::post_layout_slider(
             SliderSpec {
                 time: 0.4,
                 ..spec.clone()
+            },
+            raw::SliderPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
             },
             &mut state,
             &input,
@@ -2546,10 +2780,13 @@ mod tests {
         // Since we overshot, the cursor y=25 is now behind the thumb.
         // It must NOT jump back or trigger overshoot protection. Value must stay 60.0.
         focus_system.begin_frame();
-        raw::slider(
+        raw::post_layout_slider(
             SliderSpec {
                 time: 0.5,
                 ..spec.clone()
+            },
+            raw::SliderPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
             },
             &mut state,
             &input,
@@ -2576,8 +2813,11 @@ mod tests {
 
         // Frame 1: Register hovers/scrolls
         focus_system.begin_frame();
-        raw::slider(
+        raw::post_layout_slider(
             spec.clone(),
+            raw::SliderPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input,
             &mut focus_system,
@@ -2587,8 +2827,11 @@ mod tests {
 
         // Frame 2: Check active hovers/scrolls (they are resolved on end_frame/begin_frame transition)
         focus_system.begin_frame();
-        raw::slider(
+        raw::post_layout_slider(
             spec.clone(),
+            raw::SliderPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input,
             &mut focus_system,
@@ -2607,8 +2850,11 @@ mod tests {
         // 2. Click does NOT take keyboard focus
         input.mouse_pressed = true;
         focus_system.begin_frame();
-        raw::slider(
+        raw::post_layout_slider(
             spec.clone(),
+            raw::SliderPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input,
             &mut focus_system,

@@ -24,9 +24,14 @@ pub mod raw {
     }
 
     #[derive(Debug, Clone, PartialEq)]
-    pub struct ButtonSizeSpec<'a> {
+    pub struct ButtonPreLayoutSpec<'a> {
         pub text: &'a str,
         pub style: super::ButtonStyle,
+    }
+
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct ButtonPreLayoutResult {
+        pub size_request: crate::layout::SizeRequest,
     }
 
     #[derive(Debug, Clone, PartialEq)]
@@ -44,8 +49,18 @@ pub mod raw {
     /// The preferred width is the label width plus horizontal padding; the
     /// preferred height is the larger of the standard control height and the
     /// padded label height.
-    pub fn size_button<T: TextBackend>(
-        spec: &ButtonSizeSpec,
+    pub fn pre_layout_button<T: TextBackend>(
+        spec: &ButtonPreLayoutSpec,
+        offer: SizeOffer,
+        text_backend: &mut T,
+    ) -> ButtonPreLayoutResult {
+        ButtonPreLayoutResult {
+            size_request: size_button(spec, offer, text_backend),
+        }
+    }
+
+    fn size_button<T: TextBackend>(
+        spec: &ButtonPreLayoutSpec,
         _offer: SizeOffer,
         text_backend: &mut T,
     ) -> crate::layout::SizeRequest {
@@ -104,8 +119,9 @@ pub mod raw {
     ///
     /// This is the raw implementation that takes all parameters explicitly.
     /// High-level wrappers should use this internally.
-    pub fn button<T: TextBackend>(
+    pub fn post_layout_button<T: TextBackend>(
         spec: ButtonSpec,
+        _pre_layout: ButtonPreLayoutResult,
         state: &mut ButtonState,
         input: &Input,
         focus_system: &mut FocusSystem,
@@ -445,13 +461,13 @@ pub fn button<'a, T: TextBackend, S: LayoutState, CF>(
     state: &mut ButtonState,
 ) -> ButtonResult {
     let spec = builder.defaults_from_theme(&ctx.theme).build();
-    let size_spec = raw::ButtonSizeSpec {
+    let pre_layout_spec = raw::ButtonPreLayoutSpec {
         text: spec.text,
         style: spec.style,
     };
     let offer = ctx.peek_offer(layout_params.clone());
-    let size_request = raw::size_button(&size_spec, offer, ctx.text_backend);
-    let rect = ctx.layout(layout_params, size_request);
+    let pre_layout = raw::pre_layout_button(&pre_layout_spec, offer, ctx.text_backend);
+    let rect = ctx.layout(layout_params, pre_layout.size_request);
     let raw_spec = raw::ButtonSpec {
         layer: ctx.layer,
         rect,
@@ -461,8 +477,9 @@ pub fn button<'a, T: TextBackend, S: LayoutState, CF>(
         disabled: spec.disabled,
     };
 
-    let r = raw::button(
+    let r = raw::post_layout_button(
         raw_spec,
+        pre_layout,
         state,
         ctx.input,
         ctx.focus_system,
@@ -566,16 +583,22 @@ mod tests {
         text_backend: &mut TestTextBackend,
         cmds: &mut DrawCommands,
     ) {
-        raw::button(
+        raw::post_layout_button(
             btn_spec(Rect::new(0.0, 0.0, 100.0, 30.0)),
+            raw::ButtonPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             s1,
             input,
             focus_system,
             text_backend,
             cmds,
         );
-        raw::button(
+        raw::post_layout_button(
             btn_spec(Rect::new(0.0, 40.0, 100.0, 30.0)),
+            raw::ButtonPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             s2,
             input,
             focus_system,
@@ -673,11 +696,14 @@ mod tests {
             Vec2::new(50.0, 125.0),
             false,
             |state1, state2, input, focus_system, cmds| {
-                let res1 = raw::button(
+                let res1 = raw::post_layout_button(
                     ButtonSpec {
                         layer: Layer::default(),
                         text: "Click Me",
                         ..btn_spec(Rect::new(10.0, 10.0, 100.0, 30.0))
+                    },
+                    raw::ButtonPreLayoutResult {
+                        size_request: crate::layout::SizeRequest::UNKNOWN,
                     },
                     state1,
                     input,
@@ -685,11 +711,14 @@ mod tests {
                     &mut text_backend,
                     cmds,
                 );
-                let res2 = raw::button(
+                let res2 = raw::post_layout_button(
                     ButtonSpec {
                         layer: Layer::default(),
                         text: "Btn2",
                         ..btn_spec(Rect::new(0.0, 100.0, 100.0, 50.0))
+                    },
+                    raw::ButtonPreLayoutResult {
+                        size_request: crate::layout::SizeRequest::UNKNOWN,
                     },
                     state2,
                     input,
@@ -711,8 +740,11 @@ mod tests {
             &mut state,
             Vec2::new(50.0, 25.0),
             |state, input, focus_system, cmds| {
-                raw::button(
+                raw::post_layout_button(
                     btn_spec(Rect::new(0.0, 0.0, 100.0, 50.0)),
+                    raw::ButtonPreLayoutResult {
+                        size_request: crate::layout::SizeRequest::UNKNOWN,
+                    },
                     state,
                     input,
                     focus_system,
@@ -735,16 +767,22 @@ mod tests {
             &mut state2,
             Vec2::new(75.0, 75.0),
             |state1, state2, input, focus_system, cmds| {
-                let res1 = raw::button(
+                let res1 = raw::post_layout_button(
                     btn_spec(Rect::new(0.0, 0.0, 100.0, 100.0)),
+                    raw::ButtonPreLayoutResult {
+                        size_request: crate::layout::SizeRequest::UNKNOWN,
+                    },
                     state1,
                     input,
                     focus_system,
                     &mut text_backend,
                     cmds,
                 );
-                let res2 = raw::button(
+                let res2 = raw::post_layout_button(
                     btn_spec(Rect::new(50.0, 50.0, 100.0, 100.0)),
+                    raw::ButtonPreLayoutResult {
+                        size_request: crate::layout::SizeRequest::UNKNOWN,
+                    },
                     state2,
                     input,
                     focus_system,
@@ -768,16 +806,22 @@ mod tests {
             Vec2::new(75.0, 75.0),
             true,
             |state1, state2, input, focus_system, cmds| {
-                let res1 = raw::button(
+                let res1 = raw::post_layout_button(
                     btn_spec(Rect::new(0.0, 0.0, 100.0, 100.0)),
+                    raw::ButtonPreLayoutResult {
+                        size_request: crate::layout::SizeRequest::UNKNOWN,
+                    },
                     state1,
                     input,
                     focus_system,
                     &mut text_backend,
                     cmds,
                 );
-                let res2 = raw::button(
+                let res2 = raw::post_layout_button(
                     btn_spec(Rect::new(50.0, 50.0, 100.0, 100.0)),
+                    raw::ButtonPreLayoutResult {
+                        size_request: crate::layout::SizeRequest::UNKNOWN,
+                    },
                     state2,
                     input,
                     focus_system,
@@ -800,8 +844,11 @@ mod tests {
             focus_id,
             Vec2::new(50.0, 25.0),
             |state, input, focus_system, cmds| {
-                raw::button(
+                raw::post_layout_button(
                     btn_spec(Rect::new(10.0, 10.0, 100.0, 30.0)),
+                    raw::ButtonPreLayoutResult {
+                        size_request: crate::layout::SizeRequest::UNKNOWN,
+                    },
                     state,
                     input,
                     focus_system,
@@ -822,7 +869,7 @@ mod tests {
             &mut state,
             Vec2::new(50.0, 25.0),
             |state, input, focus_system, cmds| {
-                raw::button(
+                raw::post_layout_button(
                     ButtonSpec {
                         layer: Layer::default(),
                         rect: Rect::new(10.0, 10.0, 100.0, 30.0),
@@ -830,6 +877,9 @@ mod tests {
                         style: ButtonStyle::primary_from_theme(&theme::Theme::default()),
                         clip_rect: Some(Rect::new(500.0, 500.0, 100.0, 30.0)),
                         disabled: false,
+                    },
+                    raw::ButtonPreLayoutResult {
+                        size_request: crate::layout::SizeRequest::UNKNOWN,
                     },
                     state,
                     input,
@@ -853,11 +903,14 @@ mod tests {
             focus_id,
             Vec2::new(50.0, 25.0),
             |state, input, focus_system, cmds| {
-                raw::button(
+                raw::post_layout_button(
                     ButtonSpec {
                         layer: Layer::default(),
                         disabled: true,
                         ..btn_spec(Rect::new(10.0, 10.0, 100.0, 30.0))
+                    },
+                    raw::ButtonPreLayoutResult {
+                        size_request: crate::layout::SizeRequest::UNKNOWN,
                     },
                     state,
                     input,
@@ -881,8 +934,11 @@ mod tests {
         // Frame 1: Register and take focus explicitly
         let mut input = Input::default();
         let mut cmds = DrawCommands::new();
-        raw::button(
+        raw::post_layout_button(
             spec(),
+            raw::ButtonPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input,
             &mut focus_system,
@@ -894,8 +950,11 @@ mod tests {
 
         // Frame 2: Press Enter
         input.key_pressed_enter = true;
-        let res = raw::button(
+        let res = raw::post_layout_button(
             spec(),
+            raw::ButtonPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input,
             &mut focus_system,
@@ -915,8 +974,11 @@ mod tests {
             Vec2::new(50.0, 25.0),
             Vec2::new(150.0, 150.0),
             |state, input, focus_system, cmds| {
-                raw::button(
+                raw::post_layout_button(
                     btn_spec(Rect::new(0.0, 0.0, 100.0, 50.0)),
+                    raw::ButtonPreLayoutResult {
+                        size_request: crate::layout::SizeRequest::UNKNOWN,
+                    },
                     state,
                     input,
                     focus_system,
@@ -938,8 +1000,11 @@ mod tests {
             &mut state,
             focus_id,
             |state, input, focus_system, cmds| {
-                raw::button(
+                raw::post_layout_button(
                     btn_spec(Rect::new(0.0, 0.0, 100.0, 50.0)),
+                    raw::ButtonPreLayoutResult {
+                        size_request: crate::layout::SizeRequest::UNKNOWN,
+                    },
                     state,
                     input,
                     focus_system,
@@ -961,8 +1026,11 @@ mod tests {
             &mut state,
             focus_id,
             |state, input, focus_system, cmds| {
-                raw::button(
+                raw::post_layout_button(
                     btn_spec(Rect::new(0.0, 0.0, 100.0, 50.0)),
+                    raw::ButtonPreLayoutResult {
+                        size_request: crate::layout::SizeRequest::UNKNOWN,
+                    },
                     state,
                     input,
                     focus_system,
@@ -987,8 +1055,11 @@ mod tests {
         let mut state = state;
         focus_system.begin_frame();
         let mut cmds = DrawCommands::new();
-        let _res = raw::button(
+        let _res = raw::post_layout_button(
             spec,
+            raw::ButtonPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input,
             &mut focus_system,
@@ -1061,8 +1132,11 @@ mod tests {
         // Warmup frame to establish hover claim
         focus_system.begin_frame();
         let mut cmds = DrawCommands::new();
-        let _res = raw::button(
+        let _res = raw::post_layout_button(
             btn_spec(Rect::new(10.0, 10.0, 100.0, 30.0)),
+            raw::ButtonPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input,
             &mut focus_system,
@@ -1074,8 +1148,11 @@ mod tests {
         // Evaluation frame
         focus_system.begin_frame();
         let mut cmds = DrawCommands::new();
-        let _res = raw::button(
+        let _res = raw::post_layout_button(
             btn_spec(Rect::new(10.0, 10.0, 100.0, 30.0)),
+            raw::ButtonPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input,
             &mut focus_system,
@@ -1148,8 +1225,11 @@ mod tests {
         // Warmup frame to establish hover claim
         focus_system.begin_frame();
         let mut cmds = DrawCommands::new();
-        let _res = raw::button(
+        let _res = raw::post_layout_button(
             btn_spec(Rect::new(10.0, 10.0, 100.0, 30.0)),
+            raw::ButtonPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input,
             &mut focus_system,
@@ -1163,8 +1243,11 @@ mod tests {
         input.mouse_pressed = true;
         focus_system.begin_frame();
         let mut cmds = DrawCommands::new();
-        let _res = raw::button(
+        let _res = raw::post_layout_button(
             btn_spec(Rect::new(10.0, 10.0, 100.0, 30.0)),
+            raw::ButtonPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input,
             &mut focus_system,
@@ -1235,8 +1318,11 @@ mod tests {
         let mut state = state;
         focus_system.begin_frame();
         let mut cmds = DrawCommands::new();
-        let _res = raw::button(
+        let _res = raw::post_layout_button(
             spec,
+            raw::ButtonPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &Input::default(),
             &mut focus_system,
@@ -1322,8 +1408,11 @@ mod tests {
         let mut state = state;
         focus_system.begin_frame();
         let mut cmds = DrawCommands::new();
-        let _res = raw::button(
+        let _res = raw::post_layout_button(
             spec,
+            raw::ButtonPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &Input::default(),
             &mut focus_system,
@@ -1402,8 +1491,11 @@ mod tests {
 
         focus_system.begin_frame();
         let mut cmds = DrawCommands::new();
-        let _ = raw::button(
+        let _ = raw::post_layout_button(
             spec,
+            raw::ButtonPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &Input::default(),
             &mut focus_system,
@@ -1439,8 +1531,11 @@ mod tests {
 
         focus_system.begin_frame();
         let mut cmds = DrawCommands::new();
-        let _ = raw::button(
+        let _ = raw::post_layout_button(
             spec,
+            raw::ButtonPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &Input::default(),
             &mut focus_system,
@@ -1497,8 +1592,11 @@ mod tests {
         let mut state = state;
         focus_system.begin_frame();
         let mut cmds = DrawCommands::new();
-        let _res = raw::button(
+        let _res = raw::post_layout_button(
             spec,
+            raw::ButtonPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input,
             &mut focus_system,
@@ -1682,13 +1780,13 @@ mod tests {
     #[test]
     fn test_size_button() {
         let mut ts = TestTextBackend;
-        let spec = raw::ButtonSizeSpec {
+        let spec = raw::ButtonPreLayoutSpec {
             text: "Btn",
             style: ButtonStyle::primary_from_theme(&theme::Theme::default()),
         };
         // "Btn" = 3 chars * 8px = 24 wide, 16 tall (TestTextBackend).
         // width = 24 + 2*pad_x(14) = 52; height = max(16 + 2*pad_y(6), min_height 28) = 28.
-        let i = raw::size_button(&spec, SizeOffer::UNBOUNDED, &mut ts);
+        let i = raw::pre_layout_button(&spec, SizeOffer::UNBOUNDED, &mut ts).size_request;
         assert_eq!(i.preferred, Some(Vec2::new(52.0, 28.0)));
     }
 
@@ -1696,7 +1794,7 @@ mod tests {
     fn test_size_button_ignores_offer() {
         use crate::layout::AxisBound;
 
-        let spec = raw::ButtonSizeSpec {
+        let spec = raw::ButtonPreLayoutSpec {
             text: "Btn",
             style: ButtonStyle::primary_from_theme(&theme::Theme::default()),
         };
@@ -1707,10 +1805,13 @@ mod tests {
         ];
 
         let mut ts = TestTextBackend;
-        let expected = raw::size_button(&spec, offers[0], &mut ts);
+        let expected = raw::pre_layout_button(&spec, offers[0], &mut ts).size_request;
         for offer in offers {
             let mut ts = TestTextBackend;
-            assert_eq!(raw::size_button(&spec, offer, &mut ts), expected);
+            assert_eq!(
+                raw::pre_layout_button(&spec, offer, &mut ts).size_request,
+                expected
+            );
         }
     }
 

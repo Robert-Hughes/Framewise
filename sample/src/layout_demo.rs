@@ -39,7 +39,7 @@ use framewise::{
     widget::WidgetContext,
     widgets::button::{
         button,
-        raw::{size_button, ButtonSizeSpec},
+        raw::{pre_layout_button, ButtonPreLayoutSpec},
         ButtonSpecBuilder, ButtonState, ButtonStyle,
     },
     widgets::label::{label, LabelSpecBuilder},
@@ -663,13 +663,14 @@ pub(crate) fn draw_layout_page_content<'a, 'b, CF>(
                     .style(secondary)
                     .defaults_from_theme(&theme)
                     .build();
-                let spec = ButtonSizeSpec {
+                let spec = ButtonPreLayoutSpec {
                     text: spec.text,
                     style: spec.style,
                 };
                 // These buttons are manually placed in a fixed toolbar slot, so
                 // there is no layout offer to peek for this raw size query.
-                size_button(&spec, framewise::layout::SizeOffer::UNBOUNDED, ts)
+                pre_layout_button(&spec, framewise::layout::SizeOffer::UNBOUNDED, ts)
+                    .size_request
                     .preferred
                     .unwrap()
                     .x

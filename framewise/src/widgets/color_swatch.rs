@@ -19,7 +19,12 @@ pub mod raw {
     }
 
     #[derive(Debug, Clone, PartialEq)]
-    pub struct ColorSwatchSizeSpec {}
+    pub struct ColorSwatchPreLayoutSpec {}
+
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct ColorSwatchPreLayoutResult {
+        pub size_request: crate::layout::SizeRequest,
+    }
 
     #[derive(Debug, Clone, PartialEq)]
     pub struct ColorSwatchResult {
@@ -31,8 +36,17 @@ pub mod raw {
     /// The current implementation ignores `offer` because a color swatch has no
     /// inherent preferred size. This returns [`SizeRequest::UNKNOWN`].
     ///
-    pub fn size_color_swatch(
-        spec: &ColorSwatchSizeSpec,
+    pub fn pre_layout_color_swatch(
+        spec: &ColorSwatchPreLayoutSpec,
+        offer: SizeOffer,
+    ) -> ColorSwatchPreLayoutResult {
+        ColorSwatchPreLayoutResult {
+            size_request: size_color_swatch(spec, offer),
+        }
+    }
+
+    fn size_color_swatch(
+        spec: &ColorSwatchPreLayoutSpec,
         _offer: SizeOffer,
     ) -> crate::layout::SizeRequest {
         let _ = spec;
@@ -43,7 +57,11 @@ pub mod raw {
     ///
     /// This is the raw implementation that takes all parameters explicitly.
     /// High-level wrappers should use this internally.
-    pub fn color_swatch(spec: ColorSwatchSpec, cmds: &mut DrawCommands) -> ColorSwatchResult {
+    pub fn post_layout_color_swatch(
+        spec: ColorSwatchSpec,
+        _pre_layout: ColorSwatchPreLayoutResult,
+        cmds: &mut DrawCommands,
+    ) -> ColorSwatchResult {
         cmds.push(DrawCmd::FillRect {
             anti_alias: false,
             rect: spec.rect,
@@ -136,17 +154,17 @@ pub fn color_swatch<T: TextBackend, S: LayoutState, CF>(
     layout_params: S::Params,
 ) -> ColorSwatchResult {
     let spec = builder.defaults_from_theme(&ctx.theme).build();
-    let size_spec = raw::ColorSwatchSizeSpec {};
+    let pre_layout_spec = raw::ColorSwatchPreLayoutSpec {};
     let offer = ctx.peek_offer(layout_params.clone());
-    let size_request = raw::size_color_swatch(&size_spec, offer);
-    let rect = ctx.layout(layout_params, size_request);
+    let pre_layout = raw::pre_layout_color_swatch(&pre_layout_spec, offer);
+    let rect = ctx.layout(layout_params, pre_layout.size_request);
     let raw_spec = raw::ColorSwatchSpec {
         layer: ctx.layer,
         rect,
         color: spec.color,
         border: spec.border,
     };
-    let result = raw::color_swatch(raw_spec, ctx.cmds);
+    let result = raw::post_layout_color_swatch(raw_spec, pre_layout, ctx.cmds);
     ColorSwatchResult {
         layout: LayoutInfo::new(rect, result.content_bounds),
     }
@@ -168,7 +186,13 @@ mod tests {
             border: Color::linear_rgba(0.0, 0.0, 0.0, 0.20),
         };
         let mut cmds = DrawCommands::new();
-        let res = raw::color_swatch(spec, &mut cmds);
+        let res = raw::post_layout_color_swatch(
+            spec,
+            raw::ColorSwatchPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
+            &mut cmds,
+        );
         let default_color = Color::from_srgb_f32(0.5, 0.5, 0.5, 1.0);
         let default_border = Color::linear_rgba(0.0, 0.0, 0.0, 0.20);
 
@@ -207,7 +231,13 @@ mod tests {
             border: custom_border,
         };
         let mut cmds = DrawCommands::new();
-        let res = raw::color_swatch(spec, &mut cmds);
+        let res = raw::post_layout_color_swatch(
+            spec,
+            raw::ColorSwatchPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
+            &mut cmds,
+        );
 
         assert_eq!(
             res.content_bounds,

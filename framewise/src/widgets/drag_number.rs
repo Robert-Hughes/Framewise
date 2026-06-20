@@ -25,11 +25,16 @@ pub mod raw {
     }
 
     #[derive(Debug, Clone, PartialEq)]
-    pub struct DragNumberSizeSpec<'a> {
+    pub struct DragNumberPreLayoutSpec<'a> {
         pub text: &'a str,
         pub style: super::DragNumberStyle,
         pub min: f32,
         pub max: f32,
+    }
+
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct DragNumberPreLayoutResult {
+        pub size_request: crate::layout::SizeRequest,
     }
 
     #[derive(Debug, Clone, PartialEq)]
@@ -43,8 +48,18 @@ pub mod raw {
     ///
     /// This currently measures text with unbounded bounds; offer-sensitive
     /// wrapping is future work.
-    pub fn size_drag_number<T: TextBackend>(
-        spec: &DragNumberSizeSpec,
+    pub fn pre_layout_drag_number<T: TextBackend>(
+        spec: &DragNumberPreLayoutSpec,
+        offer: SizeOffer,
+        text_backend: &mut T,
+    ) -> DragNumberPreLayoutResult {
+        DragNumberPreLayoutResult {
+            size_request: size_drag_number(spec, offer, text_backend),
+        }
+    }
+
+    fn size_drag_number<T: TextBackend>(
+        spec: &DragNumberPreLayoutSpec,
         _offer: SizeOffer,
         text_backend: &mut T,
     ) -> crate::layout::SizeRequest {
@@ -82,8 +97,9 @@ pub mod raw {
     ///
     /// This is the raw implementation that takes all parameters explicitly.
     /// High-level wrappers should use this internally.
-    pub fn drag_number<'a, T: TextBackend>(
+    pub fn post_layout_drag_number<'a, T: TextBackend>(
         spec: DragNumberSpec<'a>,
+        _pre_layout: DragNumberPreLayoutResult,
         state: &mut DragNumberState,
         input: &Input,
         focus_system: &mut FocusSystem,
@@ -416,15 +432,15 @@ pub fn drag_number<'a, T: TextBackend, S: LayoutState, CF>(
     state: &mut DragNumberState,
 ) -> DragNumberResult {
     let spec = builder.defaults_from_theme(&ctx.theme).build();
-    let size_spec = raw::DragNumberSizeSpec {
+    let pre_layout_spec = raw::DragNumberPreLayoutSpec {
         text: spec.text,
         style: spec.style,
         min: spec.min,
         max: spec.max,
     };
     let offer = ctx.peek_offer(layout_params.clone());
-    let size_request = raw::size_drag_number(&size_spec, offer, ctx.text_backend);
-    let rect = ctx.layout(layout_params, size_request);
+    let pre_layout = raw::pre_layout_drag_number(&pre_layout_spec, offer, ctx.text_backend);
+    let rect = ctx.layout(layout_params, pre_layout.size_request);
     let raw_spec = raw::DragNumberSpec {
         layer: ctx.layer,
         rect,
@@ -435,8 +451,9 @@ pub fn drag_number<'a, T: TextBackend, S: LayoutState, CF>(
         disabled: spec.disabled,
         clip_rect: ctx.clip_rect,
     };
-    let result = raw::drag_number(
+    let result = raw::post_layout_drag_number(
         raw_spec,
+        pre_layout,
         state,
         ctx.input,
         ctx.focus_system,
@@ -462,8 +479,11 @@ mod tests {
     fn drag_num<'a>(spec: DragNumberSpec<'a>, value: f32) -> (raw::DragNumberResult, DrawCommands) {
         let mut cmds = DrawCommands::new();
         let mut text_backend = TestTextBackend;
-        let res = raw::drag_number(
+        let res = raw::post_layout_drag_number(
             spec,
+            raw::DragNumberPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut DragNumberState {
                 value,
                 ..Default::default()
@@ -589,8 +609,11 @@ mod tests {
         };
         let mut cmds = DrawCommands::new();
         let mut text_backend = TestTextBackend;
-        let _res = raw::drag_number(
+        let _res = raw::post_layout_drag_number(
             spec,
+            raw::DragNumberPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input,
             &mut FocusSystem::new(),
@@ -692,8 +715,11 @@ mod tests {
 
         let style = spec.style;
         let mut cmds = DrawCommands::new();
-        let _res = raw::drag_number(
+        let _res = raw::post_layout_drag_number(
             spec,
+            raw::DragNumberPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut DragNumberState::default(),
             &Input::default(),
             &mut FocusSystem::new(),
@@ -790,8 +816,11 @@ mod tests {
         let mut state = state;
         let mut cmds = DrawCommands::new();
         focus_system.begin_frame();
-        raw::drag_number(
+        raw::post_layout_drag_number(
             spec,
+            raw::DragNumberPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input,
             &mut focus_system,
@@ -835,8 +864,11 @@ mod tests {
         let mut state = state;
         let mut cmds = DrawCommands::new();
         focus_system.begin_frame();
-        raw::drag_number(
+        raw::post_layout_drag_number(
             spec,
+            raw::DragNumberPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input,
             &mut focus_system,
@@ -869,7 +901,7 @@ mod tests {
         input.key_pressed_right = true;
         let mut cmds = DrawCommands::new();
         focus_system.begin_frame();
-        raw::drag_number(
+        raw::post_layout_drag_number(
             DragNumberSpec {
                 layer: Layer::default(),
                 rect: Rect::new(0.0, 0.0, 100.0, 28.0),
@@ -879,6 +911,9 @@ mod tests {
                 disabled: false,
                 style: DragNumberStyle::from_theme(&crate::theme::Theme::framewise()),
                 clip_rect: None,
+            },
+            raw::DragNumberPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
             },
             &mut state,
             &input,
@@ -895,7 +930,7 @@ mod tests {
         input.key_pressed_left = true;
         let mut cmds = DrawCommands::new();
         focus_system.begin_frame();
-        raw::drag_number(
+        raw::post_layout_drag_number(
             DragNumberSpec {
                 layer: Layer::default(),
                 rect: Rect::new(0.0, 0.0, 100.0, 28.0),
@@ -905,6 +940,9 @@ mod tests {
                 disabled: false,
                 style: DragNumberStyle::from_theme(&crate::theme::Theme::framewise()),
                 clip_rect: None,
+            },
+            raw::DragNumberPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
             },
             &mut state,
             &input,

@@ -146,8 +146,14 @@ fn draw_checkbox_fake_state<T: TextBackend, CF>(
         layer: b.layer,
     };
 
-    framewise::widgets::checkbox::raw::checkbox(
+    let pre_layout = framewise::widgets::checkbox::raw::pre_layout_checkbox(
+        &framewise::widgets::checkbox::raw::CheckboxPreLayoutSpec { style: spec.style },
+        framewise::layout::SizeOffer::UNBOUNDED,
+    );
+
+    framewise::widgets::checkbox::raw::post_layout_checkbox(
         spec,
+        pre_layout,
         &mut state,
         &dummy_input,
         &mut dummy_focus_sys,
@@ -182,8 +188,14 @@ fn draw_radio_fake_state<T: TextBackend, CF>(
         layer: b.layer,
     };
 
-    framewise::widgets::radio::raw::radio(
+    let pre_layout = framewise::widgets::radio::raw::pre_layout_radio(
+        &framewise::widgets::radio::raw::RadioPreLayoutSpec { style: spec.style },
+        framewise::layout::SizeOffer::UNBOUNDED,
+    );
+
+    framewise::widgets::radio::raw::post_layout_radio(
         spec,
+        pre_layout,
         &mut state,
         &dummy_input,
         &mut dummy_focus_sys,
@@ -218,8 +230,14 @@ fn draw_switch_fake_state<T: TextBackend, CF>(
         layer: b.layer,
     };
 
-    framewise::widgets::switch::raw::switch(
+    let pre_layout = framewise::widgets::switch::raw::pre_layout_switch(
+        &framewise::widgets::switch::raw::SwitchPreLayoutSpec { style: spec.style },
+        framewise::layout::SizeOffer::UNBOUNDED,
+    );
+
+    framewise::widgets::switch::raw::post_layout_switch(
         spec,
+        pre_layout,
         &mut state,
         &dummy_input,
         &mut dummy_focus_sys,
@@ -301,8 +319,20 @@ fn draw_drag_number_fake_state<T: TextBackend, LS: LayoutState, CF>(
     };
 
     let mut dummy_focus_sys = FocusSystem::new();
-    let result = framewise::widgets::drag_number::raw::drag_number(
+    let pre_layout = framewise::widgets::drag_number::raw::pre_layout_drag_number(
+        &framewise::widgets::drag_number::raw::DragNumberPreLayoutSpec {
+            text: spec.text,
+            style: spec.style,
+            min: spec.min,
+            max: spec.max,
+        },
+        framewise::layout::SizeOffer::UNBOUNDED,
+        b.text_backend,
+    );
+
+    let result = framewise::widgets::drag_number::raw::post_layout_drag_number(
         spec,
+        pre_layout,
         &mut state,
         &dummy_input,
         &mut dummy_focus_sys,
@@ -349,15 +379,25 @@ fn draw_button_fake_state<T: TextBackend, LS: LayoutState, CF>(
     };
     let mut dummy_focus_sys = FocusSystem::new_mocked(mock_focus, mock_hover);
 
-    framewise::widgets::button::raw::button(
-        framewise::widgets::button::raw::ButtonSpec {
-            rect,
-            text,
-            style,
-            clip_rect: None,
-            disabled: false,
-            layer: b.layer,
+    let button_spec = framewise::widgets::button::raw::ButtonSpec {
+        rect,
+        text,
+        style,
+        clip_rect: None,
+        disabled: false,
+        layer: b.layer,
+    };
+    let pre_layout = framewise::widgets::button::raw::pre_layout_button(
+        &framewise::widgets::button::raw::ButtonPreLayoutSpec {
+            text: button_spec.text,
+            style: button_spec.style,
         },
+        framewise::layout::SizeOffer::UNBOUNDED,
+        b.text_backend,
+    );
+    framewise::widgets::button::raw::post_layout_button(
+        button_spec,
+        pre_layout,
         &mut state,
         &fake_input,
         &mut dummy_focus_sys,
@@ -373,16 +413,17 @@ fn button_preferred_width<T: TextBackend>(
     text_backend: &mut T,
 ) -> f32 {
     let spec = ButtonSpecBuilder::new().text(text).style(style).build();
-    let spec = framewise::widgets::button::raw::ButtonSizeSpec {
+    let spec = framewise::widgets::button::raw::ButtonPreLayoutSpec {
         text: spec.text,
         style: spec.style,
     };
 
-    framewise::widgets::button::raw::size_button(
+    framewise::widgets::button::raw::pre_layout_button(
         &spec,
         framewise::layout::SizeOffer::UNBOUNDED,
         text_backend,
     )
+    .size_request
     .preferred
     .expect("button size request should report preferred size")
     .x
@@ -422,21 +463,34 @@ fn draw_text_edit_fake_state<T: TextBackend, LS: LayoutState, CF>(
     let mock_hover = if hovered { Some(state.focus_id) } else { None };
     let mut dummy_focus_sys = FocusSystem::new_mocked(mock_focus, mock_hover);
 
-    framewise::widgets::text_edit::raw::text_edit(
-        framewise::widgets::text_edit::raw::TextEditSpec {
-            rect,
-            style,
-            placeholder: placeholder.map(str::to_string),
-            clip_rect: b.clip_rect,
-            error: false,
-            disabled: false,
-            time: 0.0,
-            layer: b.layer,
-            newline_policy: NewlinePolicy::ReplaceWithSpace,
-            wrap: false,
-            vertical_align: Align::Center,
-            line_align: TextLineAlign::Start,
+    let spec = framewise::widgets::text_edit::raw::TextEditSpec {
+        rect,
+        style,
+        placeholder: placeholder.map(str::to_string),
+        clip_rect: b.clip_rect,
+        error: false,
+        disabled: false,
+        time: 0.0,
+        layer: b.layer,
+        newline_policy: NewlinePolicy::ReplaceWithSpace,
+        wrap: false,
+        vertical_align: Align::Center,
+        line_align: TextLineAlign::Start,
+    };
+    let pre_layout = framewise::widgets::text_edit::raw::pre_layout_text_edit(
+        &framewise::widgets::text_edit::raw::TextEditPreLayoutSpec {
+            style: spec.style,
+            wrap: spec.wrap,
+            line_align: spec.line_align,
+            error: spec.error,
         },
+        framewise::layout::SizeOffer::UNBOUNDED,
+        &state,
+        b.text_backend,
+    );
+    framewise::widgets::text_edit::raw::post_layout_text_edit(
+        spec,
+        pre_layout,
         &mut state,
         &fake_input,
         &mut dummy_focus_sys,
@@ -1108,13 +1162,23 @@ fn static_badge<CF, LS: LayoutState>(b: &mut WidgetContext<SampleTextBackend, LS
         ..LabelStyle::from_theme(&b.theme)
     });
     let spec = spec_builder.build();
-    framewise::widgets::label::raw::label(
-        framewise::widgets::label::raw::LabelSpec {
-            rect,
-            text: spec.text,
-            style: spec.style,
-            layer: b.layer,
+    let label_spec = framewise::widgets::label::raw::LabelSpec {
+        rect,
+        text: spec.text,
+        style: spec.style,
+        layer: b.layer,
+    };
+    let pre_layout = framewise::widgets::label::raw::pre_layout_label(
+        &framewise::widgets::label::raw::LabelPreLayoutSpec {
+            text: label_spec.text,
+            style: label_spec.style,
         },
+        framewise::layout::SizeOffer::UNBOUNDED,
+        b.text_backend,
+    );
+    framewise::widgets::label::raw::post_layout_label(
+        label_spec,
+        pre_layout,
         b.text_backend,
         b.cmds,
     );

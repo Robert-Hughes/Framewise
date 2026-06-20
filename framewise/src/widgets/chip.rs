@@ -25,9 +25,14 @@ pub mod raw {
     }
 
     #[derive(Debug, Clone, PartialEq)]
-    pub struct ChipSizeSpec<'a> {
+    pub struct ChipPreLayoutSpec<'a> {
         pub text: &'a str,
         pub style: super::ChipStyle,
+    }
+
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct ChipPreLayoutResult {
+        pub size_request: crate::layout::SizeRequest,
     }
 
     #[derive(Debug, Clone, PartialEq)]
@@ -41,8 +46,18 @@ pub mod raw {
     ///
     /// This currently measures text with unbounded bounds; offer-sensitive
     /// wrapping is future work.
-    pub fn size_chip<T: TextBackend>(
-        spec: &ChipSizeSpec,
+    pub fn pre_layout_chip<T: TextBackend>(
+        spec: &ChipPreLayoutSpec,
+        offer: SizeOffer,
+        text_backend: &mut T,
+    ) -> ChipPreLayoutResult {
+        ChipPreLayoutResult {
+            size_request: size_chip(spec, offer, text_backend),
+        }
+    }
+
+    fn size_chip<T: TextBackend>(
+        spec: &ChipPreLayoutSpec,
         _offer: SizeOffer,
         text_backend: &mut T,
     ) -> crate::layout::SizeRequest {
@@ -59,8 +74,9 @@ pub mod raw {
     ///
     /// This is the raw implementation that takes all parameters explicitly.
     /// High-level wrappers should use this internally.
-    pub fn chip<'a, T: TextBackend>(
+    pub fn post_layout_chip<'a, T: TextBackend>(
         spec: ChipSpec<'a>,
+        _pre_layout: ChipPreLayoutResult,
         state: &mut ChipState,
         input: &Input,
         focus_system: &mut FocusSystem,
@@ -312,13 +328,13 @@ pub fn chip<'a, T: TextBackend, S: LayoutState, CF>(
     state: &mut ChipState,
 ) -> ChipResult {
     let spec = builder.defaults_from_theme(&ctx.theme).build();
-    let size_spec = raw::ChipSizeSpec {
+    let pre_layout_spec = raw::ChipPreLayoutSpec {
         text: spec.text,
         style: spec.style,
     };
     let offer = ctx.peek_offer(layout_params.clone());
-    let size_request = raw::size_chip(&size_spec, offer, ctx.text_backend);
-    let rect = ctx.layout(layout_params, size_request);
+    let pre_layout = raw::pre_layout_chip(&pre_layout_spec, offer, ctx.text_backend);
+    let rect = ctx.layout(layout_params, pre_layout.size_request);
     let raw_spec = raw::ChipSpec {
         layer: ctx.layer,
         rect,
@@ -327,8 +343,9 @@ pub fn chip<'a, T: TextBackend, S: LayoutState, CF>(
         disabled: spec.disabled,
         clip_rect: ctx.clip_rect,
     };
-    let result = raw::chip(
+    let result = raw::post_layout_chip(
         raw_spec,
+        pre_layout,
         state,
         ctx.input,
         ctx.focus_system,
@@ -354,8 +371,11 @@ mod tests {
     fn chip_raw<'a>(spec: ChipSpec<'a>) -> (raw::ChipResult, DrawCommands) {
         let mut cmds = DrawCommands::new();
         let mut text_backend = TestTextBackend;
-        let res = raw::chip(
+        let res = raw::post_layout_chip(
             spec,
+            raw::ChipPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut ChipState::default(),
             &Input::default(),
             &mut FocusSystem::new(),
@@ -437,8 +457,11 @@ mod tests {
         };
         let style = spec.style;
         let mut cmds = DrawCommands::new();
-        raw::chip(
+        raw::post_layout_chip(
             spec,
+            raw::ChipPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &Input::default(),
             &mut FocusSystem::new(),
@@ -506,8 +529,11 @@ mod tests {
         let style = spec.style;
         let mut state = state;
         let mut cmds = DrawCommands::new();
-        raw::chip(
+        raw::post_layout_chip(
             spec,
+            raw::ChipPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &Input::default(),
             &mut focus_system,
@@ -590,8 +616,11 @@ mod tests {
         let mut state = state;
         focus_system.begin_frame();
         let mut cmds = DrawCommands::new();
-        raw::chip(
+        raw::post_layout_chip(
             spec,
+            raw::ChipPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input,
             &mut focus_system,
@@ -630,8 +659,11 @@ mod tests {
         let mut state = state;
         focus_system.begin_frame();
         let mut cmds = DrawCommands::new();
-        raw::chip(
+        raw::post_layout_chip(
             spec,
+            raw::ChipPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
             &mut state,
             &input,
             &mut focus_system,
@@ -658,7 +690,7 @@ mod tests {
         focus_system.take_keyboard_focus(state.focus_id);
         focus_system.begin_frame();
         let mut cmds = DrawCommands::new();
-        raw::chip(
+        raw::post_layout_chip(
             ChipSpec {
                 layer: Layer::default(),
                 rect: Rect::new(0.0, 0.0, 50.0, 22.0),
@@ -666,6 +698,9 @@ mod tests {
                 disabled: false,
                 style: ChipStyle::from_theme(&crate::theme::Theme::framewise()),
                 clip_rect: None,
+            },
+            raw::ChipPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
             },
             &mut state,
             &input,
@@ -680,7 +715,7 @@ mod tests {
         input.key_pressed_space = true;
         focus_system.begin_frame();
         let mut cmds = DrawCommands::new();
-        raw::chip(
+        raw::post_layout_chip(
             ChipSpec {
                 layer: Layer::default(),
                 rect: Rect::new(0.0, 0.0, 50.0, 22.0),
@@ -688,6 +723,9 @@ mod tests {
                 disabled: false,
                 style: ChipStyle::from_theme(&crate::theme::Theme::framewise()),
                 clip_rect: None,
+            },
+            raw::ChipPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
             },
             &mut state,
             &input,
@@ -703,7 +741,7 @@ mod tests {
         input.key_released_space = true;
         focus_system.begin_frame();
         let mut cmds = DrawCommands::new();
-        raw::chip(
+        raw::post_layout_chip(
             ChipSpec {
                 layer: Layer::default(),
                 rect: Rect::new(0.0, 0.0, 50.0, 22.0),
@@ -711,6 +749,9 @@ mod tests {
                 disabled: false,
                 style: ChipStyle::from_theme(&crate::theme::Theme::framewise()),
                 clip_rect: None,
+            },
+            raw::ChipPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
             },
             &mut state,
             &input,

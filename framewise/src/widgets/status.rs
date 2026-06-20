@@ -19,9 +19,14 @@ pub mod raw {
     }
 
     #[derive(Debug, Clone, PartialEq)]
-    pub struct StatusSizeSpec<'a> {
+    pub struct StatusPreLayoutSpec<'a> {
         pub text: &'a str,
         pub style: super::StatusStyle,
+    }
+
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct StatusPreLayoutResult {
+        pub size_request: crate::layout::SizeRequest,
     }
 
     #[derive(Debug, Clone, PartialEq)]
@@ -31,8 +36,18 @@ pub mod raw {
     ///
     /// This currently measures text with unbounded bounds; offer-sensitive
     /// wrapping is future work.
-    pub fn size_status<T: TextBackend>(
-        spec: &StatusSizeSpec,
+    pub fn pre_layout_status<T: TextBackend>(
+        spec: &StatusPreLayoutSpec,
+        offer: SizeOffer,
+        text_backend: &mut T,
+    ) -> StatusPreLayoutResult {
+        StatusPreLayoutResult {
+            size_request: size_status(spec, offer, text_backend),
+        }
+    }
+
+    fn size_status<T: TextBackend>(
+        spec: &StatusPreLayoutSpec,
         _offer: SizeOffer,
         text_backend: &mut T,
     ) -> crate::layout::SizeRequest {
@@ -54,8 +69,9 @@ pub mod raw {
     ///
     /// This is the raw implementation that takes all parameters explicitly.
     /// High-level wrappers should use this internally.
-    pub fn status<T: TextBackend>(
+    pub fn post_layout_status<T: TextBackend>(
         spec: StatusSpec<'_>,
+        _pre_layout: StatusPreLayoutResult,
         text_backend: &mut T,
         cmds: &mut DrawCommands,
     ) {
@@ -227,13 +243,13 @@ pub fn status<'a, T: TextBackend, S: LayoutState, CF>(
     layout_params: S::Params,
 ) -> StatusResult {
     let spec = builder.defaults_from_theme(&ctx.theme).build();
-    let size_spec = raw::StatusSizeSpec {
+    let pre_layout_spec = raw::StatusPreLayoutSpec {
         text: spec.text,
         style: spec.style,
     };
     let offer = ctx.peek_offer(layout_params.clone());
-    let size_request = raw::size_status(&size_spec, offer, ctx.text_backend);
-    let rect = ctx.layout(layout_params, size_request);
+    let pre_layout = raw::pre_layout_status(&pre_layout_spec, offer, ctx.text_backend);
+    let rect = ctx.layout(layout_params, pre_layout.size_request);
     let raw_spec = raw::StatusSpec {
         rect,
         text: spec.text,
@@ -241,7 +257,7 @@ pub fn status<'a, T: TextBackend, S: LayoutState, CF>(
         style: spec.style,
         layer: ctx.layer,
     };
-    raw::status(raw_spec, ctx.text_backend, ctx.cmds);
+    raw::post_layout_status(raw_spec, pre_layout, ctx.text_backend, ctx.cmds);
     StatusResult {
         layout: LayoutInfo::tight(rect),
     }
@@ -266,7 +282,14 @@ mod tests {
         };
         let style = spec.style;
         let mut cmds = DrawCommands::new();
-        raw::status(spec, &mut text_backend, &mut cmds);
+        raw::post_layout_status(
+            spec,
+            raw::StatusPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
+            &mut text_backend,
+            &mut cmds,
+        );
 
         assert_eq!(
             cmds.commands(),
@@ -327,7 +350,14 @@ mod tests {
         };
         let style = spec.style;
         let mut cmds = DrawCommands::new();
-        raw::status(spec, &mut text_backend, &mut cmds);
+        raw::post_layout_status(
+            spec,
+            raw::StatusPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
+            &mut text_backend,
+            &mut cmds,
+        );
 
         assert_eq!(
             cmds.commands(),

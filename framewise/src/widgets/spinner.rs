@@ -19,7 +19,12 @@ pub mod raw {
     }
 
     #[derive(Debug, Clone, PartialEq)]
-    pub struct SpinnerSizeSpec {}
+    pub struct SpinnerPreLayoutSpec {}
+
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct SpinnerPreLayoutResult {
+        pub size_request: crate::layout::SizeRequest,
+    }
 
     #[derive(Debug, Clone, PartialEq)]
     pub struct SpinnerResult {}
@@ -28,7 +33,16 @@ pub mod raw {
     ///
     /// The current implementation ignores `offer` because the spinner's extent
     /// is caller-driven. This returns [`SizeRequest::UNKNOWN`].
-    pub fn size_spinner(_spec: &SpinnerSizeSpec, _offer: SizeOffer) -> SizeRequest {
+    pub fn pre_layout_spinner(
+        spec: &SpinnerPreLayoutSpec,
+        offer: SizeOffer,
+    ) -> SpinnerPreLayoutResult {
+        SpinnerPreLayoutResult {
+            size_request: size_spinner(spec, offer),
+        }
+    }
+
+    fn size_spinner(_spec: &SpinnerPreLayoutSpec, _offer: SizeOffer) -> SizeRequest {
         SizeRequest::UNKNOWN
     }
 
@@ -37,7 +51,11 @@ pub mod raw {
     /// Appends draw commands to `cmds`.
     /// Square reticle spinner — four corner brackets with a single animated segment.
     /// Since we can't animate, we draw it at a fixed phase (segment at top).
-    pub fn spinner(spec: SpinnerSpec, cmds: &mut DrawCommands) {
+    pub fn post_layout_spinner(
+        spec: SpinnerSpec,
+        _pre_layout: SpinnerPreLayoutResult,
+        cmds: &mut DrawCommands,
+    ) {
         let size = if spec.large {
             spec.style.large_size
         } else {
@@ -236,17 +254,17 @@ pub fn spinner<T: TextBackend, S: LayoutState, CF>(
     layout_params: S::Params,
 ) -> SpinnerResult {
     let spec = builder.defaults_from_theme(&ctx.theme).build();
-    let size_spec = raw::SpinnerSizeSpec {};
+    let pre_layout_spec = raw::SpinnerPreLayoutSpec {};
     let offer = ctx.peek_offer(layout_params.clone());
-    let size_request = raw::size_spinner(&size_spec, offer);
-    let rect = ctx.layout(layout_params, size_request);
+    let pre_layout = raw::pre_layout_spinner(&pre_layout_spec, offer);
+    let rect = ctx.layout(layout_params, pre_layout.size_request);
     let raw_spec = raw::SpinnerSpec {
         rect,
         large: spec.large,
         style: spec.style,
         layer: ctx.layer,
     };
-    raw::spinner(raw_spec, ctx.cmds);
+    raw::post_layout_spinner(raw_spec, pre_layout, ctx.cmds);
     SpinnerResult {
         layout: LayoutInfo::tight(rect),
     }
@@ -268,7 +286,13 @@ mod tests {
             layer: Layer::default(),
         };
         let mut cmds = DrawCommands::new();
-        raw::spinner(spec, &mut cmds);
+        raw::post_layout_spinner(
+            spec,
+            raw::SpinnerPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
+            &mut cmds,
+        );
 
         assert_eq!(
             cmds,
@@ -364,7 +388,13 @@ mod tests {
             layer: Layer::default(),
         };
         let mut cmds = DrawCommands::new();
-        raw::spinner(spec, &mut cmds);
+        raw::post_layout_spinner(
+            spec,
+            raw::SpinnerPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
+            &mut cmds,
+        );
 
         assert_eq!(
             cmds,

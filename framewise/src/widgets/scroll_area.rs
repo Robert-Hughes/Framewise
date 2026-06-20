@@ -255,8 +255,11 @@ pub mod raw {
             };
 
             state.vert_slider_state.value = state.offset.y;
-            crate::widgets::slider::raw::slider(
+            crate::widgets::slider::raw::post_layout_slider(
                 slider_spec,
+                crate::widgets::slider::raw::SliderPreLayoutResult {
+                    size_request: crate::layout::SizeRequest::UNKNOWN,
+                },
                 &mut state.vert_slider_state,
                 input,
                 focus_system,
@@ -297,8 +300,11 @@ pub mod raw {
             };
 
             state.horiz_slider_state.value = state.offset.x;
-            crate::widgets::slider::raw::slider(
+            crate::widgets::slider::raw::post_layout_slider(
                 slider_spec,
+                crate::widgets::slider::raw::SliderPreLayoutResult {
+                    size_request: crate::layout::SizeRequest::UNKNOWN,
+                },
                 &mut state.horiz_slider_state,
                 input,
                 focus_system,
@@ -1090,7 +1096,7 @@ mod tests {
                 raw::begin_scroll_area(spec, &mut state, &input, &mut focus_system, &mut cmds)
                     .token;
 
-            crate::widgets::button::raw::button(
+            crate::widgets::button::raw::post_layout_button(
                 crate::widgets::button::raw::ButtonSpec {
                     layer: Layer::default(),
                     rect: Rect::new(0.0, 0.0, 10.0, 10.0),
@@ -1100,6 +1106,9 @@ mod tests {
                     ),
                     clip_rect: None,
                     disabled: false,
+                },
+                crate::widgets::button::raw::ButtonPreLayoutResult {
+                    size_request: crate::layout::SizeRequest::UNKNOWN,
                 },
                 &mut btn_state,
                 &input,
@@ -1165,7 +1174,7 @@ mod tests {
             let token =
                 raw::begin_scroll_area(spec, &mut state, &input, &mut focus_system, &mut cmds)
                     .token;
-            crate::widgets::button::raw::button(
+            crate::widgets::button::raw::post_layout_button(
                 crate::widgets::button::raw::ButtonSpec {
                     layer: Layer::default(),
                     rect: Rect::new(0.0, 0.0, 10.0, 10.0),
@@ -1175,6 +1184,9 @@ mod tests {
                     ),
                     clip_rect: None,
                     disabled: false,
+                },
+                crate::widgets::button::raw::ButtonPreLayoutResult {
+                    size_request: crate::layout::SizeRequest::UNKNOWN,
                 },
                 &mut btn_state,
                 &input,
@@ -1218,7 +1230,7 @@ mod tests {
             input.key_pressed_page_down = true;
 
             // Button rendered OUTSIDE the scroll area's begin/finish.
-            crate::widgets::button::raw::button(
+            crate::widgets::button::raw::post_layout_button(
                 crate::widgets::button::raw::ButtonSpec {
                     layer: Layer::default(),
                     rect: Rect::new(500.0, 500.0, 10.0, 10.0),
@@ -1228,6 +1240,9 @@ mod tests {
                     ),
                     clip_rect: None,
                     disabled: false,
+                },
+                crate::widgets::button::raw::ButtonPreLayoutResult {
+                    size_request: crate::layout::SizeRequest::UNKNOWN,
                 },
                 &mut btn_state,
                 &input,
@@ -2168,7 +2183,7 @@ mod tests {
             let content_bounds = sa_r.content_bounds;
 
             // btn_visible: inside the clip rect (y=20..50, clip y=0..100).
-            crate::widgets::button::raw::button(
+            crate::widgets::button::raw::post_layout_button(
                 crate::widgets::button::raw::ButtonSpec {
                     layer: Layer::default(),
                     rect: Rect::new(0.0, 20.0, 80.0, 30.0),
@@ -2178,6 +2193,9 @@ mod tests {
                     ),
                     clip_rect: Some(content_bounds),
                     disabled: false,
+                },
+                crate::widgets::button::raw::ButtonPreLayoutResult {
+                    size_request: crate::layout::SizeRequest::UNKNOWN,
                 },
                 &mut btn_visible_state,
                 &input,
@@ -2189,7 +2207,7 @@ mod tests {
             // btn_clipped: OUTSIDE the clip rect (y=120..150, clip y=0..100).
             // Screen rect is in the gap between the scroll area and btn_start —
             // axial score from btn_start = 80, beating btn_visible's 180.
-            crate::widgets::button::raw::button(
+            crate::widgets::button::raw::post_layout_button(
                 crate::widgets::button::raw::ButtonSpec {
                     layer: Layer::default(),
                     rect: Rect::new(0.0, 120.0, 80.0, 30.0),
@@ -2199,6 +2217,9 @@ mod tests {
                     ),
                     clip_rect: Some(content_bounds),
                     disabled: false,
+                },
+                crate::widgets::button::raw::ButtonPreLayoutResult {
+                    size_request: crate::layout::SizeRequest::UNKNOWN,
                 },
                 &mut btn_clipped_state,
                 &input,
@@ -2217,7 +2238,7 @@ mod tests {
             );
 
             // btn_start: below the scroll area, no clip.
-            crate::widgets::button::raw::button(
+            crate::widgets::button::raw::post_layout_button(
                 crate::widgets::button::raw::ButtonSpec {
                     layer: Layer::default(),
                     rect: Rect::new(0.0, 200.0, 80.0, 30.0),
@@ -2227,6 +2248,9 @@ mod tests {
                     ),
                     clip_rect: None,
                     disabled: false,
+                },
+                crate::widgets::button::raw::ButtonPreLayoutResult {
+                    size_request: crate::layout::SizeRequest::UNKNOWN,
                 },
                 &mut btn_start_state,
                 &input,
@@ -2309,7 +2333,7 @@ mod tests {
 
             // btn_partial: y=70..100 — the bottom edge exactly meets the clip boundary.
             // 30px overlap → must be included in spatial nav.
-            crate::widgets::button::raw::button(
+            crate::widgets::button::raw::post_layout_button(
                 crate::widgets::button::raw::ButtonSpec {
                     layer: Layer::default(),
                     rect: Rect::new(0.0, 70.0, 80.0, 30.0),
@@ -2319,6 +2343,9 @@ mod tests {
                     ),
                     clip_rect: Some(content_bounds),
                     disabled: false,
+                },
+                crate::widgets::button::raw::ButtonPreLayoutResult {
+                    size_request: crate::layout::SizeRequest::UNKNOWN,
                 },
                 &mut btn_partial_state,
                 &input,
@@ -2337,7 +2364,7 @@ mod tests {
             );
 
             // btn_start: below the scroll area.
-            crate::widgets::button::raw::button(
+            crate::widgets::button::raw::post_layout_button(
                 crate::widgets::button::raw::ButtonSpec {
                     layer: Layer::default(),
                     rect: Rect::new(0.0, 150.0, 80.0, 30.0),
@@ -2347,6 +2374,9 @@ mod tests {
                     ),
                     clip_rect: None,
                     disabled: false,
+                },
+                crate::widgets::button::raw::ButtonPreLayoutResult {
+                    size_request: crate::layout::SizeRequest::UNKNOWN,
                 },
                 &mut btn_start_state,
                 &input,
@@ -3122,7 +3152,7 @@ mod nested_bubbling_tests {
                 &mut cmds,
             )
             .token;
-            crate::widgets::button::raw::button(
+            crate::widgets::button::raw::post_layout_button(
                 crate::widgets::button::raw::ButtonSpec {
                     layer: Layer::default(),
                     rect: Rect::new(0.0, 0.0, 10.0, 10.0),
@@ -3132,6 +3162,9 @@ mod nested_bubbling_tests {
                     ),
                     clip_rect: None,
                     disabled: false,
+                },
+                crate::widgets::button::raw::ButtonPreLayoutResult {
+                    size_request: crate::layout::SizeRequest::UNKNOWN,
                 },
                 &mut btn_state,
                 &input,
@@ -3235,7 +3268,7 @@ mod nested_bubbling_tests {
                 &mut cmds,
             )
             .token;
-            crate::widgets::button::raw::button(
+            crate::widgets::button::raw::post_layout_button(
                 crate::widgets::button::raw::ButtonSpec {
                     layer: Layer::default(),
                     rect: Rect::new(0.0, 0.0, 10.0, 10.0),
@@ -3245,6 +3278,9 @@ mod nested_bubbling_tests {
                     ),
                     clip_rect: None,
                     disabled: false,
+                },
+                crate::widgets::button::raw::ButtonPreLayoutResult {
+                    size_request: crate::layout::SizeRequest::UNKNOWN,
                 },
                 &mut btn_state,
                 &input,
@@ -3839,7 +3875,7 @@ mod nested_bubbling_tests {
                 &mut cmds,
             )
             .token;
-            crate::widgets::button::raw::button(
+            crate::widgets::button::raw::post_layout_button(
                 crate::widgets::button::raw::ButtonSpec {
                     layer: Layer::default(),
                     rect: Rect::new(0.0, 0.0, 10.0, 10.0),
@@ -3849,6 +3885,9 @@ mod nested_bubbling_tests {
                     ),
                     clip_rect: None,
                     disabled: false,
+                },
+                crate::widgets::button::raw::ButtonPreLayoutResult {
+                    size_request: crate::layout::SizeRequest::UNKNOWN,
                 },
                 &mut btn_state,
                 &input,
@@ -4436,7 +4475,7 @@ mod nested_bubbling_tests {
                 &mut cmds,
             )
             .token;
-            crate::widgets::button::raw::button(
+            crate::widgets::button::raw::post_layout_button(
                 crate::widgets::button::raw::ButtonSpec {
                     layer: Layer::default(),
                     rect: Rect::new(0.0, 0.0, 10.0, 10.0),
@@ -4446,6 +4485,9 @@ mod nested_bubbling_tests {
                     ),
                     clip_rect: None,
                     disabled: false,
+                },
+                crate::widgets::button::raw::ButtonPreLayoutResult {
+                    size_request: crate::layout::SizeRequest::UNKNOWN,
                 },
                 &mut btn_state,
                 &input,
@@ -5087,7 +5129,7 @@ mod nested_bubbling_tests {
                 &mut cmds,
             )
             .token;
-            crate::widgets::button::raw::button(
+            crate::widgets::button::raw::post_layout_button(
                 crate::widgets::button::raw::ButtonSpec {
                     layer: Layer::default(),
                     rect: Rect::new(0.0, 0.0, 10.0, 10.0),
@@ -5097,6 +5139,9 @@ mod nested_bubbling_tests {
                     ),
                     clip_rect: None,
                     disabled: false,
+                },
+                crate::widgets::button::raw::ButtonPreLayoutResult {
+                    size_request: crate::layout::SizeRequest::UNKNOWN,
                 },
                 &mut btn_state,
                 &input,
@@ -6196,7 +6241,7 @@ mod nested_bubbling_tests {
                 &mut cmds,
             )
             .token;
-            crate::widgets::button::raw::button(
+            crate::widgets::button::raw::post_layout_button(
                 crate::widgets::button::raw::ButtonSpec {
                     layer: Layer::default(),
                     rect: Rect::new(0.0, 0.0, 10.0, 10.0),
@@ -6206,6 +6251,9 @@ mod nested_bubbling_tests {
                     ),
                     clip_rect: None,
                     disabled: false,
+                },
+                crate::widgets::button::raw::ButtonPreLayoutResult {
+                    size_request: crate::layout::SizeRequest::UNKNOWN,
                 },
                 &mut btn_state,
                 &input,

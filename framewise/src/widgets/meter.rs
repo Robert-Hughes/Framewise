@@ -25,10 +25,15 @@ pub mod raw {
     }
 
     #[derive(Debug, Clone, PartialEq)]
-    pub struct MeterSizeSpec {
+    pub struct MeterPreLayoutSpec {
         pub style: super::MeterStyle,
         /// Number of bars to display.
         pub bars: usize,
+    }
+
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct MeterPreLayoutResult {
+        pub size_request: crate::layout::SizeRequest,
     }
 
     #[derive(Debug, Clone, PartialEq)]
@@ -38,7 +43,13 @@ pub mod raw {
     ///
     /// The current implementation ignores `offer` because the request is fixed
     /// by the number of bars and meter style.
-    pub fn size_meter(spec: &MeterSizeSpec, _offer: SizeOffer) -> SizeRequest {
+    pub fn pre_layout_meter(spec: &MeterPreLayoutSpec, offer: SizeOffer) -> MeterPreLayoutResult {
+        MeterPreLayoutResult {
+            size_request: size_meter(spec, offer),
+        }
+    }
+
+    fn size_meter(spec: &MeterPreLayoutSpec, _offer: SizeOffer) -> SizeRequest {
         let w = spec.bars as f32 * spec.style.bar_w
             + (spec.bars.saturating_sub(1) as f32) * spec.style.bar_gap;
         let h = spec.style.bar_h;
@@ -48,7 +59,11 @@ pub mod raw {
     /// Low‑level meter draw function.
     ///
     /// Appends draw commands to `cmds`.
-    pub fn meter(spec: MeterSpec, cmds: &mut DrawCommands) {
+    pub fn post_layout_meter(
+        spec: MeterSpec,
+        _pre_layout: MeterPreLayoutResult,
+        cmds: &mut DrawCommands,
+    ) {
         let n = spec.bars.max(1);
         let lit = (spec.value.clamp(0.0, 1.0) * n as f32).round() as usize;
         let peak_idx = spec
@@ -188,13 +203,13 @@ pub fn meter<T: TextBackend, S: LayoutState, CF>(
     layout_params: S::Params,
 ) -> MeterResult {
     let spec = builder.defaults_from_theme(&ctx.theme).build();
-    let size_spec = raw::MeterSizeSpec {
+    let pre_layout_spec = raw::MeterPreLayoutSpec {
         style: spec.style,
         bars: spec.bars,
     };
     let offer = ctx.peek_offer(layout_params.clone());
-    let size_request = raw::size_meter(&size_spec, offer);
-    let rect = ctx.layout(layout_params, size_request);
+    let pre_layout = raw::pre_layout_meter(&pre_layout_spec, offer);
+    let rect = ctx.layout(layout_params, pre_layout.size_request);
     let raw_spec = raw::MeterSpec {
         layer: ctx.layer,
         rect,
@@ -203,7 +218,7 @@ pub fn meter<T: TextBackend, S: LayoutState, CF>(
         peak: spec.peak,
         bars: spec.bars,
     };
-    raw::meter(raw_spec, ctx.cmds);
+    raw::post_layout_meter(raw_spec, pre_layout, ctx.cmds);
     MeterResult {
         layout: LayoutInfo::tight(rect),
     }
@@ -228,7 +243,13 @@ mod tests {
             bars: 10,
         };
         let mut cmds = DrawCommands::new();
-        raw::meter(spec, &mut cmds);
+        raw::post_layout_meter(
+            spec,
+            raw::MeterPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
+            &mut cmds,
+        );
 
         let mut expected = Vec::new();
         for i in 0..10 {
@@ -255,7 +276,13 @@ mod tests {
             bars: 10,
         };
         let mut cmds = DrawCommands::new();
-        raw::meter(spec, &mut cmds);
+        raw::post_layout_meter(
+            spec,
+            raw::MeterPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
+            &mut cmds,
+        );
 
         let mut expected = Vec::new();
         for i in 0..10 {
