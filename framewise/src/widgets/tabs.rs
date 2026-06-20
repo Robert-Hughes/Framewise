@@ -50,11 +50,11 @@ pub mod raw {
         text_backend: &mut T,
     ) -> TabsPreLayoutResult {
         TabsPreLayoutResult {
-            size_request: size_tabs(spec, offer, text_backend),
+            size_request: tabs_size_request(spec, offer, text_backend),
         }
     }
 
-    fn size_tabs<T: TextBackend>(
+    fn tabs_size_request<T: TextBackend>(
         spec: &TabsPreLayoutSpec,
         _offer: SizeOffer,
         text_backend: &mut T,

@@ -44,11 +44,11 @@ pub mod raw {
     /// is fixed by its style.
     pub fn pre_layout_radio(spec: &RadioPreLayoutSpec, offer: SizeOffer) -> RadioPreLayoutResult {
         RadioPreLayoutResult {
-            size_request: size_radio(spec, offer),
+            size_request: radio_size_request(spec, offer),
         }
     }
 
-    fn size_radio(spec: &RadioPreLayoutSpec, _offer: SizeOffer) -> SizeRequest {
+    fn radio_size_request(spec: &RadioPreLayoutSpec, _offer: SizeOffer) -> SizeRequest {
         SizeRequest::preferred(Vec2::new(spec.style.radius * 2.0, spec.style.radius * 2.0))
     }
 

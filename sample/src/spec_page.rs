@@ -279,8 +279,20 @@ fn draw_select_fake_state<'s, T: TextBackend, LS: LayoutState, CF>(
         layer: b.layer,
     };
 
-    framewise::widgets::select::raw::select(
+    let pre_layout_spec = framewise::widgets::select::raw::SelectPreLayoutSpec {
+        value,
+        style: SelectStyle::from_theme(&b.theme),
+        items: options,
+    };
+    let pre_layout = framewise::widgets::select::raw::pre_layout_select(
+        &pre_layout_spec,
+        framewise::SizeOffer::UNBOUNDED,
+        b.text_backend,
+    );
+
+    framewise::widgets::select::raw::post_layout_select(
         spec,
+        pre_layout,
         &mut state,
         &dummy_input,
         &mut dummy_focus_sys,

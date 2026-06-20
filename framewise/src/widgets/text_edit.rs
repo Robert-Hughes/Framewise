@@ -15,7 +15,7 @@ use crate::{
 pub mod raw {
     use super::*;
     use crate::widgets::{
-        scroll_area::raw::{begin_scroll_area, end_scroll_area, ScrollAreaSpec},
+        scroll_area::raw::{end_scroll_area, ScrollAreaSpec},
         scroll_area::{ScrollAxis, ScrollExtent, ScrollLen},
         ScrollbarVisibility, SliderStyle,
     };
@@ -709,8 +709,16 @@ pub mod raw {
             layer: spec.layer,
             keyboard_focusable: false,
         };
-        let scroll_result =
-            raw::begin_scroll_area(scroll_spec, &mut state.scroll, input, focus_system, cmds);
+        let scroll_result = crate::widgets::scroll_area::raw::begin_scroll_area(
+            scroll_spec,
+            crate::widgets::scroll_area::raw::ScrollAreaPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
+            &mut state.scroll,
+            input,
+            focus_system,
+            cmds,
+        );
 
         // Mouse input is interpreted using the scroll offset captured at
         // begin_scroll_area(), matching the scroll-area frame model. Programmatic
@@ -6346,6 +6354,9 @@ mod tests {
             focus_system.begin_frame();
             let outer_token = crate::widgets::scroll_area::raw::begin_scroll_area(
                 outer_spec.clone(),
+                crate::widgets::scroll_area::raw::ScrollAreaPreLayoutResult {
+                    size_request: crate::layout::SizeRequest::UNKNOWN,
+                },
                 &mut outer_scroll,
                 &input,
                 &mut focus_system,

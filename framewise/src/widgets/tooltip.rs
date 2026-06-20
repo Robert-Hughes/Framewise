@@ -45,11 +45,11 @@ pub mod raw {
         text_backend: &mut T,
     ) -> TooltipPreLayoutResult {
         TooltipPreLayoutResult {
-            size_request: size_tooltip(spec, offer, text_backend),
+            size_request: tooltip_size_request(spec, offer, text_backend),
         }
     }
 
-    fn size_tooltip<T: TextBackend>(
+    fn tooltip_size_request<T: TextBackend>(
         spec: &TooltipPreLayoutSpec,
         _offer: SizeOffer,
         text_backend: &mut T,

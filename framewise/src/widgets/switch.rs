@@ -47,11 +47,11 @@ pub mod raw {
         offer: SizeOffer,
     ) -> SwitchPreLayoutResult {
         SwitchPreLayoutResult {
-            size_request: size_switch(spec, offer),
+            size_request: switch_size_request(spec, offer),
         }
     }
 
-    fn size_switch(spec: &SwitchPreLayoutSpec, _offer: SizeOffer) -> SizeRequest {
+    fn switch_size_request(spec: &SwitchPreLayoutSpec, _offer: SizeOffer) -> SizeRequest {
         SizeRequest::preferred(spec.style.size)
     }
 

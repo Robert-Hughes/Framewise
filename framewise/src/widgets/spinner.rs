@@ -38,11 +38,11 @@ pub mod raw {
         offer: SizeOffer,
     ) -> SpinnerPreLayoutResult {
         SpinnerPreLayoutResult {
-            size_request: size_spinner(spec, offer),
+            size_request: spinner_size_request(spec, offer),
         }
     }
 
-    fn size_spinner(_spec: &SpinnerPreLayoutSpec, _offer: SizeOffer) -> SizeRequest {
+    fn spinner_size_request(_spec: &SpinnerPreLayoutSpec, _offer: SizeOffer) -> SizeRequest {
         SizeRequest::UNKNOWN
     }
 

@@ -24,10 +24,15 @@ pub mod raw {
     }
 
     #[derive(Debug, Clone, PartialEq)]
-    pub struct SelectSizeSpec<'a> {
+    pub struct SelectPreLayoutSpec<'a> {
         pub value: &'a str,
         pub style: super::SelectStyle,
         pub items: &'a [&'a str],
+    }
+
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct SelectPreLayoutResult {
+        pub size_request: crate::layout::SizeRequest,
     }
 
     #[derive(Debug, Clone, PartialEq)]
@@ -41,8 +46,18 @@ pub mod raw {
     ///
     /// This currently measures text with unbounded bounds; offer-sensitive
     /// wrapping is future work.
-    pub fn size_select<T: TextBackend>(
-        spec: &SelectSizeSpec,
+    pub fn pre_layout_select<T: TextBackend>(
+        spec: &SelectPreLayoutSpec,
+        offer: SizeOffer,
+        text_backend: &mut T,
+    ) -> SelectPreLayoutResult {
+        SelectPreLayoutResult {
+            size_request: select_size_request(spec, offer, text_backend),
+        }
+    }
+
+    fn select_size_request<T: TextBackend>(
+        spec: &SelectPreLayoutSpec,
         _offer: SizeOffer,
         text_backend: &mut T,
     ) -> crate::layout::SizeRequest {
@@ -75,8 +90,9 @@ pub mod raw {
     ///
     /// This is the raw implementation that takes all parameters explicitly.
     /// High-level wrappers should use this internally.
-    pub fn select<'a, T: TextBackend>(
+    pub fn post_layout_select<'a, T: TextBackend>(
         spec: SelectSpec<'a>,
+        _pre_layout: SelectPreLayoutResult,
         state: &mut SelectState,
         input: &Input,
         focus_system: &mut FocusSystem,
@@ -530,14 +546,14 @@ pub fn select<'a, T: TextBackend, S: LayoutState, CF>(
     state: &mut SelectState,
 ) -> SelectResult {
     let spec = builder.defaults_from_theme(&ctx.theme).build();
-    let size_spec = raw::SelectSizeSpec {
+    let pre_layout_spec = raw::SelectPreLayoutSpec {
         value: spec.value,
         style: spec.style,
         items: spec.items,
     };
     let offer = ctx.peek_offer(layout_params.clone());
-    let size_request = raw::size_select(&size_spec, offer, ctx.text_backend);
-    let rect = ctx.layout(layout_params, size_request);
+    let pre_layout = raw::pre_layout_select(&pre_layout_spec, offer, ctx.text_backend);
+    let rect = ctx.layout(layout_params, pre_layout.size_request);
     let raw_spec = raw::SelectSpec {
         layer: ctx.layer,
         rect,
@@ -547,8 +563,9 @@ pub fn select<'a, T: TextBackend, S: LayoutState, CF>(
         disabled: spec.disabled,
         clip_rect: ctx.clip_rect,
     };
-    let result = raw::select(
+    let result = raw::post_layout_select(
         raw_spec,
+        pre_layout,
         state,
         ctx.input,
         ctx.focus_system,
@@ -565,11 +582,34 @@ pub fn select<'a, T: TextBackend, S: LayoutState, CF>(
 
 #[cfg(test)]
 mod tests {
-    use super::raw::SelectSpec;
+    mod raw {
+        pub use super::super::raw::{SelectPreLayoutResult, SelectResult, SelectSpec};
+        pub fn select<'a, T: crate::text::TextBackend>(
+            spec: SelectSpec<'a>,
+            state: &mut super::super::SelectState,
+            input: &crate::Input,
+            focus_system: &mut crate::focus::FocusSystem,
+            text_backend: &mut T,
+            cmds: &mut crate::draw::DrawCommands,
+        ) -> SelectResult {
+            super::super::raw::post_layout_select(
+                spec,
+                SelectPreLayoutResult {
+                    size_request: crate::layout::SizeRequest::UNKNOWN,
+                },
+                state,
+                input,
+                focus_system,
+                text_backend,
+                cmds,
+            )
+        }
+    }
     use super::*;
     use crate::test_utils::TestTextBackend;
     use crate::types::Vec2;
     use crate::{DrawGlyph, PreparedGlyphToken};
+    use raw::SelectSpec;
 
     fn select_dummy<'a>(spec: SelectSpec<'a>) -> (raw::SelectResult, DrawCommands) {
         let mut cmds = DrawCommands::new();

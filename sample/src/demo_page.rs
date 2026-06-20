@@ -47,12 +47,13 @@ pub fn begin_demo_page<'a, 'b, T: TextBackend, L: Layout, CF>(
         .defaults_from_theme(&parent_ctx.theme)
         .build();
 
-    let size_spec = framewise::widgets::scroll_area::raw::ScrollAreaSizeSpec {};
+    let pre_layout_spec = framewise::widgets::scroll_area::raw::ScrollAreaPreLayoutSpec {};
     let layout_params = ColumnLayoutParams::auto().fill_x().fill_y();
     #[allow(clippy::clone_on_copy)]
     let offer = parent_ctx.peek_offer(layout_params.clone());
-    let size_request = framewise::widgets::scroll_area::raw::size_scroll_area(&size_spec, offer);
-    let bounds = parent_ctx.layout(layout_params, size_request);
+    let pre_layout =
+        framewise::widgets::scroll_area::raw::pre_layout_scroll_area(&pre_layout_spec, offer);
+    let bounds = parent_ctx.layout(layout_params, pre_layout.size_request);
     let input = parent_ctx.input;
     let raw_spec = framewise::widgets::scroll_area::raw::ScrollAreaSpec {
         rect: bounds,
@@ -73,6 +74,7 @@ pub fn begin_demo_page<'a, 'b, T: TextBackend, L: Layout, CF>(
         inner_space,
     } = framewise::widgets::scroll_area::raw::begin_scroll_area(
         raw_spec,
+        pre_layout,
         &mut state.scroll,
         parent_ctx.input,
         parent_ctx.focus_system,

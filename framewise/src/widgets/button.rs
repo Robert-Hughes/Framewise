@@ -55,11 +55,11 @@ pub mod raw {
         text_backend: &mut T,
     ) -> ButtonPreLayoutResult {
         ButtonPreLayoutResult {
-            size_request: size_button(spec, offer, text_backend),
+            size_request: button_size_request(spec, offer, text_backend),
         }
     }
 
-    fn size_button<T: TextBackend>(
+    fn button_size_request<T: TextBackend>(
         spec: &ButtonPreLayoutSpec,
         _offer: SizeOffer,
         text_backend: &mut T,

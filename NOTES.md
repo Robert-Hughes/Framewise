@@ -132,6 +132,8 @@ For SplitRow, do we want an option to have alignment within each 'cell', like if
 
 - WrapLayout still panics - these should be layout violation errors! (Check other panics too!)
 
+- Do we want scroll_area to be able to be 'auto-sized if it fits', i.e. if there's enough space it shrink-wraps children like a Panel, but if not enough space it has scroll bars etc.
+
 ### Framing (now in DESIGN.md)
 
 The **headline rule** (Automate / Declare / Refuse tiers) and **emit ≠ visual ≠ focus order** independence — including the topological-DAG reorder trick — describe the *implemented* model and live in `DESIGN.md` → Layout System. The short version, for context here:

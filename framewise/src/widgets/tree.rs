@@ -40,11 +40,11 @@ pub mod raw {
     /// from row count and tree style.
     pub fn pre_layout_tree(spec: &TreePreLayoutSpec, offer: SizeOffer) -> TreePreLayoutResult {
         TreePreLayoutResult {
-            size_request: size_tree(spec, offer),
+            size_request: tree_size_request(spec, offer),
         }
     }
 
-    fn size_tree(spec: &TreePreLayoutSpec, _offer: SizeOffer) -> SizeRequest {
+    fn tree_size_request(spec: &TreePreLayoutSpec, _offer: SizeOffer) -> SizeRequest {
         let s = spec.style;
         let total_h = spec.items.len() as f32 * s.row_height + s.pad_y * 2.0;
         SizeRequest::preferred(Vec2::new(s.min_width, total_h))

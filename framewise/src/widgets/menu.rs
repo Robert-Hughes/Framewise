@@ -19,9 +19,14 @@ pub mod raw {
     }
 
     #[derive(Debug, Clone, PartialEq)]
-    pub struct MenuSizeSpec<'a> {
+    pub struct MenuPreLayoutSpec<'a> {
         pub items: &'a [super::MenuItem<'a>],
         pub style: super::MenuStyle,
+    }
+
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct MenuPreLayoutResult {
+        pub size_request: crate::layout::SizeRequest,
     }
 
     #[derive(Debug, Clone, PartialEq)]
@@ -34,8 +39,18 @@ pub mod raw {
     ///
     /// This currently measures text with unbounded bounds; offer-sensitive
     /// wrapping is future work.
-    pub fn size_menu<T: TextBackend>(
-        spec: &MenuSizeSpec,
+    pub fn pre_layout_menu<T: TextBackend>(
+        spec: &MenuPreLayoutSpec,
+        offer: SizeOffer,
+        text_backend: &mut T,
+    ) -> MenuPreLayoutResult {
+        MenuPreLayoutResult {
+            size_request: menu_size_request(spec, offer, text_backend),
+        }
+    }
+
+    fn menu_size_request<T: TextBackend>(
+        spec: &MenuPreLayoutSpec,
         _offer: SizeOffer,
         text_backend: &mut T,
     ) -> crate::layout::SizeRequest {
@@ -88,8 +103,9 @@ pub mod raw {
     ///
     /// This is the raw implementation that takes all parameters explicitly.
     /// High-level wrappers should use this internally.
-    pub fn menu<'a, T: TextBackend>(
+    pub fn post_layout_menu<'a, T: TextBackend>(
         spec: MenuSpec<'a>,
+        _pre_layout: MenuPreLayoutResult,
         text_backend: &mut T,
         cmds: &mut DrawCommands,
     ) -> MenuResult {
@@ -413,20 +429,20 @@ pub fn menu<'a, T: TextBackend, S: LayoutState, CF>(
     layout_params: S::Params,
 ) -> MenuResult {
     let spec = builder.defaults_from_theme(&ctx.theme).build();
-    let size_spec = raw::MenuSizeSpec {
+    let pre_layout_spec = raw::MenuPreLayoutSpec {
         items: spec.items,
         style: spec.style,
     };
     let offer = ctx.peek_offer(layout_params.clone());
-    let size_request = raw::size_menu(&size_spec, offer, ctx.text_backend);
-    let rect = ctx.layout(layout_params, size_request);
+    let pre_layout = raw::pre_layout_menu(&pre_layout_spec, offer, ctx.text_backend);
+    let rect = ctx.layout(layout_params, pre_layout.size_request);
     let raw_spec = raw::MenuSpec {
         layer: ctx.layer,
         rect,
         items: spec.items,
         style: spec.style,
     };
-    let result = raw::menu(raw_spec, ctx.text_backend, ctx.cmds);
+    let result = raw::post_layout_menu(raw_spec, pre_layout, ctx.text_backend, ctx.cmds);
     MenuResult {
         layout: LayoutInfo::new(result.bounds, result.content_bounds),
     }

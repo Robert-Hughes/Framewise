@@ -43,11 +43,11 @@ pub mod raw {
         text_backend: &mut T,
     ) -> KeycapPreLayoutResult {
         KeycapPreLayoutResult {
-            size_request: size_keycap(spec, offer, text_backend),
+            size_request: keycap_size_request(spec, offer, text_backend),
         }
     }
 
-    fn size_keycap<T: TextBackend>(
+    fn keycap_size_request<T: TextBackend>(
         spec: &KeycapPreLayoutSpec,
         _offer: SizeOffer,
         text_backend: &mut T,

@@ -44,11 +44,14 @@ pub mod raw {
         offer: SizeOffer,
     ) -> ProgressBarPreLayoutResult {
         ProgressBarPreLayoutResult {
-            size_request: size_progress_bar(spec, offer),
+            size_request: progress_bar_size_request(spec, offer),
         }
     }
 
-    fn size_progress_bar(_spec: &ProgressBarPreLayoutSpec, _offer: SizeOffer) -> SizeRequest {
+    fn progress_bar_size_request(
+        _spec: &ProgressBarPreLayoutSpec,
+        _offer: SizeOffer,
+    ) -> SizeRequest {
         SizeRequest::UNKNOWN
     }
 

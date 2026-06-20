@@ -22,9 +22,14 @@ pub mod raw {
     }
 
     #[derive(Debug, Clone, PartialEq)]
-    pub struct WindowSizeSpec {
+    pub struct WindowPreLayoutSpec {
         pub status_bar: bool,
         pub style: super::WindowStyle,
+    }
+
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct WindowPreLayoutResult {
+        pub size_request: crate::layout::SizeRequest,
     }
 
     #[derive(Debug, Clone, PartialEq)]
@@ -36,7 +41,19 @@ pub mod raw {
     ///
     /// The current implementation ignores `offer` because the request is fixed
     /// by the window style and optional status bar.
-    pub fn size_window(spec: &WindowSizeSpec, _offer: SizeOffer) -> crate::layout::SizeRequest {
+    pub fn pre_layout_window(
+        spec: &WindowPreLayoutSpec,
+        offer: SizeOffer,
+    ) -> WindowPreLayoutResult {
+        WindowPreLayoutResult {
+            size_request: window_size_request(spec, offer),
+        }
+    }
+
+    fn window_size_request(
+        spec: &WindowPreLayoutSpec,
+        _offer: SizeOffer,
+    ) -> crate::layout::SizeRequest {
         let s = spec.style;
         let status_h = if spec.status_bar {
             s.status_height
@@ -55,6 +72,7 @@ pub mod raw {
     /// High-level wrappers should use this internally.
     pub fn begin_window<'a, T: TextBackend>(
         spec: WindowSpec<'a>,
+        _pre_layout: WindowPreLayoutResult,
         text_backend: &mut T,
         cmds: &mut DrawCommands,
     ) -> WindowResult {
@@ -352,13 +370,13 @@ pub fn begin_window<'a, 'b, 'c, T: TextBackend, S: LayoutState, L: Layout, CF>(
         .defaults_from_theme(&ctx.theme)
         .buttons(buttons)
         .build();
-    let size_spec = raw::WindowSizeSpec {
+    let pre_layout_spec = raw::WindowPreLayoutSpec {
         status_bar: spec.status_bar,
         style: spec.style,
     };
     let offer = ctx.peek_offer(layout_params.clone());
-    let size_request = raw::size_window(&size_spec, offer);
-    let bounds = ctx.layout(layout_params, size_request);
+    let pre_layout = raw::pre_layout_window(&pre_layout_spec, offer);
+    let bounds = ctx.layout(layout_params, pre_layout.size_request);
     let raw_spec = raw::WindowSpec {
         rect: bounds,
         title: spec.title,
@@ -369,7 +387,7 @@ pub fn begin_window<'a, 'b, 'c, T: TextBackend, S: LayoutState, L: Layout, CF>(
         layer: ctx.layer,
     };
     let raw::WindowResult { content_bounds } =
-        raw::begin_window(raw_spec, ctx.text_backend, ctx.cmds);
+        raw::begin_window(raw_spec, pre_layout, ctx.text_backend, ctx.cmds);
 
     let new_clip = Some(
         ctx.clip_rect

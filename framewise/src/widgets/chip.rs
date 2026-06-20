@@ -52,11 +52,11 @@ pub mod raw {
         text_backend: &mut T,
     ) -> ChipPreLayoutResult {
         ChipPreLayoutResult {
-            size_request: size_chip(spec, offer, text_backend),
+            size_request: chip_size_request(spec, offer, text_backend),
         }
     }
 
-    fn size_chip<T: TextBackend>(
+    fn chip_size_request<T: TextBackend>(
         spec: &ChipPreLayoutSpec,
         _offer: SizeOffer,
         text_backend: &mut T,

@@ -19,8 +19,13 @@ pub mod raw {
     }
 
     #[derive(Debug, Clone, Copy, PartialEq)]
-    pub struct FrameSizeSpec {
+    pub struct FramePreLayoutSpec {
         pub style: super::FrameStyle,
+    }
+
+    #[derive(Debug, Clone, Copy, PartialEq)]
+    pub struct FramePreLayoutResult {
+        pub size_request: crate::layout::SizeRequest,
     }
 
     #[derive(Debug, Clone, Copy, PartialEq)]
@@ -44,7 +49,16 @@ pub mod raw {
     /// minimum size derived from padding and border width alone, so that a frame
     /// with no children does not collapse to a degenerate zero rect.
     ///
-    pub fn size_frame(spec: &FrameSizeSpec, _offer: SizeOffer) -> crate::layout::SizeRequest {
+    pub fn pre_layout_frame(spec: &FramePreLayoutSpec, offer: SizeOffer) -> FramePreLayoutResult {
+        FramePreLayoutResult {
+            size_request: frame_size_request(spec, offer),
+        }
+    }
+
+    fn frame_size_request(
+        spec: &FramePreLayoutSpec,
+        _offer: SizeOffer,
+    ) -> crate::layout::SizeRequest {
         let _ = spec;
         crate::layout::SizeRequest::UNKNOWN
     }
@@ -59,7 +73,11 @@ pub mod raw {
     /// `spec.rect` may be provisional at call time (e.g. zeroed or a placeholder) when the
     /// frame is auto-sizing — the placeholder commands use it as an initial value only.
     /// `end_frame` receives the final resolved rect and patches them in-place.
-    pub fn begin_frame(spec: FrameSpec, cmds: &mut DrawCommands) -> FrameResult {
+    pub fn begin_frame(
+        spec: FrameSpec,
+        _pre_layout: FramePreLayoutResult,
+        cmds: &mut DrawCommands,
+    ) -> FrameResult {
         let rect = spec.rect;
         let style = spec.style;
         let inset = style.border_width + style.padding;
@@ -230,6 +248,9 @@ pub fn begin_frame<'a, 'b, T: TextBackend, S: LayoutState, L: Layout, CF>(
     let spec = builder.defaults_from_theme(&ctx.theme).build();
     let inset = spec.style.border_width + spec.style.padding;
 
+    let pre_layout_spec = raw::FramePreLayoutSpec { style: spec.style };
+    let pre_layout = raw::pre_layout_frame(&pre_layout_spec, SizeOffer::UNBOUNDED);
+
     let policy = ctx.layout_policy;
     let violation_font = ctx.theme.sans_font;
 
@@ -251,7 +272,7 @@ pub fn begin_frame<'a, 'b, T: TextBackend, S: LayoutState, L: Layout, CF>(
             };
             let raw::FrameResult {
                 token: frame_token, ..
-            } = raw::begin_frame(spec, cmds);
+            } = raw::begin_frame(spec, pre_layout, cmds);
             ((frame_token, spec), outer.inset(inset))
         },
         // At finish: the frame's outer size is its children's extent plus the chrome on
@@ -308,10 +329,12 @@ mod tests {
             rect,
             style,
         };
+        let pre_layout =
+            raw::pre_layout_frame(&raw::FramePreLayoutSpec { style }, SizeOffer::UNBOUNDED);
         let raw::FrameResult {
             token,
             content_bounds: content,
-        } = raw::begin_frame(spec, &mut cmds);
+        } = raw::begin_frame(spec, pre_layout, &mut cmds);
 
         // Content rect should be inset by border_width + padding = 5.0
         assert_eq!(content.x, 15.0);
@@ -375,9 +398,9 @@ mod tests {
             border_width: 2.0,
             padding: 4.0,
         };
-        let spec = raw::FrameSizeSpec { style };
+        let spec = raw::FramePreLayoutSpec { style };
         assert_eq!(
-            raw::size_frame(&spec, SizeOffer::UNBOUNDED),
+            raw::pre_layout_frame(&spec, SizeOffer::UNBOUNDED).size_request,
             crate::layout::SizeRequest::UNKNOWN
         );
     }

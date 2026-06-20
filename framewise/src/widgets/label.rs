@@ -47,11 +47,11 @@ pub mod raw {
         text_backend: &mut T,
     ) -> LabelPreLayoutResult {
         LabelPreLayoutResult {
-            size_request: size_label(spec, offer, text_backend),
+            size_request: label_size_request(spec, offer, text_backend),
         }
     }
 
-    fn size_label<T: TextBackend>(
+    fn label_size_request<T: TextBackend>(
         spec: &LabelPreLayoutSpec,
         _offer: SizeOffer,
         text_backend: &mut T,

@@ -67,11 +67,14 @@ pub mod raw {
         offer: SizeOffer,
     ) -> SliderPreLayoutResult {
         SliderPreLayoutResult {
-            size_request: size_slider(spec, offer),
+            size_request: slider_size_request(spec, offer),
         }
     }
 
-    fn size_slider(spec: &SliderPreLayoutSpec, _offer: SizeOffer) -> crate::layout::SizeRequest {
+    fn slider_size_request(
+        spec: &SliderPreLayoutSpec,
+        _offer: SizeOffer,
+    ) -> crate::layout::SizeRequest {
         let _ = spec;
         crate::layout::SizeRequest::UNKNOWN
     }
@@ -943,9 +946,7 @@ pub fn slider<T: TextBackend, S: LayoutState, CF>(
 
     let result = raw::post_layout_slider(
         raw_spec,
-        raw::SliderPreLayoutResult {
-            size_request: crate::layout::SizeRequest::UNKNOWN,
-        },
+        pre_layout,
         state,
         ctx.input,
         ctx.focus_system,

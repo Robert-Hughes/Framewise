@@ -40,11 +40,14 @@ pub mod raw {
         offer: SizeOffer,
     ) -> DividerPreLayoutResult {
         DividerPreLayoutResult {
-            size_request: size_divider(spec, offer),
+            size_request: divider_size_request(spec, offer),
         }
     }
 
-    fn size_divider(spec: &DividerPreLayoutSpec, _offer: SizeOffer) -> crate::layout::SizeRequest {
+    fn divider_size_request(
+        spec: &DividerPreLayoutSpec,
+        _offer: SizeOffer,
+    ) -> crate::layout::SizeRequest {
         let _ = spec;
         crate::layout::SizeRequest::UNKNOWN
     }

@@ -26,7 +26,12 @@ pub mod raw {
     }
 
     #[derive(Debug, Clone, PartialEq)]
-    pub struct ScrollAreaSizeSpec {}
+    pub struct ScrollAreaPreLayoutSpec {}
+
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct ScrollAreaPreLayoutResult {
+        pub size_request: crate::layout::SizeRequest,
+    }
 
     /// Carries the geometry resolved at `begin` that `end` needs to finish the
     /// area once the content extent is known. Scroll geometry (max_scroll, thumb
@@ -69,8 +74,17 @@ pub mod raw {
     /// [`SizeRequest::UNKNOWN`]. A later revision may report a minimum viewport
     /// size derived from the reserved scrollbar widths.
     ///
-    pub fn size_scroll_area(
-        spec: &ScrollAreaSizeSpec,
+    pub fn pre_layout_scroll_area(
+        spec: &ScrollAreaPreLayoutSpec,
+        offer: SizeOffer,
+    ) -> ScrollAreaPreLayoutResult {
+        ScrollAreaPreLayoutResult {
+            size_request: scroll_area_size_request(spec, offer),
+        }
+    }
+
+    fn scroll_area_size_request(
+        spec: &ScrollAreaPreLayoutSpec,
         _offer: SizeOffer,
     ) -> crate::layout::SizeRequest {
         let _ = spec;
@@ -121,6 +135,7 @@ pub mod raw {
     /// High-level wrappers should use this internally.
     pub fn begin_scroll_area(
         spec: ScrollAreaSpec,
+        _pre_layout: ScrollAreaPreLayoutResult,
         state: &mut ScrollState,
         _input: &Input,
         focus_system: &mut FocusSystem,
@@ -795,10 +810,10 @@ pub fn begin_scroll_area<'a, 'b, T: TextBackend, S: LayoutState, L: Layout, CF>(
     impl FnOnce(&mut FocusSystem, &mut T, &mut DrawCommands, Rect) + 'b,
 > {
     let spec = builder.defaults_from_theme(&ctx.theme).build();
-    let size_spec = raw::ScrollAreaSizeSpec {};
+    let pre_layout_spec = raw::ScrollAreaPreLayoutSpec {};
     let offer = ctx.peek_offer(layout_params.clone());
-    let size_request = raw::size_scroll_area(&size_spec, offer);
-    let bounds = ctx.layout(layout_params, size_request);
+    let pre_layout = raw::pre_layout_scroll_area(&pre_layout_spec, offer);
+    let bounds = ctx.layout(layout_params, pre_layout.size_request);
     let raw_spec = raw::ScrollAreaSpec {
         rect: bounds,
         horizontal: spec.horizontal,
@@ -817,7 +832,14 @@ pub fn begin_scroll_area<'a, 'b, T: TextBackend, S: LayoutState, L: Layout, CF>(
         content_bounds,
         offset,
         inner_space,
-    } = raw::begin_scroll_area(raw_spec, state, ctx.input, ctx.focus_system, ctx.cmds);
+    } = raw::begin_scroll_area(
+        raw_spec,
+        pre_layout,
+        state,
+        ctx.input,
+        ctx.focus_system,
+        ctx.cmds,
+    );
     token.corner_color = spec.corner_color;
 
     let offset_layout = crate::layouts::OffsetLayout {
@@ -871,12 +893,35 @@ mod test_helpers {
 
 #[cfg(test)]
 mod tests {
-    use super::raw::{begin_scroll_area, ScrollAreaSpec};
+    mod raw {
+        pub use super::super::raw::{
+            end_scroll_area, ScrollAreaPreLayoutResult, ScrollAreaResult, ScrollAreaSpec,
+        };
+        pub fn begin_scroll_area(
+            spec: ScrollAreaSpec,
+            state: &mut super::super::ScrollState,
+            input: &crate::Input,
+            focus_system: &mut crate::focus::FocusSystem,
+            cmds: &mut crate::draw::DrawCommands,
+        ) -> ScrollAreaResult {
+            super::super::raw::begin_scroll_area(
+                spec,
+                ScrollAreaPreLayoutResult {
+                    size_request: crate::layout::SizeRequest::UNKNOWN,
+                },
+                state,
+                input,
+                focus_system,
+                cmds,
+            )
+        }
+    }
     use super::test_helpers::frames;
     use super::*;
     use crate::layouts::ManualLayout;
     use crate::test_utils::TestTextBackend;
     use crate::theme;
+    use raw::{begin_scroll_area, ScrollAreaSpec};
 
     // Helper to keep test calls the same
     fn scroll_area(
@@ -2698,9 +2743,32 @@ mod tests {
 mod nested_bubbling_tests {
     use crate::input::Input;
     use crate::layouts::ManualLayout;
-    use crate::widgets::scroll_area::raw::{begin_scroll_area, ScrollAreaSpec};
+    mod raw {
+        pub use crate::widgets::scroll_area::raw::{
+            end_scroll_area, ScrollAreaPreLayoutResult, ScrollAreaResult, ScrollAreaSpec,
+        };
+        pub fn begin_scroll_area(
+            spec: ScrollAreaSpec,
+            state: &mut crate::widgets::scroll_area::ScrollState,
+            input: &crate::Input,
+            focus_system: &mut crate::focus::FocusSystem,
+            cmds: &mut crate::draw::DrawCommands,
+        ) -> ScrollAreaResult {
+            crate::widgets::scroll_area::raw::begin_scroll_area(
+                spec,
+                ScrollAreaPreLayoutResult {
+                    size_request: crate::layout::SizeRequest::UNKNOWN,
+                },
+                state,
+                input,
+                focus_system,
+                cmds,
+            )
+        }
+    }
     use crate::widgets::scroll_area::*;
     use crate::{theme, types::*};
+    use raw::{begin_scroll_area, ScrollAreaSpec};
 
     use crate::focus::*;
 

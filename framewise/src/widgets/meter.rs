@@ -45,11 +45,11 @@ pub mod raw {
     /// by the number of bars and meter style.
     pub fn pre_layout_meter(spec: &MeterPreLayoutSpec, offer: SizeOffer) -> MeterPreLayoutResult {
         MeterPreLayoutResult {
-            size_request: size_meter(spec, offer),
+            size_request: meter_size_request(spec, offer),
         }
     }
 
-    fn size_meter(spec: &MeterPreLayoutSpec, _offer: SizeOffer) -> SizeRequest {
+    fn meter_size_request(spec: &MeterPreLayoutSpec, _offer: SizeOffer) -> SizeRequest {
         let w = spec.bars as f32 * spec.style.bar_w
             + (spec.bars.saturating_sub(1) as f32) * spec.style.bar_gap;
         let h = spec.style.bar_h;

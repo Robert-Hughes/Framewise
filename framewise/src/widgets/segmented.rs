@@ -50,11 +50,11 @@ pub mod raw {
         text_backend: &mut T,
     ) -> SegmentedPreLayoutResult {
         SegmentedPreLayoutResult {
-            size_request: size_segmented(spec, offer, text_backend),
+            size_request: segmented_size_request(spec, offer, text_backend),
         }
     }
 
-    fn size_segmented<T: TextBackend>(
+    fn segmented_size_request<T: TextBackend>(
         spec: &SegmentedPreLayoutSpec,
         _offer: SizeOffer,
         text_backend: &mut T,

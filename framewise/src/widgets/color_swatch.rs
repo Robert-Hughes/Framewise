@@ -41,11 +41,11 @@ pub mod raw {
         offer: SizeOffer,
     ) -> ColorSwatchPreLayoutResult {
         ColorSwatchPreLayoutResult {
-            size_request: size_color_swatch(spec, offer),
+            size_request: color_swatch_size_request(spec, offer),
         }
     }
 
-    fn size_color_swatch(
+    fn color_swatch_size_request(
         spec: &ColorSwatchPreLayoutSpec,
         _offer: SizeOffer,
     ) -> crate::layout::SizeRequest {

@@ -54,11 +54,11 @@ pub mod raw {
         text_backend: &mut T,
     ) -> DragNumberPreLayoutResult {
         DragNumberPreLayoutResult {
-            size_request: size_drag_number(spec, offer, text_backend),
+            size_request: drag_number_size_request(spec, offer, text_backend),
         }
     }
 
-    fn size_drag_number<T: TextBackend>(
+    fn drag_number_size_request<T: TextBackend>(
         spec: &DragNumberPreLayoutSpec,
         _offer: SizeOffer,
         text_backend: &mut T,

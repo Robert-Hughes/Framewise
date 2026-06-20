@@ -48,11 +48,11 @@ pub mod raw {
         offer: SizeOffer,
     ) -> CheckboxPreLayoutResult {
         CheckboxPreLayoutResult {
-            size_request: size_checkbox(spec, offer),
+            size_request: checkbox_size_request(spec, offer),
         }
     }
 
-    fn size_checkbox(spec: &CheckboxPreLayoutSpec, _offer: SizeOffer) -> SizeRequest {
+    fn checkbox_size_request(spec: &CheckboxPreLayoutSpec, _offer: SizeOffer) -> SizeRequest {
         SizeRequest::preferred(Vec2::new(spec.style.size, spec.style.size))
     }
 
