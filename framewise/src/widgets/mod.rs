@@ -45,6 +45,7 @@ pub mod switch;
 #[cfg(feature = "tabs")]
 pub mod tabs;
 #[cfg(feature = "text_edit")]
+#[path = "text_edit/text_edit.rs"]
 pub mod text_edit;
 #[cfg(feature = "tooltip")]
 pub mod tooltip;

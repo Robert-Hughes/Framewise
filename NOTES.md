@@ -5,7 +5,6 @@ Working notes, TODOs, open questions, and half-baked ideas.
 ## Current Work
 
 - Text Edit
-  - text_edit tests are very long! Many TextBackend implementations (search "impl TextBackend for"). Reduce duplication, use a common backend?
   - Probably need a full review of the DESIGN.md, code and doc-comments for the text layout interface to make sure it's consistent, not overly repetitive and is watertight and leaves no ambiguity for how wrapping, spaces etc. are handled.
 
 - Slider styling - two modes/enum variants for scrollbar vs. regular?
