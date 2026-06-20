@@ -595,6 +595,24 @@ fn ellipsis_is_appended_on_single_line_overflow() {
 }
 
 #[test]
+fn ellipsis_byte_range_is_first_omitted_byte() {
+    let layout = layout(
+        "abcdef",
+        ellipsis_x_keep_y(EllipsisFallback::Drop),
+        TextBounds::width(32.0),
+    );
+
+    let ellipsis = layout.lines[0]
+        .clusters
+        .iter()
+        .find(|cluster| cluster.glyphs_visible && cluster.byte_start == cluster.byte_end)
+        .expect("ellipsis cluster should be present");
+
+    assert_eq!(ellipsis.byte_start, 3);
+    assert_eq!(ellipsis.byte_end, 3);
+}
+
+#[test]
 fn ellipsis_on_last_line_when_height_clipped() {
     let flow = TextFlow {
         overflow_x: OverflowX::WrapCluster {
@@ -666,6 +684,30 @@ fn overwide_whitespace_on_empty_line_uses_drop_fallbacks() {
         assert_eq!(layout.resolved_glyphs().len(), 0);
         assert_eq!(layout.metrics().lines[0].logical_width, 0.0);
     }
+}
+
+#[test]
+fn wrapped_cluster_drop_reports_horizontal_truncation() {
+    let layout = layout("abc", wrap_cluster_drop(), TextBounds::width(4.0));
+
+    assert!(layout.metrics().truncated_horizontal);
+    assert_eq!(visible(&layout), "");
+}
+
+#[test]
+fn wrapped_word_drop_reports_horizontal_truncation() {
+    let layout = layout("abcdef", wrap_word_drop(), TextBounds::width(16.1));
+
+    assert!(layout.metrics().truncated_horizontal);
+    assert_eq!(visible(&layout), "ab");
+}
+
+#[test]
+fn wrapped_word_keep_reports_horizontal_truncation() {
+    let layout = layout("abcdef", wrap_word_keep(), TextBounds::width(16.1));
+
+    assert!(layout.metrics().truncated_horizontal);
+    assert_eq!(visible(&layout), "abc");
 }
 
 #[test]
@@ -2172,6 +2214,7 @@ fn test_wrap_word_fallback_wrap_cluster_fallback_keep_y_keep() {
 fn oversized_word_cluster_fallback_drop_stops_after_unfittable_cluster() {
     let layout = layout("abc", wrap_word_cluster_drop(), TextBounds::width(0.0));
 
+    assert!(layout.metrics().truncated_horizontal);
     assert_eq!(visual_lines(&layout), [""]);
     assert_line_ranges(&layout, &[(0, 3)]);
     assert_eq!(total_clusters(&layout), 0);

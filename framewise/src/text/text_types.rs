@@ -224,9 +224,11 @@ impl TextFlow {
 pub enum OverflowX {
     /// Prefer wrapping at word boundaries.
     ///
-    /// A “word” is an implementation-defined unbreakable run, usually separated
-    /// by whitespace or Unicode line-break opportunities. Hard `'\n'` is not
-    /// handled here; it always breaks before this policy is considered.
+    /// `WrapWord` treats each maximal run of non-whitespace, non-hard-break
+    /// clusters as one word segment. Each whitespace cluster is an independent
+    /// breakable segment. Unicode line-break opportunities other than
+    /// whitespace are not currently recognised. Hard `'\n'` is handled before
+    /// this policy is considered.
     ///
     /// If the next word cannot fit on the current line, it is moved to a new
     /// line. If that word still cannot fit on an empty line, `fallback` decides
@@ -402,15 +404,17 @@ pub enum TextLineAlign {
 /// a future ink-fitting policy rather than assuming that these input bounds
 /// contain all rendered pixels.
 ///
-/// Measurement is **symmetric**: text is reflowable, so its logical size is a
-/// curve, not a point. Whichever axis is bounded constrains the flow; the
-/// unbounded axis is the answer:
-/// - `max_width: Some, max_height: None` → wrap to width, height grows down
-///   (auto-height label in a column).
-/// - `max_width: None, max_height: Some` → pack to a fixed height, width grows
-///   sideways (fixed-height block that extends horizontally).
-/// - both `Some` → wrap to width and clip/ellipsis to height (fixed box).
-/// - both `None` → natural single line (plus any hard `'\n'` breaks).
+/// `max_width` controls inline reflow, wrapping, X overflow, and line
+/// alignment. `max_height` never causes reflow; it only controls how many
+/// already-produced visual lines are admitted on the block axis.
+///
+/// - `max_width: Some, max_height: None` -> wrap/overflow to width; height
+///   grows down.
+/// - `max_width: None, max_height: Some` -> no soft wrapping from height alone;
+///   hard-break/natural visual lines are produced, then Y overflow is applied.
+/// - both `Some` -> wrap/overflow to width, then apply Y overflow to the
+///   resulting visual lines.
+/// - both `None` -> natural width, plus any hard `'\n'` breaks.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct TextBounds {
     pub max_width: Option<f32>,

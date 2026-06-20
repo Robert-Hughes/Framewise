@@ -175,7 +175,7 @@ impl<G: Copy + Eq + Hash> TextLayout<G> {
             if let Some(w) = bounds.max_width {
                 match flow.overflow_x {
                     OverflowX::WrapWord { fallback } => {
-                        wrap_clusters_at_words_into_processed_lines(
+                        let result = wrap_clusters_at_words_into_processed_lines(
                             seg,
                             line.byte_start,
                             line.byte_end,
@@ -184,9 +184,10 @@ impl<G: Copy + Eq + Hash> TextLayout<G> {
                             fallback,
                             &mut processed_lines,
                         );
+                        truncated_horizontal |= result.truncated_horizontal;
                     }
                     OverflowX::WrapCluster { fallback } => {
-                        wrap_clusters_into_processed_lines(
+                        let result = wrap_clusters_into_processed_lines(
                             seg,
                             line.byte_start,
                             line.byte_end,
@@ -195,6 +196,7 @@ impl<G: Copy + Eq + Hash> TextLayout<G> {
                             fallback,
                             &mut processed_lines,
                         );
+                        truncated_horizontal |= result.truncated_horizontal;
                     }
                     _ => {
                         if source_logical_width > w + 0.5 {

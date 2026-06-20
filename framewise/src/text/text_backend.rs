@@ -41,10 +41,12 @@ pub struct TextLineLayoutMetrics {
 /// Framewise owns layout policy; the backend owns font selection, shaping,
 /// glyph rasterisation, glyph caching, and renderer resource handles.
 ///
-/// The backend must account for every source character in shaped cluster byte
-/// ranges. Framewise may omit clusters from the final layout only when the
-/// selected overflow policy explicitly truncates content, such as `Drop`,
-/// ellipsis fitting, or a `Drop` fallback.
+/// `shape_text` receives one hard-line source segment or Framewise-owned marker
+/// string at a time. Backend cluster byte ranges are UTF-8 ranges into that
+/// exact input string, not into the original full source text. Framewise may
+/// omit clusters from the final layout only when the selected overflow policy
+/// explicitly truncates content, such as `Drop`, ellipsis fitting, or a `Drop`
+/// fallback.
 ///
 /// Shaping and glyph preparation are intentionally separate. `shape_text`
 /// returns immutable shared shaping output used for stable logical layout and
@@ -80,12 +82,20 @@ pub trait TextBackend {
 
     /// Shape text into indivisible clusters containing backend glyph tokens.
     ///
-    /// The backend must account for every source character in cluster byte
-    /// ranges. Clusters should normally correspond to shaping clusters, and must
-    /// not split combining marks, ligatures, or script-shaped units in a way
-    /// that would corrupt shaping. Framewise may also use this API for
-    /// Framewise-owned marker text, such as an overflow ellipsis, then remap
-    /// those marker byte ranges internally to source text coordinates.
+    /// `text` is a single hard-line segment or marker string. Cluster ranges
+    /// are UTF-8 byte ranges into this exact input. For ordinary source text,
+    /// ranges must be sorted, non-overlapping, non-empty, cover `0..text.len()`,
+    /// and represent each source character exactly once.
+    ///
+    /// Clusters should normally correspond to shaping clusters, and must not
+    /// split combining marks, ligatures, or script-shaped units in a way that
+    /// would corrupt shaping. Framewise handles hard newlines before shaping by
+    /// splitting source text into hard-line segments and creating its own
+    /// hard-newline layout clusters.
+    ///
+    /// Framewise may also call this for marker text such as an overflow
+    /// ellipsis; those marker ranges are later remapped internally to source
+    /// text coordinates.
     fn shape_text(
         &mut self,
         text: &str,

@@ -368,6 +368,10 @@ impl<'a> WrappedLineEmitter<'a> {
     }
 }
 
+pub(super) struct WrappedLinesResult {
+    pub truncated_horizontal: bool,
+}
+
 pub(super) fn wrap_clusters_into_processed_lines(
     clusters: Vec<WorkingCluster>,
     source_byte_start: usize,
@@ -376,12 +380,14 @@ pub(super) fn wrap_clusters_into_processed_lines(
     w: f32,
     fallback: WrapClusterFallback,
     out: &mut Vec<WorkingProcessedLine>,
-) {
+) -> WrappedLinesResult {
     let mut emitter = WrappedLineEmitter::new(out, source_byte_start, source_byte_end);
     if clusters.is_empty() {
         emitter.emit_line(Vec::new(), LineEndKind::EndOfText);
         emitter.finish();
-        return;
+        return WrappedLinesResult {
+            truncated_horizontal: false,
+        };
     }
 
     let cluster_count = clusters.len();
@@ -400,11 +406,15 @@ pub(super) fn wrap_clusters_into_processed_lines(
     }
     emitter.append_terminal_empty_line_if_needed();
     emitter.finish();
+    WrappedLinesResult {
+        truncated_horizontal: result.truncated_horizontal,
+    }
 }
 
 struct ClusterWrapResult {
     open_line: Option<WorkingLineBuffer>,
     wrapped_count: usize,
+    truncated_horizontal: bool,
 }
 
 fn append_hard_break_to_pending(
@@ -440,11 +450,13 @@ fn wrap_clusters_into_processed_lines_open_tail(
         return ClusterWrapResult {
             open_line: None,
             wrapped_count: 0,
+            truncated_horizontal: false,
         };
     }
     let mut current_line = WorkingLineBuffer::with_capacity(estimated_line_cap);
     let mut current_line_start_x = clusters[0].x;
     let mut wrapped_count = 0;
+    let mut truncated_horizontal = false;
 
     for cluster in clusters {
         if cluster.is_hard_break {
@@ -483,7 +495,10 @@ fn wrap_clusters_into_processed_lines_open_tail(
                     current_line.push_at(cluster, rel_start_x);
                     wrapped_count += 1;
                 }
-                WrapClusterFallback::Drop => break,
+                WrapClusterFallback::Drop => {
+                    truncated_horizontal = true;
+                    break;
+                }
             }
         } else {
             current_line.collapse_trailing_soft_wrap_space();
@@ -500,7 +515,10 @@ fn wrap_clusters_into_processed_lines_open_tail(
                         current_line.push_at(cluster, 0.0);
                         wrapped_count += 1;
                     }
-                    WrapClusterFallback::Drop => break,
+                    WrapClusterFallback::Drop => {
+                        truncated_horizontal = true;
+                        break;
+                    }
                 }
             }
         }
@@ -509,6 +527,7 @@ fn wrap_clusters_into_processed_lines_open_tail(
     ClusterWrapResult {
         open_line,
         wrapped_count,
+        truncated_horizontal,
     }
 }
 
@@ -520,12 +539,14 @@ pub(super) fn wrap_clusters_at_words_into_processed_lines(
     w: f32,
     fallback: WrapWordFallback,
     out: &mut Vec<WorkingProcessedLine>,
-) {
+) -> WrappedLinesResult {
     let mut emitter = WrappedLineEmitter::new(out, source_byte_start, source_byte_end);
     if clusters.is_empty() {
         emitter.emit_line(Vec::new(), LineEndKind::EndOfText);
         emitter.finish();
-        return;
+        return WrappedLinesResult {
+            truncated_horizontal: false,
+        };
     }
 
     let input_cluster_count = clusters.len();
@@ -540,6 +561,7 @@ pub(super) fn wrap_clusters_at_words_into_processed_lines(
         estimated_line_cap,
         current_line: WorkingLineBuffer::with_capacity(estimated_line_cap),
         emitter,
+        truncated_horizontal: false,
     };
     let mut segment = Vec::new();
     let mut segment_is_space = false;
@@ -560,8 +582,7 @@ pub(super) fn wrap_clusters_at_words_into_processed_lines(
             segment.push(cluster);
         } else {
             if !state.flush_segment(&mut segment, segment_is_space, segment_geometry) {
-                state.finish_emitter();
-                return;
+                return state.finish_emitter();
             }
             segment_is_space = is_space;
             segment_geometry = SegmentGeometry::from_cluster(&cluster);
@@ -571,11 +592,10 @@ pub(super) fn wrap_clusters_at_words_into_processed_lines(
 
     if !segment.is_empty() && !state.flush_segment(&mut segment, segment_is_space, segment_geometry)
     {
-        state.finish_emitter();
-        return;
+        return state.finish_emitter();
     }
 
-    state.finish();
+    state.finish()
 }
 
 #[derive(Clone, Copy, Default)]
@@ -612,6 +632,7 @@ struct WordWrapState<'a> {
     estimated_line_cap: usize,
     current_line: WorkingLineBuffer,
     emitter: WrappedLineEmitter<'a>,
+    truncated_horizontal: bool,
 }
 
 impl WordWrapState<'_> {
@@ -675,6 +696,7 @@ impl WordWrapState<'_> {
                 self.current_line = result
                     .open_line
                     .unwrap_or_else(|| WorkingLineBuffer::with_capacity(self.estimated_line_cap));
+                self.truncated_horizontal |= result.truncated_horizontal;
                 fallback != WrapClusterFallback::Drop || result.wrapped_count >= seg_len
             }
             WrapWordFallback::Drop => {
@@ -687,6 +709,7 @@ impl WordWrapState<'_> {
                     }
                 }
                 self.emit_current_line(true);
+                self.truncated_horizontal = true;
                 false
             }
             WrapWordFallback::Keep => {
@@ -699,6 +722,7 @@ impl WordWrapState<'_> {
                     }
                 }
                 self.emit_current_line(true);
+                self.truncated_horizontal = true;
                 false
             }
         }
@@ -711,17 +735,20 @@ impl WordWrapState<'_> {
             .clear_with_capacity(self.estimated_line_cap);
     }
 
-    fn finish(mut self) {
+    fn finish(mut self) -> WrappedLinesResult {
         if !self.current_line.is_empty() {
             self.emitter
                 .emit_default_buffer(&mut self.current_line, false);
         }
-        self.finish_emitter();
+        self.finish_emitter()
     }
 
-    fn finish_emitter(mut self) {
+    fn finish_emitter(mut self) -> WrappedLinesResult {
         self.emitter.append_terminal_empty_line_if_needed();
         self.emitter.finish();
+        WrappedLinesResult {
+            truncated_horizontal: self.truncated_horizontal,
+        }
     }
 }
 

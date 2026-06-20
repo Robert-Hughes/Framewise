@@ -322,12 +322,13 @@ units.
 - if it still does not fit on an empty line, `WrapClusterFallback` chooses
   whether to keep the overflowing cluster or drop it.
 
-`OverflowX::WrapWord` groups contiguous non-whitespace clusters into word-like
-segments. Unicode whitespace creates wrapping opportunities, and each
-whitespace cluster is its own breakable word-like segment. Whitespace follows
-the same overflow hierarchy as other segments: if it fits, it is admitted; if it
-does not fit on a non-empty line, it may cause a soft wrap; if it cannot fit
-even on an empty line, the fallback chain applies.
+`OverflowX::WrapWord` treats each maximal run of non-whitespace,
+non-hard-break clusters as one word segment. Each whitespace cluster is an
+independent breakable segment. Unicode line-break opportunities other than
+whitespace are not currently recognised. Whitespace follows the same overflow
+hierarchy as other segments: if it fits, it is admitted; if it does not fit on a
+non-empty line, it may cause a soft wrap; if it cannot fit even on an empty
+line, the fallback chain applies.
 
 The one exception is the soft-wrap boundary-space rule described above. When a
 single whitespace cluster becomes the boundary between two visual lines, that
