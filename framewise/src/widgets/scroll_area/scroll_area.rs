@@ -251,10 +251,13 @@ pub mod raw {
                 max: max_scroll.y,
                 page_step: token.content_bounds.h,
                 step: 40.0,
-                thumb_size_ratio: Some(view_ratio),
+                thumb_len: crate::widgets::slider::ThumbLen::Proportional {
+                    ratio: view_ratio,
+                    min_len: 24.0,
+                },
                 style: token.style.scrollbar_style,
                 clip_rect: token.clip_rect,
-                claim_scroll_at_ends: false,
+                scroll_claim: crate::widgets::slider::ScrollClaimPolicy::YieldSameAxisAtEnds,
                 time: token.time,
                 layer: token.layer,
                 // Degenerate: bar reserved (Always/Auto) but content fits, so the
@@ -298,10 +301,13 @@ pub mod raw {
                 max: max_scroll.x,
                 page_step: token.content_bounds.w,
                 step: 40.0,
-                thumb_size_ratio: Some(view_ratio),
+                thumb_len: crate::widgets::slider::ThumbLen::Proportional {
+                    ratio: view_ratio,
+                    min_len: 24.0,
+                },
                 style: token.style.scrollbar_style,
                 clip_rect: token.clip_rect,
-                claim_scroll_at_ends: false,
+                scroll_claim: crate::widgets::slider::ScrollClaimPolicy::YieldSameAxisAtEnds,
                 time: token.time,
                 layer: token.layer,
                 // Degenerate horizontal bar (see vertical case above).
@@ -337,7 +343,11 @@ pub mod raw {
                     color: corner_color,
                     z: token.layer.get_z(),
                 });
-                if let Some(border_color) = token.style.scrollbar_style.track_border_color {
+                let border_color = match token.style.scrollbar_style.track {
+                    crate::widgets::slider::TrackStyle::Rect { border_color, .. } => border_color,
+                    _ => None,
+                };
+                if let Some(border_color) = border_color {
                     // Left border of the corner
                     cmds.push(DrawCmd::StrokeLine {
                         anti_alias: false,

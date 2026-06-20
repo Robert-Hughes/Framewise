@@ -68,15 +68,15 @@ fn test_text_edit_style_scroll_area_defaults() {
     );
     assert_eq!(style.scroll_area_style.corner_color, Some(theme.paper_elev));
     assert_eq!(
-        style.scroll_area_style.scrollbar_style.track_border_color,
-        Some(theme.line_soft)
+        style.scroll_area_style.scrollbar_style.track,
+        crate::widgets::slider::TrackStyle::Rect {
+            color: Color::linear_rgba(theme.ink.r, theme.ink.g, theme.ink.b, 0.04),
+            border_color: Some(theme.line_soft)
+        }
     );
     assert_eq!(
-        style
-            .scroll_area_style
-            .scrollbar_style
-            .scrollbar_thumb_margin,
-        0.0
+        style.scroll_area_style.scrollbar_style.thumb.cross_axis,
+        crate::widgets::slider::ThumbCrossAxis::FillTrack { margin: 0.0 }
     );
 }
 

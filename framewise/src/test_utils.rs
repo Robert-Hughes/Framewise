@@ -9,7 +9,7 @@ use std::rc::Rc;
 ///
 /// Each visible character is one 8px cluster, text lines are 16px tall, and
 /// whitespace contributes logical advance without producing drawable glyphs.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct TestTextBackend {
     config: TestTextBackendConfig,
     pub observations: TestTextBackendObservations,
@@ -40,15 +40,6 @@ pub struct TestTextBackendObservations {
     pub shaped_styles: Vec<TextStyle>,
     pub prepared_glyph_origins: Vec<Vec2>,
     pub prepared_glyph_rects: Vec<Rect>,
-}
-
-impl Default for TestTextBackend {
-    fn default() -> Self {
-        Self {
-            config: TestTextBackendConfig::default(),
-            observations: TestTextBackendObservations::default(),
-        }
-    }
 }
 
 impl Default for TestTextBackendConfig {

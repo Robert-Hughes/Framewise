@@ -5,13 +5,10 @@ Working notes, TODOs, open questions, and half-baked ideas.
 ## Current Work
 
 - Full review of the DESIGN.md, code and doc-comments for the text layout interface to make sure it's consistent, not overly repetitive and is watertight and leaves no ambiguity for how wrapping, spaces etc. are handled.
-  - TextMetrics::truncated_horizontal still has slightly old wording: it says “With wrap: true this is rare…” even though there is no wrap field here, and after your new fix the flag can also come from wrapped word fallback truncation.
-  - 6. Rounding and tolerance are underspecified
   - Repetition and drift
   - Smaller contract cleanups
   - The canonical whitespace spec I would aim for
 
-- Slider styling - two modes/enum variants for scrollbar vs. regular?
 - Consistency for styling of lines across all widgets - rather than separate width and colour, have a enum which is None or width+colour? Some kind of 'stroke' struct/enum?
 
 - Go through the spec_page, check/implement/test each widget/aspect to make better match the mock-up and add interactivity as we go (https://claude.ai/design/p/1aab4e86-cbf2-497e-b379-44cf41de2b12?file=Framewise+Widgets.html)

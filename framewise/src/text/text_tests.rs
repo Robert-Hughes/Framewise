@@ -1,8 +1,8 @@
 use super::*;
 use crate::widgets::label::{raw as raw_label, LabelStyle};
 use crate::{
-    test_utils::TestTextBackend, Color, DrawCmd, DrawCommands, DrawGlyph, FontId, Layer,
-    PrepareGlyphRequest, PreparedGlyphToken, Rect, TextContentPlacement, Vec2,
+    test_utils::TestTextBackend, Color, DrawCmd, DrawCommands, FontId, Layer, Rect,
+    TextContentPlacement, Vec2,
 };
 
 fn style(flow: TextFlow) -> TextStyle {

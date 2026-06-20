@@ -176,11 +176,11 @@ fn test_slider_page_up_down_keyboard() {
 #[test]
 fn test_slider_drag() {
     let mut state = SliderState::default();
+    let mut style = SliderStyle::from_theme(&crate::theme::Theme::framewise());
+    style.thumb.cross_axis = ThumbCrossAxis::FixedCentered(20.0);
     let spec = SliderSpec {
-        style: SliderStyle {
-            thumb_size: 20.0,
-            ..SliderStyle::from_theme(&crate::theme::Theme::framewise())
-        },
+        thumb_len: ThumbLen::Fixed(20.0),
+        style,
         ..test_spec(0.0, 100.0, true)
     };
     // Thumb is 20px high. Usable track = 100 - 20 = 80px.
@@ -721,11 +721,11 @@ fn test_slider_mouse_wheel() {
 #[test]
 fn test_track_click_snaps_and_drags() {
     let mut state = SliderState::default();
+    let mut style = SliderStyle::from_theme(&crate::theme::Theme::framewise());
+    style.thumb.cross_axis = ThumbCrossAxis::FixedCentered(20.0);
     let spec = SliderSpec {
-        style: SliderStyle {
-            thumb_size: 20.0,
-            ..SliderStyle::from_theme(&crate::theme::Theme::framewise())
-        },
+        thumb_len: ThumbLen::Fixed(20.0),
+        style,
         ..test_spec(0.0, 100.0, true)
     };
     let mut input = Input::new();
@@ -829,12 +829,12 @@ fn test_track_click_snaps_and_drags() {
 #[test]
 fn test_track_click_repeat_does_not_overshoot_cursor() {
     let mut state = SliderState::default();
+    let mut style = SliderStyle::from_theme(&crate::theme::Theme::framewise());
+    style.thumb.cross_axis = ThumbCrossAxis::FixedCentered(20.0);
     let spec = SliderSpec {
         page_step: 60.0,
-        style: SliderStyle {
-            thumb_size: 20.0,
-            ..SliderStyle::from_theme(&crate::theme::Theme::framewise())
-        },
+        thumb_len: ThumbLen::Fixed(20.0),
+        style,
         ..test_spec(0.0, 100.0, true)
     };
     let mut input = Input::new();
@@ -1011,10 +1011,14 @@ fn test_spec(min: f32, max: f32, claim_at_ends: bool) -> SliderSpec {
         max,
         page_step: 20.0,
         step: 5.0,
-        thumb_size_ratio: None,
+        thumb_len: ThumbLen::Fixed(12.0),
         style: SliderStyle::from_theme(&crate::theme::Theme::framewise()),
         clip_rect: None,
-        claim_scroll_at_ends: claim_at_ends,
+        scroll_claim: if claim_at_ends {
+            ScrollClaimPolicy::ClaimAllDirections
+        } else {
+            ScrollClaimPolicy::YieldSameAxisAtEnds
+        },
         time: 0.0,
         disabled: false,
         keyboard_focusable: true,
@@ -1396,9 +1400,11 @@ fn test_disabled_slider_draws_tinted() {
 
     let a = spec.style.disabled_alpha;
     let tint = |c: Color| Color::linear_rgba(c.r, c.g, c.b, c.a * a);
-    // scrollbar-mode: vertical rect (0,0,20,100), ratio None falls back to
-    // fixed thumb_size? No — test_spec uses thumb_size_ratio None, so thumb_len
-    // = style.thumb_size = 12. We only assert structure + tinted colors here.
+    let theme = crate::theme::Theme::framewise();
+    let track_color = Color::linear_rgba(theme.ink.r, theme.ink.g, theme.ink.b, 0.04);
+    let border_color = theme.line_soft;
+    let thumb_color = theme.ink;
+
     match (&cmds[0], &cmds[1], &cmds[2]) {
         (
             DrawCmd::FillRect {
@@ -1419,9 +1425,9 @@ fn test_disabled_slider_draws_tinted() {
             },
         ) => {
             assert_eq!(*tr, spec.rect, "track fill spans the full reserved rect");
-            assert_eq!(*tc, tint(spec.style.track_color));
-            assert_eq!(*bc, tint(spec.style.track_border_color.unwrap()));
-            assert_eq!(*hc, tint(spec.style.thumb_color));
+            assert_eq!(*tc, tint(track_color));
+            assert_eq!(*bc, tint(border_color));
+            assert_eq!(*hc, tint(thumb_color));
         }
         other => panic!("unexpected draw commands: {:?}", other),
     }
@@ -1462,32 +1468,33 @@ fn test_slider_visual_normal() {
     );
     focus_system.end_frame();
 
+    let theme = crate::theme::Theme::framewise();
     assert_eq!(
         &cmds[..],
         &[
             DrawCmd::FillRect {
                 anti_alias: false,
                 rect: Rect::new(9.25, 0.0, 1.5, 100.0),
-                color: spec.style.track_color,
+                color: theme.ink,
                 z: 0,
             },
             DrawCmd::FillRect {
                 anti_alias: false,
                 rect: Rect::new(9.25, 0.0, 1.5, 50.0),
-                color: spec.style.track_color,
+                color: theme.ink,
                 z: 0,
             },
             DrawCmd::FillRect {
                 anti_alias: false,
                 rect: Rect::new(4.0, 44.0, 12.0, 12.0),
-                color: spec.style.thumb_color,
+                color: theme.paper_elev,
                 z: 0,
             },
             DrawCmd::StrokeRect {
                 anti_alias: false,
                 rect: Rect::new(4.0, 44.0, 12.0, 12.0),
-                color: spec.style.thumb_border_color,
-                width: spec.style.thumb_border_width,
+                color: theme.ink,
+                width: 1.5,
                 z: 0,
             },
         ]
@@ -1522,32 +1529,33 @@ fn test_slider_visual_hovered() {
     );
     focus_system.end_frame();
 
+    let theme = crate::theme::Theme::framewise();
     assert_eq!(
         &cmds[..],
         &[
             DrawCmd::FillRect {
                 anti_alias: false,
                 rect: Rect::new(9.25, 0.0, 1.5, 100.0),
-                color: spec.style.track_color,
+                color: theme.ink,
                 z: 0,
             },
             DrawCmd::FillRect {
                 anti_alias: false,
                 rect: Rect::new(9.25, 0.0, 1.5, 50.0),
-                color: spec.style.track_color,
+                color: theme.ink,
                 z: 0,
             },
             DrawCmd::FillRect {
                 anti_alias: false,
                 rect: Rect::new(4.0, 44.0, 12.0, 12.0),
-                color: spec.style.thumb_hover_color,
+                color: theme.paper_elev,
                 z: 0,
             },
             DrawCmd::StrokeRect {
                 anti_alias: false,
                 rect: Rect::new(4.0, 44.0, 12.0, 12.0),
-                color: spec.style.thumb_border_color,
-                width: spec.style.thumb_border_width,
+                color: theme.ink,
+                width: 1.5,
                 z: 0,
             },
         ]
@@ -1582,32 +1590,33 @@ fn test_slider_visual_drag() {
     );
     focus_system.end_frame();
 
+    let theme = crate::theme::Theme::framewise();
     assert_eq!(
         &cmds[..],
         &[
             DrawCmd::FillRect {
                 anti_alias: false,
                 rect: Rect::new(9.25, 0.0, 1.5, 100.0),
-                color: spec.style.track_color,
+                color: theme.ink,
                 z: 0,
             },
             DrawCmd::FillRect {
                 anti_alias: false,
                 rect: Rect::new(9.25, 0.0, 1.5, 50.0),
-                color: spec.style.thumb_drag_color,
+                color: theme.rust,
                 z: 0,
             },
             DrawCmd::FillRect {
                 anti_alias: false,
                 rect: Rect::new(4.0, 44.0, 12.0, 12.0),
-                color: spec.style.thumb_drag_color,
+                color: theme.rust,
                 z: 0,
             },
             DrawCmd::StrokeRect {
                 anti_alias: false,
                 rect: Rect::new(4.0, 44.0, 12.0, 12.0),
-                color: spec.style.thumb_drag_color,
-                width: spec.style.thumb_border_width,
+                color: theme.rust,
+                width: 1.5,
                 z: 0,
             },
         ]
@@ -1640,39 +1649,40 @@ fn test_slider_visual_focused() {
     );
     focus_system.end_frame();
 
+    let theme = crate::theme::Theme::framewise();
     assert_eq!(
         &cmds[..],
         &[
             DrawCmd::StrokeRect {
                 anti_alias: false,
                 rect: Rect::new(-2.0, -2.0, 24.0, 104.0),
-                color: spec.style.focus,
-                width: spec.style.focus_width,
+                color: theme.rust,
+                width: theme.focus_width,
                 z: 1,
             },
             DrawCmd::FillRect {
                 anti_alias: false,
                 rect: Rect::new(9.25, 0.0, 1.5, 100.0),
-                color: spec.style.track_color,
+                color: theme.ink,
                 z: 0,
             },
             DrawCmd::FillRect {
                 anti_alias: false,
                 rect: Rect::new(9.25, 0.0, 1.5, 50.0),
-                color: spec.style.track_color,
+                color: theme.ink,
                 z: 0,
             },
             DrawCmd::FillRect {
                 anti_alias: false,
                 rect: Rect::new(4.0, 44.0, 12.0, 12.0),
-                color: spec.style.thumb_color,
+                color: theme.paper_elev,
                 z: 0,
             },
             DrawCmd::StrokeRect {
                 anti_alias: false,
                 rect: Rect::new(4.0, 44.0, 12.0, 12.0),
-                color: spec.style.thumb_border_color,
-                width: spec.style.thumb_border_width,
+                color: theme.ink,
+                width: 1.5,
                 z: 0,
             },
         ]
@@ -1692,10 +1702,10 @@ fn test_builder_defaults_from_theme_fills_unset_style() {
 fn test_builder_defaults_from_theme_preserves_explicit_style() {
     let theme = crate::theme::Theme::framewise();
     let mut custom_style = SliderStyle::from_theme(&theme);
-    custom_style.thumb_size = 99.0;
+    custom_style.disabled_alpha = 0.99;
     let builder = SliderSpecBuilder::new().style(custom_style);
     let builder = builder.defaults_from_theme(&theme);
-    assert_eq!(builder.style.unwrap().thumb_size, 99.0);
+    assert_eq!(builder.style.unwrap().disabled_alpha, 0.99);
 }
 
 #[test]
@@ -1749,12 +1759,12 @@ fn test_size_slider() {
 #[test]
 fn test_track_click_overshoot_first_page_no_jump_back() {
     let mut state = SliderState::default();
+    let mut style = SliderStyle::from_theme(&crate::theme::Theme::framewise());
+    style.thumb.cross_axis = ThumbCrossAxis::FixedCentered(20.0);
     let spec = SliderSpec {
         page_step: 60.0,
-        style: SliderStyle {
-            thumb_size: 20.0,
-            ..SliderStyle::from_theme(&crate::theme::Theme::framewise())
-        },
+        thumb_len: ThumbLen::Fixed(20.0),
+        style,
         ..test_spec(0.0, 100.0, true) // track y=0..100, usable_track=80
     };
     let mut input = Input::new();
@@ -1902,4 +1912,77 @@ fn test_non_keyboard_focusable_slider() {
     );
     focus_system.end_frame();
     assert_eq!(focus_system.current_keyboard_focus(), None);
+}
+
+#[test]
+fn test_scrollbar_visual_normal() {
+    let mut state = SliderState {
+        value: 50.0,
+        ..Default::default()
+    };
+    let mut focus_system = FocusSystem::new();
+    let theme = crate::theme::Theme::framewise();
+    let style = SliderStyle::scrollbar_from_theme(&theme);
+    let spec = SliderSpec {
+        orientation: Orientation::Vertical,
+        rect: Rect::new(0.0, 0.0, 20.0, 100.0),
+        min: 0.0,
+        max: 100.0,
+        page_step: 20.0,
+        step: 5.0,
+        thumb_len: ThumbLen::Fixed(24.0),
+        style,
+        clip_rect: None,
+        scroll_claim: ScrollClaimPolicy::YieldSameAxisAtEnds,
+        time: 0.0,
+        disabled: false,
+        keyboard_focusable: true,
+        layer: Layer::default(),
+    };
+
+    let input = Input::new();
+    focus_system.begin_frame();
+    let mut cmds = DrawCommands::new();
+    raw::post_layout_slider(
+        spec,
+        raw::SliderPreLayoutResult {
+            size_request: crate::layout::SizeRequest::UNKNOWN,
+        },
+        &mut state,
+        &input,
+        &mut focus_system,
+        &mut cmds,
+    );
+    focus_system.end_frame();
+
+    let track_color = Color::linear_rgba(theme.ink.r, theme.ink.g, theme.ink.b, 0.04);
+    let border_color = theme.line_soft;
+    let thumb_color = theme.ink;
+
+    // Scrollbar-style: track rect fill, separator line, fill-track thumb with margin, no thumb border
+    assert_eq!(
+        &cmds[..],
+        &[
+            DrawCmd::FillRect {
+                anti_alias: false,
+                rect: Rect::new(0.0, 0.0, 20.0, 100.0),
+                color: track_color,
+                z: 0,
+            },
+            DrawCmd::StrokeLine {
+                anti_alias: false,
+                p0: Vec2::new(0.0, 0.0),
+                p1: Vec2::new(0.0, 100.0),
+                color: border_color,
+                width: 1.0,
+                z: 0,
+            },
+            DrawCmd::FillRect {
+                anti_alias: false,
+                rect: Rect::new(1.0, 38.0, 18.0, 24.0), // Margin=1.0 on x (cross axis), y = 50% of 76 usable = 38.0
+                color: thumb_color,
+                z: 0,
+            },
+        ]
+    );
 }
