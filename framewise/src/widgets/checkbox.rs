@@ -2,7 +2,7 @@ use crate::{
     draw::{DrawCmd, DrawCommands},
     focus::{FocusId, FocusSystem},
     input::Input,
-    layout::{IntrinsicSize, LayoutState},
+    layout::{LayoutState, SizeRequest},
     types::{ClipRect, Color, Layer, Rect, Vec2},
     widget::{InputInfo, LayoutInfo, WidgetContext},
     TextBackend,
@@ -23,7 +23,7 @@ pub mod raw {
     }
 
     #[derive(Debug, Clone, PartialEq)]
-    pub struct CheckboxCalcIntrinsicSizeSpec {
+    pub struct CheckboxCalcSizeRequestSpec {
         pub style: super::CheckboxStyle,
     }
 
@@ -35,8 +35,8 @@ pub mod raw {
     }
 
     /// Compute intrinsic size for Checkbox.
-    pub fn calc_checkbox_intrinsic_size(spec: &CheckboxCalcIntrinsicSizeSpec) -> IntrinsicSize {
-        IntrinsicSize::preferred(Vec2::new(spec.style.size, spec.style.size))
+    pub fn calc_checkbox_intrinsic_size(spec: &CheckboxCalcSizeRequestSpec) -> SizeRequest {
+        SizeRequest::preferred(Vec2::new(spec.style.size, spec.style.size))
     }
 
     fn next_allowed_checked_state(
@@ -338,7 +338,7 @@ pub fn checkbox<T: TextBackend, S: LayoutState, CF>(
     state: &mut CheckboxState,
 ) -> CheckboxResult {
     let spec = builder.defaults_from_theme(&ctx.theme).build();
-    let calc_spec = raw::CheckboxCalcIntrinsicSizeSpec { style: spec.style };
+    let calc_spec = raw::CheckboxCalcSizeRequestSpec { style: spec.style };
     let intrinsic = raw::calc_checkbox_intrinsic_size(&calc_spec);
     let rect = ctx.layout(layout_params, intrinsic);
     let raw_spec = raw::CheckboxSpec {
@@ -389,11 +389,11 @@ pub fn labelled_checkbox<T: TextBackend, S: LayoutState, CF>(
     }
 
     // Calculate intrinsic size using the official functions of both widgets
-    let checkbox_calc_spec = raw::CheckboxCalcIntrinsicSizeSpec { style: spec.style };
+    let checkbox_calc_spec = raw::CheckboxCalcSizeRequestSpec { style: spec.style };
     let checkbox_intrinsic = raw::calc_checkbox_intrinsic_size(&checkbox_calc_spec);
     let checkbox_size = checkbox_intrinsic.preferred.unwrap();
 
-    let label_calc_spec = crate::widgets::label::raw::LabelCalcIntrinsicSizeSpec {
+    let label_calc_spec = crate::widgets::label::raw::LabelCalcSizeRequestSpec {
         text: label_text,
         style: label_style,
     };
@@ -404,7 +404,7 @@ pub fn labelled_checkbox<T: TextBackend, S: LayoutState, CF>(
     let gap = 8.0;
     let combined_width = checkbox_size.x + gap + label_size.x;
     let combined_height = f32::max(checkbox_size.y, label_size.y);
-    let intrinsic = IntrinsicSize::preferred(Vec2::new(combined_width, combined_height));
+    let intrinsic = SizeRequest::preferred(Vec2::new(combined_width, combined_height));
 
     // Resolve combined bounds
     let rect = ctx.layout(layout_params, intrinsic);
@@ -1592,9 +1592,9 @@ mod tests {
     fn test_calc_checkbox_intrinsic_size() {
         let theme = crate::theme::Theme::default();
         let style = CheckboxStyle::from_theme(&theme);
-        let spec = raw::CheckboxCalcIntrinsicSizeSpec { style };
+        let spec = raw::CheckboxCalcSizeRequestSpec { style };
         let intrinsic = raw::calc_checkbox_intrinsic_size(&spec);
-        assert_eq!(intrinsic, IntrinsicSize::preferred(Vec2::new(14.0, 14.0)));
+        assert_eq!(intrinsic, SizeRequest::preferred(Vec2::new(14.0, 14.0)));
     }
 
     #[test]

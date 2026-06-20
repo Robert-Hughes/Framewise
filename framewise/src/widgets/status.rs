@@ -19,7 +19,7 @@ pub mod raw {
     }
 
     #[derive(Debug, Clone, PartialEq)]
-    pub struct StatusCalcIntrinsicSizeSpec<'a> {
+    pub struct StatusCalcSizeRequestSpec<'a> {
         pub text: &'a str,
         pub style: super::StatusStyle,
     }
@@ -29,9 +29,9 @@ pub mod raw {
 
     /// Measure a status widget's intrinsic size from its measurement spec.
     pub fn calc_status_intrinsic_size<T: TextBackend>(
-        spec: &StatusCalcIntrinsicSizeSpec,
+        spec: &StatusCalcSizeRequestSpec,
         text_backend: &mut T,
-    ) -> crate::layout::IntrinsicSize {
+    ) -> crate::layout::SizeRequest {
         let layout = layout_text(
             text_backend,
             spec.text,
@@ -43,7 +43,7 @@ pub mod raw {
             spec.style.dot_size + spec.style.gap + metrics.logical_size.x,
             spec.style.dot_size.max(metrics.logical_size.y),
         );
-        crate::layout::IntrinsicSize::preferred(size)
+        crate::layout::SizeRequest::preferred(size)
     }
 
     /// Low-level status widget function.
@@ -221,7 +221,7 @@ pub fn status<'a, T: TextBackend, S: LayoutState, CF>(
     layout_params: S::Params,
 ) -> StatusResult {
     let spec = builder.defaults_from_theme(&ctx.theme).build();
-    let calc_spec = raw::StatusCalcIntrinsicSizeSpec {
+    let calc_spec = raw::StatusCalcSizeRequestSpec {
         text: spec.text,
         style: spec.style,
     };

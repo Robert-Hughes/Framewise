@@ -1,8 +1,8 @@
 use std::marker::PhantomData;
 
 use crate::layout::{
-    Align, AxisBound, IntrinsicSize, Layout, LayoutResult, LayoutSpace, LayoutState, LayoutToken,
-    LayoutViolation, LayoutViolationKind, Size, SpacerLayoutState,
+    Align, AxisBound, Layout, LayoutResult, LayoutSpace, LayoutState, LayoutToken, LayoutViolation,
+    LayoutViolationKind, Size, SizeRequest, SpacerLayoutState,
 };
 use crate::types::{Rect, Vec2};
 
@@ -102,7 +102,7 @@ impl LinearMain {
                 None => LayoutResult::Fallback {
                     value: 0.0,
                     violation: LayoutViolation {
-                        kind: LayoutViolationKind::MissingIntrinsic,
+                        kind: LayoutViolationKind::MissingPreferredSize,
                         location: core::panic::Location::caller(),
                     },
                 },
@@ -178,7 +178,7 @@ impl LinearCross {
                 None => LayoutResult::Fallback {
                     value: 0.0,
                     violation: LayoutViolation {
-                        kind: LayoutViolationKind::MissingIntrinsic,
+                        kind: LayoutViolationKind::MissingPreferredSize,
                         location: core::panic::Location::caller(),
                     },
                 },
@@ -486,20 +486,16 @@ impl<A: LinearAxis> SpacerLayoutState for LinearState<A> {
 impl<A: LinearAxis> LayoutState for LinearState<A> {
     type Params = A::Params;
 
-    fn layout(
-        &mut self,
-        layout_params: Self::Params,
-        intrinsic: IntrinsicSize,
-    ) -> LayoutResult<Rect> {
+    fn layout(&mut self, layout_params: Self::Params, request: SizeRequest) -> LayoutResult<Rect> {
         let params = A::orient_params(layout_params);
-        let pref = A::orient_intrinsic(intrinsic.preferred);
+        let pref = A::orient_intrinsic(request.preferred);
         self.place(params, pref)
     }
 
     fn begin_layout<'a>(
         &'a mut self,
         layout_params: Self::Params,
-        _intrinsic: IntrinsicSize,
+        _request: SizeRequest,
     ) -> (LayoutResult<LayoutSpace>, LayoutToken<'a, Self>) {
         let params = A::orient_params(layout_params.clone());
 
@@ -971,24 +967,24 @@ mod tests {
     fn test_row_layout() {
         let mut state = row().begin(Rect::new(10.0, 20.0, 100.0, 100.0));
         let r1 = state
-            .layout(Vec2::new(30.0, 20.0).into(), IntrinsicSize::UNKNOWN)
+            .layout(Vec2::new(30.0, 20.0).into(), SizeRequest::UNKNOWN)
             .unwrap();
         assert_eq!(r1, Rect::new(10.0, 20.0, 30.0, 20.0));
 
         state.spacer(5.0.into());
 
         let r2 = state
-            .layout(Vec2::new(20.0, 30.0).into(), IntrinsicSize::UNKNOWN)
+            .layout(Vec2::new(20.0, 30.0).into(), SizeRequest::UNKNOWN)
             .unwrap();
         assert_eq!(r2, Rect::new(45.0, 20.0, 20.0, 30.0));
     }
 
     #[test]
-    #[should_panic(expected = "needs an intrinsic measurement")]
+    #[should_panic(expected = "needs a preferred size request")]
     fn test_row_auto_without_intrinsic_panics() {
         let mut state = row().begin(Rect::new(0.0, 0.0, 400.0, 100.0));
         let _ = state
-            .layout(RowLayoutParams::auto(), IntrinsicSize::UNKNOWN)
+            .layout(RowLayoutParams::auto(), SizeRequest::UNKNOWN)
             .unwrap();
     }
 
@@ -1000,14 +996,14 @@ mod tests {
             y: LinearCross::fixed(40.0),
         };
         let r1 = state
-            .layout(req, IntrinsicSize::preferred(Vec2::new(70.0, 16.0)))
+            .layout(req, SizeRequest::preferred(Vec2::new(70.0, 16.0)))
             .unwrap();
         assert_eq!(r1, Rect::new(0.0, 0.0, 70.0, 40.0));
 
         state.spacer(6.0.into());
 
         let r2 = state
-            .layout(req, IntrinsicSize::preferred(Vec2::new(50.0, 16.0)))
+            .layout(req, SizeRequest::preferred(Vec2::new(50.0, 16.0)))
             .unwrap();
         assert_eq!(r2, Rect::new(76.0, 0.0, 50.0, 40.0));
     }
@@ -1017,7 +1013,7 @@ mod tests {
         {
             let mut state = row().begin(Rect::new(0.0, 0.0, 100.0, 200.0));
             let _ = state
-                .layout(RowLayoutParams::fixed(30.0, 200.0), IntrinsicSize::UNKNOWN)
+                .layout(RowLayoutParams::fixed(30.0, 200.0), SizeRequest::UNKNOWN)
                 .unwrap();
             let r = state
                 .layout(
@@ -1025,7 +1021,7 @@ mod tests {
                         x: LinearMain::fill(),
                         y: LinearCross::fixed(200.0),
                     },
-                    IntrinsicSize::UNKNOWN,
+                    SizeRequest::UNKNOWN,
                 )
                 .unwrap();
             assert_eq!(r.w, 70.0);
@@ -1036,14 +1032,14 @@ mod tests {
                 LayoutSpace::new(0.0, 0.0, AxisBound::AtMost(100.0), AxisBound::Exact(200.0));
             let mut state = row().begin(space);
             let _ = state
-                .layout(RowLayoutParams::fixed(30.0, 200.0), IntrinsicSize::UNKNOWN)
+                .layout(RowLayoutParams::fixed(30.0, 200.0), SizeRequest::UNKNOWN)
                 .unwrap();
             let res = state.layout(
                 RowLayoutParams {
                     x: LinearMain::fill(),
                     y: LinearCross::fixed(200.0),
                 },
-                IntrinsicSize::preferred(Vec2::new(90.0, 200.0)),
+                SizeRequest::preferred(Vec2::new(90.0, 200.0)),
             );
             let (r, violation) = res.into_parts();
             assert_eq!(r.w, 70.0);
@@ -1056,13 +1052,13 @@ mod tests {
         {
             let mut state = row().begin(Rect::new(0.0, 0.0, 100.0, 200.0));
             let _ = state
-                .layout(RowLayoutParams::fixed(30.0, 200.0), IntrinsicSize::UNKNOWN)
+                .layout(RowLayoutParams::fixed(30.0, 200.0), SizeRequest::UNKNOWN)
                 .unwrap();
             let req = RowLayoutParams {
                 x: LinearMain::fill(),
                 y: LinearCross::fixed(200.0),
             };
-            let (space_res, token) = state.begin_layout(req, IntrinsicSize::UNKNOWN);
+            let (space_res, token) = state.begin_layout(req, SizeRequest::UNKNOWN);
             let space = space_res.unwrap();
             assert_eq!(space.width, AxisBound::Exact(70.0));
 
@@ -1075,13 +1071,13 @@ mod tests {
                 LayoutSpace::new(0.0, 0.0, AxisBound::AtMost(100.0), AxisBound::Exact(200.0));
             let mut state = row().begin(space);
             let _ = state
-                .layout(RowLayoutParams::fixed(30.0, 200.0), IntrinsicSize::UNKNOWN)
+                .layout(RowLayoutParams::fixed(30.0, 200.0), SizeRequest::UNKNOWN)
                 .unwrap();
             let req = RowLayoutParams {
                 x: LinearMain::fill(),
                 y: LinearCross::fixed(200.0),
             };
-            let (space_res, token) = state.begin_layout(req, IntrinsicSize::UNKNOWN);
+            let (space_res, token) = state.begin_layout(req, SizeRequest::UNKNOWN);
             let space = space_res.unwrap();
             assert_eq!(space.width, AxisBound::AtMost(70.0));
 
@@ -1100,18 +1096,18 @@ mod tests {
             x: LinearMain::fill(),
             y: LinearCross::fixed(40.0),
         };
-        let _ = state.layout(req, IntrinsicSize::UNKNOWN).unwrap();
+        let _ = state.layout(req, SizeRequest::UNKNOWN).unwrap();
     }
 
     #[test]
     fn test_row_content_extent() {
         let mut state = row().begin(Rect::new(0.0, 0.0, 400.0, 100.0));
         let _ = state
-            .layout(Vec2::new(30.0, 20.0).into(), IntrinsicSize::UNKNOWN)
+            .layout(Vec2::new(30.0, 20.0).into(), SizeRequest::UNKNOWN)
             .unwrap();
         state.spacer(5.0.into());
         let _ = state
-            .layout(Vec2::new(20.0, 40.0).into(), IntrinsicSize::UNKNOWN)
+            .layout(Vec2::new(20.0, 40.0).into(), SizeRequest::UNKNOWN)
             .unwrap();
         assert_eq!(state.resolve_space(), Rect::new(0.0, 0.0, 400.0, 100.0));
     }
@@ -1127,7 +1123,7 @@ mod tests {
                     x: LinearMain::fixed(40.0),
                     y: LinearCross::fixed(20.0).align(Align::Center),
                 },
-                IntrinsicSize::UNKNOWN,
+                SizeRequest::UNKNOWN,
             )
             .unwrap();
         assert_eq!(r1, Rect::new(10.0, 40.0, 40.0, 20.0));
@@ -1139,7 +1135,7 @@ mod tests {
                     x: LinearMain::fixed(40.0),
                     y: LinearCross::fixed(30.0).align(Align::End),
                 },
-                IntrinsicSize::UNKNOWN,
+                SizeRequest::UNKNOWN,
             )
             .unwrap();
         assert_eq!(r2, Rect::new(10.0, 60.0, 40.0, 30.0));
@@ -1156,7 +1152,7 @@ mod tests {
                     x: LinearMain::fixed(40.0),
                     y: LinearCross::fixed(20.0).align(Align::Center),
                 },
-                IntrinsicSize::UNKNOWN,
+                SizeRequest::UNKNOWN,
             )
             .unwrap();
     }
@@ -1172,7 +1168,7 @@ mod tests {
                     x: LinearMain::fixed(40.0),
                     y: LinearCross::fixed(20.0).align(Align::End),
                 },
-                IntrinsicSize::UNKNOWN,
+                SizeRequest::UNKNOWN,
             )
             .unwrap();
     }
@@ -1190,7 +1186,7 @@ mod tests {
             x: LinearMain::auto(),
             y: LinearCross::fill(),
         };
-        let (space_res, token) = state.begin_layout(req, IntrinsicSize::UNKNOWN);
+        let (space_res, token) = state.begin_layout(req, SizeRequest::UNKNOWN);
         let space = space_res.unwrap();
 
         assert_eq!(space.x, 10.0);
@@ -1209,7 +1205,7 @@ mod tests {
                     x: LinearMain::fixed(30.0),
                     y: LinearCross::fixed(20.0).align(Align::Center),
                 },
-                IntrinsicSize::UNKNOWN,
+                SizeRequest::UNKNOWN,
             )
             .unwrap();
         assert_eq!(next_rect.x, 75.0);
@@ -1226,13 +1222,13 @@ mod tests {
             x: LinearMain::fixed(80.0),
             y: LinearCross::fill(),
         };
-        let (space_f_res, _token) = state.begin_layout(req_fixed, IntrinsicSize::UNKNOWN);
+        let (space_f_res, _token) = state.begin_layout(req_fixed, SizeRequest::UNKNOWN);
         let space_f = space_f_res.unwrap();
         assert_eq!(space_f.width, AxisBound::Exact(80.0));
         assert_eq!(space_f.height, AxisBound::Exact(150.0));
 
         let _ = state
-            .layout(RowLayoutParams::fixed(80.0, 100.0), IntrinsicSize::UNKNOWN)
+            .layout(RowLayoutParams::fixed(80.0, 100.0), SizeRequest::UNKNOWN)
             .unwrap();
 
         state.spacer(5.0.into());
@@ -1241,7 +1237,7 @@ mod tests {
             x: LinearMain::auto(),
             y: LinearCross::fill(),
         };
-        let (space_auto_res, _token) = state.begin_layout(req_auto, IntrinsicSize::UNKNOWN);
+        let (space_auto_res, _token) = state.begin_layout(req_auto, SizeRequest::UNKNOWN);
         let space_auto = space_auto_res.unwrap();
         assert_eq!(space_auto.width, AxisBound::AtMost(315.0));
         assert_eq!(space_auto.height, AxisBound::Exact(150.0));
@@ -1258,7 +1254,7 @@ mod tests {
             x: LinearMain::fixed(80.0),
             y: LinearCross::auto().align(Align::Center),
         };
-        let _ = state.begin_layout(req, IntrinsicSize::UNKNOWN);
+        let _ = state.begin_layout(req, SizeRequest::UNKNOWN);
     }
 
     #[test]
@@ -1272,7 +1268,7 @@ mod tests {
                 x: LinearMain::fixed(80.0),
                 y: LinearCross::fixed(100.0).align(Align::Center),
             };
-            let _ = state.layout(req, IntrinsicSize::UNKNOWN).unwrap();
+            let _ = state.layout(req, SizeRequest::UNKNOWN).unwrap();
             assert_eq!(state.resolve_space().h, 300.0);
         }
 
@@ -1282,7 +1278,7 @@ mod tests {
                 x: LinearMain::fixed(80.0),
                 y: LinearCross::fixed(100.0).align(Align::End),
             };
-            let _ = state.layout(req, IntrinsicSize::UNKNOWN).unwrap();
+            let _ = state.layout(req, SizeRequest::UNKNOWN).unwrap();
             assert_eq!(state.resolve_space().h, 300.0);
         }
 
@@ -1292,7 +1288,7 @@ mod tests {
                 x: LinearMain::fixed(80.0),
                 y: LinearCross::fixed(100.0).align(Align::Center),
             };
-            let (_, token) = state.begin_layout(req, IntrinsicSize::UNKNOWN);
+            let (_, token) = state.begin_layout(req, SizeRequest::UNKNOWN);
             let _ = token.end_layout(Vec2::new(80.0, 100.0)).unwrap();
             assert_eq!(state.resolve_space().h, 300.0);
         }
@@ -1313,25 +1309,25 @@ mod tests {
 
         {
             let mut state = row().begin(parent_space_exact);
-            let _ = state.layout(req, IntrinsicSize::UNKNOWN).unwrap();
+            let _ = state.layout(req, SizeRequest::UNKNOWN).unwrap();
             assert_eq!(state.resolve_space().h, 300.0);
         }
 
         {
             let mut state = row().begin(parent_space_at_most);
-            let _ = state.layout(req, IntrinsicSize::UNKNOWN).unwrap();
+            let _ = state.layout(req, SizeRequest::UNKNOWN).unwrap();
             assert_eq!(state.resolve_space().h, 100.0);
         }
 
         {
             let mut state = row().begin(parent_space_at_most_overflow);
-            let _ = state.layout(req, IntrinsicSize::UNKNOWN).unwrap();
+            let _ = state.layout(req, SizeRequest::UNKNOWN).unwrap();
             assert_eq!(state.resolve_space().h, 50.0);
         }
 
         {
             let mut state = row().begin(parent_space_unbounded);
-            let _ = state.layout(req, IntrinsicSize::UNKNOWN).unwrap();
+            let _ = state.layout(req, SizeRequest::UNKNOWN).unwrap();
             assert_eq!(state.resolve_space().h, 100.0);
         }
     }
@@ -1339,14 +1335,14 @@ mod tests {
     fn test_column_layout() {
         let mut state = column().begin(Rect::new(0.0, 0.0, 100.0, 100.0));
         let r1 = state
-            .layout(Vec2::new(50.0, 20.0).into(), IntrinsicSize::UNKNOWN)
+            .layout(Vec2::new(50.0, 20.0).into(), SizeRequest::UNKNOWN)
             .unwrap();
         assert_eq!(r1, Rect::new(0.0, 0.0, 50.0, 20.0));
 
         state.spacer(10.0.into());
 
         let r2 = state
-            .layout(Vec2::new(40.0, 30.0).into(), IntrinsicSize::UNKNOWN)
+            .layout(Vec2::new(40.0, 30.0).into(), SizeRequest::UNKNOWN)
             .unwrap();
         assert_eq!(r2, Rect::new(0.0, 30.0, 40.0, 30.0));
     }
@@ -1358,7 +1354,7 @@ mod tests {
             x: LinearCross::fixed(120.0),
             y: LinearMain::auto(),
         };
-        let intrinsic = IntrinsicSize::preferred(Vec2::new(80.0, 24.0));
+        let intrinsic = SizeRequest::preferred(Vec2::new(80.0, 24.0));
         let r = state.layout(req, intrinsic).unwrap();
         assert_eq!(r, Rect::new(0.0, 0.0, 120.0, 24.0));
     }
@@ -1370,7 +1366,7 @@ mod tests {
             x: LinearCross::fill(),
             y: LinearMain::fixed(30.0),
         };
-        let r = state.layout(req, IntrinsicSize::UNKNOWN).unwrap();
+        let r = state.layout(req, SizeRequest::UNKNOWN).unwrap();
         assert_eq!(r, Rect::new(5.0, 0.0, 200.0, 30.0));
     }
 
@@ -1381,7 +1377,7 @@ mod tests {
             x: LinearCross::fixed(120.0),
             y: LinearMain::fill(),
         };
-        let r = state.layout(req, IntrinsicSize::UNKNOWN).unwrap();
+        let r = state.layout(req, SizeRequest::UNKNOWN).unwrap();
         assert_eq!(r, Rect::new(0.0, 10.0, 120.0, 500.0));
     }
 
@@ -1390,10 +1386,7 @@ mod tests {
         {
             let mut state = column().begin(Rect::new(0.0, 0.0, 200.0, 100.0));
             let _ = state
-                .layout(
-                    ColumnLayoutParams::fixed(200.0, 30.0),
-                    IntrinsicSize::UNKNOWN,
-                )
+                .layout(ColumnLayoutParams::fixed(200.0, 30.0), SizeRequest::UNKNOWN)
                 .unwrap();
             let r = state
                 .layout(
@@ -1401,7 +1394,7 @@ mod tests {
                         x: LinearCross::fixed(200.0),
                         y: LinearMain::fill(),
                     },
-                    IntrinsicSize::UNKNOWN,
+                    SizeRequest::UNKNOWN,
                 )
                 .unwrap();
             assert_eq!(r.h, 70.0);
@@ -1412,17 +1405,14 @@ mod tests {
                 LayoutSpace::new(0.0, 0.0, AxisBound::Exact(200.0), AxisBound::AtMost(100.0));
             let mut state = column().begin(space);
             let _ = state
-                .layout(
-                    ColumnLayoutParams::fixed(200.0, 30.0),
-                    IntrinsicSize::UNKNOWN,
-                )
+                .layout(ColumnLayoutParams::fixed(200.0, 30.0), SizeRequest::UNKNOWN)
                 .unwrap();
             let res = state.layout(
                 ColumnLayoutParams {
                     x: LinearCross::fixed(200.0),
                     y: LinearMain::fill(),
                 },
-                IntrinsicSize::preferred(Vec2::new(200.0, 90.0)),
+                SizeRequest::preferred(Vec2::new(200.0, 90.0)),
             );
             let (r, violation) = res.into_parts();
             assert_eq!(r.h, 70.0);
@@ -1435,16 +1425,13 @@ mod tests {
         {
             let mut state = column().begin(Rect::new(0.0, 0.0, 200.0, 100.0));
             let _ = state
-                .layout(
-                    ColumnLayoutParams::fixed(200.0, 30.0),
-                    IntrinsicSize::UNKNOWN,
-                )
+                .layout(ColumnLayoutParams::fixed(200.0, 30.0), SizeRequest::UNKNOWN)
                 .unwrap();
             let req = ColumnLayoutParams {
                 x: LinearCross::fixed(200.0),
                 y: LinearMain::fill(),
             };
-            let (space_res, token) = state.begin_layout(req, IntrinsicSize::UNKNOWN);
+            let (space_res, token) = state.begin_layout(req, SizeRequest::UNKNOWN);
             let space = space_res.unwrap();
             assert_eq!(space.height, AxisBound::Exact(70.0));
 
@@ -1457,16 +1444,13 @@ mod tests {
                 LayoutSpace::new(0.0, 0.0, AxisBound::Exact(200.0), AxisBound::AtMost(100.0));
             let mut state = column().begin(space);
             let _ = state
-                .layout(
-                    ColumnLayoutParams::fixed(200.0, 30.0),
-                    IntrinsicSize::UNKNOWN,
-                )
+                .layout(ColumnLayoutParams::fixed(200.0, 30.0), SizeRequest::UNKNOWN)
                 .unwrap();
             let req = ColumnLayoutParams {
                 x: LinearCross::fixed(200.0),
                 y: LinearMain::fill(),
             };
-            let (space_res, token) = state.begin_layout(req, IntrinsicSize::UNKNOWN);
+            let (space_res, token) = state.begin_layout(req, SizeRequest::UNKNOWN);
             let space = space_res.unwrap();
             assert_eq!(space.height, AxisBound::AtMost(70.0));
 
@@ -1485,14 +1469,14 @@ mod tests {
             y: LinearMain::auto(),
         };
         let r1 = state
-            .layout(req, IntrinsicSize::preferred(Vec2::new(80.0, 24.0)))
+            .layout(req, SizeRequest::preferred(Vec2::new(80.0, 24.0)))
             .unwrap();
         assert_eq!(r1, Rect::new(0.0, 0.0, 200.0, 24.0));
 
         state.spacer(5.0.into());
 
         let r2 = state
-            .layout(req, IntrinsicSize::preferred(Vec2::new(80.0, 30.0)))
+            .layout(req, SizeRequest::preferred(Vec2::new(80.0, 30.0)))
             .unwrap();
         assert_eq!(r2, Rect::new(0.0, 29.0, 200.0, 30.0));
         assert!(r2.y.is_finite());
@@ -1507,7 +1491,7 @@ mod tests {
             y: LinearMain::fill(),
         };
         let _ = state
-            .layout(req, IntrinsicSize::preferred(Vec2::new(50.0, 18.0)))
+            .layout(req, SizeRequest::preferred(Vec2::new(50.0, 18.0)))
             .unwrap();
     }
 
@@ -1516,11 +1500,11 @@ mod tests {
         let mut state = column().begin(Rect::new(5.0, 7.0, 100.0, 500.0));
         assert_eq!(state.resolve_space(), Rect::new(5.0, 7.0, 100.0, 500.0));
         let _ = state
-            .layout(Vec2::new(40.0, 20.0).into(), IntrinsicSize::UNKNOWN)
+            .layout(Vec2::new(40.0, 20.0).into(), SizeRequest::UNKNOWN)
             .unwrap();
         state.spacer(10.0.into());
         let _ = state
-            .layout(Vec2::new(60.0, 30.0).into(), IntrinsicSize::UNKNOWN)
+            .layout(Vec2::new(60.0, 30.0).into(), SizeRequest::UNKNOWN)
             .unwrap();
         assert_eq!(state.resolve_space(), Rect::new(5.0, 7.0, 100.0, 500.0));
     }
@@ -1536,7 +1520,7 @@ mod tests {
                     x: LinearCross::fixed(40.0).align(Align::Center),
                     y: LinearMain::fixed(20.0),
                 },
-                IntrinsicSize::UNKNOWN,
+                SizeRequest::UNKNOWN,
             )
             .unwrap();
         assert_eq!(r1, Rect::new(40.0, 10.0, 40.0, 20.0));
@@ -1548,7 +1532,7 @@ mod tests {
                     x: LinearCross::fixed(30.0).align(Align::End),
                     y: LinearMain::fixed(20.0),
                 },
-                IntrinsicSize::UNKNOWN,
+                SizeRequest::UNKNOWN,
             )
             .unwrap();
         assert_eq!(r2, Rect::new(80.0, 10.0, 30.0, 20.0));
@@ -1565,7 +1549,7 @@ mod tests {
                     x: LinearCross::fixed(40.0).align(Align::Center),
                     y: LinearMain::fixed(20.0),
                 },
-                IntrinsicSize::UNKNOWN,
+                SizeRequest::UNKNOWN,
             )
             .unwrap();
     }
@@ -1581,7 +1565,7 @@ mod tests {
                     x: LinearCross::fixed(40.0).align(Align::End),
                     y: LinearMain::fixed(20.0),
                 },
-                IntrinsicSize::UNKNOWN,
+                SizeRequest::UNKNOWN,
             )
             .unwrap();
     }
@@ -1599,7 +1583,7 @@ mod tests {
             x: LinearCross::fill(),
             y: LinearMain::auto(),
         };
-        let (space_res, token) = state.begin_layout(req, IntrinsicSize::UNKNOWN);
+        let (space_res, token) = state.begin_layout(req, SizeRequest::UNKNOWN);
         let space = space_res.unwrap();
 
         assert_eq!(space.x, 0.0);
@@ -1613,10 +1597,7 @@ mod tests {
         state.spacer(8.0.into());
 
         let next_rect = state
-            .layout(
-                ColumnLayoutParams::fixed(40.0, 20.0),
-                IntrinsicSize::UNKNOWN,
-            )
+            .layout(ColumnLayoutParams::fixed(40.0, 20.0), SizeRequest::UNKNOWN)
             .unwrap();
         assert_eq!(next_rect.y, 58.0);
     }
@@ -1631,16 +1612,13 @@ mod tests {
             x: LinearCross::fill(),
             y: LinearMain::fixed(50.0),
         };
-        let (space_f_res, _token) = state.begin_layout(req_fixed, IntrinsicSize::UNKNOWN);
+        let (space_f_res, _token) = state.begin_layout(req_fixed, SizeRequest::UNKNOWN);
         let space_f = space_f_res.unwrap();
         assert_eq!(space_f.width, AxisBound::Exact(200.0));
         assert_eq!(space_f.height, AxisBound::Exact(50.0));
 
         let _ = state
-            .layout(
-                ColumnLayoutParams::fixed(200.0, 50.0),
-                IntrinsicSize::UNKNOWN,
-            )
+            .layout(ColumnLayoutParams::fixed(200.0, 50.0), SizeRequest::UNKNOWN)
             .unwrap();
 
         state.spacer(10.0.into());
@@ -1649,7 +1627,7 @@ mod tests {
             x: LinearCross::auto(),
             y: LinearMain::fill(),
         };
-        let (space_fill_res, _token) = state.begin_layout(req_fill, IntrinsicSize::UNKNOWN);
+        let (space_fill_res, _token) = state.begin_layout(req_fill, SizeRequest::UNKNOWN);
         let space_fill = space_fill_res.unwrap();
         assert_eq!(space_fill.width, AxisBound::AtMost(200.0));
         assert_eq!(space_fill.height, AxisBound::Exact(240.0));
@@ -1658,7 +1636,7 @@ mod tests {
             x: LinearCross::auto(),
             y: LinearMain::auto(),
         };
-        let (space_auto_res, _token) = state.begin_layout(req_auto, IntrinsicSize::UNKNOWN);
+        let (space_auto_res, _token) = state.begin_layout(req_auto, SizeRequest::UNKNOWN);
         let space_auto = space_auto_res.unwrap();
         assert_eq!(space_auto.width, AxisBound::AtMost(200.0));
         assert_eq!(space_auto.height, AxisBound::AtMost(240.0));
@@ -1674,16 +1652,13 @@ mod tests {
             x: LinearCross::fill(),
             y: LinearMain::auto(),
         };
-        let (space1_res, _token) = state.begin_layout(req1, IntrinsicSize::UNKNOWN);
+        let (space1_res, _token) = state.begin_layout(req1, SizeRequest::UNKNOWN);
         let space1 = space1_res.unwrap();
         assert_eq!(space1.width, AxisBound::AtMost(150.0));
         assert_eq!(space1.height, AxisBound::AtMost(250.0));
 
         let _ = state
-            .layout(
-                ColumnLayoutParams::fixed(100.0, 40.0),
-                IntrinsicSize::UNKNOWN,
-            )
+            .layout(ColumnLayoutParams::fixed(100.0, 40.0), SizeRequest::UNKNOWN)
             .unwrap();
 
         state.spacer(5.0.into());
@@ -1692,7 +1667,7 @@ mod tests {
             x: LinearCross::auto(),
             y: LinearMain::fill(),
         };
-        let (space2_res, _token) = state.begin_layout(req2, IntrinsicSize::UNKNOWN);
+        let (space2_res, _token) = state.begin_layout(req2, SizeRequest::UNKNOWN);
         let space2 = space2_res.unwrap();
         assert_eq!(space2.width, AxisBound::AtMost(150.0));
         assert_eq!(space2.height, AxisBound::AtMost(205.0));
@@ -1708,7 +1683,7 @@ mod tests {
             x: LinearCross::fixed(80.0).align(Align::Center),
             y: LinearMain::fixed(40.0),
         };
-        let (space_res, token) = state.begin_layout(req, IntrinsicSize::UNKNOWN);
+        let (space_res, token) = state.begin_layout(req, SizeRequest::UNKNOWN);
         let space = space_res.unwrap();
         assert_eq!(space.x, 70.0);
         assert_eq!(space.width, AxisBound::Exact(80.0));
@@ -1727,7 +1702,7 @@ mod tests {
             x: LinearCross::fill(),
             y: LinearMain::fixed(40.0),
         };
-        let (space_res, token) = state.begin_layout(req, IntrinsicSize::UNKNOWN);
+        let (space_res, token) = state.begin_layout(req, SizeRequest::UNKNOWN);
         let space = space_res.unwrap();
         assert_eq!(space.x, 10.0);
         assert_eq!(space.width, AxisBound::Exact(200.0));
@@ -1746,7 +1721,7 @@ mod tests {
             x: LinearCross::auto(),
             y: LinearMain::fixed(40.0),
         };
-        let (space_res, token) = state.begin_layout(req, IntrinsicSize::UNKNOWN);
+        let (space_res, token) = state.begin_layout(req, SizeRequest::UNKNOWN);
         let space = space_res.unwrap();
         assert_eq!(space.x, 10.0);
         assert_eq!(space.width, AxisBound::AtMost(200.0));
@@ -1766,7 +1741,7 @@ mod tests {
             x: LinearCross::auto().align(Align::Center),
             y: LinearMain::fixed(40.0),
         };
-        let _ = state.begin_layout(req, IntrinsicSize::UNKNOWN);
+        let _ = state.begin_layout(req, SizeRequest::UNKNOWN);
     }
 
     #[test]
@@ -1780,7 +1755,7 @@ mod tests {
                 x: LinearCross::fixed(180.0).align(Align::Center),
                 y: LinearMain::fixed(32.0),
             };
-            let _ = state.layout(req, IntrinsicSize::UNKNOWN).unwrap();
+            let _ = state.layout(req, SizeRequest::UNKNOWN).unwrap();
             assert_eq!(state.resolve_space().w, 400.0);
         }
 
@@ -1790,7 +1765,7 @@ mod tests {
                 x: LinearCross::fixed(180.0).align(Align::End),
                 y: LinearMain::fixed(32.0),
             };
-            let _ = state.layout(req, IntrinsicSize::UNKNOWN).unwrap();
+            let _ = state.layout(req, SizeRequest::UNKNOWN).unwrap();
             assert_eq!(state.resolve_space().w, 400.0);
         }
 
@@ -1800,7 +1775,7 @@ mod tests {
                 x: LinearCross::fixed(180.0).align(Align::Center),
                 y: LinearMain::fixed(32.0),
             };
-            let (_, token) = state.begin_layout(req, IntrinsicSize::UNKNOWN);
+            let (_, token) = state.begin_layout(req, SizeRequest::UNKNOWN);
             let _ = token.end_layout(Vec2::new(180.0, 32.0)).unwrap();
             assert_eq!(state.resolve_space().w, 400.0);
         }
@@ -1821,25 +1796,25 @@ mod tests {
 
         {
             let mut state = column().begin(parent_space_exact);
-            let _ = state.layout(req, IntrinsicSize::UNKNOWN).unwrap();
+            let _ = state.layout(req, SizeRequest::UNKNOWN).unwrap();
             assert_eq!(state.resolve_space().w, 400.0);
         }
 
         {
             let mut state = column().begin(parent_space_at_most);
-            let _ = state.layout(req, IntrinsicSize::UNKNOWN).unwrap();
+            let _ = state.layout(req, SizeRequest::UNKNOWN).unwrap();
             assert_eq!(state.resolve_space().w, 180.0);
         }
 
         {
             let mut state = column().begin(parent_space_at_most_overflow);
-            let _ = state.layout(req, IntrinsicSize::UNKNOWN).unwrap();
+            let _ = state.layout(req, SizeRequest::UNKNOWN).unwrap();
             assert_eq!(state.resolve_space().w, 100.0);
         }
 
         {
             let mut state = column().begin(parent_space_unbounded);
-            let _ = state.layout(req, IntrinsicSize::UNKNOWN).unwrap();
+            let _ = state.layout(req, SizeRequest::UNKNOWN).unwrap();
             assert_eq!(state.resolve_space().w, 180.0);
         }
     }
@@ -1848,12 +1823,12 @@ mod tests {
     fn test_spacers_accumulation() {
         let mut state = row().begin(Rect::new(0.0, 0.0, 100.0, 100.0));
         let _ = state
-            .layout(Vec2::new(10.0, 10.0).into(), IntrinsicSize::UNKNOWN)
+            .layout(Vec2::new(10.0, 10.0).into(), SizeRequest::UNKNOWN)
             .unwrap();
         state.spacer(5.0.into());
         state.spacer(10.0.into());
         let r = state
-            .layout(Vec2::new(10.0, 10.0).into(), IntrinsicSize::UNKNOWN)
+            .layout(Vec2::new(10.0, 10.0).into(), SizeRequest::UNKNOWN)
             .unwrap();
         // Should be placed at: 10 + 5 + 10 = 25
         assert_eq!(r.x, 25.0);
@@ -1864,7 +1839,7 @@ mod tests {
         let space = LayoutSpace::new(0.0, 0.0, AxisBound::AtMost(100.0), AxisBound::Unbounded);
         let mut state = row().begin(space);
         let _ = state
-            .layout(Vec2::new(10.0, 10.0).into(), IntrinsicSize::UNKNOWN)
+            .layout(Vec2::new(10.0, 10.0).into(), SizeRequest::UNKNOWN)
             .unwrap();
         state.spacer(10.0.into());
         assert_eq!(state.resolve_space().w, 10.0); // Not 20!
@@ -1879,7 +1854,7 @@ mod tests {
                     x: LinearMain::fixed(30.0),
                     y: LinearCross::fixed(20.0),
                 },
-                IntrinsicSize::UNKNOWN,
+                SizeRequest::UNKNOWN,
             )
             .unwrap();
         assert_eq!(r1, Rect::new(10.0, 20.0, 30.0, 20.0));
@@ -1890,7 +1865,7 @@ mod tests {
                     x: LinearMain::fixed(25.0).align(MainAxisAlign::End),
                     y: LinearCross::fixed(20.0),
                 },
-                IntrinsicSize::UNKNOWN,
+                SizeRequest::UNKNOWN,
             )
             .unwrap();
         // Flush to the right edge: 10 + 100 - 25 = 85
@@ -1906,7 +1881,7 @@ mod tests {
                     x: LinearCross::fixed(20.0),
                     y: LinearMain::fixed(30.0),
                 },
-                IntrinsicSize::UNKNOWN,
+                SizeRequest::UNKNOWN,
             )
             .unwrap();
         assert_eq!(r1, Rect::new(10.0, 20.0, 20.0, 30.0));
@@ -1917,7 +1892,7 @@ mod tests {
                     x: LinearCross::fixed(20.0),
                     y: LinearMain::fixed(25.0).align(MainAxisAlign::End),
                 },
-                IntrinsicSize::UNKNOWN,
+                SizeRequest::UNKNOWN,
             )
             .unwrap();
         // Flush to the bottom edge: 20 + 100 - 25 = 95
@@ -1931,7 +1906,7 @@ mod tests {
             x: LinearMain::fixed(25.0).align(MainAxisAlign::End),
             y: LinearCross::fixed(20.0),
         };
-        let (space_res, token) = state.begin_layout(req, IntrinsicSize::UNKNOWN);
+        let (space_res, token) = state.begin_layout(req, SizeRequest::UNKNOWN);
         let space = space_res.unwrap();
         // Provisional space starts at: 10 + 100 - 25 = 85
         assert_eq!(space.x, 85.0);
@@ -1948,7 +1923,7 @@ mod tests {
             x: LinearCross::fixed(20.0),
             y: LinearMain::fixed(25.0).align(MainAxisAlign::End),
         };
-        let (space_res, token) = state.begin_layout(req, IntrinsicSize::UNKNOWN);
+        let (space_res, token) = state.begin_layout(req, SizeRequest::UNKNOWN);
         let space = space_res.unwrap();
         // Provisional space starts at: 20 + 100 - 25 = 95
         assert_eq!(space.y, 95.0);
@@ -1970,7 +1945,7 @@ mod tests {
                         x: LinearMain::fixed(20.0).align(MainAxisAlign::End),
                         y: LinearCross::fixed(20.0),
                     },
-                    IntrinsicSize::UNKNOWN,
+                    SizeRequest::UNKNOWN,
                 )
                 .unwrap();
             // Lands exactly at 80.0, ignoring spacer
@@ -1985,7 +1960,7 @@ mod tests {
                 x: LinearMain::fixed(20.0).align(MainAxisAlign::End),
                 y: LinearCross::fixed(20.0),
             };
-            let (space_res, token) = state.begin_layout(req, IntrinsicSize::UNKNOWN);
+            let (space_res, token) = state.begin_layout(req, SizeRequest::UNKNOWN);
             let space = space_res.unwrap();
             assert_eq!(space.x, 80.0);
             let r = token.end_layout(Vec2::new(20.0, 20.0)).unwrap();
@@ -2000,7 +1975,7 @@ mod tests {
             let mut state = row().begin(Rect::new(0.0, 0.0, 100.0, 100.0));
             state.spacer(15.0.into());
             let r = state
-                .layout(Vec2::new(10.0, 10.0).into(), IntrinsicSize::UNKNOWN)
+                .layout(Vec2::new(10.0, 10.0).into(), SizeRequest::UNKNOWN)
                 .unwrap();
             assert_eq!(r.x, 0.0);
         }
@@ -2010,7 +1985,7 @@ mod tests {
             let mut state = row().begin(Rect::new(0.0, 0.0, 100.0, 100.0));
             state.spacer(LinearSpacer::Always(15.0));
             let r = state
-                .layout(Vec2::new(10.0, 10.0).into(), IntrinsicSize::UNKNOWN)
+                .layout(Vec2::new(10.0, 10.0).into(), SizeRequest::UNKNOWN)
                 .unwrap();
             assert_eq!(r.x, 15.0);
         }
@@ -2027,11 +2002,11 @@ mod tests {
                         x: LinearMain::fixed(20.0).align(MainAxisAlign::End),
                         y: LinearCross::fixed(20.0),
                     },
-                    IntrinsicSize::UNKNOWN,
+                    SizeRequest::UNKNOWN,
                 )
                 .unwrap();
 
-            let res = state.layout(RowLayoutParams::fixed(10.0, 10.0), IntrinsicSize::UNKNOWN);
+            let res = state.layout(RowLayoutParams::fixed(10.0, 10.0), SizeRequest::UNKNOWN);
             assert!(res.violation().is_some());
             assert_eq!(
                 res.violation().unwrap().kind,
@@ -2048,12 +2023,12 @@ mod tests {
                         x: LinearMain::fixed(20.0).align(MainAxisAlign::End),
                         y: LinearCross::fixed(20.0),
                     },
-                    IntrinsicSize::UNKNOWN,
+                    SizeRequest::UNKNOWN,
                 )
                 .unwrap();
 
             let (space_res, _token) =
-                state.begin_layout(RowLayoutParams::fixed(10.0, 10.0), IntrinsicSize::UNKNOWN);
+                state.begin_layout(RowLayoutParams::fixed(10.0, 10.0), SizeRequest::UNKNOWN);
             assert!(space_res.violation().is_some());
             assert_eq!(
                 space_res.violation().unwrap().kind,
@@ -2070,7 +2045,7 @@ mod tests {
                         x: LinearMain::fixed(20.0).align(MainAxisAlign::End),
                         y: LinearCross::fixed(20.0),
                     },
-                    IntrinsicSize::UNKNOWN,
+                    SizeRequest::UNKNOWN,
                 )
                 .unwrap();
 
@@ -2089,7 +2064,7 @@ mod tests {
                         x: LinearMain::fixed(20.0).align(MainAxisAlign::End),
                         y: LinearCross::fixed(20.0),
                     },
-                    IntrinsicSize::UNKNOWN,
+                    SizeRequest::UNKNOWN,
                 )
                 .unwrap();
 
@@ -2098,7 +2073,7 @@ mod tests {
                     x: LinearMain::fixed(20.0).align(MainAxisAlign::End),
                     y: LinearCross::fixed(20.0),
                 },
-                IntrinsicSize::UNKNOWN,
+                SizeRequest::UNKNOWN,
             );
             assert!(res.violation().is_some());
             assert_eq!(
@@ -2120,7 +2095,7 @@ mod tests {
                     x: LinearMain::fixed(20.0).align(MainAxisAlign::End),
                     y: LinearCross::fixed(20.0),
                 },
-                IntrinsicSize::UNKNOWN,
+                SizeRequest::UNKNOWN,
             );
             let (r, violation) = res.into_parts();
             // Falls back to append: placed at x = 0.0
@@ -2142,7 +2117,7 @@ mod tests {
                 x: LinearMain::fixed(20.0).align(MainAxisAlign::End),
                 y: LinearCross::fixed(20.0),
             };
-            let (space_res, token) = state.begin_layout(req, IntrinsicSize::UNKNOWN);
+            let (space_res, token) = state.begin_layout(req, SizeRequest::UNKNOWN);
             let (prov_space, violation) = space_res.into_parts();
             // Falls back to append: origin_main starts at cursor (0.0)
             assert_eq!(prov_space.x, 0.0);
@@ -2167,6 +2142,6 @@ mod tests {
             x: LinearMain::auto().align(MainAxisAlign::End),
             y: LinearCross::fixed(20.0),
         };
-        let _ = state.begin_layout(req, IntrinsicSize::UNKNOWN);
+        let _ = state.begin_layout(req, SizeRequest::UNKNOWN);
     }
 }

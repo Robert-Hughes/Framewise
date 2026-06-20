@@ -22,7 +22,7 @@ pub mod raw {
     }
 
     #[derive(Debug, Clone, PartialEq)]
-    pub struct WindowCalcIntrinsicSizeSpec {
+    pub struct WindowCalcSizeRequestSpec {
         pub status_bar: bool,
         pub style: super::WindowStyle,
     }
@@ -33,15 +33,15 @@ pub mod raw {
     }
 
     pub fn calc_window_intrinsic_size(
-        spec: &WindowCalcIntrinsicSizeSpec,
-    ) -> crate::layout::IntrinsicSize {
+        spec: &WindowCalcSizeRequestSpec,
+    ) -> crate::layout::SizeRequest {
         let s = spec.style;
         let status_h = if spec.status_bar {
             s.status_height
         } else {
             0.0
         };
-        crate::layout::IntrinsicSize::preferred(Vec2::new(
+        crate::layout::SizeRequest::preferred(Vec2::new(
             240.0,
             s.title_height + status_h + s.content_pad_y * 2.0 + 80.0,
         ))
@@ -350,7 +350,7 @@ pub fn begin_window<'a, 'b, 'c, T: TextBackend, S: LayoutState, L: Layout, CF>(
         .defaults_from_theme(&ctx.theme)
         .buttons(buttons)
         .build();
-    let calc_spec = raw::WindowCalcIntrinsicSizeSpec {
+    let calc_spec = raw::WindowCalcSizeRequestSpec {
         status_bar: spec.status_bar,
         style: spec.style,
     };

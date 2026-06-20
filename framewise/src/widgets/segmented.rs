@@ -23,7 +23,7 @@ pub mod raw {
     }
 
     #[derive(Debug, Clone, PartialEq)]
-    pub struct SegmentedCalcIntrinsicSizeSpec<'a> {
+    pub struct SegmentedCalcSizeRequestSpec<'a> {
         pub items: &'a [&'a str],
         pub style: super::SegmentedStyle,
     }
@@ -37,9 +37,9 @@ pub mod raw {
 
     /// Measure a segmented control's intrinsic size from its measurement spec.
     pub fn calc_segmented_intrinsic_size<T: TextBackend>(
-        spec: &SegmentedCalcIntrinsicSizeSpec,
+        spec: &SegmentedCalcSizeRequestSpec,
         text_backend: &mut T,
-    ) -> crate::layout::IntrinsicSize {
+    ) -> crate::layout::SizeRequest {
         let s = spec.style;
         let total_w = spec
             .items
@@ -54,7 +54,7 @@ pub mod raw {
                 layout.metrics().logical_size.x + s.pad_x * 2.0
             })
             .sum();
-        crate::layout::IntrinsicSize::preferred(Vec2::new(total_w, s.height))
+        crate::layout::SizeRequest::preferred(Vec2::new(total_w, s.height))
     }
 
     /// Low-level segmented widget function.
@@ -368,7 +368,7 @@ pub fn segmented<'a, T: TextBackend, S: LayoutState, CF>(
     state: &mut SegmentedState,
 ) -> SegmentedResult {
     let spec = builder.defaults_from_theme(&ctx.theme).build();
-    let calc_spec = raw::SegmentedCalcIntrinsicSizeSpec {
+    let calc_spec = raw::SegmentedCalcSizeRequestSpec {
         items: spec.items,
         style: spec.style,
     };

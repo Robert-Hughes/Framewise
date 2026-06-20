@@ -19,7 +19,7 @@ pub mod raw {
     }
 
     #[derive(Debug, Clone, PartialEq)]
-    pub struct MenuCalcIntrinsicSizeSpec<'a> {
+    pub struct MenuCalcSizeRequestSpec<'a> {
         pub items: &'a [super::MenuItem<'a>],
         pub style: super::MenuStyle,
     }
@@ -31,9 +31,9 @@ pub mod raw {
     }
 
     pub fn calc_menu_intrinsic_size<T: TextBackend>(
-        spec: &MenuCalcIntrinsicSizeSpec,
+        spec: &MenuCalcSizeRequestSpec,
         text_backend: &mut T,
-    ) -> crate::layout::IntrinsicSize {
+    ) -> crate::layout::SizeRequest {
         let s = spec.style;
         let mut widest: f32 = s.min_width;
         let mut height = s.pad_y * 2.0;
@@ -76,7 +76,7 @@ pub mod raw {
                 }
             }
         }
-        crate::layout::IntrinsicSize::preferred(Vec2::new(widest, height))
+        crate::layout::SizeRequest::preferred(Vec2::new(widest, height))
     }
 
     /// Low-level menu widget function.
@@ -406,7 +406,7 @@ pub fn menu<'a, T: TextBackend, S: LayoutState, CF>(
     layout_params: S::Params,
 ) -> MenuResult {
     let spec = builder.defaults_from_theme(&ctx.theme).build();
-    let calc_spec = raw::MenuCalcIntrinsicSizeSpec {
+    let calc_spec = raw::MenuCalcSizeRequestSpec {
         items: spec.items,
         style: spec.style,
     };

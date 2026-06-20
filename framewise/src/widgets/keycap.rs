@@ -18,7 +18,7 @@ pub mod raw {
     }
 
     #[derive(Debug, Clone, PartialEq)]
-    pub struct KeycapCalcIntrinsicSizeSpec<'a> {
+    pub struct KeycapCalcSizeRequestSpec<'a> {
         pub text: &'a str,
         pub style: super::KeycapStyle,
     }
@@ -30,16 +30,16 @@ pub mod raw {
 
     /// Measure a keycap's intrinsic size from its measurement spec.
     pub fn calc_keycap_intrinsic_size<T: TextBackend>(
-        spec: &KeycapCalcIntrinsicSizeSpec,
+        spec: &KeycapCalcSizeRequestSpec,
         text_backend: &mut T,
-    ) -> crate::layout::IntrinsicSize {
+    ) -> crate::layout::SizeRequest {
         let layout = layout_text(
             text_backend,
             spec.text,
             spec.style.text_style,
             crate::text::TextBounds::UNBOUNDED,
         );
-        crate::layout::IntrinsicSize::preferred(layout.metrics().logical_size)
+        crate::layout::SizeRequest::preferred(layout.metrics().logical_size)
     }
 
     /// Low-level keycap widget function.
@@ -213,7 +213,7 @@ pub fn keycap<'a, T: TextBackend, S: LayoutState, CF>(
     layout_params: S::Params,
 ) -> KeycapResult {
     let spec = builder.defaults_from_theme(&ctx.theme).build();
-    let calc_spec = raw::KeycapCalcIntrinsicSizeSpec {
+    let calc_spec = raw::KeycapCalcSizeRequestSpec {
         text: spec.text,
         style: spec.style,
     };

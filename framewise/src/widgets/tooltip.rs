@@ -19,7 +19,7 @@ pub mod raw {
     }
 
     #[derive(Debug, Clone, PartialEq)]
-    pub struct TooltipCalcIntrinsicSizeSpec<'a> {
+    pub struct TooltipCalcSizeRequestSpec<'a> {
         pub text: &'a str,
         pub style: super::TooltipStyle,
     }
@@ -32,9 +32,9 @@ pub mod raw {
 
     /// Measure a tooltip's intrinsic size from its measurement spec.
     pub fn calc_tooltip_intrinsic_size<T: TextBackend>(
-        spec: &TooltipCalcIntrinsicSizeSpec,
+        spec: &TooltipCalcSizeRequestSpec,
         text_backend: &mut T,
-    ) -> crate::layout::IntrinsicSize {
+    ) -> crate::layout::SizeRequest {
         let s = spec.style;
         let layout = layout_text(
             text_backend,
@@ -45,7 +45,7 @@ pub mod raw {
         let metrics = layout.metrics();
         let box_w = (metrics.logical_size.x + s.pad_x * 2.0).min(s.max_width);
         let box_h = metrics.logical_size.y + s.pad_y_top + s.pad_y_bot;
-        crate::layout::IntrinsicSize::preferred(Vec2::new(box_w, box_h))
+        crate::layout::SizeRequest::preferred(Vec2::new(box_w, box_h))
     }
 
     /// Low-level tooltip widget function.
@@ -260,7 +260,7 @@ pub fn tooltip<'a, T: TextBackend, S: LayoutState, CF>(
     layout_params: S::Params,
 ) -> TooltipResult {
     let spec = builder.defaults_from_theme(&ctx.theme).build();
-    let calc_spec = raw::TooltipCalcIntrinsicSizeSpec {
+    let calc_spec = raw::TooltipCalcSizeRequestSpec {
         text: spec.text,
         style: spec.style,
     };

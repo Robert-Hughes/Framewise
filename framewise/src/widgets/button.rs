@@ -24,7 +24,7 @@ pub mod raw {
     }
 
     #[derive(Debug, Clone, PartialEq)]
-    pub struct ButtonCalcIntrinsicSizeSpec<'a> {
+    pub struct ButtonCalcSizeRequestSpec<'a> {
         pub text: &'a str,
         pub style: super::ButtonStyle,
     }
@@ -42,9 +42,9 @@ pub mod raw {
     /// preferred height is the larger of the standard control height and the
     /// padded label height.
     pub fn calc_button_intrinsic_size<T: TextBackend>(
-        spec: &ButtonCalcIntrinsicSizeSpec,
+        spec: &ButtonCalcSizeRequestSpec,
         text_backend: &mut T,
-    ) -> crate::layout::IntrinsicSize {
+    ) -> crate::layout::SizeRequest {
         let style = &spec.style;
         let layout = layout_text(
             text_backend,
@@ -55,7 +55,7 @@ pub mod raw {
         let t = layout.metrics();
         let w = t.logical_size.x + 2.0 * style.pad_x;
         let h = (t.logical_size.y + 2.0 * style.pad_y).max(style.min_height);
-        crate::layout::IntrinsicSize::preferred(crate::types::Vec2::new(w, h))
+        crate::layout::SizeRequest::preferred(crate::types::Vec2::new(w, h))
     }
 
     /// Shape the label inside the button content rect and emit it.
@@ -440,7 +440,7 @@ pub fn button<'a, T: TextBackend, S: LayoutState, CF>(
     state: &mut ButtonState,
 ) -> ButtonResult {
     let spec = builder.defaults_from_theme(&ctx.theme).build();
-    let calc_spec = raw::ButtonCalcIntrinsicSizeSpec {
+    let calc_spec = raw::ButtonCalcSizeRequestSpec {
         text: spec.text,
         style: spec.style,
     };
@@ -1676,7 +1676,7 @@ mod tests {
     #[test]
     fn test_calc_button_intrinsic_size() {
         let mut ts = TestTextBackend;
-        let spec = raw::ButtonCalcIntrinsicSizeSpec {
+        let spec = raw::ButtonCalcSizeRequestSpec {
             text: "Btn",
             style: ButtonStyle::primary_from_theme(&theme::Theme::default()),
         };

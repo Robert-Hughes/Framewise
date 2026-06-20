@@ -1,8 +1,7 @@
 use crate::draw::DrawCommands;
 use crate::focus::FocusSystem;
 use crate::layout::{
-    IntrinsicSize, Layout, LayoutSpace, LayoutState, LayoutToken, LayoutViolation,
-    SpacerLayoutState,
+    Layout, LayoutSpace, LayoutState, LayoutToken, LayoutViolation, SizeRequest, SpacerLayoutState,
 };
 use crate::theme::Theme;
 use crate::types::{ClipRect, Layer, Rect, Vec2};
@@ -244,7 +243,7 @@ impl<'a, T: TextBackend, LS: LayoutState, CF> WidgetContext<'a, T, LS, CF> {
     /// rect) this is equivalent to the old eager `layout()` call — `end_layout` ignores
     /// the measured extent and returns the same rect — so existing fixed-size nesting is
     /// unchanged. Only `Auto`/`Fill`-under-non-exact slots — which would otherwise panic
-    /// for lack of an intrinsic measurement — now fit to their children's content.
+    /// for lack of a size request — now fit to their children's content.
     pub fn child_with_layout<'c, L2: Layout>(
         &'c mut self,
         placement: LS::Params,
@@ -262,7 +261,7 @@ impl<'a, T: TextBackend, LS: LayoutState, CF> WidgetContext<'a, T, LS, CF> {
         let z = self.layer.get_z();
         let (child, _outer_space) = self.child_with_deferred_layout(
             placement,
-            IntrinsicSize::UNKNOWN,
+            SizeRequest::UNKNOWN,
             inner_layout,
             |_cmds, outer| ((), outer),
             move |(), token, content, _focus, text_backend, cmds| {
@@ -301,7 +300,7 @@ impl<'a, T: TextBackend, LS: LayoutState, CF> WidgetContext<'a, T, LS, CF> {
     pub fn child_with_deferred_layout<'c, L2, U, Before, After>(
         &'c mut self,
         placement: LS::Params,
-        intrinsic: IntrinsicSize,
+        request: SizeRequest,
         inner_layout: L2,
         before_children: Before,
         after_children: After,
@@ -329,7 +328,7 @@ impl<'a, T: TextBackend, LS: LayoutState, CF> WidgetContext<'a, T, LS, CF> {
         // begin_layout runs *here*: the token stays inside this body (captured into
         // `on_finish` below) and never crosses a `&mut self` boundary, so the disjoint
         // field construction is legal and lives in exactly one place.
-        let (outer_space_res, token) = self.layout_state.begin_layout(placement, intrinsic);
+        let (outer_space_res, token) = self.layout_state.begin_layout(placement, request);
         // The begin_layout violation belongs to *this child's* placement; it is carried
         // into the child below and reacted at the child's finish(), where its own
         // resolved_space gives the correct fallback rect. Each child carries its own,
@@ -365,10 +364,10 @@ impl<'a, T: TextBackend, LS: LayoutState, CF> WidgetContext<'a, T, LS, CF> {
     }
 
     /// Perform an immediate layout operation, routing any violations to the policy.
-    pub fn layout(&mut self, layout_params: LS::Params, intrinsic: IntrinsicSize) -> Rect {
+    pub fn layout(&mut self, layout_params: LS::Params, request: SizeRequest) -> Rect {
         let (rect, violation) = self
             .layout_state
-            .layout(layout_params, intrinsic)
+            .layout(layout_params, request)
             .into_parts();
         let z = self.layer.get_z();
         if let Some(v) = violation {
@@ -470,7 +469,7 @@ impl<
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::layout::{Align, AxisBound, IntrinsicSize};
+    use crate::layout::{Align, AxisBound, SizeRequest};
     use crate::layouts::{
         ColumnLayout, ColumnLayoutParams, ManualLayout, RowLayout, RowLayoutParams,
     };
@@ -502,11 +501,11 @@ mod tests {
         let mut row = col.child_with_layout(ColumnLayoutParams::fixed(200.0, 30.0), RowLayout);
 
         // The row sits at the column's origin (10,10); its first child lands there.
-        let first = row.layout(RowLayoutParams::fixed(50.0, 30.0), IntrinsicSize::UNKNOWN);
+        let first = row.layout(RowLayoutParams::fixed(50.0, 30.0), SizeRequest::UNKNOWN);
         assert_eq!(first, Rect::new(10.0, 10.0, 50.0, 30.0));
         row.spacer(4.0);
         // Second row child advances by width + spacing.
-        let second = row.layout(RowLayoutParams::fixed(40.0, 30.0), IntrinsicSize::UNKNOWN);
+        let second = row.layout(RowLayoutParams::fixed(40.0, 30.0), SizeRequest::UNKNOWN);
         assert_eq!(second, Rect::new(64.0, 10.0, 40.0, 30.0));
     }
 
@@ -535,23 +534,14 @@ mod tests {
             let mut inner =
                 ctx.child_with_layout(ColumnLayoutParams::auto().fill_x(), ColumnLayout);
             // Two stacked rows of height 30 → inner content height = 60.
-            inner.layout(
-                ColumnLayoutParams::fixed(50.0, 30.0),
-                IntrinsicSize::UNKNOWN,
-            );
-            inner.layout(
-                ColumnLayoutParams::fixed(50.0, 30.0),
-                IntrinsicSize::UNKNOWN,
-            );
+            inner.layout(ColumnLayoutParams::fixed(50.0, 30.0), SizeRequest::UNKNOWN);
+            inner.layout(ColumnLayoutParams::fixed(50.0, 30.0), SizeRequest::UNKNOWN);
             inner.finish();
         }
 
         // The next sibling in the parent column should land directly below the inner
         // content (y = 60), not below a 96px fallback box.
-        let sibling = ctx.layout(
-            ColumnLayoutParams::fixed(50.0, 20.0),
-            IntrinsicSize::UNKNOWN,
-        );
+        let sibling = ctx.layout(ColumnLayoutParams::fixed(50.0, 20.0), SizeRequest::UNKNOWN);
         assert_eq!(sibling.y, 60.0);
     }
 
@@ -580,15 +570,12 @@ mod tests {
             let mut inner =
                 ctx.child_with_layout(RowLayoutParams::auto().fixed_y(30.0), ColumnLayout);
             // A single 50-wide row → inner content width = 50.
-            inner.layout(
-                ColumnLayoutParams::fixed(50.0, 30.0),
-                IntrinsicSize::UNKNOWN,
-            );
+            inner.layout(ColumnLayoutParams::fixed(50.0, 30.0), SizeRequest::UNKNOWN);
             inner.finish();
         }
 
         // Next sibling in the row advances by the measured width (50), not 96.
-        let sibling = ctx.layout(RowLayoutParams::fixed(20.0, 30.0), IntrinsicSize::UNKNOWN);
+        let sibling = ctx.layout(RowLayoutParams::fixed(20.0, 30.0), SizeRequest::UNKNOWN);
         assert_eq!(sibling.x, 50.0);
     }
 
@@ -617,22 +604,13 @@ mod tests {
             let mut inner =
                 ctx.child_with_layout(ColumnLayoutParams::fixed(80.0, 50.0), ColumnLayout);
             // Overflowing content: two 100px rows = 200px, far taller than the 50px slot.
-            inner.layout(
-                ColumnLayoutParams::fixed(80.0, 100.0),
-                IntrinsicSize::UNKNOWN,
-            );
-            inner.layout(
-                ColumnLayoutParams::fixed(80.0, 100.0),
-                IntrinsicSize::UNKNOWN,
-            );
+            inner.layout(ColumnLayoutParams::fixed(80.0, 100.0), SizeRequest::UNKNOWN);
+            inner.layout(ColumnLayoutParams::fixed(80.0, 100.0), SizeRequest::UNKNOWN);
             inner.finish();
         }
 
         // The fixed slot wins: cursor advanced by 50, not by the 200px of content.
-        let sibling = ctx.layout(
-            ColumnLayoutParams::fixed(50.0, 20.0),
-            IntrinsicSize::UNKNOWN,
-        );
+        let sibling = ctx.layout(ColumnLayoutParams::fixed(50.0, 20.0), SizeRequest::UNKNOWN);
         assert_eq!(sibling.y, 50.0);
     }
 
@@ -658,7 +636,7 @@ mod tests {
         // Placement::fill() on AtMost(100.0) width triggers UnsatisfiableFill violation
         let rect = ctx.layout(
             ColumnLayoutParams::auto().fill_x().fill_y(),
-            IntrinsicSize::UNKNOWN,
+            SizeRequest::UNKNOWN,
         );
 
         assert_eq!(rect, Rect::new(0.0, 0.0, 0.0, 100.0)); // fallback width is 0.0

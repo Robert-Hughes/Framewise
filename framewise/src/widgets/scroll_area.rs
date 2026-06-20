@@ -26,7 +26,7 @@ pub mod raw {
     }
 
     #[derive(Debug, Clone, PartialEq)]
-    pub struct ScrollAreaCalcIntrinsicSizeSpec {}
+    pub struct ScrollAreaCalcSizeRequestSpec {}
 
     /// Carries the geometry resolved at `begin` that `end` needs to finish the
     /// area once the content extent is known. Scroll geometry (max_scroll, thumb
@@ -65,14 +65,14 @@ pub mod raw {
     ///
     /// A scroll area's outer extent is caller-driven (the viewport bounds come
     /// from the layout), so there is nothing to report yet — this returns
-    /// [`IntrinsicSize::UNKNOWN`]. A later revision may report a minimum viewport
+    /// [`SizeRequest::UNKNOWN`]. A later revision may report a minimum viewport
     /// size derived from the reserved scrollbar widths.
     ///
     pub fn calc_scroll_area_intrinsic_size(
-        spec: &ScrollAreaCalcIntrinsicSizeSpec,
-    ) -> crate::layout::IntrinsicSize {
+        spec: &ScrollAreaCalcSizeRequestSpec,
+    ) -> crate::layout::SizeRequest {
         let _ = spec;
-        crate::layout::IntrinsicSize::UNKNOWN
+        crate::layout::SizeRequest::UNKNOWN
     }
 
     /// Whether this axis reserves a scrollbar gutter, decided at `begin` without the
@@ -787,7 +787,7 @@ pub fn begin_scroll_area<'a, 'b, T: TextBackend, S: LayoutState, L: Layout, CF>(
     impl FnOnce(&mut FocusSystem, &mut T, &mut DrawCommands, Rect) + 'b,
 > {
     let spec = builder.defaults_from_theme(&ctx.theme).build();
-    let calc_spec = raw::ScrollAreaCalcIntrinsicSizeSpec {};
+    let calc_spec = raw::ScrollAreaCalcSizeRequestSpec {};
     let intrinsic = raw::calc_scroll_area_intrinsic_size(&calc_spec);
     let bounds = ctx.layout(layout_params, intrinsic);
     let raw_spec = raw::ScrollAreaSpec {

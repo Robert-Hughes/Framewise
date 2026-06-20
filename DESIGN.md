@@ -559,10 +559,11 @@ All layout files under the `layouts/` directory must maintain structural and sty
   5. `impl LayoutState for StateStruct`.
   6. Unit tests module (`#[cfg(test)] mod tests`).
 - **Method Ordering inside `impl LayoutState`**: Methods inside the trait implementation must be declared in this exact order:
-  1. `layout`
-  2. `begin_deferred_layout`
-  3. `end_deferred_layout`
-  4. `resolve_space`
+  1. `peek_offer`
+  2. `layout`
+  3. `begin_deferred_layout`
+  4. `end_deferred_layout`
+  5. `resolve_space`
 - **Sizing & Parameters Consistency**:
   - Keep doc comments of equal detail across similar layout implementations.
   - Implement identical panic messages when validation fails (e.g., panicking on unbounded dimensions).
@@ -575,14 +576,14 @@ Differences in layouts are acceptable only when justified by distinct structural
 Request-aware layouts let a widget be sized from its own content without abandoning the top-down, one-pass model. The terminology separates four related concepts:
 
 - **`SizeOffer`**: the bounds a parent layout offers a hypothetical widget for size calculation. It contains only width and height `AxisBound`s; it has no `x`/`y` origin and is not a placement.
-- **`SizeRequest`**: the size a hypothetical widget would like under a `SizeOffer`. This is measurement only, never policy, and is not the final assigned size.
+- **`SizeRequest`**: the requested size computed from widget content/style under a `SizeOffer`. It is never final geometry and never layout policy.
 - **`layout(params, request)`**: immediate placement. No widget drawing happens before this call returns the final concrete `Rect`.
 - **`begin_deferred_layout(params)` / `end_deferred_layout(...)`**: deferred placement for containers where child widgets may be drawn before the container's final size is known.
 
 The non-deferred widget path is:
 
 1. Optionally call `peek_offer(params) -> SizeOffer`.
-2. Call `size_widget(..., offer) -> SizeRequest`.
+2. Call `size_*(..., offer) -> SizeRequest`.
 3. Call `layout(params, request) -> Rect`.
 4. Draw the widget into that `Rect`.
 
@@ -601,7 +602,7 @@ Deferred layout is stricter because child output may already have been emitted i
 `SizeRequest` is content + style derived, **never policy**: "fill", "grow", and weights are caller intent and live in the layout's `Params`, not in the request. The test for what belongs here: if the widget computes it from its own content under the offer, it is a `SizeRequest`; if the caller decides it, it is `Params`. "Should not shrink below 60 because the label clips" is a widget fact. "Stretch to fill the row" is caller intent.
 - **`Placement2D { width: Placement, height: Placement }`** — the caller's per-axis intent handed *down* to a layout (e.g., `WrapLayout`). `Placement` is `Sized { size: Size::Fixed(px), align }`, `Sized { size: Size::Auto, align }`, or `Fill` (span the layout's available extent on that axis). Axes are absolute (width/height), not main/cross, so the same request reads identically regardless of orientation. `From<Vec2>` treats a plain size as fixed on both axes with default `Start` alignment.
 - **`RowLayoutParams { x: LinearMain, y: LinearCross }` and `ColumnLayoutParams { x: LinearCross, y: LinearMain }`** — the axis-aware parameters used by `RowLayout` and `ColumnLayout` respectively. They replace `Placement2D` for linear layouts to decouple main-axis flow properties (e.g. `MainAxisAlign::Append` or `MainAxisAlign::End` alignment) from cross-axis placement properties (e.g. cross-axis alignment `Align`). Their field names are `x` and `y` to correspond with physical screen dimensions rather than width/height.
-- **Missing-measurement policy — panic, no fallback.** When a request-aware layout needs a measurement that was never reported (e.g. `Auto`, or `Fill` on a non-`Exact` axis, against a widget that returns no `preferred`), `Placement::resolve_size` **panics** with a message naming the unsatisfiable request. An unsatisfiable sizing request is a call-site bug, so it fails loudly rather than substituting an arbitrary size. (An earlier design substituted a large `LAYOUT_FALLBACK_SIZE`; that was dropped in favour of the panic.)
+- **Missing size-request policy — recoverable fallback.** When an immediate request-aware layout needs a preferred size request that was never reported (for example, `Auto` against a widget that returns no `preferred`), `Placement::resolve_size` returns `LayoutResult::Fallback` with a safe value and `LayoutViolationKind::MissingPreferredSize`. The default violation policy may still surface that fallback as a panic, but the layout result itself remains recoverable. Deferred cases with no stable provisional origin remain hard panics where no meaningful fallback exists.
 
 ### Three-State Axis Bounds & Unbounded Axes
 

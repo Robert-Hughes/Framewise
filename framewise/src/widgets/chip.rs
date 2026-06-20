@@ -25,7 +25,7 @@ pub mod raw {
     }
 
     #[derive(Debug, Clone, PartialEq)]
-    pub struct ChipCalcIntrinsicSizeSpec<'a> {
+    pub struct ChipCalcSizeRequestSpec<'a> {
         pub text: &'a str,
         pub style: super::ChipStyle,
     }
@@ -39,16 +39,16 @@ pub mod raw {
 
     /// Measure a chip's intrinsic size from its measurement spec.
     pub fn calc_chip_intrinsic_size<T: TextBackend>(
-        spec: &ChipCalcIntrinsicSizeSpec,
+        spec: &ChipCalcSizeRequestSpec,
         text_backend: &mut T,
-    ) -> crate::layout::IntrinsicSize {
+    ) -> crate::layout::SizeRequest {
         let layout = layout_text(
             text_backend,
             spec.text,
             spec.style.text_style,
             crate::text::TextBounds::UNBOUNDED,
         );
-        crate::layout::IntrinsicSize::preferred(layout.metrics().logical_size)
+        crate::layout::SizeRequest::preferred(layout.metrics().logical_size)
     }
 
     /// Low-level chip widget function.
@@ -306,7 +306,7 @@ pub fn chip<'a, T: TextBackend, S: LayoutState, CF>(
     state: &mut ChipState,
 ) -> ChipResult {
     let spec = builder.defaults_from_theme(&ctx.theme).build();
-    let calc_spec = raw::ChipCalcIntrinsicSizeSpec {
+    let calc_spec = raw::ChipCalcSizeRequestSpec {
         text: spec.text,
         style: spec.style,
     };

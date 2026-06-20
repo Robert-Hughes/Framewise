@@ -1,6 +1,6 @@
 use crate::{
     draw::{DrawCmd, DrawCommands},
-    layout::{IntrinsicSize, LayoutState},
+    layout::{LayoutState, SizeRequest},
     text::TextBackend,
     types::{Color, Layer, Rect, Vec2},
     widget::{LayoutInfo, WidgetContext},
@@ -19,14 +19,14 @@ pub mod raw {
     }
 
     #[derive(Debug, Clone, PartialEq)]
-    pub struct SpinnerCalcIntrinsicSizeSpec {}
+    pub struct SpinnerCalcSizeRequestSpec {}
 
     #[derive(Debug, Clone, PartialEq)]
     pub struct SpinnerResult {}
 
     /// Compute intrinsic size for Spinner. Currently returns UNKNOWN.
-    pub fn calc_spinner_intrinsic_size(_spec: &SpinnerCalcIntrinsicSizeSpec) -> IntrinsicSize {
-        IntrinsicSize::UNKNOWN
+    pub fn calc_spinner_intrinsic_size(_spec: &SpinnerCalcSizeRequestSpec) -> SizeRequest {
+        SizeRequest::UNKNOWN
     }
 
     /// Low-level spinner widget function.
@@ -231,7 +231,7 @@ pub fn spinner<T: TextBackend, S: LayoutState, CF>(
     layout_params: S::Params,
 ) -> SpinnerResult {
     let spec = builder.defaults_from_theme(&ctx.theme).build();
-    let calc_spec = raw::SpinnerCalcIntrinsicSizeSpec {};
+    let calc_spec = raw::SpinnerCalcSizeRequestSpec {};
     let intrinsic = raw::calc_spinner_intrinsic_size(&calc_spec);
     let rect = ctx.layout(layout_params, intrinsic);
     let raw_spec = raw::SpinnerSpec {

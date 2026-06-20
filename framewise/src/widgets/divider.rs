@@ -20,7 +20,7 @@ pub mod raw {
     }
 
     #[derive(Debug, Clone, PartialEq)]
-    pub struct DividerCalcIntrinsicSizeSpec {}
+    pub struct DividerCalcSizeRequestSpec {}
 
     #[derive(Debug, Clone, PartialEq)]
     pub struct DividerResult {}
@@ -28,13 +28,13 @@ pub mod raw {
     /// Measure a divider's intrinsic size from its spec.
     ///
     /// A divider has no inherent preferred size. This returns
-    /// [`IntrinsicSize::UNKNOWN`].
+    /// [`SizeRequest::UNKNOWN`].
     ///
     pub fn calc_divider_intrinsic_size(
-        spec: &DividerCalcIntrinsicSizeSpec,
-    ) -> crate::layout::IntrinsicSize {
+        spec: &DividerCalcSizeRequestSpec,
+    ) -> crate::layout::SizeRequest {
         let _ = spec;
-        crate::layout::IntrinsicSize::UNKNOWN
+        crate::layout::SizeRequest::UNKNOWN
     }
 
     /// Low-level divider widget function.
@@ -120,7 +120,7 @@ pub fn divider<T: TextBackend, S: LayoutState, CF>(
     layout_params: S::Params,
 ) -> DividerResult {
     let spec = builder.defaults_from_theme(&ctx.theme).build();
-    let calc_spec = raw::DividerCalcIntrinsicSizeSpec {};
+    let calc_spec = raw::DividerCalcSizeRequestSpec {};
     let intrinsic = raw::calc_divider_intrinsic_size(&calc_spec);
     let rect = ctx.layout(layout_params, intrinsic);
     let raw_spec = raw::DividerSpec {

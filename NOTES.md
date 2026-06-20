@@ -158,7 +158,7 @@ All require `AxisBound::Exact` on the divided axis (a committed far edge), the s
 
 - **Top-down and immediate.** Parent space known before children; no bottom-up constraint solving.
 - **One pass for placement.** The only extra traversal is cheap explicit `calc_*` spec measurement, or measure-all-then-place for grid/match-tallest. Neither retains a widget tree.
-- **Layout stays a `WidgetContext`-level concept.** Raw widgets receive fully-resolved `Rect`s, never `LayoutSpace` / `IntrinsicSize` / `AxisBound`.
+- **Layout stays a `WidgetContext`-level concept.** Raw widgets receive fully-resolved `Rect`s, never `LayoutSpace` / `SizeRequest` / `AxisBound`.
 - **Determinism and locality.** Every placement depends only on parent space, caller intent, this widget's measurement, and earlier siblings — never later ones.
 - **Three orderings stay independent.** Reordering emit (within a DAG) is the sanctioned bridge from Declare down into Automate.
 

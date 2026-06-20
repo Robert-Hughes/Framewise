@@ -22,7 +22,7 @@ pub mod raw {
     }
 
     #[derive(Debug, Clone, PartialEq)]
-    pub struct LabelCalcIntrinsicSizeSpec<'a> {
+    pub struct LabelCalcSizeRequestSpec<'a> {
         pub text: &'a str,
         pub style: super::LabelStyle,
     }
@@ -34,16 +34,16 @@ pub mod raw {
 
     /// Measure a label's intrinsic size from its measurement spec.
     pub fn calc_label_intrinsic_size<T: TextBackend>(
-        spec: &LabelCalcIntrinsicSizeSpec,
+        spec: &LabelCalcSizeRequestSpec,
         text_backend: &mut T,
-    ) -> crate::layout::IntrinsicSize {
+    ) -> crate::layout::SizeRequest {
         let layout = layout_text(
             text_backend,
             spec.text,
             spec.style.text_style,
             crate::text::TextBounds::UNBOUNDED,
         );
-        crate::layout::IntrinsicSize::preferred(layout.metrics().logical_size)
+        crate::layout::SizeRequest::preferred(layout.metrics().logical_size)
     }
 
     /// Low-level label widget function.
@@ -199,7 +199,7 @@ pub fn label<'a, T: TextBackend, S: LayoutState, CF>(
     layout_params: S::Params,
 ) -> LabelResult {
     let spec = builder.defaults_from_theme(&ctx.theme).build();
-    let calc_spec = raw::LabelCalcIntrinsicSizeSpec {
+    let calc_spec = raw::LabelCalcSizeRequestSpec {
         text: spec.text,
         style: spec.style,
     };
@@ -667,7 +667,7 @@ mod tests {
     fn test_calc_label_intrinsic_size() {
         let mut ts = TestTextBackend;
         let theme = crate::theme::Theme::default();
-        let spec = raw::LabelCalcIntrinsicSizeSpec {
+        let spec = raw::LabelCalcSizeRequestSpec {
             text: "Hello",
             style: LabelStyle::from_theme(&theme),
         };
@@ -707,7 +707,7 @@ mod tests {
         let theme = crate::theme::Theme::default();
         let mut style = LabelStyle::from_theme(&theme);
         style.text_style.flow = flow;
-        let spec = raw::LabelCalcIntrinsicSizeSpec {
+        let spec = raw::LabelCalcSizeRequestSpec {
             text: "Hello World",
             style,
         };

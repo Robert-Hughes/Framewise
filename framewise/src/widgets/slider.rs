@@ -41,7 +41,7 @@ pub mod raw {
     }
 
     #[derive(Debug, Clone, PartialEq)]
-    pub struct SliderCalcIntrinsicSizeSpec {}
+    pub struct SliderCalcSizeRequestSpec {}
 
     #[derive(Debug, Clone, PartialEq)]
     pub struct SliderResult {
@@ -53,14 +53,14 @@ pub mod raw {
     ///
     /// A slider's extent is caller-driven: the track length comes from the layout,
     /// not from content, so there is nothing to report yet — this returns
-    /// [`IntrinsicSize::UNKNOWN`]. A later revision may report a cross-axis minimum
+    /// [`SizeRequest::UNKNOWN`]. A later revision may report a cross-axis minimum
     /// derived from `style.thumb_size`.
     ///
     pub fn calc_slider_intrinsic_size(
-        spec: &SliderCalcIntrinsicSizeSpec,
-    ) -> crate::layout::IntrinsicSize {
+        spec: &SliderCalcSizeRequestSpec,
+    ) -> crate::layout::SizeRequest {
         let _ = spec;
-        crate::layout::IntrinsicSize::UNKNOWN
+        crate::layout::SizeRequest::UNKNOWN
     }
 
     /// Low-level slider widget function.
@@ -904,7 +904,7 @@ pub fn slider<T: TextBackend, S: LayoutState, CF>(
     state: &mut SliderState,
 ) -> SliderResult {
     let spec = builder.defaults_from_theme(&ctx.theme).build();
-    let calc_spec = raw::SliderCalcIntrinsicSizeSpec {};
+    let calc_spec = raw::SliderCalcSizeRequestSpec {};
     let intrinsic = raw::calc_slider_intrinsic_size(&calc_spec);
     let rect = ctx.layout(layout_params, intrinsic);
     let raw_spec = raw::SliderSpec {
@@ -2471,11 +2471,11 @@ mod tests {
 
     #[test]
     fn test_calc_slider_intrinsic_size() {
-        // A slider's size is caller-driven; it reports no intrinsic measurement.
-        let spec = raw::SliderCalcIntrinsicSizeSpec {};
+        // A slider's size is caller-driven; it reports no size request.
+        let spec = raw::SliderCalcSizeRequestSpec {};
         assert_eq!(
             raw::calc_slider_intrinsic_size(&spec),
-            crate::layout::IntrinsicSize::UNKNOWN
+            crate::layout::SizeRequest::UNKNOWN
         );
     }
 

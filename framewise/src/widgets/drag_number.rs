@@ -25,7 +25,7 @@ pub mod raw {
     }
 
     #[derive(Debug, Clone, PartialEq)]
-    pub struct DragNumberCalcIntrinsicSizeSpec<'a> {
+    pub struct DragNumberCalcSizeRequestSpec<'a> {
         pub text: &'a str,
         pub style: super::DragNumberStyle,
         pub min: f32,
@@ -41,9 +41,9 @@ pub mod raw {
 
     /// Measure a drag number's intrinsic size from its measurement spec.
     pub fn calc_drag_number_intrinsic_size<T: TextBackend>(
-        spec: &DragNumberCalcIntrinsicSizeSpec,
+        spec: &DragNumberCalcSizeRequestSpec,
         text_backend: &mut T,
-    ) -> crate::layout::IntrinsicSize {
+    ) -> crate::layout::SizeRequest {
         let s = spec.style;
         let label_layout = layout_text(
             text_backend,
@@ -71,7 +71,7 @@ pub mod raw {
         let value_w =
             min_metrics.logical_size.x.max(max_metrics.logical_size.x) + s.text_pad_x * 2.0;
         let label_w = label_metrics.logical_size.x + s.text_pad_x * 2.0;
-        crate::layout::IntrinsicSize::preferred(Vec2::new(label_w + value_w, s.height))
+        crate::layout::SizeRequest::preferred(Vec2::new(label_w + value_w, s.height))
     }
 
     /// Low-level drag number widget function.
@@ -410,7 +410,7 @@ pub fn drag_number<'a, T: TextBackend, S: LayoutState, CF>(
     state: &mut DragNumberState,
 ) -> DragNumberResult {
     let spec = builder.defaults_from_theme(&ctx.theme).build();
-    let calc_spec = raw::DragNumberCalcIntrinsicSizeSpec {
+    let calc_spec = raw::DragNumberCalcSizeRequestSpec {
         text: spec.text,
         style: spec.style,
         min: spec.min,

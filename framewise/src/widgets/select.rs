@@ -24,7 +24,7 @@ pub mod raw {
     }
 
     #[derive(Debug, Clone, PartialEq)]
-    pub struct SelectCalcIntrinsicSizeSpec<'a> {
+    pub struct SelectCalcSizeRequestSpec<'a> {
         pub value: &'a str,
         pub style: super::SelectStyle,
         pub items: &'a [&'a str],
@@ -38,9 +38,9 @@ pub mod raw {
     }
 
     pub fn calc_select_intrinsic_size<T: TextBackend>(
-        spec: &SelectCalcIntrinsicSizeSpec,
+        spec: &SelectCalcSizeRequestSpec,
         text_backend: &mut T,
-    ) -> crate::layout::IntrinsicSize {
+    ) -> crate::layout::SizeRequest {
         let s = spec.style;
         let mut widest = layout_text(
             text_backend,
@@ -60,7 +60,7 @@ pub mod raw {
             );
             widest = widest.max(layout.metrics().logical_size.x);
         }
-        crate::layout::IntrinsicSize::preferred(crate::types::Vec2::new(
+        crate::layout::SizeRequest::preferred(crate::types::Vec2::new(
             (widest + s.pad_x * 2.0 + s.chevron_right).max(s.min_width),
             s.height,
         ))
@@ -525,7 +525,7 @@ pub fn select<'a, T: TextBackend, S: LayoutState, CF>(
     state: &mut SelectState,
 ) -> SelectResult {
     let spec = builder.defaults_from_theme(&ctx.theme).build();
-    let calc_spec = raw::SelectCalcIntrinsicSizeSpec {
+    let calc_spec = raw::SelectCalcSizeRequestSpec {
         value: spec.value,
         style: spec.style,
         items: spec.items,

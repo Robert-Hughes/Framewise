@@ -1,6 +1,6 @@
 use crate::{
     draw::{DrawCmd, DrawCommands},
-    layout::{IntrinsicSize, LayoutState},
+    layout::{LayoutState, SizeRequest},
     text::{layout_text, TextBackend, TextBounds, TextStyle},
     types::{Color, Layer, Rect, Vec2},
     widget::{LayoutInfo, WidgetContext},
@@ -18,7 +18,7 @@ pub mod raw {
     }
 
     #[derive(Debug, Clone, PartialEq)]
-    pub struct TreeCalcIntrinsicSizeSpec<'a> {
+    pub struct TreeCalcSizeRequestSpec<'a> {
         pub items: &'a [super::TreeRow<'a>],
         pub style: super::TreeStyle,
     }
@@ -30,10 +30,10 @@ pub mod raw {
     }
 
     /// Measure a tree widget's intrinsic size from its measurement spec.
-    pub fn calc_tree_intrinsic_size(spec: &TreeCalcIntrinsicSizeSpec) -> IntrinsicSize {
+    pub fn calc_tree_intrinsic_size(spec: &TreeCalcSizeRequestSpec) -> SizeRequest {
         let s = spec.style;
         let total_h = spec.items.len() as f32 * s.row_height + s.pad_y * 2.0;
-        IntrinsicSize::preferred(Vec2::new(s.min_width, total_h))
+        SizeRequest::preferred(Vec2::new(s.min_width, total_h))
     }
 
     /// Low-level tree widget function.
@@ -310,7 +310,7 @@ pub fn tree<'a, T: TextBackend, S: LayoutState, CF>(
     layout_params: S::Params,
 ) -> TreeResult {
     let spec = builder.defaults_from_theme(&ctx.theme).build();
-    let calc_spec = raw::TreeCalcIntrinsicSizeSpec {
+    let calc_spec = raw::TreeCalcSizeRequestSpec {
         items: spec.items,
         style: spec.style,
     };
@@ -416,7 +416,7 @@ mod tests {
 
     #[test]
     fn test_calc_tree_intrinsic_size_empty() {
-        let spec = raw::TreeCalcIntrinsicSizeSpec {
+        let spec = raw::TreeCalcSizeRequestSpec {
             items: &[],
             style: TreeStyle::from_theme(&crate::theme::Theme::framewise()),
         };
@@ -446,7 +446,7 @@ mod tests {
                 selected: false,
             },
         ];
-        let spec = raw::TreeCalcIntrinsicSizeSpec {
+        let spec = raw::TreeCalcSizeRequestSpec {
             items: &items,
             style: TreeStyle::from_theme(&crate::theme::Theme::framewise()),
         };

@@ -4,7 +4,7 @@ use framewise::{
     layout::{Layout, LayoutState},
     layouts::linear::ColumnState,
     widgets::label::{
-        raw::{LabelCalcIntrinsicSizeSpec, LabelSpec as RawLabelSpec},
+        raw::{LabelCalcSizeRequestSpec, LabelSpec as RawLabelSpec},
         LabelSpecBuilder, LabelStyle,
     },
     ColumnLayoutParams, LayoutViolationPolicy, Rect, TextBackend, WidgetContext,
@@ -50,7 +50,7 @@ pub fn begin_demo_page<'a, 'b, T: TextBackend, L: Layout, CF>(
         .defaults_from_theme(&parent_ctx.theme)
         .build();
 
-    let calc_spec = framewise::widgets::scroll_area::raw::ScrollAreaCalcIntrinsicSizeSpec {};
+    let calc_spec = framewise::widgets::scroll_area::raw::ScrollAreaCalcSizeRequestSpec {};
     let intrinsic =
         framewise::widgets::scroll_area::raw::calc_scroll_area_intrinsic_size(&calc_spec);
     let bounds = parent_ctx.layout(ColumnLayoutParams::auto().fill_x().fill_y(), intrinsic);
@@ -91,7 +91,7 @@ pub fn begin_demo_page<'a, 'b, T: TextBackend, L: Layout, CF>(
 
     let label_spec = LabelSpecBuilder::new().text(title).style(title_style);
     let label_spec = label_spec.build();
-    let label_spec = LabelCalcIntrinsicSizeSpec {
+    let label_spec = LabelCalcSizeRequestSpec {
         text: label_spec.text,
         style: label_spec.style,
     };

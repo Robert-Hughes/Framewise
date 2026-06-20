@@ -1,6 +1,6 @@
 use crate::layout::{
-    Align, AxisBound, IntrinsicSize, Layout, LayoutResult, LayoutSpace, LayoutState, LayoutToken,
-    Placement, Size,
+    Align, AxisBound, Layout, LayoutResult, LayoutSpace, LayoutState, LayoutToken, Placement, Size,
+    SizeRequest,
 };
 use crate::types::{Rect, Vec2};
 
@@ -88,14 +88,14 @@ impl SplitRowState {
 impl LayoutState for SplitRowState {
     type Params = Placement;
 
-    fn layout(&mut self, height: Placement, intrinsic: IntrinsicSize) -> LayoutResult<Rect> {
+    fn layout(&mut self, height: Placement, request: SizeRequest) -> LayoutResult<Rect> {
         debug_assert!(
             self.index < self.count,
             "SplitRow: emitted child #{} but only {} cell(s) were declared",
             self.index + 1,
             self.count
         );
-        let pref = intrinsic.preferred;
+        let pref = request.preferred;
         let w = self.slot_w;
         let (h, v1) = height
             .resolve_size(pref.map(|p| p.y), self.space.height)
@@ -114,7 +114,7 @@ impl LayoutState for SplitRowState {
     fn begin_layout<'a>(
         &'a mut self,
         height: Placement,
-        _intrinsic: IntrinsicSize,
+        _request: SizeRequest,
     ) -> (LayoutResult<LayoutSpace>, LayoutToken<'a, Self>)
     where
         Self: Sized,
@@ -214,13 +214,13 @@ mod tests {
         }
         .begin(Rect::new(10.0, 20.0, 100.0, 40.0));
         let a = state
-            .layout(Placement::fill(), IntrinsicSize::UNKNOWN)
+            .layout(Placement::fill(), SizeRequest::UNKNOWN)
             .unwrap();
         let b = state
-            .layout(Placement::fill(), IntrinsicSize::UNKNOWN)
+            .layout(Placement::fill(), SizeRequest::UNKNOWN)
             .unwrap();
         let c = state
-            .layout(Placement::fill(), IntrinsicSize::UNKNOWN)
+            .layout(Placement::fill(), SizeRequest::UNKNOWN)
             .unwrap();
         assert_eq!(a, Rect::new(10.0, 20.0, 30.0, 40.0));
         assert_eq!(b, Rect::new(45.0, 20.0, 30.0, 40.0));
@@ -237,7 +237,7 @@ mod tests {
         let r = state
             .layout(
                 Placement::fixed(20.0).align(Align::Center),
-                IntrinsicSize::UNKNOWN,
+                SizeRequest::UNKNOWN,
             )
             .unwrap();
         assert_eq!(r, Rect::new(0.0, 15.0, 50.0, 20.0));
@@ -250,14 +250,14 @@ mod tests {
             spacing: 0.0,
         }
         .begin(Rect::new(0.0, 0.0, 80.0, 30.0));
-        let (space_res, token) = state.begin_layout(Placement::fill(), IntrinsicSize::UNKNOWN);
+        let (space_res, token) = state.begin_layout(Placement::fill(), SizeRequest::UNKNOWN);
         let space = space_res.unwrap();
         assert_eq!(space.width, AxisBound::Exact(20.0)); // 80 / 4
         assert_eq!(space.x, 0.0);
         let r = token.end_layout(Vec2::new(999.0, 30.0)).unwrap();
         assert_eq!(r, Rect::new(0.0, 0.0, 20.0, 30.0));
         let next = state
-            .layout(Placement::fill(), IntrinsicSize::UNKNOWN)
+            .layout(Placement::fill(), SizeRequest::UNKNOWN)
             .unwrap();
         assert_eq!(next.x, 20.0);
     }

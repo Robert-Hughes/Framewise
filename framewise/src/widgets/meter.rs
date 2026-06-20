@@ -1,6 +1,6 @@
 use crate::{
     draw::{DrawCmd, DrawCommands},
-    layout::{IntrinsicSize, LayoutState},
+    layout::{LayoutState, SizeRequest},
     text::TextBackend,
     types::{Color, Layer, Rect, Vec2},
     widget::{LayoutInfo, WidgetContext},
@@ -25,7 +25,7 @@ pub mod raw {
     }
 
     #[derive(Debug, Clone, PartialEq)]
-    pub struct MeterCalcIntrinsicSizeSpec {
+    pub struct MeterCalcSizeRequestSpec {
         pub style: super::MeterStyle,
         /// Number of bars to display.
         pub bars: usize,
@@ -37,11 +37,11 @@ pub mod raw {
     /// Compute the intrinsic size of a meter widget.
     ///
     /// Width = total bar width + gaps, Height = bar height.
-    pub fn calc_meter_intrinsic_size(spec: &MeterCalcIntrinsicSizeSpec) -> IntrinsicSize {
+    pub fn calc_meter_intrinsic_size(spec: &MeterCalcSizeRequestSpec) -> SizeRequest {
         let w = spec.bars as f32 * spec.style.bar_w
             + (spec.bars.saturating_sub(1) as f32) * spec.style.bar_gap;
         let h = spec.style.bar_h;
-        IntrinsicSize::preferred(Vec2::new(w, h))
+        SizeRequest::preferred(Vec2::new(w, h))
     }
 
     /// Low‑level meter draw function.
@@ -187,7 +187,7 @@ pub fn meter<T: TextBackend, S: LayoutState, CF>(
     layout_params: S::Params,
 ) -> MeterResult {
     let spec = builder.defaults_from_theme(&ctx.theme).build();
-    let calc_spec = raw::MeterCalcIntrinsicSizeSpec {
+    let calc_spec = raw::MeterCalcSizeRequestSpec {
         style: spec.style,
         bars: spec.bars,
     };

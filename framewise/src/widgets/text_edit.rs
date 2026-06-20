@@ -2,7 +2,7 @@ use crate::{
     draw::{DrawCmd, DrawCommands},
     focus::{FocusId, FocusSystem},
     input::{Input, TextEvent},
-    layout::{Align, IntrinsicSize, LayoutState},
+    layout::{Align, LayoutState, SizeRequest},
     text::{
         layout_text, CaretPosition, FontId, LineEndKind, LineHeight, LineMetrics, TextBackend,
         TextBounds, TextFlow, TextLayout, TextLineAlign, TextStyle,
@@ -39,7 +39,7 @@ pub mod raw {
     }
 
     #[derive(Debug, Clone, PartialEq)]
-    pub struct TextEditCalcIntrinsicSizeSpec {
+    pub struct TextEditCalcSizeRequestSpec {
         pub style: super::TextEditStyle,
         pub wrap: bool,
         pub line_align: TextLineAlign,
@@ -140,10 +140,10 @@ pub mod raw {
 
     /// Measure a text edit's intrinsic size from its current state and measurement spec.
     pub fn calc_text_edit_intrinsic_size<T: TextBackend>(
-        spec: &TextEditCalcIntrinsicSizeSpec,
+        spec: &TextEditCalcSizeRequestSpec,
         state: &TextEditState,
         text_backend: &mut T,
-    ) -> IntrinsicSize {
+    ) -> SizeRequest {
         let layout = layout_text(
             text_backend,
             &state.value,
@@ -151,7 +151,7 @@ pub mod raw {
             TextBounds::UNBOUNDED,
         );
         let metrics = layout.metrics();
-        IntrinsicSize::preferred(Vec2::new(
+        SizeRequest::preferred(Vec2::new(
             metrics.logical_size.x + (spec.style.border_width + spec.style.padding_x) * 2.0,
             (metrics.logical_size.y + (spec.style.border_width + spec.style.padding_y) * 2.0)
                 .max(spec.style.min_height),
@@ -1844,7 +1844,7 @@ pub fn text_edit<T: TextBackend, S: LayoutState, CF>(
     state: &mut TextEditState,
 ) -> TextEditResult {
     let spec = builder.defaults_from_theme(&ctx.theme).build();
-    let calc_spec = raw::TextEditCalcIntrinsicSizeSpec {
+    let calc_spec = raw::TextEditCalcSizeRequestSpec {
         style: spec.style,
         wrap: spec.wrap,
         line_align: spec.line_align,

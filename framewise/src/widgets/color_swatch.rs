@@ -19,7 +19,7 @@ pub mod raw {
     }
 
     #[derive(Debug, Clone, PartialEq)]
-    pub struct ColorSwatchCalcIntrinsicSizeSpec {}
+    pub struct ColorSwatchCalcSizeRequestSpec {}
 
     #[derive(Debug, Clone, PartialEq)]
     pub struct ColorSwatchResult {
@@ -29,13 +29,13 @@ pub mod raw {
     /// Measure a color swatch's intrinsic size from its spec.
     ///
     /// A color swatch has no inherent preferred size. This returns
-    /// [`IntrinsicSize::UNKNOWN`].
+    /// [`SizeRequest::UNKNOWN`].
     ///
     pub fn calc_color_swatch_intrinsic_size(
-        spec: &ColorSwatchCalcIntrinsicSizeSpec,
-    ) -> crate::layout::IntrinsicSize {
+        spec: &ColorSwatchCalcSizeRequestSpec,
+    ) -> crate::layout::SizeRequest {
         let _ = spec;
-        crate::layout::IntrinsicSize::UNKNOWN
+        crate::layout::SizeRequest::UNKNOWN
     }
 
     /// Low-level color swatch widget function.
@@ -133,7 +133,7 @@ pub fn color_swatch<T: TextBackend, S: LayoutState, CF>(
     layout_params: S::Params,
 ) -> ColorSwatchResult {
     let spec = builder.defaults_from_theme(&ctx.theme).build();
-    let calc_spec = raw::ColorSwatchCalcIntrinsicSizeSpec {};
+    let calc_spec = raw::ColorSwatchCalcSizeRequestSpec {};
     let intrinsic = raw::calc_color_swatch_intrinsic_size(&calc_spec);
     let rect = ctx.layout(layout_params, intrinsic);
     let raw_spec = raw::ColorSwatchSpec {

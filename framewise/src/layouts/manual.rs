@@ -1,5 +1,5 @@
 use crate::layout::{
-    AxisBound, IntrinsicSize, Layout, LayoutResult, LayoutSpace, LayoutState, LayoutToken,
+    AxisBound, Layout, LayoutResult, LayoutSpace, LayoutState, LayoutToken, SizeRequest,
 };
 use crate::types::{Rect, Vec2};
 
@@ -28,7 +28,7 @@ pub struct ManualState {
 impl LayoutState for ManualState {
     type Params = Rect;
 
-    fn layout(&mut self, layout_params: Rect, _intrinsic: IntrinsicSize) -> LayoutResult<Rect> {
+    fn layout(&mut self, layout_params: Rect, _request: SizeRequest) -> LayoutResult<Rect> {
         // Offset the requested rect by the layout's origin. This ensures if
         // ManualLayout is nested inside a scroll view (or any other layout), the
         // explicit rects still shift correctly relative to the parent. The
@@ -49,7 +49,7 @@ impl LayoutState for ManualState {
     fn begin_layout<'a>(
         &'a mut self,
         layout_params: Rect,
-        _intrinsic: IntrinsicSize,
+        _request: SizeRequest,
     ) -> (LayoutResult<LayoutSpace>, LayoutToken<'a, Self>) {
         let space = LayoutSpace::new(
             self.space.x + layout_params.x,
@@ -88,7 +88,7 @@ mod tests {
     fn test_manual_layout() {
         let mut state = ManualLayout.begin(Rect::new(10.0, 10.0, 100.0, 100.0));
         let r = state
-            .layout(Rect::new(5.0, 5.0, 20.0, 20.0), IntrinsicSize::UNKNOWN)
+            .layout(Rect::new(5.0, 5.0, 20.0, 20.0), SizeRequest::UNKNOWN)
             .unwrap();
         assert_eq!(r, Rect::new(15.0, 15.0, 20.0, 20.0));
     }
@@ -99,10 +99,10 @@ mod tests {
             LayoutSpace::new(100.0, 100.0, AxisBound::Unbounded, AxisBound::Unbounded);
         let mut state = ManualLayout.begin(parent_space);
         let _ = state
-            .layout(Rect::new(0.0, 0.0, 50.0, 20.0), IntrinsicSize::UNKNOWN)
+            .layout(Rect::new(0.0, 0.0, 50.0, 20.0), SizeRequest::UNKNOWN)
             .unwrap();
         let _ = state
-            .layout(Rect::new(80.0, 40.0, 30.0, 30.0), IntrinsicSize::UNKNOWN)
+            .layout(Rect::new(80.0, 40.0, 30.0, 30.0), SizeRequest::UNKNOWN)
             .unwrap();
         // Resolved space origin is 100, 100; extent is max far edges (110, 70).
         assert_eq!(state.resolve_space(), Rect::new(100.0, 100.0, 110.0, 70.0));
@@ -128,7 +128,7 @@ mod tests {
             // Layout space (Exact) determines the resolved size (forces 200x150).
             let mut state = ManualLayout.begin(parent_space_exact);
             let _ = state
-                .layout(Rect::new(0.0, 0.0, 50.0, 40.0), IntrinsicSize::UNKNOWN)
+                .layout(Rect::new(0.0, 0.0, 50.0, 40.0), SizeRequest::UNKNOWN)
                 .unwrap();
             assert_eq!(state.resolve_space(), Rect::new(10.0, 20.0, 200.0, 150.0));
 
@@ -136,7 +136,7 @@ mod tests {
             // Layout space (Exact) determines the resolved size (clamps/forces 200x150).
             let mut state = ManualLayout.begin(parent_space_exact);
             let _ = state
-                .layout(Rect::new(50.0, 60.0, 250.0, 200.0), IntrinsicSize::UNKNOWN)
+                .layout(Rect::new(50.0, 60.0, 250.0, 200.0), SizeRequest::UNKNOWN)
                 .unwrap();
             assert_eq!(state.resolve_space(), Rect::new(10.0, 20.0, 200.0, 150.0));
         }
@@ -148,7 +148,7 @@ mod tests {
             // Placed widgets determine the value (shrink-wrapped).
             let mut state = ManualLayout.begin(parent_space_at_most);
             let _ = state
-                .layout(Rect::new(10.0, 10.0, 50.0, 40.0), IntrinsicSize::UNKNOWN)
+                .layout(Rect::new(10.0, 10.0, 50.0, 40.0), SizeRequest::UNKNOWN)
                 .unwrap();
             assert_eq!(state.resolve_space(), Rect::new(10.0, 20.0, 60.0, 50.0));
 
@@ -156,7 +156,7 @@ mod tests {
             // Layout space (AtMost limit) determines the value (clamps at limit ceilings).
             let mut state = ManualLayout.begin(parent_space_at_most);
             let _ = state
-                .layout(Rect::new(50.0, 60.0, 250.0, 200.0), IntrinsicSize::UNKNOWN)
+                .layout(Rect::new(50.0, 60.0, 250.0, 200.0), SizeRequest::UNKNOWN)
                 .unwrap();
             assert_eq!(state.resolve_space(), Rect::new(10.0, 20.0, 200.0, 150.0));
         }
@@ -168,7 +168,7 @@ mod tests {
             // Placed widgets determine the value.
             let mut state = ManualLayout.begin(parent_space_unbounded);
             let _ = state
-                .layout(Rect::new(50.0, 60.0, 250.0, 200.0), IntrinsicSize::UNKNOWN)
+                .layout(Rect::new(50.0, 60.0, 250.0, 200.0), SizeRequest::UNKNOWN)
                 .unwrap();
             assert_eq!(state.resolve_space(), Rect::new(10.0, 20.0, 300.0, 260.0));
         }
@@ -179,7 +179,7 @@ mod tests {
         let parent_space = LayoutSpace::new(10.0, 10.0, AxisBound::Unbounded, AxisBound::Unbounded);
         let mut state = ManualLayout.begin(parent_space);
         let layout_param = Rect::new(20.0, 30.0, 50.0, 40.0);
-        let (space_res, token) = state.begin_layout(layout_param, IntrinsicSize::UNKNOWN);
+        let (space_res, token) = state.begin_layout(layout_param, SizeRequest::UNKNOWN);
         let space = space_res.unwrap();
 
         // ManualLayout begins at logically shifted coordinate: (10.0+20.0, 10.0+30.0) = (30.0, 40.0)
@@ -200,7 +200,7 @@ mod tests {
     fn test_manual_begin_layout_propagates_exact_bounds() {
         let mut state = ManualLayout.begin(Rect::new(10.0, 20.0, 300.0, 400.0));
         let (space_res, _token) =
-            state.begin_layout(Rect::new(5.0, 10.0, 100.0, 150.0), IntrinsicSize::UNKNOWN);
+            state.begin_layout(Rect::new(5.0, 10.0, 100.0, 150.0), SizeRequest::UNKNOWN);
         let space = space_res.unwrap();
         assert_eq!(space.width, AxisBound::Exact(100.0));
         assert_eq!(space.height, AxisBound::Exact(150.0));

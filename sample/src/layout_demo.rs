@@ -39,7 +39,7 @@ use framewise::{
     widget::WidgetContext,
     widgets::button::{
         button,
-        raw::{calc_button_intrinsic_size, ButtonCalcIntrinsicSizeSpec},
+        raw::{calc_button_intrinsic_size, ButtonCalcSizeRequestSpec},
         ButtonSpecBuilder, ButtonState, ButtonStyle,
     },
     widgets::label::{label, LabelSpecBuilder},
@@ -663,7 +663,7 @@ pub(crate) fn draw_layout_page_content<'a, 'b, CF>(
                     .style(secondary)
                     .defaults_from_theme(&theme)
                     .build();
-                let spec = ButtonCalcIntrinsicSizeSpec {
+                let spec = ButtonCalcSizeRequestSpec {
                     text: spec.text,
                     style: spec.style,
                 };

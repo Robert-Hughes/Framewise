@@ -6,7 +6,7 @@ use framewise::{
 use sample::text::SampleTextBackend;
 
 const BENCH_TEXT: &str = "\
-Buttons combine label layout, intrinsic measurement, wrapping, truncation, \
+Buttons combine label layout, size request calculation, wrapping, truncation, \
 and cached glyph preparation. This benchmark intentionally uses enough text \
 to exercise line breaking and repeated cluster processing.
 

@@ -114,32 +114,34 @@ impl From<Rect> for LayoutSpace {
     }
 }
 
-// ── Intrinsic sizing ──────────────────────────────────────────────────────
+// ── Size requests ─────────────────────────────────────────────────────────
 
-/// A widget's own size measurement, reported up to an intrinsic-aware layout.
+/// A widget's requested size, reported to a request-aware layout.
 ///
-/// Measurement only — never layout policy. "Fill", "grow", and weights are caller
-/// intent and live in a layout's `Params`, not here. Every field is optional: a
+/// This is not final geometry. A layout may clamp, align, stretch, or otherwise
+/// resolve this request according to its own layout params and available space.
+/// "Fill", "grow", alignment, and weights are caller/layout policy and live in
+/// layout params, not here.  Every field is optional: a
 /// widget may know one axis (or none) and not the other.
 #[derive(Debug, Clone, Copy, Default, PartialEq)]
-pub struct IntrinsicSize {
+pub struct SizeRequest {
     /// Smallest size below which content clips (e.g. the longest unbreakable word).
     pub min: Option<Vec2>,
-    /// The natural, unconstrained size (e.g. one line of text plus padding).
+    /// The preferred requested size (e.g. one line of text plus padding).
     pub preferred: Option<Vec2>,
     /// The largest useful size.
     pub max: Option<Vec2>,
 }
 
-impl IntrinsicSize {
-    /// No measurement known on any axis.
+impl SizeRequest {
+    /// No requested size known on any axis.
     pub const UNKNOWN: Self = Self {
         min: None,
         preferred: None,
         max: None,
     };
 
-    /// A measurement that reports only its preferred size.
+    /// A request that reports only its preferred size.
     pub fn preferred(size: Vec2) -> Self {
         Self {
             preferred: Some(size),
@@ -168,7 +170,7 @@ pub enum Align {
 pub enum Size {
     /// Fixed pixel size.
     Fixed(f32),
-    /// Size based on the widget's intrinsic preferred size.
+    /// Size based on the widget's preferred requested size.
     Auto,
 }
 
@@ -219,8 +221,8 @@ pub enum LayoutViolationKind {
     UnsatisfiableAlignment { align: Align, bound: AxisBound },
     /// `Fill` with no bounded extent (`AtMost`/`Unbounded`) to fill into.
     UnsatisfiableFill { bound: AxisBound },
-    /// `Auto` sizing but the widget reported no intrinsic measurement.
-    MissingIntrinsic,
+    /// `Auto` sizing but the widget reported no preferred requested size.
+    MissingPreferredSize,
     /// Placing children in a closed linear layout (i.e. after a MainAxisAlign::End child).
     LayoutClosed,
     /// MainAxisAlign::End with no committed frame (AtMost/Unbounded) to anchor against on the main axis.
@@ -247,11 +249,11 @@ impl std::fmt::Display for LayoutViolation {
                     "Layout panic: MainAxisAlign::End requires AxisBound::Exact available space on the main axis, but is {bound_str}"
                 )
             }
-            LayoutViolationKind::MissingIntrinsic => {
+            LayoutViolationKind::MissingPreferredSize => {
                 write!(
                     f,
-                    "Layout panic: Placement sizing needs an intrinsic measurement on this \
-                     axis but none was reported. A child placed with Auto must report a preferred size."
+                    "Layout panic: Placement sizing needs a preferred size request on this \
+                     axis but none was reported. A child placed with Auto must report a preferred requested size."
                 )
             }
             LayoutViolationKind::UnsatisfiableFill { bound } => match bound {
@@ -259,14 +261,14 @@ impl std::fmt::Display for LayoutViolation {
                     f,
                     "Layout panic: Placement::Fill on an AtMost axis is unsatisfiable — AtMost \
                      provides a ceiling but no committed frame to fill. Use Placement::auto() if \
-                     you want the intrinsic size (clamped to the ceiling), or place this in \
+                     you want the requested size (clamped to the ceiling), or place this in \
                      a bounded (Exact) container."
                 ),
                 AxisBound::Unbounded => write!(
                     f,
                     "Layout panic: Placement::Fill on an Unbounded axis is unsatisfiable — \
                      there is no bounded extent to fill into. Use Placement::auto() if you want \
-                     the intrinsic size, or place this in a bounded (Exact) container."
+                     the requested size, or place this in a bounded (Exact) container."
                 ),
                 AxisBound::Exact(_) => {
                     unreachable!("UnsatisfiableFill never carries an Exact bound")
@@ -400,7 +402,7 @@ impl Placement {
                 None => LayoutResult::Fallback {
                     value: 0.0,
                     violation: LayoutViolation {
-                        kind: LayoutViolationKind::MissingIntrinsic,
+                        kind: LayoutViolationKind::MissingPreferredSize,
                         location: core::panic::Location::caller(),
                     },
                 },
@@ -460,7 +462,7 @@ impl Placement {
     }
 }
 
-/// A per-axis sizing and alignment request a caller hands to an intrinsic-aware layout
+/// A per-axis sizing and alignment request a caller hands to a request-aware layout
 /// (column/row/wrap). Axes are absolute (width/height), not main/cross, so the
 /// same request reads identically regardless of layout orientation.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -478,7 +480,7 @@ impl Placement2D {
         }
     }
 
-    /// Both axes sized to the widget's intrinsic preferred size.
+    /// Both axes sized to the widget's preferred requested size.
     pub fn auto() -> Self {
         Self {
             width: Placement::auto(),
@@ -533,25 +535,21 @@ pub trait LayoutState {
     type Params: Clone;
 
     /// Calculate the screen-space rectangle for a widget given the caller's
-    /// `layout_params` (intent) and the widget's `intrinsic` measurement.
+    /// `layout_params` (intent) and the widget's size `request`.
     ///
     /// Layouts that don't size from content (e.g. `ManualLayout`) ignore
-    /// `intrinsic`; intrinsic-aware layouts (column/row/wrap) read it.
-    fn layout(
-        &mut self,
-        layout_params: Self::Params,
-        intrinsic: IntrinsicSize,
-    ) -> LayoutResult<Rect>;
+    /// `request`; request-aware layouts (column/row/wrap) read it.
+    fn layout(&mut self, layout_params: Self::Params, request: SizeRequest) -> LayoutResult<Rect>;
 
     /// Begin a deferred layout (for fit-to-children containers).
     /// Returns a provisional [`LayoutSpace`] and a [`LayoutToken`] that borrows this layout state.
     ///
-    /// `intrinsic` mirrors the same parameter on [`LayoutState::layout`]; layout
+    /// `request` mirrors the same parameter on [`LayoutState::layout`]; layout
     /// implementations may use it (e.g. to enforce a minimum size floor) or ignore it.
     fn begin_layout<'a>(
         &'a mut self,
         layout_params: Self::Params,
-        intrinsic: IntrinsicSize,
+        request: SizeRequest,
     ) -> (LayoutResult<LayoutSpace>, LayoutToken<'a, Self>)
     where
         Self: Sized;
@@ -576,9 +574,9 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_intrinsic_size_constructors() {
-        assert_eq!(IntrinsicSize::UNKNOWN, IntrinsicSize::default());
-        let i = IntrinsicSize::preferred(Vec2::new(10.0, 20.0));
+    fn test_size_request_constructors() {
+        assert_eq!(SizeRequest::UNKNOWN, SizeRequest::default());
+        let i = SizeRequest::preferred(Vec2::new(10.0, 20.0));
         assert_eq!(i.preferred, Some(Vec2::new(10.0, 20.0)));
         assert_eq!(i.min, None);
         assert_eq!(i.max, None);
@@ -637,7 +635,7 @@ mod tests {
             LayoutResult::Fallback {
                 value: 0.0,
                 violation: LayoutViolation {
-                    kind: LayoutViolationKind::MissingIntrinsic,
+                    kind: LayoutViolationKind::MissingPreferredSize,
                     ..
                 }
             }

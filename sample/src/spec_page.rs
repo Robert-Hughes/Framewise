@@ -14,7 +14,7 @@ use framewise::{
     draw::{DrawCmd, DrawCommands},
     focus::FocusSystem,
     input::Input,
-    layout::{IntrinsicSize, LayoutState, SpacerLayoutState},
+    layout::{LayoutState, SizeRequest, SpacerLayoutState},
     layouts::ManualLayout,
     text::{TextFlow, TextStyle},
     theme::Theme,
@@ -134,7 +134,7 @@ fn draw_checkbox_fake_state<T: TextBackend, CF>(
 
     let dummy_input = Input::default();
     let spec = framewise::widgets::checkbox::raw::CheckboxSpec {
-        rect: b.layout(rect, IntrinsicSize::UNKNOWN),
+        rect: b.layout(rect, SizeRequest::UNKNOWN),
         disabled: is_disabled,
         allowed_checked_states: vec![
             CheckedState::Unchecked,
@@ -175,10 +175,7 @@ fn draw_radio_fake_state<T: TextBackend, CF>(
 
     let dummy_input = Input::default();
     let spec = framewise::widgets::radio::raw::RadioSpec {
-        rect: b.layout(
-            RowLayoutParams::fixed(size.x, size.y),
-            IntrinsicSize::UNKNOWN,
-        ),
+        rect: b.layout(RowLayoutParams::fixed(size.x, size.y), SizeRequest::UNKNOWN),
         disabled: is_disabled,
         style: RadioStyle::from_theme(&b.theme),
         clip_rect: b.clip_rect,
@@ -214,7 +211,7 @@ fn draw_switch_fake_state<T: TextBackend, CF>(
 
     let dummy_input = Input::default();
     let spec = framewise::widgets::switch::raw::SwitchSpec {
-        rect: b.layout(layout_params, IntrinsicSize::UNKNOWN),
+        rect: b.layout(layout_params, SizeRequest::UNKNOWN),
         disabled: is_disabled,
         style: SwitchStyle::from_theme(&b.theme),
         clip_rect: b.clip_rect,
@@ -241,7 +238,7 @@ fn draw_select_fake_state<'s, T: TextBackend, LS: LayoutState, CF>(
     hovered_row: Option<usize>,
     is_disabled: bool,
 ) {
-    let rect = b.layout(layout_params, IntrinsicSize::UNKNOWN);
+    let rect = b.layout(layout_params, SizeRequest::UNKNOWN);
     let mut state = SelectState {
         open: is_open,
         hovered: hovered_row,
@@ -284,7 +281,7 @@ fn draw_drag_number_fake_state<T: TextBackend, LS: LayoutState, CF>(
     max: f32,
     is_active: bool,
 ) {
-    let rect = b.layout(layout_params, IntrinsicSize::UNKNOWN);
+    let rect = b.layout(layout_params, SizeRequest::UNKNOWN);
     let mut state = DragNumberState {
         value: val,
         is_dragging: is_active,
@@ -325,7 +322,7 @@ fn draw_button_fake_state<T: TextBackend, LS: LayoutState, CF>(
     pressed: bool,
     focused: bool,
 ) {
-    let rect = b.layout(layout_params, IntrinsicSize::UNKNOWN);
+    let rect = b.layout(layout_params, SizeRequest::UNKNOWN);
     let mut state = ButtonState::default();
 
     let fake_input = if pressed {
@@ -376,7 +373,7 @@ fn button_intrinsic_width<T: TextBackend>(
     text_backend: &mut T,
 ) -> f32 {
     let spec = ButtonSpecBuilder::new().text(text).style(style).build();
-    let spec = framewise::widgets::button::raw::ButtonCalcIntrinsicSizeSpec {
+    let spec = framewise::widgets::button::raw::ButtonCalcSizeRequestSpec {
         text: spec.text,
         style: spec.style,
     };
@@ -405,7 +402,7 @@ fn draw_text_edit_fake_state<T: TextBackend, LS: LayoutState, CF>(
     hovered: bool,
     focused: bool,
 ) {
-    let rect = b.layout(layout_params, IntrinsicSize::UNKNOWN);
+    let rect = b.layout(layout_params, SizeRequest::UNKNOWN);
     let mut state = TextEditState::new(value);
     let style = TextEditStyle::from_theme(&b.theme);
 
@@ -1383,7 +1380,7 @@ pub fn draw_spec_page_inner<LS, CF>(
 fn header_section<CF>(b: &mut WidgetContext<SampleTextBackend, ColumnState, CF>, content_w: f32) {
     b.spacer(LinearSpacer::always(64.0));
     let mut b = b.child_with_layout(ColumnLayoutParams::fixed(content_w, 320.0), ManualLayout);
-    let logo_rect = b.layout(Rect::new(0.0, 0.0, 96.0, 96.0), IntrinsicSize::UNKNOWN);
+    let logo_rect = b.layout(Rect::new(0.0, 0.0, 96.0, 96.0), SizeRequest::UNKNOWN);
     b.append_cmds(hero_logo(&b.theme, logo_rect.x, logo_rect.y));
     let tx = 124.0;
     // 28px gap + 96px logo = 124px
@@ -1629,10 +1626,7 @@ fn section_01_buttons<CF>(
             let col_x = label_w + col_gap + ci as f32 * (cell_w + col_gap);
             // Add STATIC badge for fake state columns
             if (1..=3).contains(&ci) {
-                let r = b.layout(
-                    Rect::new(col_x, y - 14.0, 44.0, 12.0),
-                    IntrinsicSize::UNKNOWN,
-                );
+                let r = b.layout(Rect::new(col_x, y - 14.0, 44.0, 12.0), SizeRequest::UNKNOWN);
                 static_badge(&mut b, r);
             }
             {
@@ -1831,7 +1825,7 @@ fn section_02_text_inputs<CF>(
                         44.0,
                         12.0,
                     ),
-                    IntrinsicSize::UNKNOWN,
+                    SizeRequest::UNKNOWN,
                 );
                 static_badge(&mut b, r);
             }
@@ -1974,7 +1968,7 @@ fn section_02_text_inputs<CF>(
         };
         {
             let layout_params = Rect::new(pf_x, y + 18.0, 24.0, b.theme.h_md);
-            let rect = b.layout(layout_params, IntrinsicSize::UNKNOWN);
+            let rect = b.layout(layout_params, SizeRequest::UNKNOWN);
             let cmds = DrawCommands::from_vec(vec![
                 DrawCmd::FillRect {
                     anti_alias: false,
@@ -2089,7 +2083,7 @@ fn section_03_toggles<CF>(
             if (3..=4).contains(&ci) {
                 let r = b.layout(
                     Rect::new(label_w + ci as f32 * cell_w, y - 14.0, 44.0, 12.0),
-                    IntrinsicSize::UNKNOWN,
+                    SizeRequest::UNKNOWN,
                 );
                 static_badge(&mut b, r);
             }
@@ -2402,10 +2396,8 @@ fn section_04_sliders<CF>(
                 let usable = slider_w - 12.0;
                 for i in 0..=9usize {
                     let tx = 6.0 + (i as f32 / 9.0) * usable;
-                    let rect = b.layout(
-                        Rect::new(tx - 0.5, tick_y, 1.0, 4.0),
-                        IntrinsicSize::UNKNOWN,
-                    );
+                    let rect =
+                        b.layout(Rect::new(tx - 0.5, tick_y, 1.0, 4.0), SizeRequest::UNKNOWN);
                     b.cmds.push(DrawCmd::FillRect {
                         anti_alias: false,
                         rect,
@@ -2435,7 +2427,7 @@ fn section_04_sliders<CF>(
         let fill_x2 = track_w * t2;
         let ts = 12.0_f32;
         let half_ts = ts * 0.5;
-        let origin = b.layout(Rect::new(0.0, 0.0, 0.0, 0.0), IntrinsicSize::UNKNOWN);
+        let origin = b.layout(Rect::new(0.0, 0.0, 0.0, 0.0), SizeRequest::UNKNOWN);
         let rect = |x: f32, y: f32, w: f32, h: f32| Rect::new(origin.x + x, origin.y + y, w, h);
         b.append_cmds(DrawCommands::from_vec(vec![
             DrawCmd::FillRect {
@@ -2509,7 +2501,7 @@ fn section_04_sliders<CF>(
             &mut state.dn_showcase[1],
         );
         x += 108.0;
-        let badge_rect = b.layout(Rect::new(x, 0.0, 72.0, 12.0), IntrinsicSize::UNKNOWN);
+        let badge_rect = b.layout(Rect::new(x, 0.0, 72.0, 12.0), SizeRequest::UNKNOWN);
         static_badge(&mut b, badge_rect);
         let rect = Rect::new(x, 14.0, 100.0, b.theme.h_md);
         draw_drag_number_fake_state(&mut b, rect, "W", 576.0, 0.0, 800.0, true);
@@ -2531,7 +2523,7 @@ fn section_04_sliders<CF>(
             ManualLayout,
         );
         let stepper_x = 0.0;
-        let origin = b.layout(Rect::new(0.0, 0.0, 0.0, 0.0), IntrinsicSize::UNKNOWN);
+        let origin = b.layout(Rect::new(0.0, 0.0, 0.0, 0.0), SizeRequest::UNKNOWN);
         let rect = |x: f32, y: f32, w: f32, h: f32| Rect::new(origin.x + x, origin.y + y, w, h);
         b.append_cmds(DrawCommands::from_vec(vec![
             DrawCmd::FillRect {
@@ -2674,7 +2666,7 @@ fn section_05_selection<CF>(
 
         let badge_rect = b.layout(
             Rect::new(0.0, b.theme.h_md + 12.0, 70.0, 12.0),
-            IntrinsicSize::UNKNOWN,
+            SizeRequest::UNKNOWN,
         );
         static_badge(&mut b, badge_rect);
         let rect = Rect::new(0.0, b.theme.h_md + 28.0, 180.0, b.theme.h_md);
@@ -2864,7 +2856,7 @@ fn section_06_scrollbars<CF>(
         let b1 = Rect::new(0.0, 40.0, 180.0, 130.0);
         let b1_content = Vec2::new(180.0, 320.0);
         {
-            let rect = b.layout(b1, IntrinsicSize::UNKNOWN);
+            let rect = b.layout(b1, SizeRequest::UNKNOWN);
             let cmds = DrawCommands::from_vec(vec![DrawCmd::StrokeRect {
                 anti_alias: false,
                 rect,
@@ -2943,7 +2935,7 @@ fn section_06_scrollbars<CF>(
         let b2 = Rect::new(b2_x, 40.0, 180.0, 130.0);
         let b2_content = Vec2::new(180.0, 300.0);
         {
-            let rect = b.layout(b2, IntrinsicSize::UNKNOWN);
+            let rect = b.layout(b2, SizeRequest::UNKNOWN);
             let cmds = DrawCommands::from_vec(vec![DrawCmd::StrokeRect {
                 anti_alias: false,
                 rect,
@@ -3008,7 +3000,7 @@ fn section_06_scrollbars<CF>(
         let b3 = Rect::new(b3_x, 40.0 + 15.0, 300.0, 100.0);
         let b3_content = Vec2::new(700.0, 100.0);
         {
-            let rect = b.layout(b3, IntrinsicSize::UNKNOWN);
+            let rect = b.layout(b3, SizeRequest::UNKNOWN);
             let cmds = DrawCommands::from_vec(vec![DrawCmd::StrokeRect {
                 anti_alias: false,
                 rect,
@@ -3070,7 +3062,7 @@ fn section_06_scrollbars<CF>(
         let b4 = Rect::new(b4_x, 40.0, 220.0, 130.0);
         let b4_content = Vec2::new(320.0, 240.0);
         {
-            let rect = b.layout(b4, IntrinsicSize::UNKNOWN);
+            let rect = b.layout(b4, SizeRequest::UNKNOWN);
             let cmds = DrawCommands::from_vec(vec![DrawCmd::StrokeRect {
                 anti_alias: false,
                 rect,
@@ -3660,7 +3652,7 @@ fn section_11_window<CF>(
         let muted_l = b.theme.muted;
 
         {
-            let rect = b.layout(dw, IntrinsicSize::UNKNOWN);
+            let rect = b.layout(dw, SizeRequest::UNKNOWN);
             let cmds = DrawCommands::from_vec(vec![
                 DrawCmd::FillRect {
                     anti_alias: false,
@@ -3717,7 +3709,7 @@ fn section_11_window<CF>(
         let cyw = 26.0 + 16.0;
         {
             let layout_params = Rect::new(cx, cyw, 50.0, 22.0);
-            let rect = b.layout(layout_params, IntrinsicSize::UNKNOWN);
+            let rect = b.layout(layout_params, SizeRequest::UNKNOWN);
             let cmds = DrawCommands::from_vec(vec![
                 DrawCmd::FillRect {
                     anti_alias: false,
@@ -3796,7 +3788,7 @@ fn section_11_window<CF>(
         let inp_y = cyw + 28.0;
         {
             let layout_params = Rect::new(cx, inp_y, dw.w - 32.0, 26.0);
-            let rect = b.layout(layout_params, IntrinsicSize::UNKNOWN);
+            let rect = b.layout(layout_params, SizeRequest::UNKNOWN);
             let cmds = DrawCommands::from_vec(vec![
                 DrawCmd::FillRect {
                     anti_alias: false,
@@ -3834,7 +3826,7 @@ fn section_11_window<CF>(
         let tab_y = inp_y + 30.0;
         {
             let layout_params = Rect::new(cx, tab_y + 26.0, dw.w - 16.0, 1.0);
-            let rect = b.layout(layout_params, IntrinsicSize::UNKNOWN);
+            let rect = b.layout(layout_params, SizeRequest::UNKNOWN);
             let cmds = DrawCommands::from_vec(vec![DrawCmd::StrokeLine {
                 anti_alias: false,
                 p0: Vec2::new(rect.x, rect.y),
@@ -3865,7 +3857,7 @@ fn section_11_window<CF>(
             if i == 0 {
                 {
                     let layout_params = Rect::new(tab_x, tab_y + 24.0, 40.0, 2.0);
-                    let rect = b.layout(layout_params, IntrinsicSize::UNKNOWN);
+                    let rect = b.layout(layout_params, SizeRequest::UNKNOWN);
                     let cmds = DrawCommands::from_vec(vec![DrawCmd::FillRect {
                         anti_alias: false,
                         rect,

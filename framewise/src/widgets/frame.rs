@@ -19,7 +19,7 @@ pub mod raw {
     }
 
     #[derive(Debug, Clone, Copy, PartialEq)]
-    pub struct FrameCalcIntrinsicSizeSpec {
+    pub struct FrameCalcSizeRequestSpec {
         pub style: super::FrameStyle,
     }
 
@@ -39,15 +39,15 @@ pub mod raw {
     ///
     /// A frame's bounds are resolved bottom-up from its children via the
     /// `begin_frame`/`end_frame` lifecycle, so there is nothing to report yet —
-    /// this returns [`IntrinsicSize::UNKNOWN`]. A later revision may report a
+    /// this returns [`SizeRequest::UNKNOWN`]. A later revision may report a
     /// minimum size derived from padding and border width alone, so that a frame
     /// with no children does not collapse to a degenerate zero rect.
     ///
     pub fn calc_frame_intrinsic_size(
-        spec: &FrameCalcIntrinsicSizeSpec,
-    ) -> crate::layout::IntrinsicSize {
+        spec: &FrameCalcSizeRequestSpec,
+    ) -> crate::layout::SizeRequest {
         let _ = spec;
-        crate::layout::IntrinsicSize::UNKNOWN
+        crate::layout::SizeRequest::UNKNOWN
     }
 
     /// Low-level frame begin function.
@@ -230,7 +230,7 @@ pub fn begin_frame<'a, 'b, T: TextBackend, S: LayoutState, L: Layout, CF>(
 {
     let spec = builder.defaults_from_theme(&ctx.theme).build();
     let inset = spec.style.border_width + spec.style.padding;
-    let calc_spec = raw::FrameCalcIntrinsicSizeSpec { style: spec.style };
+    let calc_spec = raw::FrameCalcSizeRequestSpec { style: spec.style };
     let intrinsic = raw::calc_frame_intrinsic_size(&calc_spec);
 
     let policy = ctx.layout_policy;
@@ -379,10 +379,10 @@ mod tests {
             border_width: 2.0,
             padding: 4.0,
         };
-        let spec = raw::FrameCalcIntrinsicSizeSpec { style };
+        let spec = raw::FrameCalcSizeRequestSpec { style };
         assert_eq!(
             raw::calc_frame_intrinsic_size(&spec),
-            crate::layout::IntrinsicSize::UNKNOWN
+            crate::layout::SizeRequest::UNKNOWN
         );
     }
 
@@ -448,7 +448,7 @@ mod tests {
         // Inner layout starts at (10, 10) due to insets. Fill width spans outer space (400 - 20) = 380.
         let r1 = f_ctx.layout(
             ColumnLayoutParams::auto().fill_x().fixed_y(20.0),
-            crate::layout::IntrinsicSize::UNKNOWN,
+            crate::layout::SizeRequest::UNKNOWN,
         );
         assert_eq!(r1, Rect::new(10.0, 10.0, 380.0, 20.0));
 
@@ -456,7 +456,7 @@ mod tests {
 
         let r2 = f_ctx.layout(
             ColumnLayoutParams::auto().fill_x().fixed_y(30.0),
-            crate::layout::IntrinsicSize::UNKNOWN,
+            crate::layout::SizeRequest::UNKNOWN,
         );
         // stack height: 20 + spacing(5) = 25
         assert_eq!(r2, Rect::new(10.0, 35.0, 380.0, 30.0));
@@ -471,7 +471,7 @@ mod tests {
         ctx.spacer(10.0);
         let sibling = ctx.layout(
             ColumnLayoutParams::fixed(50.0, 30.0),
-            crate::layout::IntrinsicSize::UNKNOWN,
+            crate::layout::SizeRequest::UNKNOWN,
         );
         assert_eq!(sibling.y, 85.0);
     }

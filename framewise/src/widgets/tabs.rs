@@ -2,7 +2,7 @@ use crate::{
     draw::{DrawCmd, DrawCommands},
     focus::{FocusId, FocusSystem},
     input::Input,
-    layout::{IntrinsicSize, LayoutState},
+    layout::{LayoutState, SizeRequest},
     text::{layout_text, TextBackend, TextBounds, TextStyle},
     types::{ClipRect, Color, Layer, Rect, Vec2},
     widget::{InputInfo, LayoutInfo, WidgetContext},
@@ -23,7 +23,7 @@ pub mod raw {
     }
 
     #[derive(Debug, Clone, PartialEq)]
-    pub struct TabsCalcIntrinsicSizeSpec<'a> {
+    pub struct TabsCalcSizeRequestSpec<'a> {
         pub items: &'a [&'a str],
         pub style: super::TabsStyle,
     }
@@ -37,16 +37,16 @@ pub mod raw {
 
     /// Measure a tabs widget's intrinsic size from its measurement spec.
     pub fn calc_tabs_intrinsic_size<T: TextBackend>(
-        spec: &TabsCalcIntrinsicSizeSpec,
+        spec: &TabsCalcSizeRequestSpec,
         text_backend: &mut T,
-    ) -> IntrinsicSize {
+    ) -> SizeRequest {
         let s = spec.style;
         let mut total_w = 0.0_f32;
         for label in spec.items.iter() {
             let layout = layout_text(text_backend, label, s.text_style, TextBounds::UNBOUNDED);
             total_w += layout.metrics().logical_size.x + s.pad_x * 2.0;
         }
-        IntrinsicSize::preferred(Vec2::new(total_w, s.height))
+        SizeRequest::preferred(Vec2::new(total_w, s.height))
     }
 
     /// Low-level tabs widget function.
@@ -347,7 +347,7 @@ pub fn tabs<'a, T: TextBackend, S: LayoutState, CF>(
     state: &mut TabsState,
 ) -> TabsResult {
     let spec = builder.defaults_from_theme(&ctx.theme).build();
-    let calc_spec = raw::TabsCalcIntrinsicSizeSpec {
+    let calc_spec = raw::TabsCalcSizeRequestSpec {
         items: spec.items,
         style: spec.style,
     };
@@ -778,7 +778,7 @@ mod tests {
     #[test]
     fn test_calc_tabs_intrinsic_size() {
         let mut ts = TestTextBackend;
-        let spec = raw::TabsCalcIntrinsicSizeSpec {
+        let spec = raw::TabsCalcSizeRequestSpec {
             items: &["Tab1", "Tab2"],
             style: TabsStyle::from_theme(&crate::theme::Theme::framewise()),
         };

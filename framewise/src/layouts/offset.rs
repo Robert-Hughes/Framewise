@@ -1,5 +1,5 @@
 use crate::layout::{
-    IntrinsicSize, Layout, LayoutResult, LayoutSpace, LayoutState, LayoutToken, SpacerLayoutState,
+    Layout, LayoutResult, LayoutSpace, LayoutState, LayoutToken, SizeRequest, SpacerLayoutState,
 };
 use crate::types::{Rect, Vec2};
 
@@ -31,12 +31,8 @@ pub struct OffsetState<InnerS> {
 impl<InnerS: LayoutState> LayoutState for OffsetState<InnerS> {
     type Params = InnerS::Params;
 
-    fn layout(
-        &mut self,
-        layout_params: Self::Params,
-        intrinsic: IntrinsicSize,
-    ) -> LayoutResult<Rect> {
-        self.inner.layout(layout_params, intrinsic).map(|mut r| {
+    fn layout(&mut self, layout_params: Self::Params, request: SizeRequest) -> LayoutResult<Rect> {
+        self.inner.layout(layout_params, request).map(|mut r| {
             r.x -= self.offset.x;
             r.y -= self.offset.y;
             r
@@ -46,9 +42,9 @@ impl<InnerS: LayoutState> LayoutState for OffsetState<InnerS> {
     fn begin_layout<'a>(
         &'a mut self,
         layout_params: Self::Params,
-        intrinsic: IntrinsicSize,
+        request: SizeRequest,
     ) -> (LayoutResult<LayoutSpace>, LayoutToken<'a, Self>) {
-        let (space_res, _) = self.inner.begin_layout(layout_params.clone(), intrinsic);
+        let (space_res, _) = self.inner.begin_layout(layout_params.clone(), request);
         let space_res = space_res.map(|mut space| {
             space.x -= self.offset.x;
             space.y -= self.offset.y;
@@ -98,16 +94,10 @@ mod tests {
         };
         let mut state = offset.begin(Rect::new(0.0, 0.0, 100.0, 100.0));
         let _ = state
-            .layout(
-                ColumnLayoutParams::fixed(40.0, 20.0),
-                IntrinsicSize::UNKNOWN,
-            )
+            .layout(ColumnLayoutParams::fixed(40.0, 20.0), SizeRequest::UNKNOWN)
             .unwrap();
         let _ = state
-            .layout(
-                ColumnLayoutParams::fixed(40.0, 30.0),
-                IntrinsicSize::UNKNOWN,
-            )
+            .layout(ColumnLayoutParams::fixed(40.0, 30.0), SizeRequest::UNKNOWN)
             .unwrap();
         // resolved_space shifted by offset (origin: -13.0, -27.0)
         assert_eq!(state.resolve_space(), Rect::new(-13.0, -27.0, 100.0, 100.0));
@@ -123,10 +113,7 @@ mod tests {
         let mut state = offset.begin(bounds);
 
         let r1 = state
-            .layout(
-                ColumnLayoutParams::fixed(50.0, 20.0),
-                IntrinsicSize::UNKNOWN,
-            )
+            .layout(ColumnLayoutParams::fixed(50.0, 20.0), SizeRequest::UNKNOWN)
             .unwrap();
         // Logic Y is 10.0. Actual Y = 10.0 - 15.0 = -5.0
         // Logic X is 10.0. Actual X = 10.0 - 5.0 = 5.0
@@ -135,10 +122,7 @@ mod tests {
         state.spacer(10.0.into());
 
         let r2 = state
-            .layout(
-                ColumnLayoutParams::fixed(40.0, 30.0),
-                IntrinsicSize::UNKNOWN,
-            )
+            .layout(ColumnLayoutParams::fixed(40.0, 30.0), SizeRequest::UNKNOWN)
             .unwrap();
         // Logic Y is 10.0 + 20.0 + 10.0 = 40.0. Actual Y = 40.0 - 15.0 = 25.0
         assert_eq!(r2, Rect::new(5.0, 25.0, 40.0, 30.0));
@@ -156,7 +140,7 @@ mod tests {
             x: crate::layouts::linear::LinearCross::fixed(50.0),
             y: crate::layouts::linear::LinearMain::auto(),
         };
-        let (space_res, token) = state.begin_layout(req, IntrinsicSize::UNKNOWN);
+        let (space_res, token) = state.begin_layout(req, SizeRequest::UNKNOWN);
         let space = space_res.unwrap();
 
         // Provisional space should be shifted by offset: space.x = 0.0 - 10.0 = -10.0
