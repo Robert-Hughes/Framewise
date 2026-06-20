@@ -49,7 +49,7 @@ pub mod raw {
         pub focused: bool,
     }
 
-    /// Measure a slider's intrinsic size from its spec.
+    /// Calculate a slider's size request from its spec.
     ///
     /// A slider's extent is caller-driven: the track length comes from the layout,
     /// not from content, so there is nothing to report yet — this returns
@@ -905,8 +905,8 @@ pub fn slider<T: TextBackend, S: LayoutState, CF>(
 ) -> SliderResult {
     let spec = builder.defaults_from_theme(&ctx.theme).build();
     let calc_spec = raw::SliderCalcSizeRequestSpec {};
-    let intrinsic = raw::calc_slider_intrinsic_size(&calc_spec);
-    let rect = ctx.layout(layout_params, intrinsic);
+    let size_request = raw::calc_slider_intrinsic_size(&calc_spec);
+    let rect = ctx.layout(layout_params, size_request);
     let raw_spec = raw::SliderSpec {
         rect,
         min: spec.min,

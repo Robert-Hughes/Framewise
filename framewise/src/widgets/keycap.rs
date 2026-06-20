@@ -28,7 +28,7 @@ pub mod raw {
         pub content_bounds: Rect,
     }
 
-    /// Measure a keycap's intrinsic size from its measurement spec.
+    /// Calculate a keycap's size request from its size-request spec.
     pub fn calc_keycap_intrinsic_size<T: TextBackend>(
         spec: &KeycapCalcSizeRequestSpec,
         text_backend: &mut T,
@@ -217,8 +217,8 @@ pub fn keycap<'a, T: TextBackend, S: LayoutState, CF>(
         text: spec.text,
         style: spec.style,
     };
-    let intrinsic = raw::calc_keycap_intrinsic_size(&calc_spec, ctx.text_backend);
-    let rect = ctx.layout(layout_params, intrinsic);
+    let size_request = raw::calc_keycap_intrinsic_size(&calc_spec, ctx.text_backend);
+    let rect = ctx.layout(layout_params, size_request);
     let raw_spec = raw::KeycapSpec {
         layer: ctx.layer,
         rect,

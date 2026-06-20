@@ -35,7 +35,7 @@ pub mod raw {
         pub content_bounds: Rect,
     }
 
-    /// Measure a tabs widget's intrinsic size from its measurement spec.
+    /// Calculate a tabs widget's size request from its size-request spec.
     pub fn calc_tabs_intrinsic_size<T: TextBackend>(
         spec: &TabsCalcSizeRequestSpec,
         text_backend: &mut T,
@@ -351,8 +351,8 @@ pub fn tabs<'a, T: TextBackend, S: LayoutState, CF>(
         items: spec.items,
         style: spec.style,
     };
-    let intrinsic = raw::calc_tabs_intrinsic_size(&calc_spec, ctx.text_backend);
-    let rect = ctx.layout(layout_params, intrinsic);
+    let size_request = raw::calc_tabs_intrinsic_size(&calc_spec, ctx.text_backend);
+    let rect = ctx.layout(layout_params, size_request);
     let raw_spec = raw::TabsSpec {
         rect,
         items: spec.items,
@@ -783,7 +783,7 @@ mod tests {
             style: TabsStyle::from_theme(&crate::theme::Theme::framewise()),
         };
         // Tab1 = 4 chars * 8px = 32px + 2*18 pad = 68px; Tab2 = same = 68px; total = 136px
-        let intrinsic = raw::calc_tabs_intrinsic_size(&spec, &mut ts);
-        assert_eq!(intrinsic.preferred, Some(Vec2::new(136.0, 36.0)));
+        let size_request = raw::calc_tabs_intrinsic_size(&spec, &mut ts);
+        assert_eq!(size_request.preferred, Some(Vec2::new(136.0, 36.0)));
     }
 }

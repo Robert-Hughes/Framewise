@@ -39,7 +39,7 @@ pub mod raw {
         pub content_bounds: Rect,
     }
 
-    /// Measure a drag number's intrinsic size from its measurement spec.
+    /// Calculate a drag number's size request from its size-request spec.
     pub fn calc_drag_number_intrinsic_size<T: TextBackend>(
         spec: &DragNumberCalcSizeRequestSpec,
         text_backend: &mut T,
@@ -416,8 +416,8 @@ pub fn drag_number<'a, T: TextBackend, S: LayoutState, CF>(
         min: spec.min,
         max: spec.max,
     };
-    let intrinsic = raw::calc_drag_number_intrinsic_size(&calc_spec, ctx.text_backend);
-    let rect = ctx.layout(layout_params, intrinsic);
+    let size_request = raw::calc_drag_number_intrinsic_size(&calc_spec, ctx.text_backend);
+    let rect = ctx.layout(layout_params, size_request);
     let raw_spec = raw::DragNumberSpec {
         layer: ctx.layer,
         rect,

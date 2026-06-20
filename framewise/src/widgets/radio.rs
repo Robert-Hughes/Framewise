@@ -33,8 +33,8 @@ pub mod raw {
         pub content_bounds: Rect,
     }
 
-    /// Compute intrinsic size for Radio.
-    pub fn calc_radio_intrinsic_size(spec: &RadioCalcSizeRequestSpec) -> SizeRequest {
+    /// Calculate a radio button's size request from its size-request spec.
+    pub fn calc_radio_request_size(spec: &RadioCalcSizeRequestSpec) -> SizeRequest {
         SizeRequest::preferred(Vec2::new(spec.style.radius * 2.0, spec.style.radius * 2.0))
     }
 
@@ -274,8 +274,8 @@ pub fn radio<T: TextBackend, S: LayoutState, CF>(
 ) -> RadioResult {
     let spec = builder.defaults_from_theme(&ctx.theme).build();
     let calc_spec = raw::RadioCalcSizeRequestSpec { style: spec.style };
-    let intrinsic = raw::calc_radio_intrinsic_size(&calc_spec);
-    let rect = ctx.layout(layout_params, intrinsic);
+    let size_request = raw::calc_radio_request_size(&calc_spec);
+    let rect = ctx.layout(layout_params, size_request);
     let raw_spec = raw::RadioSpec {
         layer: ctx.layer,
         rect,
@@ -322,26 +322,26 @@ pub fn labelled_radio<T: TextBackend, S: LayoutState, CF>(
         );
     }
 
-    // Calculate intrinsic size using the official functions of both widgets
+    // Calculate size requests using the official functions of both widgets.
     let radio_calc_spec = raw::RadioCalcSizeRequestSpec { style: spec.style };
-    let radio_intrinsic = raw::calc_radio_intrinsic_size(&radio_calc_spec);
-    let radio_size = radio_intrinsic.preferred.unwrap();
+    let radio_request = raw::calc_radio_request_size(&radio_calc_spec);
+    let radio_size = radio_request.preferred.unwrap();
 
     let label_calc_spec = crate::widgets::label::raw::LabelCalcSizeRequestSpec {
         text: label_text,
         style: label_style,
     };
-    let label_intrinsic =
-        crate::widgets::label::raw::calc_label_intrinsic_size(&label_calc_spec, ctx.text_backend);
-    let label_size = label_intrinsic.preferred.unwrap();
+    let label_request =
+        crate::widgets::label::raw::calc_label_request_size(&label_calc_spec, ctx.text_backend);
+    let label_size = label_request.preferred.unwrap();
 
     let gap = 8.0;
     let combined_width = radio_size.x + gap + label_size.x;
     let combined_height = f32::max(radio_size.y, label_size.y);
-    let intrinsic = SizeRequest::preferred(Vec2::new(combined_width, combined_height));
+    let size_request = SizeRequest::preferred(Vec2::new(combined_width, combined_height));
 
     // Resolve combined bounds
-    let rect = ctx.layout(layout_params, intrinsic);
+    let rect = ctx.layout(layout_params, size_request);
 
     // Run underlying radio interaction and draw control track/thumb
     let raw_spec = raw::RadioSpec {
@@ -1215,12 +1215,12 @@ mod tests {
     }
 
     #[test]
-    fn test_calc_radio_intrinsic_size() {
+    fn test_calc_radio_request_size() {
         let theme = crate::theme::Theme::default();
         let style = RadioStyle::from_theme(&theme);
         let spec = raw::RadioCalcSizeRequestSpec { style };
-        let intrinsic = raw::calc_radio_intrinsic_size(&spec);
-        assert_eq!(intrinsic, SizeRequest::preferred(Vec2::new(14.0, 14.0)));
+        let size_request = raw::calc_radio_request_size(&spec);
+        assert_eq!(size_request, SizeRequest::preferred(Vec2::new(14.0, 14.0)));
     }
 
     #[test]
@@ -1261,7 +1261,7 @@ mod tests {
     }
 
     #[test]
-    fn test_labelled_radio_intrinsic_size() {
+    fn test_labelled_radio_request_size() {
         use crate::layouts::ManualLayout;
         let mut text_backend = crate::test_utils::TestTextBackend;
         let mut focus = FocusSystem::new();

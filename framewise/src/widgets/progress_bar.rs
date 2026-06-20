@@ -30,7 +30,7 @@ pub mod raw {
     #[derive(Debug, Clone, PartialEq)]
     pub struct ProgressBarResult {}
 
-    /// Compute intrinsic size for ProgressBar.
+    /// Calculate a progress bar's size request.
     /// Currently returns UNKNOWN as per user preference.
     pub fn calc_progress_bar_intrinsic_size(_spec: &ProgressBarCalcSizeRequestSpec) -> SizeRequest {
         SizeRequest::UNKNOWN
@@ -195,8 +195,8 @@ pub fn progress_bar<T: TextBackend, S: LayoutState, CF>(
 ) -> ProgressBarResult {
     let spec = builder.defaults_from_theme(&ctx.theme).build();
     let calc_spec = raw::ProgressBarCalcSizeRequestSpec {};
-    let intrinsic = raw::calc_progress_bar_intrinsic_size(&calc_spec);
-    let rect = ctx.layout(layout_params, intrinsic);
+    let size_request = raw::calc_progress_bar_intrinsic_size(&calc_spec);
+    let rect = ctx.layout(layout_params, size_request);
     let raw_spec = raw::ProgressBarSpec {
         layer: ctx.layer,
         rect,

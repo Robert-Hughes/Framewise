@@ -24,7 +24,7 @@ pub mod raw {
     #[derive(Debug, Clone, PartialEq)]
     pub struct SpinnerResult {}
 
-    /// Compute intrinsic size for Spinner. Currently returns UNKNOWN.
+    /// Calculate a spinner's size request. Currently returns UNKNOWN.
     pub fn calc_spinner_intrinsic_size(_spec: &SpinnerCalcSizeRequestSpec) -> SizeRequest {
         SizeRequest::UNKNOWN
     }
@@ -232,8 +232,8 @@ pub fn spinner<T: TextBackend, S: LayoutState, CF>(
 ) -> SpinnerResult {
     let spec = builder.defaults_from_theme(&ctx.theme).build();
     let calc_spec = raw::SpinnerCalcSizeRequestSpec {};
-    let intrinsic = raw::calc_spinner_intrinsic_size(&calc_spec);
-    let rect = ctx.layout(layout_params, intrinsic);
+    let size_request = raw::calc_spinner_intrinsic_size(&calc_spec);
+    let rect = ctx.layout(layout_params, size_request);
     let raw_spec = raw::SpinnerSpec {
         rect,
         large: spec.large,

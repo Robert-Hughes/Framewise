@@ -1,7 +1,7 @@
 //! Layout demo page.
 //!
 //! Showcases the *chrome-less nested layout auto-sizing* introduced on the
-//! `intrinsic-sizing-nested-layout-auto` branch: a bare `child_with_layout`
+//! `size-request-nested-layout-auto` branch: a bare `child_with_layout`
 //! (Column / Row / Wrap — no `frame` wrapper) placed with `Extent::Auto` /
 //! `Extent::Fill` now fits to its children, instead of falling back / panicking.
 //! `Extent::Fixed` slots stay identical to the old eager path.
@@ -10,13 +10,13 @@
 //!   A. Auto-height column (no frame) — fits its stacked rows.
 //!   B. Auto-width row (no frame)     — hugs the total width of its children.
 //!   C. Nested auto-in-auto           — fit-to-children chaining through levels.
-//!   D. Intrinsic `Auto` sizing       — each button hugs its own label width.
+//!   D. Size-request `Auto` sizing    — each button hugs its own label width.
 //!   E. Cross-axis alignment          — Start / Center / End inside fit columns.
 //!   F. Fixed vs Auto equivalence     — Fixed ignores child extent, Auto fits.
 //!   G. WrapLayout flow               — tags wrap onto new lines, auto-sizing.
 //!   H. SplitRow                      — width divided into equal declared cells.
 //!   I. Mixed per-axis                — fixed icon + Auto-width labels in one row.
-//!   J. Toolbar (emit-reorder)        — search fills leftover, buttons stay intrinsic.
+//!   J. Toolbar (emit-reorder)        — search fills leftover, buttons stay request-sized.
 //!   K. `AtMost` ceiling              — nested Auto container clamps to the remainder.
 //!   L. RowLayout cross-align         — differing heights aligned in a tall row.
 //!   M. RowLayout main-axis End       — trailing action anchored to row end.
@@ -55,7 +55,7 @@ pub struct LayoutDemoState {
     pub a_clicks: [u32; 3],
     pub b_btns: [ButtonState; 3],       // B: auto-width row
     pub c_btns: [ButtonState; 4],       // C: nested auto-in-auto (2 rows × 2)
-    pub d_btns: [ButtonState; 3],       // D: intrinsic Auto widths
+    pub d_btns: [ButtonState; 3],       // D: size-request Auto widths
     pub e_btns: [ButtonState; 9],       // E: 3 align columns × 3 buttons
     pub f_fixed_btns: [ButtonState; 3], // F: fixed-height column
     pub f_auto_btns: [ButtonState; 3],  // F: auto-height column
@@ -64,7 +64,7 @@ pub struct LayoutDemoState {
     pub h_clicks: [u32; 3],
     pub i_btns: [ButtonState; 3], // I: mixed per-axis (fixed icon + auto labels)
     pub j_search: ButtonState,    // J: toolbar emit-reorder (fill field)
-    pub j_btns: [ButtonState; 2], // J: intrinsic right-aligned buttons
+    pub j_btns: [ButtonState; 2], // J: request-sized right-aligned buttons
     pub k_btns: [ButtonState; 3], // K: AtMost shrink-wrap (fixed block + short hugs + long clamps)
     pub l_btns: [ButtonState; 9], // L: RowLayout cross-align (3 rows × 3)
     pub m_btns: [ButtonState; 3], // M: RowLayout main-axis End trailing action
@@ -242,7 +242,7 @@ pub(crate) fn draw_layout_page_content<'a, 'b, CF>(
         }
         left.spacer(18.0);
 
-        // D. Intrinsic Auto sizing.
+        // D. Size-request Auto sizing.
         subheading(
             &mut left,
             "D. Intrinsic Auto — each button hugs its own label width",
@@ -265,7 +265,7 @@ pub(crate) fn draw_layout_page_content<'a, 'b, CF>(
         }
         left.spacer(18.0);
 
-        // I. Mixed per-axis: fixed-width icon + intrinsic-width labels in one row.
+        // I. Mixed per-axis: fixed-width icon + request-sized labels in one row.
         subheading(
             &mut left,
             "I. Mixed per-axis — fixed icon + Auto-width labels in one row",
@@ -642,7 +642,7 @@ pub(crate) fn draw_layout_page_content<'a, 'b, CF>(
         }
         right.spacer(18.0);
 
-        // J. Toolbar leftover via the emit-reorder trick: the intrinsic right-hand
+        // J. Toolbar leftover via the emit-reorder trick: the request-sized right-hand
         // buttons are measured and placed first, the search field fills the gap,
         // then override_keyboard_next restores logical left→right focus.
         subheading(
@@ -655,7 +655,7 @@ pub(crate) fn draw_layout_page_content<'a, 'b, CF>(
             let spacing = 8.0;
             let w = col_w; // Fill width under the Exact right column resolves to col_w.
 
-            // Measure the two intrinsic buttons up front — the reorder trick needs
+            // Calculate the two button size requests up front — the reorder trick needs
             // their sizes before the fill child can be placed.
             let measure = |ts: &mut SampleTextBackend, label: &str| {
                 let spec = ButtonSpecBuilder::new()
@@ -678,7 +678,7 @@ pub(crate) fn draw_layout_page_content<'a, 'b, CF>(
             // ManualLayout: rects are origin-relative to the toolbar's top-left.
             let mut tb = right
                 .child_with_layout(ColumnLayoutParams::auto().fill_x().fixed_y(h), ManualLayout);
-            // Emit the intrinsic (right-hand) children first — they depend on no
+            // Emit the request-sized (right-hand) children first — they depend on no
             // sibling, so their position is known immediately.
             button(
                 &mut tb,

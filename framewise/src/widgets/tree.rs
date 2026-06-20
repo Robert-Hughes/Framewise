@@ -29,7 +29,7 @@ pub mod raw {
         pub content_bounds: Rect,
     }
 
-    /// Measure a tree widget's intrinsic size from its measurement spec.
+    /// Calculate a tree widget's size request from its size-request spec.
     pub fn calc_tree_intrinsic_size(spec: &TreeCalcSizeRequestSpec) -> SizeRequest {
         let s = spec.style;
         let total_h = spec.items.len() as f32 * s.row_height + s.pad_y * 2.0;
@@ -314,8 +314,8 @@ pub fn tree<'a, T: TextBackend, S: LayoutState, CF>(
         items: spec.items,
         style: spec.style,
     };
-    let intrinsic = raw::calc_tree_intrinsic_size(&calc_spec);
-    let rect = ctx.layout(layout_params, intrinsic);
+    let size_request = raw::calc_tree_intrinsic_size(&calc_spec);
+    let rect = ctx.layout(layout_params, size_request);
     let raw_spec = raw::TreeSpec {
         rect,
         items: spec.items,
@@ -421,9 +421,9 @@ mod tests {
             style: TreeStyle::from_theme(&crate::theme::Theme::framewise()),
         };
         let style = spec.style;
-        let intrinsic = raw::calc_tree_intrinsic_size(&spec);
+        let size_request = raw::calc_tree_intrinsic_size(&spec);
         assert_eq!(
-            intrinsic.preferred,
+            size_request.preferred,
             Some(Vec2::new(style.min_width, style.pad_y * 2.0))
         );
     }
@@ -451,10 +451,10 @@ mod tests {
             style: TreeStyle::from_theme(&crate::theme::Theme::framewise()),
         };
         let style = spec.style;
-        let intrinsic = raw::calc_tree_intrinsic_size(&spec);
+        let size_request = raw::calc_tree_intrinsic_size(&spec);
         let expected_h = 2.0 * style.row_height + style.pad_y * 2.0;
         assert_eq!(
-            intrinsic.preferred,
+            size_request.preferred,
             Some(Vec2::new(style.min_width, expected_h))
         );
     }

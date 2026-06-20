@@ -530,8 +530,8 @@ pub fn select<'a, T: TextBackend, S: LayoutState, CF>(
         style: spec.style,
         items: spec.items,
     };
-    let intrinsic = raw::calc_select_intrinsic_size(&calc_spec, ctx.text_backend);
-    let rect = ctx.layout(layout_params, intrinsic);
+    let size_request = raw::calc_select_intrinsic_size(&calc_spec, ctx.text_backend);
+    let rect = ctx.layout(layout_params, size_request);
     let raw_spec = raw::SelectSpec {
         layer: ctx.layer,
         rect,

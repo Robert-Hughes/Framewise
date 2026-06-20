@@ -36,7 +36,7 @@ pub mod raw {
         pub content_bounds: Rect,
     }
 
-    /// Measure a button's intrinsic size from its measurement spec.
+    /// Calculate a button's size request from its size-request spec.
     ///
     /// The preferred width is the label width plus horizontal padding; the
     /// preferred height is the larger of the standard control height and the
@@ -242,11 +242,11 @@ pub struct ButtonStyle {
     pub content_placement: crate::text::TextContentPlacement,
     pub text_color: Color,
     pub disabled_alpha: f32,
-    /// Horizontal padding each side of the label, used for intrinsic width.
+    /// Horizontal padding each side of the label, used for the preferred width request.
     pub pad_x: f32,
-    /// Vertical padding above/below the label, used for intrinsic height.
+    /// Vertical padding above/below the label, used for the preferred height request.
     pub pad_y: f32,
-    /// Minimum intrinsic height (the standard control height); the preferred
+    /// Minimum requested height (the standard control height); the preferred
     /// height is the larger of this and the padded text height.
     pub min_height: f32,
 }
@@ -444,8 +444,8 @@ pub fn button<'a, T: TextBackend, S: LayoutState, CF>(
         text: spec.text,
         style: spec.style,
     };
-    let intrinsic = raw::calc_button_intrinsic_size(&calc_spec, ctx.text_backend);
-    let rect = ctx.layout(layout_params, intrinsic);
+    let size_request = raw::calc_button_intrinsic_size(&calc_spec, ctx.text_backend);
+    let rect = ctx.layout(layout_params, size_request);
     let raw_spec = raw::ButtonSpec {
         layer: ctx.layer,
         rect,
@@ -1687,7 +1687,7 @@ mod tests {
     }
 
     #[test]
-    fn test_button_auto_layout_uses_intrinsic_size() {
+    fn test_button_auto_layout_uses_size_request() {
         use crate::layouts::{ColumnLayout, ColumnLayoutParams, ManualLayout};
         let mut text_backend = TestTextBackend;
         let mut focus = FocusSystem::new();
@@ -1704,7 +1704,7 @@ mod tests {
         );
         let mut col = ctx.child_with_layout(Rect::new(10.0, 10.0, 300.0, 400.0), ColumnLayout);
         let mut st = ButtonState::default();
-        // Auto on both axes → the button sizes to its label intrinsic.
+        // Auto on both axes → the button sizes to its label request.
         // "Save" = 4*8 = 32 wide; width = 32 + 28 = 60; height = 28.
         let r = super::button(
             &mut col,

@@ -34,7 +34,7 @@ pub mod raw {
     #[derive(Debug, Clone, PartialEq)]
     pub struct MeterResult {}
 
-    /// Compute the intrinsic size of a meter widget.
+    /// Calculate a meter widget's size request.
     ///
     /// Width = total bar width + gaps, Height = bar height.
     pub fn calc_meter_intrinsic_size(spec: &MeterCalcSizeRequestSpec) -> SizeRequest {
@@ -191,8 +191,8 @@ pub fn meter<T: TextBackend, S: LayoutState, CF>(
         style: spec.style,
         bars: spec.bars,
     };
-    let intrinsic = raw::calc_meter_intrinsic_size(&calc_spec);
-    let rect = ctx.layout(layout_params, intrinsic);
+    let size_request = raw::calc_meter_intrinsic_size(&calc_spec);
+    let rect = ctx.layout(layout_params, size_request);
     let raw_spec = raw::MeterSpec {
         layer: ctx.layer,
         rect,

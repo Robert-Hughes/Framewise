@@ -234,7 +234,7 @@ mod tests {
     }
 
     #[test]
-    fn test_wrap_layout_uses_intrinsic_and_does_not_wrap_first_item() {
+    fn test_wrap_layout_uses_request_and_does_not_wrap_first_item() {
         // A single item wider than the bounds stays on the first line (no wrap
         // at line start); auto width comes from the preferred requested size.
         let mut state = WrapLayout {
@@ -368,7 +368,7 @@ mod tests {
                     SizeRequest::UNKNOWN,
                 )
                 .unwrap();
-            // Second item has width 80px (wraps to next line, y=30) and fills remaining height with large intrinsic
+            // Second item has width 80px (wraps to next line, y=30) and fills remaining height with a large request.
             let res = state.layout(
                 Placement2D {
                     width: Placement::fixed(80.0),

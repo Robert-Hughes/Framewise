@@ -51,9 +51,9 @@ pub fn begin_demo_page<'a, 'b, T: TextBackend, L: Layout, CF>(
         .build();
 
     let calc_spec = framewise::widgets::scroll_area::raw::ScrollAreaCalcSizeRequestSpec {};
-    let intrinsic =
+    let size_request =
         framewise::widgets::scroll_area::raw::calc_scroll_area_intrinsic_size(&calc_spec);
-    let bounds = parent_ctx.layout(ColumnLayoutParams::auto().fill_x().fill_y(), intrinsic);
+    let bounds = parent_ctx.layout(ColumnLayoutParams::auto().fill_x().fill_y(), size_request);
     let input = parent_ctx.input;
     let raw_spec = framewise::widgets::scroll_area::raw::ScrollAreaSpec {
         rect: bounds,
@@ -95,11 +95,11 @@ pub fn begin_demo_page<'a, 'b, T: TextBackend, L: Layout, CF>(
         text: label_spec.text,
         style: label_spec.style,
     };
-    let label_intrinsic = framewise::widgets::label::raw::calc_label_intrinsic_size(
+    let label_request = framewise::widgets::label::raw::calc_label_request_size(
         &label_spec,
         parent_ctx.text_backend,
     );
-    let title_h = label_intrinsic.preferred.map_or(24.0, |p| p.y);
+    let title_h = label_request.preferred.map_or(24.0, |p| p.y);
 
     // Draw the title using the offset coordinates of the scroll area, inset by pad
     let title_rect = Rect::new(

@@ -30,8 +30,8 @@ pub struct ButtonPageState {
     // Section 4: 3×3 action grid
     pub grid_btns: [ButtonState; 9],
     pub grid_clicks: [u32; 9],
-    // Section 5: intrinsic sizing — auto-width row + fill-width column
-    pub intrinsic_btns: [ButtonState; 5],
+    // Section 5: size-request sizing — auto-width row + fill-width column
+    pub auto_btns: [ButtonState; 5],
     // Section 6: wrapping flow of auto-width buttons
     pub wrap_btns: [ButtonState; 8],
     // Section 7: alignment showcase
@@ -319,9 +319,9 @@ pub(crate) fn draw_button_page_content<'a, 'b, CF>(
     }
     outer.spacer(24.0);
 
-    // ── Section 5: Intrinsic sizing ───────────────────────────────────────────
+    // ── Section 5: Size-request sizing ────────────────────────────────────────
     // Auto-width buttons (each hugs its own label) in a row, then a fill-width
-    // button in a column — sized by the layout from the button's intrinsic size,
+    // button in a column — sized by the layout from the button's size request,
     // no explicit widths.
     {
         let mut col = outer.child_with_layout(
@@ -341,7 +341,7 @@ pub(crate) fn draw_button_page_content<'a, 'b, CF>(
                     &mut row,
                     ButtonSpecBuilder::new().text(label).style(secondary),
                     auto,
-                    &mut state.intrinsic_btns[i],
+                    &mut state.auto_btns[i],
                 );
                 row.spacer(10.0);
             }
@@ -349,7 +349,7 @@ pub(crate) fn draw_button_page_content<'a, 'b, CF>(
         }
         col.spacer(12.0);
 
-        // A button that fills the column's full width, intrinsic height.
+        // A button that fills the column's full width and requests its height.
         let fill = ColumnLayoutParams::auto().fill_x();
         button(
             &mut col,
@@ -357,7 +357,7 @@ pub(crate) fn draw_button_page_content<'a, 'b, CF>(
                 .text("Fills the row width")
                 .style(primary),
             fill,
-            &mut state.intrinsic_btns[4],
+            &mut state.auto_btns[4],
         );
 
         col.finish();

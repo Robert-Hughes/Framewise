@@ -83,7 +83,7 @@ impl LinearMain {
     #[track_caller]
     pub(crate) fn resolve_size(
         self,
-        intrinsic: Option<f32>,
+        preferred_request: Option<f32>,
         avail: AxisBound,
     ) -> LayoutResult<f32> {
         match self {
@@ -93,7 +93,7 @@ impl LinearMain {
             } => LayoutResult::Ok(px),
             LinearMain::Sized {
                 size: Size::Auto, ..
-            } => match intrinsic {
+            } => match preferred_request {
                 Some(preferred) => match avail {
                     AxisBound::Exact(_) => LayoutResult::Ok(preferred),
                     AxisBound::AtMost(w) => LayoutResult::Ok(preferred.min(w)),
@@ -111,8 +111,8 @@ impl LinearMain {
                 AxisBound::Exact(w) => LayoutResult::Ok(w),
                 bound @ (AxisBound::AtMost(_) | AxisBound::Unbounded) => {
                     let val = match bound {
-                        AxisBound::AtMost(w) => intrinsic.map(|i| i.min(w)).unwrap_or(0.0),
-                        AxisBound::Unbounded => intrinsic.unwrap_or(0.0),
+                        AxisBound::AtMost(w) => preferred_request.map(|i| i.min(w)).unwrap_or(0.0),
+                        AxisBound::Unbounded => preferred_request.unwrap_or(0.0),
                         AxisBound::Exact(_) => unreachable!(),
                     };
                     LayoutResult::Fallback {
@@ -159,7 +159,7 @@ impl LinearCross {
     #[track_caller]
     pub(crate) fn resolve_size(
         self,
-        intrinsic: Option<f32>,
+        preferred_request: Option<f32>,
         avail: AxisBound,
     ) -> LayoutResult<f32> {
         match self {
@@ -169,7 +169,7 @@ impl LinearCross {
             } => LayoutResult::Ok(px),
             LinearCross::Sized {
                 size: Size::Auto, ..
-            } => match intrinsic {
+            } => match preferred_request {
                 Some(preferred) => match avail {
                     AxisBound::Exact(_) => LayoutResult::Ok(preferred),
                     AxisBound::AtMost(w) => LayoutResult::Ok(preferred.min(w)),
@@ -187,8 +187,8 @@ impl LinearCross {
                 AxisBound::Exact(w) => LayoutResult::Ok(w),
                 bound @ (AxisBound::AtMost(_) | AxisBound::Unbounded) => {
                     let val = match bound {
-                        AxisBound::AtMost(w) => intrinsic.map(|i| i.min(w)).unwrap_or(0.0),
-                        AxisBound::Unbounded => intrinsic.unwrap_or(0.0),
+                        AxisBound::AtMost(w) => preferred_request.map(|i| i.min(w)).unwrap_or(0.0),
+                        AxisBound::Unbounded => preferred_request.unwrap_or(0.0),
                         AxisBound::Exact(_) => unreachable!(),
                     };
                     LayoutResult::Fallback {
@@ -488,7 +488,7 @@ impl<A: LinearAxis> LayoutState for LinearState<A> {
 
     fn layout(&mut self, layout_params: Self::Params, request: SizeRequest) -> LayoutResult<Rect> {
         let params = A::orient_params(layout_params);
-        let pref = A::orient_intrinsic(request.preferred);
+        let pref = A::orient_request(request.preferred);
         self.place(params, pref)
     }
 
@@ -814,7 +814,7 @@ pub trait LinearAxis {
     fn orient_space(space: LayoutSpace) -> OrientedSpace;
     fn physical_space(space: OrientedSpace) -> LayoutSpace;
     fn orient_params(params: Self::Params) -> OrientedPlacement;
-    fn orient_intrinsic(size: Option<Vec2>) -> Option<OrientedSize>;
+    fn orient_request(size: Option<Vec2>) -> Option<OrientedSize>;
     fn orient_size(size: Vec2) -> OrientedSize;
     fn physical_rect(rect: OrientedRect) -> Rect;
     fn first_violation(
@@ -851,7 +851,7 @@ impl LinearAxis for Horizontal {
         }
     }
 
-    fn orient_intrinsic(size: Option<Vec2>) -> Option<OrientedSize> {
+    fn orient_request(size: Option<Vec2>) -> Option<OrientedSize> {
         size.map(Self::orient_size)
     }
 
@@ -902,7 +902,7 @@ impl LinearAxis for Vertical {
         }
     }
 
-    fn orient_intrinsic(size: Option<Vec2>) -> Option<OrientedSize> {
+    fn orient_request(size: Option<Vec2>) -> Option<OrientedSize> {
         size.map(Self::orient_size)
     }
 
@@ -981,7 +981,7 @@ mod tests {
 
     #[test]
     #[should_panic(expected = "needs a preferred size request")]
-    fn test_row_auto_without_intrinsic_panics() {
+    fn test_row_auto_without_request_panics() {
         let mut state = row().begin(Rect::new(0.0, 0.0, 400.0, 100.0));
         let _ = state
             .layout(RowLayoutParams::auto(), SizeRequest::UNKNOWN)
@@ -1348,14 +1348,14 @@ mod tests {
     }
 
     #[test]
-    fn test_column_auto_uses_intrinsic_preferred() {
+    fn test_column_auto_uses_preferred_request() {
         let mut state = column().begin(Rect::new(0.0, 0.0, 200.0, 500.0));
         let req = ColumnLayoutParams {
             x: LinearCross::fixed(120.0),
             y: LinearMain::auto(),
         };
-        let intrinsic = SizeRequest::preferred(Vec2::new(80.0, 24.0));
-        let r = state.layout(req, intrinsic).unwrap();
+        let size_request = SizeRequest::preferred(Vec2::new(80.0, 24.0));
+        let r = state.layout(req, size_request).unwrap();
         assert_eq!(r, Rect::new(0.0, 0.0, 120.0, 24.0));
     }
 

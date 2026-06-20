@@ -32,6 +32,9 @@ impl AxisBound {
 /// [`AxisBound`] per axis: the origin (`x`, `y`) is always concrete, but either
 /// extent may be [`AxisBound::Unbounded`].
 ///
+/// [`SizeOffer`] is the origin-free width/height-only form used for size-request
+/// calculation.
+///
 /// A plain [`Rect`] converts via [`From`] to a fully-`Bounded` space — this is
 /// the common case, and is why `Layout::begin` accepts `impl Into<LayoutSpace>`
 /// (every `begin(some_rect)` call keeps working unchanged).
@@ -110,6 +113,37 @@ impl From<Rect> for LayoutSpace {
             y: r.y,
             width: AxisBound::Exact(r.w),
             height: AxisBound::Exact(r.h),
+        }
+    }
+}
+
+/// Width/height bounds offered by a parent layout for size-request calculation.
+///
+/// Unlike [`LayoutSpace`], this carries no origin. A widget's size request
+/// should depend on available width/height bounds, not on where it will be
+/// placed.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct SizeOffer {
+    pub width: AxisBound,
+    pub height: AxisBound,
+}
+
+impl SizeOffer {
+    pub const UNBOUNDED: Self = Self {
+        width: AxisBound::Unbounded,
+        height: AxisBound::Unbounded,
+    };
+
+    pub fn new(width: AxisBound, height: AxisBound) -> Self {
+        Self { width, height }
+    }
+}
+
+impl From<LayoutSpace> for SizeOffer {
+    fn from(space: LayoutSpace) -> Self {
+        Self {
+            width: space.width,
+            height: space.height,
         }
     }
 }
@@ -383,7 +417,7 @@ impl Placement {
     #[track_caller]
     pub(crate) fn resolve_size(
         self,
-        intrinsic: Option<f32>,
+        preferred_request: Option<f32>,
         avail: AxisBound,
     ) -> LayoutResult<f32> {
         match self {
@@ -393,7 +427,7 @@ impl Placement {
             } => LayoutResult::Ok(px),
             Placement::Sized {
                 size: Size::Auto, ..
-            } => match intrinsic {
+            } => match preferred_request {
                 Some(preferred) => match avail {
                     AxisBound::Exact(_) => LayoutResult::Ok(preferred),
                     AxisBound::AtMost(w) => LayoutResult::Ok(preferred.min(w)),
@@ -411,8 +445,8 @@ impl Placement {
                 AxisBound::Exact(w) => LayoutResult::Ok(w),
                 bound @ (AxisBound::AtMost(_) | AxisBound::Unbounded) => {
                     let val = match bound {
-                        AxisBound::AtMost(w) => intrinsic.map(|i| i.min(w)).unwrap_or(0.0),
-                        AxisBound::Unbounded => intrinsic.unwrap_or(0.0),
+                        AxisBound::AtMost(w) => preferred_request.map(|i| i.min(w)).unwrap_or(0.0),
+                        AxisBound::Unbounded => preferred_request.unwrap_or(0.0),
                         AxisBound::Exact(_) => unreachable!(),
                     };
                     LayoutResult::Fallback {
@@ -576,10 +610,29 @@ mod tests {
     #[test]
     fn test_size_request_constructors() {
         assert_eq!(SizeRequest::UNKNOWN, SizeRequest::default());
-        let i = SizeRequest::preferred(Vec2::new(10.0, 20.0));
-        assert_eq!(i.preferred, Some(Vec2::new(10.0, 20.0)));
-        assert_eq!(i.min, None);
-        assert_eq!(i.max, None);
+        let request = SizeRequest::preferred(Vec2::new(10.0, 20.0));
+        assert_eq!(request.preferred, Some(Vec2::new(10.0, 20.0)));
+        assert_eq!(request.min, None);
+        assert_eq!(request.max, None);
+    }
+
+    #[test]
+    fn test_size_offer_constructors() {
+        assert_eq!(
+            SizeOffer::UNBOUNDED,
+            SizeOffer {
+                width: AxisBound::Unbounded,
+                height: AxisBound::Unbounded,
+            }
+        );
+
+        assert_eq!(
+            SizeOffer::new(AxisBound::Exact(10.0), AxisBound::AtMost(20.0)),
+            SizeOffer {
+                width: AxisBound::Exact(10.0),
+                height: AxisBound::AtMost(20.0),
+            }
+        );
     }
 
     #[test]
@@ -592,6 +645,19 @@ mod tests {
                 y: 2.0,
                 width: AxisBound::Exact(30.0),
                 height: AxisBound::Exact(40.0),
+            }
+        );
+    }
+
+    #[test]
+    fn test_layout_space_converts_to_size_offer_without_origin() {
+        let space = LayoutSpace::new(5.0, 7.0, AxisBound::Exact(30.0), AxisBound::AtMost(40.0));
+
+        assert_eq!(
+            SizeOffer::from(space),
+            SizeOffer {
+                width: AxisBound::Exact(30.0),
+                height: AxisBound::AtMost(40.0),
             }
         );
     }
@@ -628,7 +694,7 @@ mod tests {
     }
 
     #[test]
-    fn test_auto_resolve_without_intrinsic_falls_back() {
+    fn test_auto_resolve_without_request_falls_back() {
         let res = Placement::auto().resolve_size(None, AxisBound::AtMost(80.0));
         assert!(matches!(
             res,
@@ -761,7 +827,7 @@ mod tests {
 
     #[test]
     fn test_fill_fallback_clamps_to_ceiling() {
-        // Intrinsic exceeds the AtMost ceiling → fallback clamps to the ceiling,
+        // Preferred request exceeds the AtMost ceiling → fallback clamps to the ceiling,
         // never overflows it. (Distinct from the i < ceiling case, which would
         // pass even without the clamp.)
         let res = Placement::fill().resolve_size(Some(120.0), AxisBound::AtMost(80.0));
@@ -772,8 +838,8 @@ mod tests {
     }
 
     #[test]
-    fn test_fill_fallback_zero_without_intrinsic() {
-        // No intrinsic to fall back on → 0.0 (finite, safe), not NaN/garbage.
+    fn test_fill_fallback_zero_without_request() {
+        // No preferred request to fall back on → 0.0 (finite, safe), not NaN/garbage.
         for bound in [AxisBound::AtMost(80.0), AxisBound::Unbounded] {
             let res = Placement::fill().resolve_size(None, bound);
             let LayoutResult::Fallback { value, .. } = res else {

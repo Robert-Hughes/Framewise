@@ -410,8 +410,8 @@ pub fn menu<'a, T: TextBackend, S: LayoutState, CF>(
         items: spec.items,
         style: spec.style,
     };
-    let intrinsic = raw::calc_menu_intrinsic_size(&calc_spec, ctx.text_backend);
-    let rect = ctx.layout(layout_params, intrinsic);
+    let size_request = raw::calc_menu_intrinsic_size(&calc_spec, ctx.text_backend);
+    let rect = ctx.layout(layout_params, size_request);
     let raw_spec = raw::MenuSpec {
         layer: ctx.layer,
         rect,

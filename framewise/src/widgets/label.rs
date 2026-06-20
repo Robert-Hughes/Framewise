@@ -32,8 +32,8 @@ pub mod raw {
         pub content_bounds: Rect,
     }
 
-    /// Measure a label's intrinsic size from its measurement spec.
-    pub fn calc_label_intrinsic_size<T: TextBackend>(
+    /// Calculate a label's size request from its size-request spec.
+    pub fn calc_label_request_size<T: TextBackend>(
         spec: &LabelCalcSizeRequestSpec,
         text_backend: &mut T,
     ) -> crate::layout::SizeRequest {
@@ -203,8 +203,8 @@ pub fn label<'a, T: TextBackend, S: LayoutState, CF>(
         text: spec.text,
         style: spec.style,
     };
-    let intrinsic = raw::calc_label_intrinsic_size(&calc_spec, ctx.text_backend);
-    let rect = ctx.layout(layout_params, intrinsic);
+    let size_request = raw::calc_label_request_size(&calc_spec, ctx.text_backend);
+    let rect = ctx.layout(layout_params, size_request);
     let raw_spec = raw::LabelSpec {
         layer: ctx.layer,
         rect,
@@ -664,19 +664,19 @@ mod tests {
     }
 
     #[test]
-    fn test_calc_label_intrinsic_size() {
+    fn test_calc_label_request_size() {
         let mut ts = TestTextBackend;
         let theme = crate::theme::Theme::default();
         let spec = raw::LabelCalcSizeRequestSpec {
             text: "Hello",
             style: LabelStyle::from_theme(&theme),
         };
-        let i = raw::calc_label_intrinsic_size(&spec, &mut ts);
+        let i = raw::calc_label_request_size(&spec, &mut ts);
         assert_eq!(i.preferred, Some(Vec2::new(40.0, 16.0)));
     }
 
     #[test]
-    fn test_label_auto_layout_uses_intrinsic_size() {
+    fn test_label_auto_layout_uses_size_request() {
         use crate::layouts::{ColumnLayout, ColumnLayoutParams, ManualLayout};
         let mut text_backend = TestTextBackend;
         let mut focus = FocusSystem::new();
@@ -701,7 +701,7 @@ mod tests {
     }
 
     #[test]
-    fn test_calc_label_intrinsic_size_with_custom_flow() {
+    fn test_calc_label_request_size_with_custom_flow() {
         let mut ts = TestTextBackend;
         let flow = crate::text::TextFlow::wrapped();
         let theme = crate::theme::Theme::default();
@@ -711,7 +711,7 @@ mod tests {
             text: "Hello World",
             style,
         };
-        let i = raw::calc_label_intrinsic_size(&spec, &mut ts);
+        let i = raw::calc_label_request_size(&spec, &mut ts);
         assert_eq!(i.preferred, Some(Vec2::new(88.0, 16.0)));
     }
 

@@ -367,7 +367,7 @@ fn draw_button_fake_state<T: TextBackend, LS: LayoutState, CF>(
 }
 
 #[cfg(feature = "button")]
-fn button_intrinsic_width<T: TextBackend>(
+fn button_preferred_width<T: TextBackend>(
     text: &str,
     style: ButtonStyle,
     text_backend: &mut T,
@@ -380,7 +380,7 @@ fn button_intrinsic_width<T: TextBackend>(
 
     framewise::widgets::button::raw::calc_button_intrinsic_size(&spec, text_backend)
         .preferred
-        .expect("button intrinsic size should report preferred size")
+        .expect("button size request should report preferred size")
         .x
 }
 
@@ -1584,7 +1584,7 @@ fn section_01_buttons<CF>(
         ];
         let mut bx = 0.0;
         for (i, (label, style, width)) in styles.iter().enumerate() {
-            let w = width.unwrap_or_else(|| button_intrinsic_width(label, *style, b.text_backend));
+            let w = width.unwrap_or_else(|| button_preferred_width(label, *style, b.text_backend));
             let btn = {
                 let state = &mut state.btn_variants[i];
                 let layout_params = Rect::new(bx, 0.0, w, b.theme.h_md);
@@ -1731,7 +1731,7 @@ fn section_01_buttons<CF>(
             ),
         ];
         for (i, (label, h, style)) in size_defs.iter().enumerate() {
-            let w = button_intrinsic_width(label, *style, b.text_backend);
+            let w = button_preferred_width(label, *style, b.text_backend);
             let _btn = {
                 let state = &mut state.btn_sizes[i];
                 let layout_params = RowLayoutParams::fixed(w, *h).align_y(Align::Center);
@@ -1755,7 +1755,7 @@ fn section_01_buttons<CF>(
         ];
         // draw group border
         for (i, (label, style)) in grp1.iter().enumerate() {
-            let w = button_intrinsic_width(label, *style, b.text_backend);
+            let w = button_preferred_width(label, *style, b.text_backend);
             let btn = {
                 let state = &mut state.btn_grp1[i];
                 let layout_params = RowLayoutParams::fixed(w, b.theme.h_md).align_y(Align::Center);
@@ -1781,7 +1781,7 @@ fn section_01_buttons<CF>(
             ("Ship", ButtonStyle::primary_from_theme(&b.theme)),
         ];
         for (i, (label, style)) in grp2.iter().enumerate() {
-            let w = button_intrinsic_width(label, *style, b.text_backend);
+            let w = button_preferred_width(label, *style, b.text_backend);
             let _btn = {
                 let state = &mut state.btn_grp2[i];
                 let layout_params = RowLayoutParams::fixed(w, b.theme.h_md).align_y(Align::Center);

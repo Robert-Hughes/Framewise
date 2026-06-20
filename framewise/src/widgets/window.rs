@@ -354,8 +354,8 @@ pub fn begin_window<'a, 'b, 'c, T: TextBackend, S: LayoutState, L: Layout, CF>(
         status_bar: spec.status_bar,
         style: spec.style,
     };
-    let intrinsic = raw::calc_window_intrinsic_size(&calc_spec);
-    let bounds = ctx.layout(layout_params, intrinsic);
+    let size_request = raw::calc_window_intrinsic_size(&calc_spec);
+    let bounds = ctx.layout(layout_params, size_request);
     let raw_spec = raw::WindowSpec {
         rect: bounds,
         title: spec.title,

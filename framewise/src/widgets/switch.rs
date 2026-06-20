@@ -33,8 +33,8 @@ pub mod raw {
         pub content_bounds: Rect,
     }
 
-    /// Compute intrinsic size for Switch.
-    pub fn calc_switch_intrinsic_size(spec: &SwitchCalcSizeRequestSpec) -> SizeRequest {
+    /// Calculate a switch's size request from its size-request spec.
+    pub fn calc_switch_request_size(spec: &SwitchCalcSizeRequestSpec) -> SizeRequest {
         SizeRequest::preferred(spec.style.size)
     }
 
@@ -281,8 +281,8 @@ pub fn switch<T: TextBackend, S: LayoutState, CF>(
 ) -> SwitchResult {
     let spec = builder.defaults_from_theme(&ctx.theme).build();
     let calc_spec = raw::SwitchCalcSizeRequestSpec { style: spec.style };
-    let intrinsic = raw::calc_switch_intrinsic_size(&calc_spec);
-    let rect = ctx.layout(layout_params, intrinsic);
+    let size_request = raw::calc_switch_request_size(&calc_spec);
+    let rect = ctx.layout(layout_params, size_request);
     let raw_spec = raw::SwitchSpec {
         rect,
         disabled: spec.disabled,
@@ -329,26 +329,26 @@ pub fn labelled_switch<T: TextBackend, S: LayoutState, CF>(
         );
     }
 
-    // Calculate intrinsic size using the official functions of both widgets
+    // Calculate size requests using the official functions of both widgets.
     let switch_calc_spec = raw::SwitchCalcSizeRequestSpec { style: spec.style };
-    let switch_intrinsic = raw::calc_switch_intrinsic_size(&switch_calc_spec);
-    let switch_size = switch_intrinsic.preferred.unwrap();
+    let switch_request = raw::calc_switch_request_size(&switch_calc_spec);
+    let switch_size = switch_request.preferred.unwrap();
 
     let label_calc_spec = crate::widgets::label::raw::LabelCalcSizeRequestSpec {
         text: label_text,
         style: label_style,
     };
-    let label_intrinsic =
-        crate::widgets::label::raw::calc_label_intrinsic_size(&label_calc_spec, ctx.text_backend);
-    let label_size = label_intrinsic.preferred.unwrap();
+    let label_request =
+        crate::widgets::label::raw::calc_label_request_size(&label_calc_spec, ctx.text_backend);
+    let label_size = label_request.preferred.unwrap();
 
     let gap = 8.0;
     let combined_width = switch_size.x + gap + label_size.x;
     let combined_height = f32::max(switch_size.y, label_size.y);
-    let intrinsic = SizeRequest::preferred(Vec2::new(combined_width, combined_height));
+    let size_request = SizeRequest::preferred(Vec2::new(combined_width, combined_height));
 
     // Resolve combined bounds
-    let rect = ctx.layout(layout_params, intrinsic);
+    let rect = ctx.layout(layout_params, size_request);
 
     // Run underlying switch interaction and draw control track/thumb
     let raw_spec = raw::SwitchSpec {
@@ -1225,12 +1225,12 @@ mod tests {
     }
 
     #[test]
-    fn test_calc_switch_intrinsic_size() {
+    fn test_calc_switch_request_size() {
         let theme = crate::theme::Theme::default();
         let style = SwitchStyle::from_theme(&theme);
         let spec = raw::SwitchCalcSizeRequestSpec { style };
-        let intrinsic = raw::calc_switch_intrinsic_size(&spec);
-        assert_eq!(intrinsic, SizeRequest::preferred(Vec2::new(30.0, 16.0)));
+        let size_request = raw::calc_switch_request_size(&spec);
+        assert_eq!(size_request, SizeRequest::preferred(Vec2::new(30.0, 16.0)));
     }
 
     #[test]
@@ -1274,7 +1274,7 @@ mod tests {
     }
 
     #[test]
-    fn test_labelled_switch_intrinsic_size() {
+    fn test_labelled_switch_request_size() {
         use crate::layouts::ManualLayout;
         let mut text_backend = crate::test_utils::TestTextBackend;
         let mut focus = FocusSystem::new();

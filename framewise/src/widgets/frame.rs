@@ -35,7 +35,7 @@ pub mod raw {
         pub content_bounds: Rect,
     }
 
-    /// Measure a frame's intrinsic size from its spec.
+    /// Calculate a frame's size request from its spec.
     ///
     /// A frame's bounds are resolved bottom-up from its children via the
     /// `begin_frame`/`end_frame` lifecycle, so there is nothing to report yet —
@@ -231,7 +231,7 @@ pub fn begin_frame<'a, 'b, T: TextBackend, S: LayoutState, L: Layout, CF>(
     let spec = builder.defaults_from_theme(&ctx.theme).build();
     let inset = spec.style.border_width + spec.style.padding;
     let calc_spec = raw::FrameCalcSizeRequestSpec { style: spec.style };
-    let intrinsic = raw::calc_frame_intrinsic_size(&calc_spec);
+    let size_request = raw::calc_frame_intrinsic_size(&calc_spec);
 
     let policy = ctx.layout_policy;
     let violation_font = ctx.theme.sans_font;
@@ -241,7 +241,7 @@ pub fn begin_frame<'a, 'b, T: TextBackend, S: LayoutState, L: Layout, CF>(
     let layer = ctx.layer;
     let (child_ctx, _outer_space) = ctx.child_with_deferred_layout(
         layout_params,
-        intrinsic,
+        size_request,
         inner_layout,
         // Between begin_layout and child construction: stamp the provisional rect and push
         // the placeholder background/clip (so they draw beneath the children). The border

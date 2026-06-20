@@ -138,7 +138,7 @@ pub mod raw {
         (scroll_outer_height / line_height).floor().max(1.0) as usize
     }
 
-    /// Measure a text edit's intrinsic size from its current state and measurement spec.
+    /// Calculate a text edit's size request from its current state and size-request spec.
     pub fn calc_text_edit_intrinsic_size<T: TextBackend>(
         spec: &TextEditCalcSizeRequestSpec,
         state: &TextEditState,
@@ -1849,8 +1849,8 @@ pub fn text_edit<T: TextBackend, S: LayoutState, CF>(
         wrap: spec.wrap,
         line_align: spec.line_align,
     };
-    let intrinsic = raw::calc_text_edit_intrinsic_size(&calc_spec, state, ctx.text_backend);
-    let rect = ctx.layout(layout_params, intrinsic);
+    let size_request = raw::calc_text_edit_intrinsic_size(&calc_spec, state, ctx.text_backend);
+    let rect = ctx.layout(layout_params, size_request);
     let raw_spec = raw::TextEditSpec {
         rect,
         style: spec.style,

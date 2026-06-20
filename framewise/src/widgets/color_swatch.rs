@@ -26,7 +26,7 @@ pub mod raw {
         pub content_bounds: Rect,
     }
 
-    /// Measure a color swatch's intrinsic size from its spec.
+    /// Calculate a color swatch's size request from its spec.
     ///
     /// A color swatch has no inherent preferred size. This returns
     /// [`SizeRequest::UNKNOWN`].
@@ -134,8 +134,8 @@ pub fn color_swatch<T: TextBackend, S: LayoutState, CF>(
 ) -> ColorSwatchResult {
     let spec = builder.defaults_from_theme(&ctx.theme).build();
     let calc_spec = raw::ColorSwatchCalcSizeRequestSpec {};
-    let intrinsic = raw::calc_color_swatch_intrinsic_size(&calc_spec);
-    let rect = ctx.layout(layout_params, intrinsic);
+    let size_request = raw::calc_color_swatch_intrinsic_size(&calc_spec);
+    let rect = ctx.layout(layout_params, size_request);
     let raw_spec = raw::ColorSwatchSpec {
         layer: ctx.layer,
         rect,

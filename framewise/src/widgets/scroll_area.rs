@@ -61,7 +61,7 @@ pub mod raw {
         pub inner_space: LayoutSpace,
     }
 
-    /// Measure a scroll area's intrinsic size from its spec.
+    /// Calculate a scroll area's size request from its spec.
     ///
     /// A scroll area's outer extent is caller-driven (the viewport bounds come
     /// from the layout), so there is nothing to report yet — this returns
@@ -788,8 +788,8 @@ pub fn begin_scroll_area<'a, 'b, T: TextBackend, S: LayoutState, L: Layout, CF>(
 > {
     let spec = builder.defaults_from_theme(&ctx.theme).build();
     let calc_spec = raw::ScrollAreaCalcSizeRequestSpec {};
-    let intrinsic = raw::calc_scroll_area_intrinsic_size(&calc_spec);
-    let bounds = ctx.layout(layout_params, intrinsic);
+    let size_request = raw::calc_scroll_area_intrinsic_size(&calc_spec);
+    let bounds = ctx.layout(layout_params, size_request);
     let raw_spec = raw::ScrollAreaSpec {
         rect: bounds,
         horizontal: spec.horizontal,

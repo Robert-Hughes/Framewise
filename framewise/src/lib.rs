@@ -38,7 +38,9 @@ pub mod test_utils;
 
 pub use draw::{DrawCmd, DrawCommands, DrawGlyph, PreparedGlyphToken};
 pub use input::Input;
-pub use layout::{Align, AxisBound, LayoutSpace, Placement, Placement2D, Size, SizeRequest};
+pub use layout::{
+    Align, AxisBound, LayoutSpace, Placement, Placement2D, Size, SizeOffer, SizeRequest,
+};
 pub use layouts::{
     ColumnLayout, ColumnLayoutParams, ColumnState, LinearCross, LinearMain, LinearSpacer,
     MainAxisAlign, ManualLayout, ManualState, OffsetLayout, OffsetState, RowLayout,

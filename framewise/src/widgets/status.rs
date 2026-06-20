@@ -27,7 +27,7 @@ pub mod raw {
     #[derive(Debug, Clone, PartialEq)]
     pub struct StatusResult {}
 
-    /// Measure a status widget's intrinsic size from its measurement spec.
+    /// Calculate a status widget's size request from its size-request spec.
     pub fn calc_status_intrinsic_size<T: TextBackend>(
         spec: &StatusCalcSizeRequestSpec,
         text_backend: &mut T,
@@ -225,8 +225,8 @@ pub fn status<'a, T: TextBackend, S: LayoutState, CF>(
         text: spec.text,
         style: spec.style,
     };
-    let intrinsic = raw::calc_status_intrinsic_size(&calc_spec, ctx.text_backend);
-    let rect = ctx.layout(layout_params, intrinsic);
+    let size_request = raw::calc_status_intrinsic_size(&calc_spec, ctx.text_backend);
+    let rect = ctx.layout(layout_params, size_request);
     let raw_spec = raw::StatusSpec {
         rect,
         text: spec.text,

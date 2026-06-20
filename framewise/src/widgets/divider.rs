@@ -25,7 +25,7 @@ pub mod raw {
     #[derive(Debug, Clone, PartialEq)]
     pub struct DividerResult {}
 
-    /// Measure a divider's intrinsic size from its spec.
+    /// Calculate a divider's size request from its spec.
     ///
     /// A divider has no inherent preferred size. This returns
     /// [`SizeRequest::UNKNOWN`].
@@ -121,8 +121,8 @@ pub fn divider<T: TextBackend, S: LayoutState, CF>(
 ) -> DividerResult {
     let spec = builder.defaults_from_theme(&ctx.theme).build();
     let calc_spec = raw::DividerCalcSizeRequestSpec {};
-    let intrinsic = raw::calc_divider_intrinsic_size(&calc_spec);
-    let rect = ctx.layout(layout_params, intrinsic);
+    let size_request = raw::calc_divider_intrinsic_size(&calc_spec);
+    let rect = ctx.layout(layout_params, size_request);
     let raw_spec = raw::DividerSpec {
         layer: ctx.layer,
         rect,

@@ -314,7 +314,7 @@ pub(crate) fn draw_frame_page_content<'a, 'b, CF>(
             }
             dimensions_row.spacer(16.0);
 
-            // 2. Width Auto, Height Fixed (Auto width wraps to child intrinsic text width!)
+            // 2. Width Auto, Height Fixed (Auto width wraps to child text width request!)
             {
                 let FrameResult { ctx: mut sub_frame } = begin_frame(
                     &mut dimensions_row,
