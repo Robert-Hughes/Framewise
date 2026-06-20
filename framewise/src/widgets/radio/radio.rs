@@ -1,0 +1,420 @@
+use crate::{
+    draw::{DrawCmd, DrawCommands},
+    focus::{FocusId, FocusSystem},
+    input::Input,
+    layout::{LayoutState, SizeOffer, SizeRequest},
+    text::TextBackend,
+    types::{ClipRect, Color, Layer, Rect, Vec2},
+    widget::{InputInfo, LayoutInfo, WidgetContext},
+};
+
+pub mod raw {
+    use super::*;
+
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct RadioSpec {
+        pub layer: Layer,
+        /// Top-left of the 14x14 bounding area.
+        pub rect: Rect,
+        pub disabled: bool,
+        pub style: super::RadioStyle,
+        pub clip_rect: ClipRect,
+    }
+
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct RadioPreLayoutSpec {
+        pub style: super::RadioStyle,
+    }
+
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct RadioPreLayoutResult {
+        pub size_request: crate::layout::SizeRequest,
+    }
+
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct RadioResult {
+        pub input: InputInfo,
+        pub focused: bool,
+        pub content_bounds: Rect,
+    }
+
+    /// Return the size this radio button would request under `offer`.
+    ///
+    /// The current implementation ignores `offer` because this widget's request
+    /// is fixed by its style.
+    pub fn pre_layout_radio(spec: &RadioPreLayoutSpec, offer: SizeOffer) -> RadioPreLayoutResult {
+        RadioPreLayoutResult {
+            size_request: radio_size_request(spec, offer),
+        }
+    }
+
+    fn radio_size_request(spec: &RadioPreLayoutSpec, _offer: SizeOffer) -> SizeRequest {
+        SizeRequest::preferred(Vec2::new(spec.style.radius * 2.0, spec.style.radius * 2.0))
+    }
+
+    /// Low-level radio widget function.
+    ///
+    /// This is the raw implementation that takes all parameters explicitly.
+    /// High-level wrappers should use this internally.
+    pub fn post_layout_radio(
+        spec: RadioSpec,
+        _pre_layout: RadioPreLayoutResult,
+        state: &mut RadioState,
+        input: &Input,
+        focus_system: &mut FocusSystem,
+        cmds: &mut DrawCommands,
+    ) -> RadioResult {
+        let interaction = crate::widgets::widget_helpers::handle_press_interaction(
+            crate::widgets::widget_helpers::PressInteractionSpec {
+                focus_id: state.focus_id,
+                rect: spec.rect,
+                clip_rect: spec.clip_rect,
+                disabled: spec.disabled,
+                traversal_keys: crate::focus::FocusTraversalKeys::all(),
+            },
+            input,
+            focus_system,
+            &mut state.is_active,
+            &mut state.space_is_active,
+        );
+        let focused = interaction.focused;
+        let input_info = interaction.input;
+
+        if input_info.clicked {
+            state.checked = true;
+        }
+
+        let s = spec.style;
+        let alpha = if spec.disabled { s.disabled_alpha } else { 1.0 };
+        let tint = |c: Color| Color::linear_rgba(c.r, c.g, c.b, c.a * alpha);
+
+        let r = Rect::new(
+            spec.rect.x,
+            spec.rect.y + (spec.rect.h - s.radius * 2.0) * 0.5,
+            s.radius * 2.0,
+            s.radius * 2.0,
+        );
+
+        let cx = r.x + s.radius;
+        let cy = r.y + s.radius;
+        let center = Vec2::new(cx, cy);
+
+        // Focus ring (outset 2px).
+        if focused {
+            cmds.push(DrawCmd::StrokeCircle {
+                anti_alias: true,
+                center,
+                radius: s.radius + s.focus_offset + s.focus_width * 0.5,
+                color: tint(s.focus),
+                width: s.focus_width,
+                z: spec.layer.get_focus_z(),
+            });
+        }
+
+        // Background fill.
+        let fill = if state.checked {
+            crate::widgets::widget_helpers::interaction_color(
+                s.background,
+                s.selected_hovered,
+                s.selected_pressed,
+                input_info.hovered,
+                input_info.pressed,
+            )
+        } else {
+            crate::widgets::widget_helpers::interaction_color(
+                s.background,
+                s.hovered,
+                s.pressed,
+                input_info.hovered,
+                input_info.pressed,
+            )
+        };
+        cmds.push(DrawCmd::FillCircle {
+            anti_alias: true,
+            center,
+            radius: s.radius,
+            color: tint(fill),
+            z: spec.layer.get_z(),
+        });
+
+        // Outer ring.
+        cmds.push(DrawCmd::StrokeCircle {
+            anti_alias: true,
+            center,
+            radius: s.radius,
+            color: tint(s.border),
+            width: s.border_width,
+            z: spec.layer.get_z(),
+        });
+
+        // Inner dot when selected.
+        if state.checked {
+            cmds.push(DrawCmd::FillCircle {
+                anti_alias: true,
+                center,
+                radius: s.dot_radius,
+                color: tint(s.dot),
+                z: spec.layer.get_z(),
+            });
+        }
+
+        RadioResult {
+            input: input_info,
+            focused,
+            content_bounds: r.inset(s.border_width),
+        }
+    }
+}
+
+// ── Style ─────────────────────────────────────────────────────────────────────
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct RadioStyle {
+    pub radius: f32,
+    pub dot_radius: f32,
+    pub background: Color,
+    pub hovered: Color,
+    pub pressed: Color,
+    pub selected_hovered: Color,
+    pub selected_pressed: Color,
+    pub border: Color,
+    pub dot: Color,
+    pub focus: Color,
+    pub border_width: f32,
+    pub focus_width: f32,
+    pub focus_offset: f32,
+    pub disabled_alpha: f32,
+}
+
+impl RadioStyle {
+    pub fn from_theme(theme: &crate::theme::Theme) -> Self {
+        Self {
+            radius: 7.0,
+            dot_radius: 3.0,
+            background: theme.paper_elev,
+            hovered: theme.hover,
+            pressed: theme.press,
+            selected_hovered: theme.hover,
+            selected_pressed: theme.press,
+            border: theme.ink,
+            dot: theme.ink,
+            focus: theme.rust,
+            border_width: 1.5,
+            focus_width: theme.focus_width,
+            focus_offset: theme.focus_offset,
+            disabled_alpha: 0.35,
+        }
+    }
+}
+
+// ── State ─────────────────────────────────────────────────────────────────────
+
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct RadioState {
+    pub checked: bool,
+    pub is_active: bool,
+    pub space_is_active: bool,
+    pub focus_id: FocusId,
+}
+
+// ── Result ───────────────────────────────────────────────────────────────────
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct RadioResult {
+    pub layout: LayoutInfo,
+    pub input: InputInfo,
+    pub focused: bool,
+}
+
+// ── Spec ─────────────────────────────────────────────────────────────────────
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct RadioSpec {
+    pub disabled: bool,
+    pub style: RadioStyle,
+}
+
+// ── Spec Builder ─────────────────────────────────────────────────────────────
+
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct RadioSpecBuilder {
+    pub disabled: Option<bool>,
+    pub style: Option<RadioStyle>,
+}
+
+impl RadioSpecBuilder {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn disabled(mut self, disabled: bool) -> Self {
+        self.disabled = Some(disabled);
+        self
+    }
+
+    pub fn style(mut self, style: RadioStyle) -> Self {
+        self.style = Some(style);
+        self
+    }
+
+    /// Fills unset fields from `theme`. Called automatically by high-level
+    /// context functions.
+    pub fn defaults_from_theme(mut self, theme: &crate::theme::Theme) -> Self {
+        if self.style.is_none() {
+            self.style = Some(RadioStyle::from_theme(theme));
+        }
+        self
+    }
+
+    pub fn build(self) -> RadioSpec {
+        RadioSpec {
+            disabled: self.disabled.unwrap_or(false),
+            style: self
+                .style
+                .expect("style not set — call .style() or defaults_from_theme()"),
+        }
+    }
+}
+
+// ── High-level widget function ───────────────────────────────────────────────────
+
+/// High-level radio widget function using `WidgetContext`.
+///
+/// Resolves defaults, runs the raw pre-layout phase to obtain a `SizeRequest`,
+/// resolves the final rect with layout, then runs the raw post-layout phase.
+pub fn radio<T: TextBackend, S: LayoutState, CF>(
+    ctx: &mut WidgetContext<T, S, CF>,
+    builder: RadioSpecBuilder,
+    layout_params: S::Params,
+    state: &mut RadioState,
+) -> RadioResult {
+    let spec = builder.defaults_from_theme(&ctx.theme).build();
+    let pre_layout_spec = raw::RadioPreLayoutSpec { style: spec.style };
+    let offer = ctx.peek_offer(layout_params.clone());
+    let pre_layout = raw::pre_layout_radio(&pre_layout_spec, offer);
+    let rect = ctx.layout(layout_params, pre_layout.size_request);
+    let raw_spec = raw::RadioSpec {
+        layer: ctx.layer,
+        rect,
+        disabled: spec.disabled,
+        style: spec.style,
+        clip_rect: ctx.clip_rect,
+    };
+    let result = raw::post_layout_radio(
+        raw_spec,
+        pre_layout,
+        state,
+        ctx.input,
+        ctx.focus_system,
+        ctx.cmds,
+    );
+
+    RadioResult {
+        layout: LayoutInfo::new(rect, result.content_bounds),
+        input: result.input,
+        focused: result.focused,
+    }
+}
+
+/// High-level labelled radio widget function using WidgetContext.
+///
+/// This draws a radio along with a label by its side. Clicking the label
+/// behaves identically to clicking the radio, and all mouse interactions
+/// (hover, pressed, click-and-drag) span the combined bounds.
+pub fn labelled_radio<T: TextBackend, S: LayoutState, CF>(
+    ctx: &mut WidgetContext<T, S, CF>,
+    builder: RadioSpecBuilder,
+    label_text: &str,
+    layout_params: S::Params,
+    state: &mut RadioState,
+) -> RadioResult {
+    let spec = builder.defaults_from_theme(&ctx.theme).build();
+
+    // Resolve label style and measure text size
+    let mut label_style = crate::widgets::label::LabelStyle::from_theme(&ctx.theme);
+    label_style.content_placement = crate::text::TextContentPlacement::logical(
+        crate::text::ContentPlacement::Align(crate::Align::Start),
+        crate::text::ContentPlacement::Align(crate::Align::Center),
+    );
+    if spec.disabled {
+        let alpha = spec.style.disabled_alpha;
+        label_style.text_color = Color::linear_rgba(
+            label_style.text_color.r,
+            label_style.text_color.g,
+            label_style.text_color.b,
+            label_style.text_color.a * alpha,
+        );
+    }
+
+    // Query size requests using the official functions of both widgets.
+    let offer = ctx.peek_offer(layout_params.clone());
+    let radio_pre_layout_spec = raw::RadioPreLayoutSpec { style: spec.style };
+    let radio_pre_layout = raw::pre_layout_radio(&radio_pre_layout_spec, offer);
+    let radio_size = radio_pre_layout.size_request.preferred.unwrap();
+
+    let label_pre_layout_spec = crate::widgets::label::raw::LabelPreLayoutSpec {
+        text: label_text,
+        style: label_style,
+    };
+    let label_pre_layout = crate::widgets::label::raw::pre_layout_label(
+        &label_pre_layout_spec,
+        offer,
+        ctx.text_backend,
+    );
+    let label_size = label_pre_layout.size_request.preferred.unwrap();
+
+    let gap = 8.0;
+    let combined_width = radio_size.x + gap + label_size.x;
+    let combined_height = f32::max(radio_size.y, label_size.y);
+    let size_request = SizeRequest::preferred(Vec2::new(combined_width, combined_height));
+
+    // Resolve combined bounds
+    let rect = ctx.layout(layout_params, size_request);
+
+    // Run underlying radio interaction and draw control track/thumb
+    let raw_spec = raw::RadioSpec {
+        layer: ctx.layer,
+        rect, // Pass the combined bounds for unified interaction handling
+        disabled: spec.disabled,
+        style: spec.style,
+        clip_rect: ctx.clip_rect,
+    };
+    let result = raw::post_layout_radio(
+        raw_spec,
+        radio_pre_layout,
+        state,
+        ctx.input,
+        ctx.focus_system,
+        ctx.cmds,
+    );
+
+    // Draw the label text to the right of the control track
+    let label_rect = Rect::new(
+        rect.x + radio_size.x + gap,
+        rect.y,
+        rect.w - radio_size.x - gap,
+        rect.h,
+    );
+    let raw_label_spec = crate::widgets::label::raw::LabelSpec {
+        layer: ctx.layer,
+        rect: label_rect,
+        text: label_text,
+        style: label_style,
+    };
+    crate::widgets::label::raw::post_layout_label(
+        raw_label_spec,
+        label_pre_layout,
+        ctx.text_backend,
+        ctx.cmds,
+    );
+
+    RadioResult {
+        layout: LayoutInfo::new(rect, result.content_bounds),
+        input: result.input,
+        focused: result.focused,
+    }
+}
+
+#[cfg(test)]
+#[path = "radio_tests.rs"]
+mod tests;

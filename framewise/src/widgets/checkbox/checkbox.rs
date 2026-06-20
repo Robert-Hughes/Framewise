@@ -1,0 +1,490 @@
+use crate::{
+    draw::{DrawCmd, DrawCommands},
+    focus::{FocusId, FocusSystem},
+    input::Input,
+    layout::{LayoutState, SizeOffer, SizeRequest},
+    types::{ClipRect, Color, Layer, Rect, Vec2},
+    widget::{InputInfo, LayoutInfo, WidgetContext},
+    TextBackend,
+};
+
+pub mod raw {
+    use super::*;
+
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct CheckboxSpec {
+        /// Top-left of the 14x14 box.
+        pub rect: Rect,
+        pub disabled: bool,
+        pub allowed_checked_states: Vec<CheckedState>,
+        pub style: super::CheckboxStyle,
+        pub clip_rect: ClipRect,
+        pub layer: Layer,
+    }
+
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct CheckboxPreLayoutSpec {
+        pub style: super::CheckboxStyle,
+    }
+
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct CheckboxPreLayoutResult {
+        pub size_request: crate::layout::SizeRequest,
+    }
+
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct CheckboxResult {
+        pub input: InputInfo,
+        pub focused: bool,
+        pub content_bounds: Rect,
+    }
+
+    /// Return the size this checkbox would request under `offer`.
+    ///
+    /// The current implementation ignores `offer` because this widget's request
+    /// is fixed by its style.
+    pub fn pre_layout_checkbox(
+        spec: &CheckboxPreLayoutSpec,
+        offer: SizeOffer,
+    ) -> CheckboxPreLayoutResult {
+        CheckboxPreLayoutResult {
+            size_request: checkbox_size_request(spec, offer),
+        }
+    }
+
+    fn checkbox_size_request(spec: &CheckboxPreLayoutSpec, _offer: SizeOffer) -> SizeRequest {
+        SizeRequest::preferred(Vec2::new(spec.style.size, spec.style.size))
+    }
+
+    fn next_allowed_checked_state(
+        current: CheckedState,
+        allowed_checked_states: &[CheckedState],
+        advance: bool,
+    ) -> CheckedState {
+        assert!(
+            !allowed_checked_states.is_empty(),
+            "CheckboxSpec::allowed_checked_states must not be empty"
+        );
+
+        let Some(index) = allowed_checked_states
+            .iter()
+            .position(|state| *state == current)
+        else {
+            return allowed_checked_states[0];
+        };
+
+        if advance {
+            allowed_checked_states[(index + 1) % allowed_checked_states.len()]
+        } else {
+            current
+        }
+    }
+
+    /// Low-level checkbox widget function.
+    ///
+    /// This is the raw implementation that takes all parameters explicitly.
+    /// High-level wrappers should use this internally.
+    pub fn post_layout_checkbox(
+        spec: CheckboxSpec,
+        _pre_layout: CheckboxPreLayoutResult,
+        state: &mut CheckboxState,
+        input: &Input,
+        focus_system: &mut FocusSystem,
+        cmds: &mut DrawCommands,
+    ) -> CheckboxResult {
+        let interaction = crate::widgets::widget_helpers::handle_press_interaction(
+            crate::widgets::widget_helpers::PressInteractionSpec {
+                focus_id: state.focus_id,
+                rect: spec.rect,
+                clip_rect: spec.clip_rect,
+                disabled: spec.disabled,
+                traversal_keys: crate::focus::FocusTraversalKeys::all(),
+            },
+            input,
+            focus_system,
+            &mut state.is_active,
+            &mut state.space_is_active,
+        );
+        let focused = interaction.focused;
+        let input_info = interaction.input;
+
+        state.checked = next_allowed_checked_state(
+            state.checked,
+            &spec.allowed_checked_states,
+            input_info.clicked,
+        );
+
+        let s = spec.style;
+        let alpha = if spec.disabled { s.disabled_alpha } else { 1.0 };
+        let tint = |c: Color| Color::linear_rgba(c.r, c.g, c.b, c.a * alpha);
+
+        let r = Rect::new(
+            spec.rect.x,
+            spec.rect.y + (spec.rect.h - s.size) * 0.5,
+            s.size,
+            s.size,
+        );
+
+        // Focus ring (outset 2px).
+        if focused {
+            cmds.push(DrawCmd::StrokeRect {
+                anti_alias: false,
+                rect: r.inset(-(s.focus_offset + s.focus_width)),
+                color: tint(s.focus),
+                width: s.focus_width,
+                z: spec.layer.get_focus_z(),
+            });
+        }
+
+        // Box fill.
+        let fill = match state.checked {
+            CheckedState::Unchecked => crate::widgets::widget_helpers::interaction_color(
+                s.background,
+                s.hovered,
+                s.pressed,
+                input_info.hovered,
+                input_info.pressed,
+            ),
+            _ => crate::widgets::widget_helpers::interaction_color(
+                s.selected_fill,
+                s.selected_hovered,
+                s.selected_pressed,
+                input_info.hovered,
+                input_info.pressed,
+            ),
+        };
+        cmds.push(DrawCmd::FillRect {
+            anti_alias: false,
+            rect: r,
+            color: tint(fill),
+            z: spec.layer.get_z(),
+        });
+
+        // Box border.
+        cmds.push(DrawCmd::StrokeRect {
+            anti_alias: false,
+            rect: r,
+            color: tint(s.border),
+            width: s.border_width,
+            z: spec.layer.get_z(),
+        });
+
+        // Inner mark.
+        match state.checked {
+            CheckedState::Checked => {
+                // Checkmark: two lines forming a tick (v).
+                let p0 = Vec2::new(r.x + 2.5, r.y + 7.0);
+                let p1 = Vec2::new(r.x + 5.5, r.y + 10.5);
+                let p2 = Vec2::new(r.x + 11.5, r.y + 4.0);
+                let mark = tint(s.mark);
+                cmds.push(DrawCmd::StrokeLine {
+                    anti_alias: true,
+                    p0,
+                    p1,
+                    color: mark,
+                    width: s.mark_width,
+                    z: spec.layer.get_z(),
+                });
+                cmds.push(DrawCmd::StrokeLine {
+                    anti_alias: true,
+                    p0: p1,
+                    p1: p2,
+                    color: mark,
+                    width: s.mark_width,
+                    z: spec.layer.get_z(),
+                });
+            }
+            CheckedState::Indeterminate => {
+                // Horizontal dash.
+                cmds.push(DrawCmd::FillRect {
+                    anti_alias: false,
+                    rect: Rect::new(r.x + 2.0, r.y + 6.0, 10.0, 2.0),
+                    color: tint(s.mark),
+                    z: spec.layer.get_z(),
+                });
+            }
+            CheckedState::Unchecked => {}
+        }
+
+        CheckboxResult {
+            input: input_info,
+            focused,
+            content_bounds: r.inset(s.border_width),
+        }
+    }
+}
+
+// ── Style ─────────────────────────────────────────────────────────────────────
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct CheckboxStyle {
+    pub size: f32,
+    pub background: Color,
+    pub hovered: Color,
+    pub pressed: Color,
+    pub selected_fill: Color,
+    pub selected_hovered: Color,
+    pub selected_pressed: Color,
+    pub border: Color,
+    pub mark: Color,
+    pub focus: Color,
+    pub border_width: f32,
+    pub mark_width: f32,
+    pub focus_width: f32,
+    pub focus_offset: f32,
+    pub disabled_alpha: f32,
+}
+
+impl CheckboxStyle {
+    pub fn from_theme(theme: &crate::theme::Theme) -> Self {
+        Self {
+            size: 14.0,
+            background: theme.paper_elev,
+            hovered: theme.hover,
+            pressed: theme.press,
+            selected_fill: theme.ink,
+            selected_hovered: Color::BLACK,
+            selected_pressed: Color::from_srgb_u8(42, 37, 32, 255),
+            border: theme.ink,
+            mark: theme.paper,
+            focus: theme.rust,
+            border_width: 1.0,
+            mark_width: 1.5,
+            focus_width: theme.focus_width,
+            focus_offset: theme.focus_offset,
+            disabled_alpha: 0.35,
+        }
+    }
+}
+
+// ── State ─────────────────────────────────────────────────────────────────────
+
+#[derive(Debug, Clone, Copy, PartialEq, Default)]
+pub enum CheckedState {
+    #[default]
+    Unchecked,
+    Checked,
+    Indeterminate,
+}
+
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct CheckboxState {
+    pub checked: CheckedState,
+    /// True if the mouse was pressed while hovering this checkbox, until the mouse is released.
+    pub is_active: bool,
+    pub space_is_active: bool,
+    pub focus_id: FocusId,
+}
+
+// ── Result ───────────────────────────────────────────────────────────────────
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct CheckboxResult {
+    pub layout: LayoutInfo,
+    pub input: InputInfo,
+    pub focused: bool,
+}
+
+// ── Spec ─────────────────────────────────────────────────────────────────────
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct CheckboxSpec {
+    pub disabled: bool,
+    pub allowed_checked_states: Vec<CheckedState>,
+    pub style: CheckboxStyle,
+}
+
+// ── Spec Builder ─────────────────────────────────────────────────────────────
+
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct CheckboxSpecBuilder {
+    pub disabled: Option<bool>,
+    pub allowed_checked_states: Option<Vec<CheckedState>>,
+    pub style: Option<CheckboxStyle>,
+}
+impl CheckboxSpecBuilder {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn disabled(mut self, disabled: bool) -> Self {
+        self.disabled = Some(disabled);
+        self
+    }
+
+    pub fn style(mut self, style: CheckboxStyle) -> Self {
+        self.style = Some(style);
+        self
+    }
+
+    pub fn allowed_checked_states(mut self, allowed_checked_states: Vec<CheckedState>) -> Self {
+        self.allowed_checked_states = Some(allowed_checked_states);
+        self
+    }
+
+    /// Fills unset fields from `theme`. Called automatically by high-level
+    /// context functions.
+    pub fn defaults_from_theme(mut self, theme: &crate::theme::Theme) -> Self {
+        if self.style.is_none() {
+            self.style = Some(CheckboxStyle::from_theme(theme));
+        }
+        self
+    }
+
+    pub fn build(self) -> CheckboxSpec {
+        CheckboxSpec {
+            disabled: self.disabled.unwrap_or(false),
+            allowed_checked_states: self
+                .allowed_checked_states
+                .unwrap_or_else(|| vec![CheckedState::Unchecked, CheckedState::Checked]),
+            style: self
+                .style
+                .expect("style not set — call .style() or defaults_from_theme()"),
+        }
+    }
+}
+
+// ── High-level widget function ───────────────────────────────────────────────────
+
+/// High-level checkbox widget function using `WidgetContext`.
+///
+/// Resolves defaults, runs the raw pre-layout phase to obtain a `SizeRequest`,
+/// resolves the final rect with layout, then runs the raw post-layout phase.
+pub fn checkbox<T: TextBackend, S: LayoutState, CF>(
+    ctx: &mut WidgetContext<T, S, CF>,
+    builder: CheckboxSpecBuilder,
+    layout_params: S::Params,
+    state: &mut CheckboxState,
+) -> CheckboxResult {
+    let spec = builder.defaults_from_theme(&ctx.theme).build();
+    let pre_layout_spec = raw::CheckboxPreLayoutSpec { style: spec.style };
+    let offer = ctx.peek_offer(layout_params.clone());
+    let pre_layout = raw::pre_layout_checkbox(&pre_layout_spec, offer);
+    let rect = ctx.layout(layout_params, pre_layout.size_request);
+    let raw_spec = raw::CheckboxSpec {
+        rect,
+        disabled: spec.disabled,
+        allowed_checked_states: spec.allowed_checked_states,
+        style: spec.style,
+        clip_rect: ctx.clip_rect,
+        layer: ctx.layer,
+    };
+    let result = raw::post_layout_checkbox(
+        raw_spec,
+        pre_layout,
+        state,
+        ctx.input,
+        ctx.focus_system,
+        ctx.cmds,
+    );
+
+    CheckboxResult {
+        layout: LayoutInfo::new(rect, result.content_bounds),
+        input: result.input,
+        focused: result.focused,
+    }
+}
+
+/// High-level labelled checkbox widget function using WidgetContext.
+///
+/// This draws a checkbox along with a label by its side. Clicking the label
+/// behaves identically to clicking the checkbox, and all mouse interactions
+/// (hover, pressed, click-and-drag) span the combined bounds.
+pub fn labelled_checkbox<T: TextBackend, S: LayoutState, CF>(
+    ctx: &mut WidgetContext<T, S, CF>,
+    builder: CheckboxSpecBuilder,
+    label_text: &str,
+    layout_params: S::Params,
+    state: &mut CheckboxState,
+) -> CheckboxResult {
+    let spec = builder.defaults_from_theme(&ctx.theme).build();
+
+    // Resolve label style and measure text size
+    let mut label_style = crate::widgets::label::LabelStyle::from_theme(&ctx.theme);
+    label_style.content_placement = crate::text::TextContentPlacement::logical(
+        crate::text::ContentPlacement::Align(crate::Align::Start),
+        crate::text::ContentPlacement::Align(crate::Align::Center),
+    );
+    if spec.disabled {
+        let alpha = spec.style.disabled_alpha;
+        label_style.text_color = Color::linear_rgba(
+            label_style.text_color.r,
+            label_style.text_color.g,
+            label_style.text_color.b,
+            label_style.text_color.a * alpha,
+        );
+    }
+
+    // Query size requests using the official functions of both widgets.
+    let offer = ctx.peek_offer(layout_params.clone());
+    let checkbox_pre_layout_spec = raw::CheckboxPreLayoutSpec { style: spec.style };
+    let checkbox_pre_layout = raw::pre_layout_checkbox(&checkbox_pre_layout_spec, offer);
+    let checkbox_size = checkbox_pre_layout.size_request.preferred.unwrap();
+
+    let label_pre_layout_spec = crate::widgets::label::raw::LabelPreLayoutSpec {
+        text: label_text,
+        style: label_style,
+    };
+    let label_pre_layout = crate::widgets::label::raw::pre_layout_label(
+        &label_pre_layout_spec,
+        offer,
+        ctx.text_backend,
+    );
+    let label_size = label_pre_layout.size_request.preferred.unwrap();
+
+    let gap = 8.0;
+    let combined_width = checkbox_size.x + gap + label_size.x;
+    let combined_height = f32::max(checkbox_size.y, label_size.y);
+    let size_request = SizeRequest::preferred(Vec2::new(combined_width, combined_height));
+
+    // Resolve combined bounds
+    let rect = ctx.layout(layout_params, size_request);
+
+    // Run underlying checkbox interaction and draw control box
+    let raw_spec = raw::CheckboxSpec {
+        rect, // Pass the combined bounds for unified interaction handling
+        disabled: spec.disabled,
+        allowed_checked_states: spec.allowed_checked_states,
+        style: spec.style,
+        clip_rect: ctx.clip_rect,
+        layer: ctx.layer,
+    };
+    let result = raw::post_layout_checkbox(
+        raw_spec,
+        checkbox_pre_layout,
+        state,
+        ctx.input,
+        ctx.focus_system,
+        ctx.cmds,
+    );
+
+    // Draw the label text to the right of the control box
+    let label_rect = Rect::new(
+        rect.x + checkbox_size.x + gap,
+        rect.y,
+        rect.w - checkbox_size.x - gap,
+        rect.h,
+    );
+    let raw_label_spec = crate::widgets::label::raw::LabelSpec {
+        layer: ctx.layer,
+        rect: label_rect,
+        text: label_text,
+        style: label_style,
+    };
+    crate::widgets::label::raw::post_layout_label(
+        raw_label_spec,
+        label_pre_layout,
+        ctx.text_backend,
+        ctx.cmds,
+    );
+
+    CheckboxResult {
+        layout: LayoutInfo::new(rect, result.content_bounds),
+        input: result.input,
+        focused: result.focused,
+    }
+}
+
+#[cfg(test)]
+#[path = "checkbox_tests.rs"]
+mod tests;
