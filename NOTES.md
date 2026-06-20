@@ -5,9 +5,8 @@ Working notes, TODOs, open questions, and half-baked ideas.
 ## Current Work
 
 - Text Edit
-  - the ASCII art tables of wrapping examples in DESIGN.md (showing soft-wrap collapsed spaces etc.) are a nice compact form - use these directly for tests?
   - text_edit tests are very long! Many TextBackend implementations (search "impl TextBackend for"). Reduce duplication, use a common backend?
-  - Probably need a full review of the DESIGN.md, code and doc-comments for the text interface to make sure it's consistent, not overly repetitive and is watertight and leaves no ambiguity for how wrapping, spaces etc. are handled.
+  - Probably need a full review of the DESIGN.md, code and doc-comments for the text layout interface to make sure it's consistent, not overly repetitive and is watertight and leaves no ambiguity for how wrapping, spaces etc. are handled.
 
 - Slider styling - two modes/enum variants for scrollbar vs. regular?
 - Consistency for styling of lines across all widgets - rather than separate width and colour, have a enum which is None or width+colour? Some kind of 'stroke' struct/enum?

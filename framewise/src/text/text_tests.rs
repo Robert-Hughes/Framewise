@@ -291,7 +291,18 @@ fn assert_wrap_diagram_invariants(
         let layout_soft_wrap_boundaries = line
             .clusters
             .iter()
-            .filter(|cluster| cluster.is_soft_wrap_boundary)
+            .filter(|cluster| {
+                if cluster.is_soft_wrap_boundary {
+                    let source = &text[cluster.byte_start..cluster.byte_end];
+                    assert!(
+                        source.chars().all(char::is_whitespace),
+                        "{case_name}: line {line_idx} soft-wrap boundary should be source whitespace"
+                    );
+                    true
+                } else {
+                    false
+                }
+            })
             .count();
         assert_eq!(
             layout_soft_wrap_boundaries, diagram_soft_wrap_boundaries,
@@ -2270,28 +2281,23 @@ fn oversized_word_cluster_fallback_drop_stops_after_unfittable_cluster() {
 }
 
 #[test]
-fn oversized_word_cluster_fallback_open_tail_accepts_following_space() {
-    let layout = layout("abcde f", wrap_word_cluster_drop(), TextBounds::width(16.1));
-
-    assert_eq!(visual_lines(&layout), ["ab", "cd", "e", "f"]);
-    assert_line_ranges(&layout, &[(0, 2), (2, 4), (4, 6), (6, 7)]);
-    assert!(
-        layout.lines[2]
-            .clusters
-            .last()
-            .unwrap()
-            .is_soft_wrap_boundary
-    );
-}
-
-#[test]
-fn oversized_word_cluster_fallback_terminal_space_creates_empty_line() {
-    let layout = layout("abcdef ", wrap_word_cluster_drop(), TextBounds::width(16.1));
-
-    assert_eq!(visual_lines(&layout), ["ab", "cd", "ef", ""]);
-    assert_line_ranges(&layout, &[(0, 2), (2, 4), (4, 7), (7, 7)]);
-    assert_eq!(layout.lines[2].end_kind, LineEndKind::SoftWrapWhitespace);
-    assert_eq!(layout.lines[3].end_kind, LineEndKind::EndOfText);
+fn oversized_word_fallback_wrapping_diagrams() {
+    for case in [
+        WrapDiagramCase {
+            name: "oversized word fallback open tail accepts following space",
+            width_cols: 2,
+            input: "abcde f",
+            expected: &["ab", "cd", "e~", "f"],
+        },
+        WrapDiagramCase {
+            name: "oversized word fallback terminal space creates empty line",
+            width_cols: 2,
+            input: "abcdef ",
+            expected: &["ab", "cd", "ef~", ""],
+        },
+    ] {
+        assert_wrap_diagram(case);
+    }
 }
 
 #[test]
@@ -2372,22 +2378,6 @@ fn test_newline_wrapping_collapse() {
 
     assert_eq!(layout.lines[0].end_kind, LineEndKind::HardNewline);
     assert!(layout.metrics().line_count >= 3);
-}
-
-#[test]
-fn soft_wrap_collapses_fitted_boundary_space_before_next_word() {
-    let flow = wrap_word_cluster_drop();
-    let wrap_w = line_width("hello ", flow) + 0.1;
-    let layout = layout("hello world", flow, TextBounds::width(wrap_w));
-
-    assert_eq!(layout.lines[0].logical_width, line_width("hello", flow));
-    assert!(
-        layout.lines[0]
-            .clusters
-            .last()
-            .unwrap()
-            .is_soft_wrap_boundary
-    );
 }
 
 #[test]
