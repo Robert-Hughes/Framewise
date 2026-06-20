@@ -637,7 +637,13 @@ pub mod raw {
         let is_visible = spec
             .clip_rect
             .is_none_or(|clip| clip.contains(input.mouse_pos));
-        let contains_raw = spec.rect.contains(input.mouse_pos) && is_visible;
+
+        // Hit-test the editable/scrollable interior, not the decorative border.
+        // Otherwise the border strip beside an internal scrollbar can make the text edit
+        // look hovered for a brief flicker as the cursor moves onto the scrollbar from outside.
+        let hit_rect = text_edit_scroll_outer_rect(&spec);
+        let contains_raw = hit_rect.contains(input.mouse_pos) && is_visible;
+
         if contains_raw {
             focus_system.claim_hover(state.focus_id);
         }
@@ -4144,28 +4150,58 @@ mod tests {
     #[test]
     fn test_text_edit_visual_hover_background() {
         let mut text_backend = TestTextBackend;
-        let mut state = TextEditState::new("hello");
-        let input = Input {
-            mouse_pos: Vec2::new(100.0, 15.0),
-            ..Input::default()
-        };
-        let mut focus_system = FocusSystem::new_mocked(None, Some(state.focus_id));
-        let mut cmds = DrawCommands::new();
 
-        raw::post_layout_text_edit(
-            spec(),
-            raw::post_layout_only_pre_layout_result(&mut state),
-            &mut state,
-            &input,
-            &mut focus_system,
-            &mut text_backend,
-            &mut cmds,
-        );
+        {
+            let mut state = TextEditState::new("hello");
+            let input = Input {
+                mouse_pos: Vec2::new(100.0, 15.0),
+                ..Input::default()
+            };
+            let mut focus_system = FocusSystem::new_mocked(None, Some(state.focus_id));
+            let mut cmds = DrawCommands::new();
 
-        assert!(matches!(
-            cmds.iter().next(),
-            Some(DrawCmd::FillRect { color, .. }) if *color == spec().style.background_hovered
-        ));
+            raw::post_layout_text_edit(
+                spec(),
+                raw::post_layout_only_pre_layout_result(&mut state),
+                &mut state,
+                &input,
+                &mut focus_system,
+                &mut text_backend,
+                &mut cmds,
+            );
+
+            assert!(matches!(
+                cmds.iter().next(),
+                Some(DrawCmd::FillRect { color, .. }) if *color == spec().style.background_hovered
+            ));
+        }
+
+        {
+            let mut state = TextEditState::new("hello");
+            let input = Input {
+                // Inside the outer text edit rect, but inside the 1px border,
+                // not inside text_edit_scroll_outer_rect().
+                mouse_pos: Vec2::new(0.5, 15.0),
+                ..Input::default()
+            };
+            let mut focus_system = FocusSystem::new_mocked(None, Some(state.focus_id));
+            let mut cmds = DrawCommands::new();
+
+            raw::post_layout_text_edit(
+                spec(),
+                raw::post_layout_only_pre_layout_result(&mut state),
+                &mut state,
+                &input,
+                &mut focus_system,
+                &mut text_backend,
+                &mut cmds,
+            );
+
+            assert!(matches!(
+                cmds.iter().next(),
+                Some(DrawCmd::FillRect { color, .. }) if *color == spec().style.background
+            ));
+        }
     }
 
     #[test]
@@ -5255,7 +5291,10 @@ mod tests {
         state.had_keyboard_focus = true;
         focus_system.take_keyboard_focus(state.focus_id);
 
-        let mut input = Input::default();
+        let mut input = Input {
+            mouse_pos: Vec2::new(5.0, 9.0),
+            ..Input::default()
+        };
         let mut cmds = DrawCommands::new();
 
         let edit_spec = TextEditSpec {

@@ -5,9 +5,6 @@ Working notes, TODOs, open questions, and half-baked ideas.
 ## Current Work
 
 - Text Edit
-  - scrollbars for text edits don't match the normal theme (see spec page scroll areas)! This is somewhat deliberate?
-  - With scrollbar, there's a pixel or so outside the scrollbar but still inside the text_edit, so we get hovering highlight. But when over the scrollbar itself we don't get the hover! So it can flicker
-
   - check all the combinations of \n handling, wrapping, height etc. are meaningful (even if degenerate), to see if we want to tighten it up at all
     - newline policy, wrap, alignment (vertical and horizontal)
     - add to demo page?
@@ -342,7 +339,8 @@ The "App-Managed State" option would require either a trait layer (so the widget
 - user-sizing using drag handle (height and/or width). Re-use 'splitter'/dragging infrastructure (doesn't exist yet!)
 - 'Enter key policy' - does it insert a newline (depending on the NewlinePolicy) or 'submit' the form/dialog? Perhaps shift/ctrl/enter is needed, to make a newline, or maybe that's how you submit instead?
 - tab alignment within text. Maybe need a 'tab policy' like we could for Enter key?
-
+- Should disabled overflowing text still show scrollbars?
+- Should clicking on the scrollbar area of a text_edit set focus to the text edit?
 
 
 ## Splitters
