@@ -495,9 +495,13 @@ fn draw_text_edit_fake_state<T: TextBackend, LS: LayoutState, CF>(
             wrap: spec.wrap,
             line_align: spec.line_align,
             error: spec.error,
+            disabled: spec.disabled,
+            newline_policy: spec.newline_policy,
         },
         framewise::layout::SizeOffer::UNBOUNDED,
-        &state,
+        &mut state,
+        &fake_input,
+        &dummy_focus_sys,
         b.text_backend,
     );
     framewise::widgets::text_edit::raw::post_layout_text_edit(
