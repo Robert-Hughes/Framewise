@@ -4,7 +4,6 @@ Working notes, TODOs, open questions, and half-baked ideas.
 
 ## Current Work
 
-
 - Text Edit
   - auto-sizing to height of text (like VS Code commit message)
     - add auto-sizing width & height to demo page (width up to a max, then wraps)
@@ -27,6 +26,8 @@ Working notes, TODOs, open questions, and half-baked ideas.
 
 - Slider styling - two modes/enum variants for scrollbar vs. regular?
 - Consistency for styling of lines across all widgets - rather than separate width and colour, have a enum which is None or width+colour? Some kind of 'stroke' struct/enum?
+
+- Consider splitting widget tests into their own files?
 
 - Go through the spec_page, check/implement/test each widget/aspect to make better match the mock-up and add interactivity as we go (https://claude.ai/design/p/1aab4e86-cbf2-497e-b379-44cf41de2b12?file=Framewise+Widgets.html)
   - Done 01 and 03

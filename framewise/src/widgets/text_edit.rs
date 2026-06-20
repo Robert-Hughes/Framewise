@@ -43,6 +43,7 @@ pub mod raw {
         pub style: super::TextEditStyle,
         pub wrap: bool,
         pub line_align: TextLineAlign,
+        pub error: bool,
     }
 
     #[derive(Debug, Clone, PartialEq)]
@@ -138,23 +139,73 @@ pub mod raw {
         (scroll_outer_height / line_height).floor().max(1.0) as usize
     }
 
-    /// Return the size this text edit would request under `offer` and its current state.
+    pub(super) fn text_edit_scroll_outer_width(
+        outer_width: f32,
+        style: TextEditStyle,
+        error: bool,
+    ) -> f32 {
+        let mut w = (outer_width - style.border_width * 2.0).max(0.0);
+        if error {
+            w = (w - style.error_stripe_width).max(0.0);
+        }
+        w
+    }
+
+    pub(super) fn text_edit_available_text_width(
+        scroll_outer_width: f32,
+        style: TextEditStyle,
+    ) -> f32 {
+        (scroll_outer_width - 2.0 * style.padding_x).max(0.0)
+    }
+
+    pub(super) fn text_edit_reserved_vertical_width(
+        reserve_vertical_scrollbar: bool,
+        available_text_width: f32,
+    ) -> f32 {
+        if reserve_vertical_scrollbar && available_text_width > TEXT_EDIT_SCROLLBAR_WIDTH * 2.0 {
+            TEXT_EDIT_SCROLLBAR_WIDTH
+        } else {
+            0.0
+        }
+    }
+
+    pub(super) fn text_edit_content_width(
+        available_text_width: f32,
+        reserve_vertical_scrollbar: bool,
+    ) -> f32 {
+        let reserved =
+            text_edit_reserved_vertical_width(reserve_vertical_scrollbar, available_text_width);
+        (available_text_width - reserved).max(0.0)
+    }
+
+    // The sizing path and interactive layout path must agree on how much
+    // horizontal space is consumed by border, error stripe, padding, and the
+    // reserved vertical scrollbar gutter. Otherwise an auto-sized wrapped
+    // TextEdit can request a width based on one content width, then be laid out
+    // with a different content width and rewrap immediately.
     pub fn size_text_edit<T: TextBackend>(
         spec: &TextEditSizeSpec,
         offer: SizeOffer,
         state: &TextEditState,
         text_backend: &mut T,
     ) -> SizeRequest {
-        let max_width = if spec.wrap {
+        let (max_width, reserved_vertical_width) = if spec.wrap {
             match offer.width {
                 AxisBound::Exact(w) | AxisBound::AtMost(w) => {
-                    let text_w = w - (spec.style.border_width + spec.style.padding_x) * 2.0;
-                    Some(text_w.max(0.0))
+                    let scroll_outer_width =
+                        text_edit_scroll_outer_width(w, spec.style, spec.error);
+                    let available_text_width =
+                        text_edit_available_text_width(scroll_outer_width, spec.style);
+                    let reserve_scrollbar = true;
+                    let reserved =
+                        text_edit_reserved_vertical_width(reserve_scrollbar, available_text_width);
+                    let cw = text_edit_content_width(available_text_width, reserve_scrollbar);
+                    (Some(cw), reserved)
                 }
-                AxisBound::Unbounded => None,
+                AxisBound::Unbounded => (None, TEXT_EDIT_SCROLLBAR_WIDTH),
             }
         } else {
-            None
+            (None, 0.0)
         };
 
         let layout = layout_text(
@@ -167,8 +218,16 @@ pub mod raw {
             },
         );
         let metrics = layout.metrics();
+
+        let mut preferred_width =
+            metrics.logical_size.x + spec.style.padding_x * 2.0 + spec.style.border_width * 2.0;
+        if spec.error {
+            preferred_width += spec.style.error_stripe_width;
+        }
+        preferred_width += reserved_vertical_width;
+
         SizeRequest::preferred(Vec2::new(
-            metrics.logical_size.x + (spec.style.border_width + spec.style.padding_x) * 2.0,
+            preferred_width,
             (metrics.logical_size.y + (spec.style.border_width + spec.style.padding_y) * 2.0)
                 .max(spec.style.min_height),
         ))
@@ -1053,7 +1112,7 @@ pub mod raw {
         pub layout: TextLayout<G>,
     }
 
-    fn text_edit_scroll_outer_rect(spec: &TextEditSpec) -> Rect {
+    pub(super) fn text_edit_scroll_outer_rect(spec: &TextEditSpec) -> Rect {
         let mut scroll_outer_rect = spec.rect.inset(spec.style.border_width);
         if spec.error {
             scroll_outer_rect.x += spec.style.error_stripe_width;
@@ -1114,15 +1173,10 @@ pub mod raw {
             text_backend,
             scroll_outer_rect,
         );
-        let available_text_width = (scroll_outer_rect.w - 2.0 * spec.style.padding_x).max(0.0);
-        let reserved_vertical_width = if reserve_vertical_scrollbar
-            && available_text_width > TEXT_EDIT_SCROLLBAR_WIDTH * 2.0
-        {
-            TEXT_EDIT_SCROLLBAR_WIDTH
-        } else {
-            0.0
-        };
-        let content_width = (available_text_width - reserved_vertical_width).max(0.0);
+        let scroll_outer_width = text_edit_scroll_outer_width(spec.rect.w, spec.style, spec.error);
+        let available_text_width = text_edit_available_text_width(scroll_outer_width, spec.style);
+        let content_width =
+            text_edit_content_width(available_text_width, reserve_vertical_scrollbar);
 
         let layout = if spec.wrap {
             crate::text::layout_text(
@@ -1881,6 +1935,7 @@ pub fn text_edit<T: TextBackend, S: LayoutState, CF>(
         style: spec.style,
         wrap: spec.wrap,
         line_align: spec.line_align,
+        error: spec.error,
     };
     let offer = ctx.peek_offer(layout_params.clone());
     let size_request = raw::size_text_edit(&size_spec, offer, state, ctx.text_backend);
@@ -7181,6 +7236,7 @@ mod tests {
             style: spec.style,
             wrap: spec.wrap,
             line_align: spec.line_align,
+            error: spec.error,
         };
 
         let state = TextEditState::new("abcdefghijklmnopqrst");
@@ -7226,5 +7282,165 @@ mod tests {
         );
 
         assert_eq!(caret_byte(&state), 1);
+    }
+
+    #[test]
+    fn test_size_text_edit_geometry_deductions() {
+        let mut text_backend = TestTextBackend;
+        let mut style = TextEditStyle::from_theme(&crate::theme::Theme::framewise());
+        style.border_width = 2.0;
+        style.padding_x = 4.0;
+        style.error_stripe_width = 8.0;
+
+        let state = TextEditState::new("abcdefghij"); // 10 chars * 8px = 80px
+
+        // A. Wrapped bounded offer accounts for padding and border
+        let size_spec_a = raw::TextEditSizeSpec {
+            style,
+            wrap: true,
+            line_align: TextLineAlign::Start,
+            error: false,
+        };
+        let size_a = raw::size_text_edit(
+            &size_spec_a,
+            SizeOffer::new(AxisBound::AtMost(100.0), AxisBound::Unbounded),
+            &state,
+            &mut text_backend,
+        );
+        assert_eq!(size_a.preferred.unwrap().x, 97.0);
+
+        // B. Wrapped bounded offer accounts for vertical scrollbar gutter
+        let size_b = raw::size_text_edit(
+            &size_spec_a,
+            SizeOffer::new(AxisBound::AtMost(88.0), AxisBound::Unbounded),
+            &state,
+            &mut text_backend,
+        );
+        assert!(size_b.preferred.unwrap().y > size_a.preferred.unwrap().y);
+
+        // C. Wrapped narrow bounded offer honours the gutter threshold
+        let size_c = raw::size_text_edit(
+            &size_spec_a,
+            SizeOffer::new(AxisBound::AtMost(20.0), AxisBound::Unbounded),
+            &state,
+            &mut text_backend,
+        );
+        assert_eq!(size_c.preferred.unwrap().x, 20.0);
+
+        // D. Error state affects sizing
+        let size_spec_d = raw::TextEditSizeSpec {
+            style,
+            wrap: true,
+            line_align: TextLineAlign::Start,
+            error: true,
+        };
+        let size_d = raw::size_text_edit(
+            &size_spec_d,
+            SizeOffer::new(AxisBound::AtMost(100.0), AxisBound::Unbounded),
+            &state,
+            &mut text_backend,
+        );
+        assert!(size_d.preferred.unwrap().y > size_a.preferred.unwrap().y);
+        assert_eq!(size_d.preferred.unwrap().x, 97.0);
+
+        // E. Non-error state does not include error stripe
+        let state_short = TextEditState::new("abc"); // 3 chars = 24px
+        let size_spec_non_error = raw::TextEditSizeSpec {
+            style,
+            wrap: true,
+            line_align: TextLineAlign::Start,
+            error: false,
+        };
+        let size_spec_error = raw::TextEditSizeSpec {
+            style,
+            wrap: true,
+            line_align: TextLineAlign::Start,
+            error: true,
+        };
+        let size_non_error = raw::size_text_edit(
+            &size_spec_non_error,
+            SizeOffer::new(AxisBound::AtMost(100.0), AxisBound::Unbounded),
+            &state_short,
+            &mut text_backend,
+        );
+        let size_error = raw::size_text_edit(
+            &size_spec_error,
+            SizeOffer::new(AxisBound::AtMost(100.0), AxisBound::Unbounded),
+            &state_short,
+            &mut text_backend,
+        );
+        assert_eq!(
+            size_error.preferred.unwrap().x - size_non_error.preferred.unwrap().x,
+            style.error_stripe_width
+        );
+
+        // F. Unwrapped sizing is not accidentally changed
+        let size_spec_f = raw::TextEditSizeSpec {
+            style,
+            wrap: false,
+            line_align: TextLineAlign::Start,
+            error: false,
+        };
+        let size_f = raw::size_text_edit(
+            &size_spec_f,
+            SizeOffer::new(AxisBound::AtMost(100.0), AxisBound::Unbounded),
+            &state,
+            &mut text_backend,
+        );
+        assert_eq!(size_f.preferred.unwrap().x, 92.0);
+
+        // G. Shared-helper equivalence test
+        for wrap in [true, false] {
+            let mut spec_g = spec();
+            spec_g.wrap = wrap;
+            let scroll_outer_width =
+                raw::text_edit_scroll_outer_width(spec_g.rect.w, spec_g.style, spec_g.error);
+            let available_text_width =
+                raw::text_edit_available_text_width(scroll_outer_width, spec_g.style);
+            let reserved_scrollbar = raw::should_reserve_vertical_scrollbar_gutter(
+                "abcdef",
+                &spec_g,
+                TextStyle::new(
+                    spec_g.style.font,
+                    14.0,
+                    crate::theme::Theme::framewise().sans_weight_regular,
+                    TextFlow::single_line(),
+                ),
+                &mut text_backend,
+                raw::text_edit_scroll_outer_rect(&spec_g),
+            );
+            let reserved_vertical_width =
+                raw::text_edit_reserved_vertical_width(reserved_scrollbar, available_text_width);
+            let content_width =
+                raw::text_edit_content_width(available_text_width, reserved_scrollbar);
+
+            let prepared_g = raw::prepare_text_edit_layout(
+                "abcdef",
+                &spec_g,
+                TextStyle::new(
+                    spec_g.style.font,
+                    14.0,
+                    crate::theme::Theme::framewise().sans_weight_regular,
+                    TextFlow::single_line(),
+                ),
+                &mut text_backend,
+            );
+
+            assert_eq!(
+                available_text_width,
+                (prepared_g.scroll_outer_rect.w - 2.0 * spec_g.style.padding_x).max(0.0)
+            );
+            assert_eq!(
+                reserved_vertical_width,
+                if prepared_g.reserved_vertical_scrollbar {
+                    5.0
+                } else {
+                    0.0
+                }
+            );
+            if wrap {
+                assert_eq!(content_width, prepared_g.layout_width);
+            }
+        }
     }
 }
