@@ -30,10 +30,15 @@ pub struct PrepareGlyphRequest<G> {
 /// Backend-provided vertical metrics for laying out one text line.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct TextLineLayoutMetrics {
-    /// Distance between consecutive line tops.
-    pub line_height: f32,
-    /// Distance from the line top to the baseline.
-    pub baseline_offset: f32,
+    /// Distance between consecutive line tops, in whole logical pixels.
+    ///
+    /// Must be at least 1.
+    pub line_height: u32,
+
+    /// Distance from the line top to the baseline, in whole logical pixels.
+    ///
+    /// Usually non-negative, but signed to allow unusual font/layout choices.
+    pub baseline_offset: i32,
 }
 
 /// Low-level text backend contract used by Framewise-owned text layout.
@@ -68,12 +73,17 @@ pub trait TextBackend {
 
     /// Backend-provided vertical metrics for laying out one text line.
     ///
-    /// The default baseline is `style.size` for simple backends. Font-aware
+    /// The returned `line_height` is in whole logical pixels and must be at least `1`.
+    /// The returned `baseline_offset` is in whole logical pixels.
+    /// Backends are responsible for converting their native float/font metrics into
+    /// this integer contract.
+    ///
+    /// The default baseline is `style.size.round() as i32` for simple backends. Font-aware
     /// backends should override this to use real typographic baseline metrics.
     fn line_metrics(&mut self, style: TextStyle) -> TextLineLayoutMetrics {
         TextLineLayoutMetrics {
-            line_height: self.line_height(style),
-            baseline_offset: style.size,
+            line_height: self.line_height(style).round().max(1.0) as u32,
+            baseline_offset: style.size.round() as i32,
         }
     }
 

@@ -511,9 +511,8 @@ pub struct LineMetrics {
 pub struct TextMetrics {
     /// Logical size of the laid-out block in logical pixels.
     ///
-    /// - `x` is the widest line's used advance width (shrink-wrapped — it is `≤`
-    ///   `max_width` when a width bound was given and the overflow policy keeps
-    ///   content inside, *not* the bound itself).
+    /// - `x` is the widest admitted line’s logical advance width, rounded up to
+    ///   a whole logical pixel. This is conservative for widget sizing.
     /// - `y` is `visible_line_count × line_height`, where `line_height` is the
     ///   font's line spacing at this size.
     ///
@@ -554,10 +553,12 @@ pub struct TextMetrics {
     /// vertical overflow). Always `≥ 1`, even for empty input.
     pub line_count: u32,
 
-    /// `true` if any line was cut on the inline axis — a text run was wider than
-    /// the available width and got clipped/ellipsised. With `wrap: true` this is
-    /// rare (over-long words force-break instead) but can still occur when the
-    /// width is narrower than a single cluster.
+    /// `true` if any line was cut on the inline axis: content was dropped, kept
+    /// only up to the first overflowing unit, or replaced with an ellipsis by
+    /// the selected X-overflow policy or fallback.
+    ///
+    /// Pure successful wrapping without dropped/ellipsised inline content does
+    /// not set this flag.
     pub truncated_horizontal: bool,
 
     /// `true` if whole lines were dropped because the content exceeded the

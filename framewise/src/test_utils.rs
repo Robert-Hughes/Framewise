@@ -150,8 +150,8 @@ impl TextBackend for TestTextBackend {
 
     fn line_metrics(&mut self, style: TextStyle) -> TextLineLayoutMetrics {
         TextLineLayoutMetrics {
-            line_height: self.config.line_height,
-            baseline_offset: self.config.baseline_offset.unwrap_or(style.size),
+            line_height: self.config.line_height.round().max(1.0) as u32,
+            baseline_offset: self.config.baseline_offset.unwrap_or(style.size).round() as i32,
         }
     }
 

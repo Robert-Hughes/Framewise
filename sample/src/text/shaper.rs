@@ -41,7 +41,7 @@ impl SampleTextBackend {
 
     pub fn line_height(&self, size: f32, font_id: FontId, line_height_style: LineHeight) -> f32 {
         self.line_layout_metrics(size, font_id, line_height_style)
-            .line_height
+            .line_height as f32
     }
 
     pub fn line_layout_metrics(
@@ -62,8 +62,8 @@ impl SampleTextBackend {
         };
 
         TextLineLayoutMetrics {
-            line_height,
-            baseline_offset: ascent,
+            line_height: line_height.round().max(1.0) as u32,
+            baseline_offset: ascent.round() as i32,
         }
     }
     pub fn shape_text_run(&mut self, text: &str, style: TextStyle) -> ShapedText<SampleGlyphToken> {

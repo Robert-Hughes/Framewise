@@ -112,8 +112,12 @@ impl<G: Copy + Eq + Hash> TextLayout<G> {
     ) -> Self {
         let flow = style.flow;
         let line_metrics = backend.line_metrics(style);
-        let line_height = line_metrics.line_height.round().max(1.0);
-        let baseline_offset = line_metrics.baseline_offset.round();
+        assert!(
+            line_metrics.line_height >= 1,
+            "TextBackend::line_metrics must return line_height >= 1"
+        );
+        let line_height = line_metrics.line_height as f32;
+        let baseline_offset = line_metrics.baseline_offset as f32;
         let source_line_count = text.as_bytes().iter().filter(|&&b| b == b'\n').count() + 1;
         let mut working_runs = Vec::with_capacity(source_line_count);
         let mut source_lines = Vec::with_capacity(source_line_count);
@@ -199,7 +203,7 @@ impl<G: Copy + Eq + Hash> TextLayout<G> {
                         truncated_horizontal |= result.truncated_horizontal;
                     }
                     _ => {
-                        if source_logical_width > w + 0.5 {
+                        if source_logical_width > w {
                             truncated_horizontal = true;
                             match flow.overflow_x {
                                 OverflowX::Ellipsis { fallback } => {

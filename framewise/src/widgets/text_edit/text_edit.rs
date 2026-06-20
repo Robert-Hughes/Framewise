@@ -1375,11 +1375,7 @@ pub mod raw {
         }
 
         let available_content_height = (scroll_outer_rect.h - 2.0 * spec.style.padding_y).max(0.0);
-        let one_line_height = text_backend
-            .line_metrics(text_style)
-            .line_height
-            .round()
-            .max(1.0);
+        let one_line_height = text_backend.line_metrics(text_style).line_height as f32;
         let hard_line_count = text_content
             .as_bytes()
             .iter()
