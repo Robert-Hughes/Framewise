@@ -352,79 +352,16 @@ fn assert_wrap_diagram_invariants(
     );
 }
 
-struct CardTextBackend {
-    line_height: f32,
-}
-
-impl CardTextBackend {
-    fn glyph_width(ch: char) -> f32 {
-        match ch {
-            '\u{0301}' | '\n' => 0.0,
-            '\t' => 12.2,
-            '…' => 13.0,
-            _ => 6.1,
-        }
-    }
-}
-
-impl TextBackend for CardTextBackend {
-    type ShapedGlyphToken = u32;
-
-    fn line_height(&mut self, _style: TextStyle) -> f32 {
-        self.line_height
-    }
-
-    fn shape_text(
-        &mut self,
-        text: &str,
-        style: TextStyle,
-    ) -> SharedShapedText<Self::ShapedGlyphToken> {
-        let mut clusters: Vec<ShapedCluster<Self::ShapedGlyphToken>> = Vec::new();
-        for (byte_start, ch) in text.char_indices() {
-            let byte_end = byte_start + ch.len_utf8();
-            let advance = Self::glyph_width(ch);
-            let is_whitespace = ch.is_whitespace();
-            let glyphs = if is_whitespace {
-                Vec::new()
-            } else {
-                vec![ShapedGlyph {
-                    token: ch as u32,
-                    x: 0.0,
-                    y: 0.0,
-                    advance,
-                    approx_ink_bounds: Rect::new(0.0, -style.size, advance, self.line_height),
-                }]
-            };
-            clusters.push(ShapedCluster {
-                byte_start,
-                byte_end,
-                advance,
-                is_whitespace,
-                approx_ink_bounds: cluster_approx_ink_bounds(&glyphs),
-                glyphs,
-            });
-        }
-
-        std::rc::Rc::new(ShapedText { clusters })
-    }
-
-    fn prepare_glyph(
-        &mut self,
-        request: PrepareGlyphRequest<Self::ShapedGlyphToken>,
-    ) -> Option<DrawGlyph> {
-        if char::from_u32(request.glyph).is_some_and(char::is_whitespace) {
-            return None;
-        }
-
-        Some(DrawGlyph {
-            token: PreparedGlyphToken(request.glyph as u64),
-            top_left: request.glyph_origin,
-        })
-    }
+fn card_test_backend(line_height: f32) -> TestTextBackend {
+    TestTextBackend::default()
+        .with_line_height(line_height)
+        .with_default_advance(6.1)
+        .with_tab_advance(12.2)
+        .with_ellipsis_advance(13.0)
 }
 
 fn card_layout(text: &str, flow: TextFlow, bounds: TextBounds) -> TextLayout<u32> {
-    let mut backend = CardTextBackend { line_height: 15.0 };
+    let mut backend = card_test_backend(15.0);
     layout_text(&mut backend, text, style(flow), bounds)
 }
 
@@ -434,7 +371,7 @@ fn card_layout_with_line_height(
     bounds: TextBounds,
     line_height: f32,
 ) -> TextLayout<u32> {
-    let mut backend = CardTextBackend { line_height };
+    let mut backend = card_test_backend(line_height);
     layout_text(&mut backend, text, style(flow), bounds)
 }
 
@@ -444,7 +381,7 @@ fn card_label_glyph_counts_by_line(
     rect: Rect,
     line_height: f32,
 ) -> Vec<usize> {
-    let mut backend = CardTextBackend { line_height };
+    let mut backend = card_test_backend(line_height);
     let mut cmds = DrawCommands::new();
     raw_label::post_layout_label(
         raw_label::LabelSpec {
