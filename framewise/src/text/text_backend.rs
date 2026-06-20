@@ -78,17 +78,9 @@ pub trait TextBackend {
     /// Backends are responsible for converting their native float/font metrics into
     /// this integer contract.
     ///
-    /// The default baseline is `style.size.round() as i32` for simple backends. Font-aware
-    /// backends should override this to use real typographic baseline metrics.
-    fn line_metrics(&mut self, style: TextStyle) -> TextLineLayoutMetrics {
-        TextLineLayoutMetrics {
-            line_height: self.line_height(style).round().max(1.0) as u32,
-            baseline_offset: style.size.round() as i32,
-        }
-    }
-
-    /// Distance between consecutive line tops for this style.
-    fn line_height(&mut self, style: TextStyle) -> f32;
+    /// Simple backends may use `style.size.round() as i32` as a baseline
+    /// offset. Font-aware backends should use real typographic baseline metrics.
+    fn line_metrics(&mut self, style: TextStyle) -> TextLineLayoutMetrics;
 
     /// Shape text into indivisible clusters containing backend glyph tokens.
     ///

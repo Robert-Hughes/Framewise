@@ -39,11 +39,6 @@ impl SampleTextBackend {
         size.clamp(min_opsz, max_opsz)
     }
 
-    pub fn line_height(&self, size: f32, font_id: FontId, line_height_style: LineHeight) -> f32 {
-        self.line_layout_metrics(size, font_id, line_height_style)
-            .line_height as f32
-    }
-
     pub fn line_layout_metrics(
         &self,
         size: f32,

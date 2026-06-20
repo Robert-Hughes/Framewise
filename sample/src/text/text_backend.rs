@@ -271,10 +271,6 @@ impl TextBackend for SampleTextBackend {
         self.line_layout_metrics(style.size, style.font, style.line_height)
     }
 
-    fn line_height(&mut self, style: framewise::TextStyle) -> f32 {
-        Self::line_height(self, style.size, style.font, style.line_height)
-    }
-
     fn shape_text(
         &mut self,
         text: &str,

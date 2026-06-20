@@ -352,7 +352,7 @@ fn assert_wrap_diagram_invariants(
     );
 }
 
-fn card_test_backend(line_height: f32) -> TestTextBackend {
+fn card_test_backend(line_height: u32) -> TestTextBackend {
     TestTextBackend::default()
         .with_line_height(line_height)
         .with_default_advance(6.1)
@@ -361,7 +361,7 @@ fn card_test_backend(line_height: f32) -> TestTextBackend {
 }
 
 fn card_layout(text: &str, flow: TextFlow, bounds: TextBounds) -> TextLayout<u32> {
-    let mut backend = card_test_backend(15.0);
+    let mut backend = card_test_backend(15);
     layout_text(&mut backend, text, style(flow), bounds)
 }
 
@@ -369,7 +369,7 @@ fn card_layout_with_line_height(
     text: &str,
     flow: TextFlow,
     bounds: TextBounds,
-    line_height: f32,
+    line_height: u32,
 ) -> TextLayout<u32> {
     let mut backend = card_test_backend(line_height);
     layout_text(&mut backend, text, style(flow), bounds)
@@ -379,7 +379,7 @@ fn card_label_glyph_counts_by_line(
     text: &str,
     flow: TextFlow,
     rect: Rect,
-    line_height: f32,
+    line_height: u32,
 ) -> Vec<usize> {
     let mut backend = card_test_backend(line_height);
     let mut cmds = DrawCommands::new();
@@ -1561,7 +1561,7 @@ fn metrics_report_approx_ink_bounds_separately_from_logical_size() {
 #[test]
 fn layout_text_metrics_reports_backend_approx_ink_bounds() {
     let mut backend = TestTextBackend::default()
-        .with_line_height(20.0)
+        .with_line_height(20)
         .with_default_advance(30.0)
         .with_glyph_offset(Vec2::new(2.0, -12.0))
         .with_glyph_ink_bounds(Rect::new(-4.0, 3.0, 18.0, 10.0));
@@ -2106,7 +2106,7 @@ fn label_wrap_cluster_fallback_keep_uses_widget_width() {
             "hello\nhello",
             wrap_cluster_keep(),
             Rect::new(0.0, 0.0, 4.0, 162.0),
-            15.0,
+            15,
         ),
         vec![1; 10]
     );
@@ -2185,7 +2185,7 @@ fn test_wrap_word_fallback_wrap_cluster_fallback_keep_y_keep() {
             max_width: Some(4.0),
             max_height: Some(318.0),
         },
-        17.0,
+        17,
     );
 
     // Keep this test in sync with Card 7 in Section 4.1 of sample/src/label_page.rs.
@@ -2263,7 +2263,7 @@ fn label_wrap_word_cluster_keep_uses_widget_width() {
             "hello there\nhello there",
             wrap_word_cluster_keep(),
             Rect::new(0.0, 0.0, 4.0, 318.0),
-            17.0,
+            17,
         ),
         vec![1; 19]
     );

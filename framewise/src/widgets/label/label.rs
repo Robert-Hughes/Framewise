@@ -121,8 +121,8 @@ pub mod raw {
 pub struct LabelStyle {
     /// How text lines flow, align, and clip internally inside the prepared text block.
     ///
-    /// Note that line alignment (`text_flow.line_align`) positions each shaped line
-    /// internally within the prepared text block, while layout alignment
+    /// Note that line alignment (`text_style.flow.line_align`) positions each
+    /// shaped line internally within the prepared text block, while layout alignment
     /// (`Placement2D::align_x`) moves the entire bounding box inside its parent cell.
     /// Content placement (`content_placement`) moves the prepared text block inside
     /// the label's own rect.

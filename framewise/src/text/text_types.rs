@@ -121,11 +121,11 @@ pub enum FontRole {
 /// is an ordinary cluster for wrapping and fallback purposes.
 ///
 /// Whitespace does not have a separate fallback chain. It follows the selected
-/// [`OverflowX`] policy normally. The special case is only how a whitespace
-/// cluster is represented when it becomes a soft-wrap boundary after other
-/// clusters have already been admitted to the current visual line: instead of
-/// producing a whitespace-only visual line, that single boundary character is
-/// kept on the previous line with zero advance.
+/// [`OverflowX`] policy normally. The only special case is a single whitespace
+/// cluster that becomes the soft-wrap boundary after earlier non-whitespace
+/// content on the same visual line: that boundary cluster is retained on the
+/// previous line with zero advance. Other whitespace remains preserved and may
+/// form its own visual line.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct TextFlow {
     /// Inline-axis overflow policy.
@@ -569,34 +569,12 @@ pub struct TextMetrics {
     pub lines: Vec<LineMetrics>,
 }
 
-/// The geometry for a laid-out piece of text.
+/// Owned result of Framewise text layout.
 ///
-/// Framewise text layout uses two conversion boundaries:
-///
-/// 1. Backend shaping output -> Framewise working layout representation.
-///    The backend returns cached immutable [`ShapedText`]. Framewise converts
-///    shaped runs into its own working lines/clusters exactly once. These
-///    working clusters store source byte ranges, logical x/advance, visibility,
-///    wrapping state, and source references into shaped runs.
-/// 2. Framewise working layout representation -> draw commands. When emitting
-///    text, Framewise resolves final glyph origins from line baseline, cluster
-///    x, and shaped glyph offsets, then asks the backend to prepare glyphs and
-///    appends `DrawGlyph`s into `DrawCommands`.
-///
-/// Between those boundaries, layout mutates or moves the same working cluster
-/// objects and derives metrics/caret/hit-test results. It should not copy
-/// clusters into another intermediate representation.
-///
-/// `Working*` types are Framewise-owned layout-space records. They are not
-/// backend shaping output, and they are not public API records. "Working" does
-/// not mean "discarded before `TextLayout`"; some working records are stored
-/// privately inside `TextLayout` after finalisation.
-///
-/// `TextLayout` keeps final working line and cluster records as an overlay over
-/// shared immutable shaped runs. It does not store a flat glyph vector; final
-/// glyph positions are resolved from line baselines, cluster positions, and
-/// shaped glyph offsets only for approximate ink bounds, glyph emission, or
-/// explicit materialisation through [`TextLayout::resolved_glyphs`].
+/// Stores final visual lines and shared shaped runs; glyph positions are
+/// resolved lazily for metrics, hit-testing, caret operations, and emission.
+/// See the repository root `DESIGN.md` for the full backend/layout conversion
+/// model.
 ///
 /// All positions are in block-local coordinates: the origin is the text block's
 /// top-left corner, with y increasing downward. Callers translate the layout to

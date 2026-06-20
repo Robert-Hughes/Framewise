@@ -8,7 +8,7 @@ use crate::{DrawGlyph, PreparedGlyphToken};
 
 fn placement_text_backend() -> TestTextBackend {
     TestTextBackend::default()
-        .with_line_height(20.0)
+        .with_line_height(20)
         .with_default_advance(30.0)
         .with_glyph_offset(Vec2::new(0.0, -13.0))
         .with_glyph_ink_bounds(Rect::new(-4.0, 3.0, 18.0, 10.0))

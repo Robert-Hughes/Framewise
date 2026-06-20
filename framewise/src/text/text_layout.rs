@@ -568,8 +568,8 @@ mod tests {
 
     fn baseline_backend() -> TestTextBackend {
         TestTextBackend::default()
-            .with_line_height(30.0)
-            .with_baseline_offset(7.0)
+            .with_line_height(30)
+            .with_baseline_offset(7)
     }
 
     #[test]

@@ -1,86 +1,56 @@
 # Sample Text Backend Design
 
-The sample text code is the sample implementation of Framewise's `TextBackend`.
-It is not responsible for Framewise layout policy. It supplies the font,
-shaping, rasterisation, cache, atlas, and renderer-resource pieces used by
-Framewise's dependency-free text layout.
+Framewise's text layout contract is specified in the repository root
+`DESIGN.md`; this document only describes how the sample Swash backend fulfils
+the `TextBackend` side of that contract.
 
-The sample uses Swash for shaping and rasterisation, then stores prepared glyph
-bitmaps in a texture atlas for the renderer.
+The sample uses Swash for shaping and rasterisation, stores prepared glyph
+bitmaps in a texture atlas, and returns renderer-ready glyph resource tokens.
 
-## Role
-
-Framewise owns text layout. The sample backend owns the font and rendering
-resources needed to make that layout drawable.
-
-The boundary is:
-
-- the sample backend returns `ShapedText` containing shaped clusters and opaque
-  shaped glyph tokens,
-- Framewise converts that into private working line/cluster records stored by
-  `TextLayout` over the shared shaped runs,
-- `TextLayout::emit_glyphs` later calls the backend's `prepare_glyph` for each
-  visible drawable layout glyph,
-- the renderer decodes each returned `PreparedGlyphToken` to atlas data.
-
-There is no sample run table for prepared text layouts, no `TextHandle`, and no
-`DrawCmd::Text`.
-
-Framewise keeps this as a two-conversion pipeline: backend-owned cached
-`ShapedText` becomes Framewise-owned working layout records once, and those
-working records become backend-prepared `DrawGlyph`s when commands are emitted.
-Between those steps, Framewise mutates or moves the same clusters for wrapping,
-overflow, alignment, metrics, caret geometry, and hit-testing.
-
-## Backend Responsibilities
+## Scope
 
 The sample backend is responsible for:
 
-- loading fonts,
+- loading bundled fonts,
 - maintaining Swash shape and scale contexts,
-- reporting `TextLineLayoutMetrics`, including line height and baseline offset,
+- reporting raw font metrics as integer `TextLineLayoutMetrics`,
 - shaping source text into `ShapedText`,
-- preparing individual glyphs for drawing as `DrawGlyph`,
-- returning packed renderer-ready `PreparedGlyphToken`s,
-- maintaining the glyph cache and atlas.
+- maintaining the shaping cache,
+- interning glyph identities in the glyph cache,
+- selecting horizontal subpixel bins,
+- rasterising glyphs into the atlas,
+- returning packed `PreparedGlyphToken`s for renderer integration.
 
-Baseline offset should come from font ascent, not from `style.size`. The sample
-uses font metrics to compute ascent, descent, leading, and `LineHeight` policy.
+Framewise owns wrapping, overflow, alignment, line records, caret semantics,
+and hit-testing. The sample backend supplies shaped clusters and drawable
+resources for that layout.
 
-## Framewise Responsibilities
+## Fonts And Metrics
 
-Framewise is responsible for:
+`SampleTextBackend::new` loads the bundled JetBrains Mono, Inter, and Inter
+Tight variable fonts. It records each font's raw `units_per_em`, ascent,
+descent, and leading from Swash font metrics.
 
-- hard newline handling,
-- wrapping,
-- horizontal and vertical overflow,
-- ellipsis fitting at cluster boundaries,
-- line records,
-- logical metrics,
-- caret geometry and movement,
-- hit-testing and source byte mapping,
-- glyph-run emission into `DrawCommands`.
+`line_layout_metrics` converts those raw metrics to whole logical-pixel
+`TextLineLayoutMetrics`. `LineHeight::Normal` uses ascent, descent, and
+leading; `LineHeight::Relative` multiplies the style size. The returned
+`line_height` is rounded and clamped to at least `1`, while `baseline_offset`
+is the rounded ascent.
 
-The sample backend must not duplicate those layout policies. It supplies shaped
-clusters and drawable resources; Framewise decides how those clusters become
-visual lines.
+The backend also detects supported `wght` and `opsz` variation axes. Optical
+size is clamped to the font's supported range when available and folded into
+glyph cache keys.
 
-## Glyphs And Clusters
+## Shaping Cache
 
-Text layout uses two different units:
+The shape cache key includes source text, font id, quantised size, weight,
+letter spacing, and optical size. Layout bounds, wrapping policy, alignment,
+overflow, and draw origin are intentionally absent because they are Framewise
+layout inputs, not shaping inputs.
 
-- **Glyphs** are font-specific draw primitives selected by shaping. The renderer
-  draws prepared glyph bitmaps and caches rasterized glyph images in the atlas.
-- **Clusters** are indivisible shaped source units. A cluster may contain
-  multiple glyphs, and a glyph may represent multiple source characters.
-
-Framewise uses clusters for wrapping, overflow, caret placement, hit-testing,
-and source byte mapping. Glyphs should not answer layout questions by
-themselves.
-
-The backend's job is to preserve Swash's shaping cluster boundaries in
-`ShapedCluster`. Framewise's job is to preserve those indivisible units during
-layout.
+Cache entries are `Rc<ShapedText<_>>`: a cache hit clones the `Rc`, and layouts
+may keep immutable shaped data alive after the backend later clears or evicts
+cache entries.
 
 ## Shaping
 
@@ -88,91 +58,64 @@ Swash emits shaped clusters. The sample maps each Swash cluster to
 `ShapedCluster` with:
 
 - source byte range,
-- advance,
-- whitespace classification,
-- shaped `ShapedGlyph` tokens,
+- logical advance,
+- `chars().all(char::is_whitespace)` whitespace classification,
+- shaped glyph tokens,
 - shaped glyph offsets and advances,
-- mandatory approximate raster-independent glyph ink bounds,
-- cluster approximate ink bounds computed from those glyph bounds.
-
-Hard newlines are handled before backend shaping. Framewise splits source text
-into hard-break source lines, calls `shape_text` for each segment, and creates
-the hard-break layout clusters and line records itself. The sample backend does
-not need to manufacture hard-newline clusters.
-
-Framewise owns overflow policy and chooses marker text such as the Unicode
-ellipsis. The sample backend shapes those markers through the same
-`shape_text` path as ordinary text, so the normal shaping cache applies. Cache
-entries are `Rc<ShapedText<_>>`: a cache hit clones the `Rc`, while layouts can
-hold immutable shaped data even if the backend later evicts or clears its cache.
+- approximate raster-independent glyph ink bounds,
+- cluster approximate ink bounds computed from glyph bounds.
 
 The sample normally derives approximate glyph ink from Swash outline bounds.
 Whitespace and empty placeholders use `Rect::ZERO`. If outline bounds are not
 available for a visible glyph, the sample synthesizes a conservative
-raster-independent rectangle from the glyph advance and style size rather than
-returning an unknown result.
+raster-independent rectangle from glyph advance and style size.
 
-## Glyph Preparation
+## Glyph Cache And Tokens
 
-`prepare_glyph` receives a `PrepareGlyphRequest`. The request contains the
-backend-shaped glyph token and the final glyph origin after Framewise layout and
-caller draw origin have both been applied. The token already carries the
-origin-independent glyph resource identity as an interned `SampleGlyphToken`.
-That token indexes the sample backend's append-only glyph cache entry, whose
-base identity is font, raw glyph index, size, weight, and optical size.
+`shape_text` interns each origin-independent `GlyphBaseKey` on shape-cache
+misses. The resulting `SampleGlyphToken` is a compact index into the append-only
+`glyph_cache`, and shaped text may keep that index alive through cached
+`ShapedText`.
 
-The backend uses the final origin for horizontal subpixel bin selection. It then
-indexes the cached glyph directly and looks up or rasterizes the selected
-subpixel slot.
+`GlyphBaseKey` contains font id, raw glyph index, quantised size, weight, and
+optical size. `prepare_glyph` adds only the origin-dependent horizontal
+subpixel bin before looking up or rasterising the selected slot.
 
-`prepare_glyph` returns `Option<DrawGlyph>`. It returns `None` for spaces,
-newlines, zero-area glyphs, or failed rasterisation. For drawable glyphs,
-`DrawGlyph::top_left` includes glyph bearing and bitmap placement. It is the
-final bitmap top-left, not the baseline origin or cluster position.
+`PreparedGlyphToken` is the renderer-ready atlas token. The sample token format
+stores x/y/w/h as four `u16` lanes, so it assumes one atlas texture and source
+rectangles no larger than `u16::MAX`.
 
-The renderer later decodes `DrawGlyph::token` to atlas UVs and image size, and
-draws the bitmap at `DrawGlyph::top_left` without scaling.
+## Subpixel Binning
 
-## Atlas And Tokens
+The sample uses grayscale antialiasing and four horizontal subpixel bins:
+`0.0`, `0.25`, `0.5`, and `0.75`. `prepare_glyph` chooses the bin from the final
+glyph origin supplied by Framewise and snaps the returned bitmap top-left to
+the corresponding quantised X position. Vertical placement is rounded to whole
+pixels.
 
-`PreparedGlyphToken` is an opaque renderer-ready glyph resource token. It is not
-a source character, not a cluster, not a text run, and not a font glyph ID by
-itself.
+## Rasterisation And Atlas
 
-In the sample, a `SampleGlyphToken` is a compact index into `glyph_cache`.
-`shape_text` interns each `GlyphBaseKey` once on shape-cache misses.
-`prepare_glyph` adds only the origin-dependent horizontal subpixel bin, lazily
-loads the corresponding cached subpixel slot, and returns its packed
-`PreparedGlyphToken`. Rasterisation packs each atlas source rectangle once when
-the slot is loaded. The sample token format stores x/y/w/h as four `u16` lanes,
-so it assumes one atlas texture and source rectangles no larger than
-`u16::MAX`.
+Glyph rasterisation is lazy per `(GlyphBaseKey, subpixel_x)` slot. When a slot
+is first prepared, the backend rasterises it with Swash, packs the bitmap into
+the atlas using a simple shelf allocator, records atlas coordinates in the
+slot, and marks the atlas dirty for upload.
 
-## Metrics
+`prepare_glyph` returns `None` for non-drawable glyphs, zero-area glyphs, or
+failed rasterisation. For drawable glyphs, `DrawGlyph::top_left` is the final
+bitmap top-left including glyph bearing and bitmap placement.
 
-The backend supplies line height and baseline offset. Framewise uses those
-metrics when building visual lines, caret geometry, and text block metrics.
+## Renderer Integration
 
-`measure_text` and `TextLayout::metrics` report stable logical layout metrics.
-`TextMetrics::logical_size` is suitable for widget sizing.
-`TextMetrics::approx_ink_bounds` is approximate and conservative in layout
-coordinates. Exact drawn bounds require emitted `DrawGlyph`s plus the resolved
-atlas image sizes from their `PreparedGlyphToken`s. Final raster ink may depend
-on draw origin, subpixel bin, hinting, rasterisation mode, and backend resource
-details.
+The renderer decodes `DrawGlyph::token` to atlas UVs and image size, then draws
+the bitmap at `DrawGlyph::top_left` without scaling. Atlas filtering is nearest
+neighbor so pre-shifted subpixel glyph bitmaps map cleanly to screen pixels.
 
 ## Invariants
 
-- Backend shaping must not split indivisible shaping clusters.
-- Framewise layout must not split clusters.
+- Backend shaping must preserve Swash cluster boundaries.
 - Every source character in a shaped segment must be accounted for by shaped
   cluster byte ranges.
-- `prepare_glyph` may skip non-drawable glyphs by returning `None`.
 - `glyph_cache` entries must remain append-only and stable while cached shaped
   text can reference their `SampleGlyphToken` indices.
-- `DrawGlyph::top_left` is the final bitmap top-left.
-- Framewise owns wrapping, overflow, line records, caret semantics, and
-  hit-testing.
-- The sample backend must not duplicate Framewise layout policy.
-- There is no `TextHandle`, no `DrawCmd::Text`, and no sample-owned prepared
-  layout cache.
+- `prepare_glyph` may skip non-drawable glyphs by returning `None`.
+- `DrawGlyph::top_left` is the final bitmap top-left, not the baseline origin.

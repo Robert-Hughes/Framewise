@@ -30,7 +30,7 @@ fn text_backend_shapes_text_and_prepares_glyphs() {
 
     let shaped = TextBackend::shape_text(&mut sys, "Hi", style);
     assert!(!shaped.clusters.is_empty());
-    assert!(TextBackend::line_height(&mut sys, style) > 0.0);
+    assert!(TextBackend::line_metrics(&mut sys, style).line_height > 0);
 
     let glyph = shaped.clusters[0].glyphs[0];
     let prepared = TextBackend::prepare_glyph(

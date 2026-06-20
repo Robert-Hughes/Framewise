@@ -68,7 +68,8 @@ impl TextContentPlacement {
         }
     }
 
-    /// Resolve the logical text block rect used for owned text layout.
+    /// Resolve the draw rect/origin for an already-laid-out text block inside
+    /// `content_rect`.
     pub fn resolve_rect(self, content_rect: Rect, metrics: TextMetrics) -> Rect {
         let logical = metrics.logical_size;
         let ink = metrics.approx_ink_bounds;

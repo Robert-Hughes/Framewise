@@ -7,8 +7,10 @@ use std::rc::Rc;
 
 /// Deterministic text backend for unit tests.
 ///
-/// Each visible character is one 8px cluster, text lines are 16px tall, and
-/// whitespace contributes logical advance without producing drawable glyphs.
+/// By default, each visible character advances 8px, text lines are 16px tall,
+/// whitespace contributes logical advance without drawable glyphs, tabs
+/// advance 16px, and U+0301 combining acute folds into the previous cluster
+/// with zero advance.
 #[derive(Debug, Clone, Default)]
 pub struct TestTextBackend {
     config: TestTextBackendConfig,
@@ -17,8 +19,8 @@ pub struct TestTextBackend {
 
 #[derive(Debug, Clone)]
 pub struct TestTextBackendConfig {
-    pub line_height: f32,
-    pub baseline_offset: Option<f32>,
+    pub line_height: u32,
+    pub baseline_offset: Option<i32>,
     pub default_advance: f32,
     pub tab_advance: f32,
     pub char_advances: Vec<(char, f32)>,
@@ -45,7 +47,7 @@ pub struct TestTextBackendObservations {
 impl Default for TestTextBackendConfig {
     fn default() -> Self {
         Self {
-            line_height: 16.0,
+            line_height: 16,
             baseline_offset: None,
             default_advance: 8.0,
             tab_advance: 16.0,
@@ -57,12 +59,12 @@ impl Default for TestTextBackendConfig {
 }
 
 impl TestTextBackend {
-    pub fn with_line_height(mut self, line_height: f32) -> Self {
+    pub fn with_line_height(mut self, line_height: u32) -> Self {
         self.config.line_height = line_height;
         self
     }
 
-    pub fn with_baseline_offset(mut self, baseline_offset: f32) -> Self {
+    pub fn with_baseline_offset(mut self, baseline_offset: i32) -> Self {
         self.config.baseline_offset = Some(baseline_offset);
         self
     }
@@ -129,7 +131,7 @@ impl TestTextBackend {
     fn glyph_ink_bounds(&self, style: TextStyle, advance: f32) -> Rect {
         match self.config.glyph_ink_bounds {
             TestGlyphInkBounds::Logical => {
-                Rect::new(0.0, -style.size, advance, self.config.line_height)
+                Rect::new(0.0, -style.size, advance, self.config.line_height as f32)
             }
             TestGlyphInkBounds::Fixed(bounds) => bounds,
         }
@@ -141,13 +143,12 @@ impl TextBackend for TestTextBackend {
 
     fn line_metrics(&mut self, style: TextStyle) -> TextLineLayoutMetrics {
         TextLineLayoutMetrics {
-            line_height: self.config.line_height.round().max(1.0) as u32,
-            baseline_offset: self.config.baseline_offset.unwrap_or(style.size).round() as i32,
+            line_height: self.config.line_height.max(1),
+            baseline_offset: self
+                .config
+                .baseline_offset
+                .unwrap_or_else(|| style.size.round() as i32),
         }
-    }
-
-    fn line_height(&mut self, _style: TextStyle) -> f32 {
-        self.config.line_height
     }
 
     fn shape_text(
@@ -217,7 +218,7 @@ impl TextBackend for TestTextBackend {
             char::from_u32(request.glyph)
                 .map(|ch| self.glyph_width(ch))
                 .unwrap_or(self.config.default_advance),
-            self.config.line_height,
+            self.config.line_height as f32,
         ));
 
         if char::from_u32(request.glyph).is_some_and(char::is_whitespace) {

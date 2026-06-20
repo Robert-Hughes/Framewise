@@ -26,7 +26,8 @@ pub struct ShapedCluster<G> {
     pub byte_end: usize,
     /// Logical advance used by wrapping, caret placement, and hit-testing.
     pub advance: f32,
-    /// True for Unicode whitespace clusters.
+    /// `true` iff every Unicode scalar value in this cluster's source byte
+    /// range is whitespace. Mixed clusters must report `false`.
     pub is_whitespace: bool,
     /// Approximate raster-independent ink bounds in cluster/baseline-local coordinates.
     ///
