@@ -22,7 +22,7 @@ mod text_edit_demo;
 
 use framewise::input::Input;
 use framewise::types::Vec2;
-use framewise::Output;
+use framewise::{CursorIcon as FramewiseCursorIcon, Output};
 
 use renderer::Renderer;
 use std::sync::Arc;
@@ -32,7 +32,7 @@ use winit::{
     dpi::PhysicalSize,
     event::{ElementState, WindowEvent},
     event_loop::{ActiveEventLoop, ControlFlow, EventLoop},
-    window::{Window, WindowId},
+    window::{Cursor, CursorIcon as WinitCursorIcon, Window, WindowId},
 };
 
 // ── App page ──────────────────────────────────────────────────────────────────
@@ -128,6 +128,7 @@ struct App {
     label_page_state: label_page::LabelPageState,
     #[cfg(feature = "page_text_edit")]
     text_edit_demo_state: text_edit_demo::TextEditDemoState,
+    last_cursor_icon: Option<FramewiseCursorIcon>,
     is_first_frame: bool,
 }
 
@@ -173,6 +174,7 @@ impl App {
             label_page_state: label_page::LabelPageState::default(),
             #[cfg(feature = "page_text_edit")]
             text_edit_demo_state: text_edit_demo::TextEditDemoState::default(),
+            last_cursor_icon: None,
             is_first_frame: true,
         }
     }
@@ -726,6 +728,19 @@ impl ApplicationHandler for App {
                         let _ = cb.set_text(text);
                     }
                 }
+
+                let requested_cursor_icon = self.output.cursor_icon;
+                if self.last_cursor_icon != requested_cursor_icon {
+                    if let Some(window) = &self.window {
+                        let winit_cursor_icon = match requested_cursor_icon {
+                            Some(FramewiseCursorIcon::Text) => WinitCursorIcon::Text,
+                            None => WinitCursorIcon::Default,
+                        };
+                        window.set_cursor(Cursor::Icon(winit_cursor_icon));
+                    }
+                    self.last_cursor_icon = requested_cursor_icon;
+                }
+
                 self.output.clear_frame_state();
                 self.input.clear_frame_state();
 

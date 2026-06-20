@@ -1,3 +1,4 @@
+use crate::output::CursorIcon;
 use crate::{
     draw::{DrawCmd, DrawCommands},
     focus::{FocusId, FocusSystem},
@@ -68,6 +69,7 @@ pub mod raw {
         pub focused: bool,
         pub content_bounds: Rect,
         pub clipboard_action: Option<ClipboardAction>,
+        pub cursor_icon: Option<CursorIcon>,
     }
 
     #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -624,6 +626,7 @@ pub mod raw {
                 clipboard_action: None,
                 focused: false,
                 input: InputInfo::default(),
+                cursor_icon: None,
             };
         }
 
@@ -1279,6 +1282,7 @@ pub mod raw {
                 pressed: input.mouse_down && contains,
                 clicked: input.mouse_clicked && contains,
             },
+            cursor_icon: contains.then_some(CursorIcon::Text),
         }
     }
 
@@ -2233,6 +2237,10 @@ pub fn text_edit<T: TextBackend, S: LayoutState, CF>(
                 ctx.output.new_clipboard_contents = Some(text.clone());
             }
         }
+    }
+
+    if let Some(cursor_icon) = result.cursor_icon {
+        ctx.output.cursor_icon = Some(cursor_icon);
     }
 
     TextEditResult {
@@ -8237,5 +8245,39 @@ mod tests {
 
         assert_eq!(output.new_clipboard_contents.as_deref(), Some("world"));
         assert_eq!(state.value, "hello ");
+    }
+
+    #[test]
+    fn test_text_edit_high_level_sets_output_cursor() {
+        let mut text_backend = TestTextBackend;
+        let mut state = TextEditState::new("");
+        let mut focus_system = FocusSystem::new_mocked(None, Some(state.focus_id));
+        let input = Input {
+            mouse_pos: Vec2::new(5.0, 15.0),
+            ..Input::default()
+        };
+        let mut output = crate::Output::default();
+        let mut cmds = DrawCommands::new();
+        let mut ctx = WidgetContext::root(
+            Theme::framewise(),
+            &mut text_backend,
+            &mut focus_system,
+            &input,
+            &mut output,
+            ColumnLayout::new(),
+            Rect::new(0.0, 0.0, 500.0, 100.0),
+            &mut cmds,
+        );
+
+        let result = text_edit(
+            &mut ctx,
+            TextEditSpecBuilder::new(),
+            ColumnLayoutParams::auto(),
+            &mut state,
+        );
+        ctx.finish();
+
+        assert!(result.input.hovered);
+        assert_eq!(output.cursor_icon, Some(CursorIcon::Text));
     }
 }

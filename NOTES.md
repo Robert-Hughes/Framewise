@@ -5,8 +5,8 @@ Working notes, TODOs, open questions, and half-baked ideas.
 ## Current Work
 
 - Text Edit
-  - Copy/paste integration with the OS (apparently not working!)
-  - caret cursor when mouse is over a text_edit
+  - With scrollbar, there's a pixel or so outside the scrollbar but still inside the text_edit, so we get hovering highlight. But when over the scrollbar itself we don't get the hover! So it can flicker
+  - Scroll into view for horizontal scrolling doesn't seem to scroll enough when typing new text on the right edge
 
   - check all the combinations of \n handling, wrapping, height etc. are meaningful (even if degenerate), to see if we want to tighten it up at all
     - newline policy, wrap, alignment (vertical and horizontal)

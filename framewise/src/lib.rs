@@ -47,7 +47,7 @@ pub use layouts::{
     MainAxisAlign, ManualLayout, ManualState, OffsetLayout, OffsetState, RowLayout,
     RowLayoutParams, RowState, SplitRow, SplitRowState, WrapLayout, WrapState,
 };
-pub use output::Output;
+pub use output::{CursorIcon, Output};
 pub use text::{
     cluster_approx_ink_bounds, CaretGeom, CaretPosition, ContentPlacement, EllipsisFallback,
     FontId, FontRole, LineEndKind, LineHeight, LineMetrics, OverflowX, OverflowY,

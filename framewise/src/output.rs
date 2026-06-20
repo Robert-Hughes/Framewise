@@ -1,3 +1,10 @@
+/// Cursor icon styles that widgets can request.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CursorIcon {
+    /// Text selection / I-beam style cursor.
+    Text,
+}
+
 /// Per-frame side effects requested by widgets.
 ///
 /// `Input` contains user/system events entering Framewise for the current
@@ -20,6 +27,14 @@ pub struct Output {
     /// Widgets may set it when handling copy/cut-style input. If more than one
     /// widget sets it in a frame, the last write wins.
     pub new_clipboard_contents: Option<String>,
+
+    /// A per-frame request to the application shell to change the mouse cursor icon.
+    ///
+    /// The application shell should fall back to its normal/default cursor when no
+    /// widget requests a special cursor this frame (i.e. this field is `None`).
+    ///
+    /// If multiple widgets request a cursor in the same frame, the last write wins.
+    pub cursor_icon: Option<CursorIcon>,
 }
 
 impl Output {
@@ -30,6 +45,7 @@ impl Output {
     /// Reset per-frame output state before evaluating a new frame.
     pub fn clear_frame_state(&mut self) {
         self.new_clipboard_contents = None;
+        self.cursor_icon = None;
     }
 }
 
@@ -38,13 +54,15 @@ mod tests {
     use super::*;
 
     #[test]
-    fn clear_frame_state_resets_new_clipboard_contents() {
+    fn clear_frame_state_resets_new_clipboard_contents_and_cursor_icon() {
         let mut output = Output {
             new_clipboard_contents: Some("copied".to_string()),
+            cursor_icon: Some(CursorIcon::Text),
         };
 
         output.clear_frame_state();
 
         assert_eq!(output.new_clipboard_contents, None);
+        assert_eq!(output.cursor_icon, None);
     }
 }
