@@ -27,7 +27,10 @@ pub mod raw {
     #[derive(Debug, Clone, PartialEq)]
     pub struct StatusResult {}
 
-    /// Return the size this status widget would request under offer.
+    /// Return the size this status widget would request under `offer`.
+    ///
+    /// This currently measures text with unbounded bounds; offer-sensitive
+    /// wrapping is future work.
     pub fn size_status<T: TextBackend>(
         spec: &StatusSizeSpec,
         _offer: SizeOffer,

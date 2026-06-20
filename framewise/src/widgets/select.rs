@@ -37,6 +37,10 @@ pub mod raw {
         pub content_bounds: Rect,
     }
 
+    /// Return the size this select would request under `offer`.
+    ///
+    /// This currently measures text with unbounded bounds; offer-sensitive
+    /// wrapping is future work.
     pub fn size_select<T: TextBackend>(
         spec: &SelectSizeSpec,
         _offer: SizeOffer,

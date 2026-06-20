@@ -33,7 +33,10 @@ pub mod raw {
         pub content_bounds: Rect,
     }
 
-    /// Return the size this switch would request under offer.
+    /// Return the size this switch would request under `offer`.
+    ///
+    /// The current implementation ignores `offer` because this widget's request
+    /// is fixed by its style.
     pub fn size_switch(spec: &SwitchSizeSpec, _offer: SizeOffer) -> SizeRequest {
         SizeRequest::preferred(spec.style.size)
     }
@@ -330,7 +333,7 @@ pub fn labelled_switch<T: TextBackend, S: LayoutState, CF>(
         );
     }
 
-    // Calculate size requests using the official functions of both widgets.
+    // Query size requests using the official functions of both widgets.
     let offer = ctx.peek_offer(layout_params.clone());
     let switch_size_spec = raw::SwitchSizeSpec { style: spec.style };
     let switch_request = raw::size_switch(&switch_size_spec, offer);

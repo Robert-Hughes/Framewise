@@ -51,11 +51,10 @@ pub fn begin_demo_page<'a, 'b, T: TextBackend, L: Layout, CF>(
         .build();
 
     let size_spec = framewise::widgets::scroll_area::raw::ScrollAreaSizeSpec {};
-    let size_request = framewise::widgets::scroll_area::raw::size_scroll_area(
-        &size_spec,
-        framewise::layout::SizeOffer::UNBOUNDED,
-    );
-    let bounds = parent_ctx.layout(ColumnLayoutParams::auto().fill_x().fill_y(), size_request);
+    let layout_params = ColumnLayoutParams::auto().fill_x().fill_y();
+    let offer = parent_ctx.peek_offer(layout_params);
+    let size_request = framewise::widgets::scroll_area::raw::size_scroll_area(&size_spec, offer);
+    let bounds = parent_ctx.layout(layout_params, size_request);
     let input = parent_ctx.input;
     let raw_spec = framewise::widgets::scroll_area::raw::ScrollAreaSpec {
         rect: bounds,
@@ -97,6 +96,8 @@ pub fn begin_demo_page<'a, 'b, T: TextBackend, L: Layout, CF>(
         text: label_spec.text,
         style: label_spec.style,
     };
+    // The title is manually drawn into scroll content coordinates rather than
+    // placed through parent_ctx.layout, so there is no layout offer to peek.
     let label_request = framewise::widgets::label::raw::size_label(
         &label_spec,
         SizeOffer::UNBOUNDED,

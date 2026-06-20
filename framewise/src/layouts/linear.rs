@@ -487,6 +487,8 @@ impl<A: LinearAxis> LayoutState for LinearState<A> {
     type Params = A::Params;
 
     fn peek_offer(&self, layout_params: Self::Params) -> LayoutResult<SizeOffer> {
+        // Non-mutating immediate offer query: report the bounds the next child
+        // would receive without consuming spacing or advancing the cursor.
         let params = A::orient_params(layout_params);
         let offer = self.offer_for(params);
 
@@ -504,6 +506,8 @@ impl<A: LinearAxis> LayoutState for LinearState<A> {
     }
 
     fn layout(&mut self, layout_params: Self::Params, request: SizeRequest) -> LayoutResult<Rect> {
+        // Immediate placement: consume the child's requested size and advance
+        // the cursor only after the final rect is known.
         let params = A::orient_params(layout_params);
         let pref = A::orient_request(request.preferred);
         self.place(params, pref)
@@ -513,6 +517,9 @@ impl<A: LinearAxis> LayoutState for LinearState<A> {
         &'a mut self,
         layout_params: Self::Params,
     ) -> (LayoutResult<LayoutSpace>, LayoutToken<'a, Self>) {
+        // Deferred placement: return provisional space before children emit.
+        // Reject auto-sized centered/end-aligned cases whose final origin could
+        // move already-emitted child output.
         let params = A::orient_params(layout_params.clone());
 
         if self.is_closed {
@@ -630,6 +637,7 @@ impl<A: LinearAxis> LayoutState for LinearState<A> {
         layout_params: Self::Params,
         extent: Vec2,
     ) -> LayoutResult<Rect> {
+        // Commit the measured deferred extent and advance the parent layout.
         let params = A::orient_params(layout_params);
         let pref = Some(A::orient_size(extent));
         self.place(params, pref)

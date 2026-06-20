@@ -25,10 +25,10 @@ pub mod raw {
     #[derive(Debug, Clone, PartialEq)]
     pub struct DividerResult {}
 
-    /// Calculate a divider's size request from its spec.
+    /// Return the size this divider would request under `offer`.
     ///
-    /// A divider has no inherent preferred size. This returns
-    /// [`SizeRequest::UNKNOWN`].
+    /// The current implementation ignores `offer` because a divider has no
+    /// inherent preferred size. This returns [`SizeRequest::UNKNOWN`].
     ///
     pub fn size_divider(spec: &DividerSizeSpec, _offer: SizeOffer) -> crate::layout::SizeRequest {
         let _ = spec;

@@ -138,7 +138,11 @@ pub mod raw {
         (scroll_outer_height / line_height).floor().max(1.0) as usize
     }
 
-    /// Return the size this text edit would request under offer and its current state.
+    /// Return the size this text edit would request under `offer` and its current state.
+    ///
+    /// The current implementation ignores `offer` and measures text with
+    /// unbounded bounds. Auto-height wrapping is intentionally not implemented
+    /// yet.
     pub fn size_text_edit<T: TextBackend>(
         spec: &TextEditSizeSpec,
         _offer: SizeOffer,

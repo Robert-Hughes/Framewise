@@ -61,9 +61,10 @@ pub mod raw {
         pub inner_space: LayoutSpace,
     }
 
-    /// Calculate a scroll area's size request from its spec.
+    /// Return the size this scroll area would request under `offer`.
     ///
-    /// A scroll area's outer extent is caller-driven (the viewport bounds come
+    /// The current implementation ignores `offer` because a scroll area's outer
+    /// extent is caller-driven (the viewport bounds come
     /// from the layout), so there is nothing to report yet — this returns
     /// [`SizeRequest::UNKNOWN`]. A later revision may report a minimum viewport
     /// size derived from the reserved scrollbar widths.

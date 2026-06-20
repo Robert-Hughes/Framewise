@@ -29,6 +29,8 @@ impl LayoutState for ManualState {
     type Params = Rect;
 
     fn peek_offer(&self, layout_params: Rect) -> LayoutResult<SizeOffer> {
+        // Non-mutating immediate offer query: a manual rect provides exact
+        // width/height bounds and does not affect accumulated content extent.
         LayoutResult::Ok(Self::offer_for_rect(layout_params))
     }
 
@@ -48,6 +50,8 @@ impl LayoutState for ManualState {
         &'a mut self,
         layout_params: Rect,
     ) -> (LayoutResult<LayoutSpace>, LayoutToken<'a, Self>) {
+        // Deferred placement uses the explicit rect as stable provisional
+        // space, so emitted children never need retroactive movement.
         let space = self.space_for_rect(layout_params);
         let token = LayoutToken {
             state: self,
@@ -57,6 +61,8 @@ impl LayoutState for ManualState {
     }
 
     fn end_deferred_layout(&mut self, layout_params: Rect, _extent: Vec2) -> LayoutResult<Rect> {
+        // The explicit rect already defines final placement; the measured
+        // extent is irrelevant to ManualLayout.
         self.include_rect_in_content_extent(layout_params);
         LayoutResult::Ok(self.rect_for_params(layout_params))
     }

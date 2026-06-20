@@ -51,6 +51,8 @@ impl LayoutState for WrapState {
     type Params = Placement2D;
 
     fn peek_offer(&self, layout_params: Placement2D) -> LayoutResult<SizeOffer> {
+        // Non-mutating immediate offer query: predict bounds for the next child
+        // without wrapping or advancing the current line.
         LayoutResult::Ok(SizeOffer::new(
             self.width_offer(layout_params.width),
             self.height_offer(layout_params.height),
@@ -58,6 +60,8 @@ impl LayoutState for WrapState {
     }
 
     fn layout(&mut self, layout_params: Placement2D, request: SizeRequest) -> LayoutResult<Rect> {
+        // Immediate placement: resolve from the child's requested size, wrap if
+        // needed, then commit the final rect to the flow state.
         let pref = request.preferred;
         let (w, v1) = layout_params
             .width
@@ -99,6 +103,9 @@ impl LayoutState for WrapState {
     where
         Self: Sized,
     {
+        // Deferred placement must resolve wrapping and provisional origin
+        // before children emit. Auto width stays a hard panic because wrapping
+        // cannot be decided without a concrete upfront width.
         let w = match layout_params.width {
             Placement::Sized { size: Size::Fixed(w), .. } => w,
             Placement::Fill => match self.space.width {
@@ -136,6 +143,8 @@ impl LayoutState for WrapState {
         layout_params: Placement2D,
         extent: Vec2,
     ) -> LayoutResult<Rect> {
+        // Commit the measured deferred extent to the already-chosen line and
+        // advance the wrap cursor.
         let pref = Some(extent);
         let (w, v1) = layout_params
             .width

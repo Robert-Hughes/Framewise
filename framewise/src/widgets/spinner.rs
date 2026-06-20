@@ -24,7 +24,10 @@ pub mod raw {
     #[derive(Debug, Clone, PartialEq)]
     pub struct SpinnerResult {}
 
-    /// Calculate a spinner's size request. Currently returns UNKNOWN.
+    /// Return the size this spinner would request under `offer`.
+    ///
+    /// The current implementation ignores `offer` because the spinner's extent
+    /// is caller-driven. This returns [`SizeRequest::UNKNOWN`].
     pub fn size_spinner(_spec: &SpinnerSizeSpec, _offer: SizeOffer) -> SizeRequest {
         SizeRequest::UNKNOWN
     }

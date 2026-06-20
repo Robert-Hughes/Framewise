@@ -1,10 +1,10 @@
 //! Layout demo page.
 //!
-//! Showcases the *chrome-less nested layout auto-sizing* introduced on the
-//! `size-request-nested-layout-auto` branch: a bare `child_with_layout`
-//! (Column / Row / Wrap — no `frame` wrapper) placed with `Extent::Auto` /
-//! `Extent::Fill` now fits to its children, instead of falling back / panicking.
-//! `Extent::Fixed` slots stay identical to the old eager path.
+//! Showcases chrome-less nested layout auto-sizing: a bare `child_with_layout`
+//! (Column / Row / Wrap — no `frame` wrapper) placed with `Size::Auto` or
+//! `Placement::Fill` now fits to its children, instead of falling back /
+//! panicking. Fixed placement and `Size::Fixed` slots stay identical to the old
+//! eager path.
 //!
 //! Sections:
 //!   A. Auto-height column (no frame) — fits its stacked rows.
@@ -587,7 +587,7 @@ pub(crate) fn draw_layout_page_content<'a, 'b, CF>(
             let tags = [
                 "rust",
                 "layout",
-                "intrinsic",
+                "request",
                 "auto-size",
                 "nested",
                 "wrap",
@@ -647,7 +647,7 @@ pub(crate) fn draw_layout_page_content<'a, 'b, CF>(
         // then override_keyboard_next restores logical left→right focus.
         subheading(
             &mut right,
-            "J. Toolbar — search fills leftover, buttons stay intrinsic (emit-reorder)",
+            "J. Toolbar — search fills leftover, buttons stay request-sized (emit-reorder)",
         );
         right.spacer(18.0);
         {
@@ -655,7 +655,7 @@ pub(crate) fn draw_layout_page_content<'a, 'b, CF>(
             let spacing = 8.0;
             let w = col_w; // Fill width under the Exact right column resolves to col_w.
 
-            // Calculate the two button size requests up front — the reorder trick needs
+            // Query the two button size requests up front — the reorder trick needs
             // their sizes before the fill child can be placed.
             let measure = |ts: &mut SampleTextBackend, label: &str| {
                 let spec = ButtonSpecBuilder::new()
@@ -667,6 +667,8 @@ pub(crate) fn draw_layout_page_content<'a, 'b, CF>(
                     text: spec.text,
                     style: spec.style,
                 };
+                // These buttons are manually placed in a fixed toolbar slot, so
+                // there is no layout offer to peek for this raw size query.
                 size_button(&spec, framewise::layout::SizeOffer::UNBOUNDED, ts)
                     .preferred
                     .unwrap()

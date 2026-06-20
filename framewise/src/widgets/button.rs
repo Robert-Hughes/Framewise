@@ -36,7 +36,10 @@ pub mod raw {
         pub content_bounds: Rect,
     }
 
-    /// Return the size this button would request under offer.
+    /// Return the size this button would request under `offer`.
+    ///
+    /// This currently measures text with unbounded bounds; offer-sensitive
+    /// wrapping is future work.
     ///
     /// The preferred width is the label width plus horizontal padding; the
     /// preferred height is the larger of the standard control height and the
@@ -430,10 +433,11 @@ impl<'a> ButtonSpecBuilder<'a> {
 
 // ── High-level widget function ───────────────────────────────────────────────────
 
-/// High-level button widget function using WidgetContext.
+/// High-level button widget function using `WidgetContext`.
 ///
-/// This function accepts a ButtonSpecBuilder and layout parameters, resolves geometry and styles internally,
-/// and calls the low-level raw::button function.
+/// Resolves defaults, queries the layout offer, asks the raw size helper for a
+/// `SizeRequest`, resolves the final rect with `layout`, then calls the raw
+/// widget.
 pub fn button<'a, T: TextBackend, S: LayoutState, CF>(
     ctx: &mut WidgetContext<T, S, CF>,
     builder: ButtonSpecBuilder<'a>,

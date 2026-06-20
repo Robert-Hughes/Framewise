@@ -29,7 +29,10 @@ pub mod raw {
         pub content_bounds: Rect,
     }
 
-    /// Return the size this tree widget would request under offer.
+    /// Return the size this tree widget would request under `offer`.
+    ///
+    /// The current implementation ignores `offer` because the request is derived
+    /// from row count and tree style.
     pub fn size_tree(spec: &TreeSizeSpec, _offer: SizeOffer) -> SizeRequest {
         let s = spec.style;
         let total_h = spec.items.len() as f32 * s.row_height + s.pad_y * 2.0;

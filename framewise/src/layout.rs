@@ -151,7 +151,8 @@ impl From<LayoutSpace> for SizeOffer {
 
 // ── Size requests ─────────────────────────────────────────────────────────
 
-/// A widget's requested size, reported to a request-aware layout.
+/// A widget's requested size under a [`SizeOffer`], reported to a request-aware
+/// layout.
 ///
 /// This is not final geometry. A layout may clamp, align, stretch, or otherwise
 /// resolve this request according to its own layout params and available space.
@@ -561,6 +562,9 @@ pub struct LayoutToken<'a, LS: LayoutState> {
 }
 
 impl<'a, LS: LayoutState> LayoutToken<'a, LS> {
+    /// Finish a deferred placement by committing the measured child extent.
+    ///
+    /// This resolves the final rectangle and advances the parent layout state.
     pub fn end_deferred_layout(self, extent: Vec2) -> LayoutResult<Rect> {
         self.state.end_deferred_layout(self.params, extent)
     }
@@ -580,8 +584,8 @@ pub trait LayoutState {
     /// and must not advance layout state.
     fn peek_offer(&self, layout_params: Self::Params) -> LayoutResult<SizeOffer>;
 
-    /// Calculate the screen-space rectangle for a widget given the caller's
-    /// `layout_params` (intent) and the widget's size `request`.
+    /// Immediately resolve the final screen-space rectangle for a widget given
+    /// the caller's `layout_params` (intent) and the widget's size `request`.
     ///
     /// Layouts that don't size from content (e.g. `ManualLayout`) ignore
     /// `request`; request-aware layouts (column/row/wrap) read it.

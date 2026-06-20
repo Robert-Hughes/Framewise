@@ -37,7 +37,10 @@ pub mod raw {
         pub content_bounds: Rect,
     }
 
-    /// Return the size this chip would request under offer.
+    /// Return the size this chip would request under `offer`.
+    ///
+    /// This currently measures text with unbounded bounds; offer-sensitive
+    /// wrapping is future work.
     pub fn size_chip<T: TextBackend>(
         spec: &ChipSizeSpec,
         _offer: SizeOffer,

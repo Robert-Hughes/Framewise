@@ -35,9 +35,10 @@ pub mod raw {
         pub content_bounds: Rect,
     }
 
-    /// Calculate a frame's size request from its spec.
+    /// Return the size this frame would request under `offer`.
     ///
-    /// A frame's bounds are resolved bottom-up from its children via the
+    /// The current implementation ignores `offer` because a frame's bounds are
+    /// resolved bottom-up from its children via the
     /// `begin_frame`/`end_frame` lifecycle, so there is nothing to report yet —
     /// this returns [`SizeRequest::UNKNOWN`]. A later revision may report a
     /// minimum size derived from padding and border width alone, so that a frame

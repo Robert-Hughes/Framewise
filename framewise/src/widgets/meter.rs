@@ -34,9 +34,10 @@ pub mod raw {
     #[derive(Debug, Clone, PartialEq)]
     pub struct MeterResult {}
 
-    /// Calculate a meter widget's size request.
+    /// Return the size this meter would request under `offer`.
     ///
-    /// Width = total bar width + gaps, Height = bar height.
+    /// The current implementation ignores `offer` because the request is fixed
+    /// by the number of bars and meter style.
     pub fn size_meter(spec: &MeterSizeSpec, _offer: SizeOffer) -> SizeRequest {
         let w = spec.bars as f32 * spec.style.bar_w
             + (spec.bars.saturating_sub(1) as f32) * spec.style.bar_gap;

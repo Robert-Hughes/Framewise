@@ -102,6 +102,8 @@ impl LayoutState for SplitRowState {
     type Params = Placement;
 
     fn peek_offer(&self, height: Placement) -> LayoutResult<SizeOffer> {
+        // Non-mutating immediate offer query: report the current slot width and
+        // height bounds without consuming a declared cell.
         LayoutResult::Ok(SizeOffer::new(
             AxisBound::Exact(self.slot_w),
             self.height_offer(height),
@@ -109,6 +111,8 @@ impl LayoutState for SplitRowState {
     }
 
     fn layout(&mut self, height: Placement, request: SizeRequest) -> LayoutResult<Rect> {
+        // Immediate placement: consume the child's requested height and commit
+        // the next equal-width slot.
         debug_assert!(
             self.index < self.count,
             "SplitRow: emitted child #{} but only {} cell(s) were declared",
@@ -138,6 +142,9 @@ impl LayoutState for SplitRowState {
     where
         Self: Sized,
     {
+        // Deferred placement: the slot x/width are stable up front. Reject
+        // auto-sized centered/end-aligned heights whose final y origin could
+        // move already-emitted child output.
         debug_assert!(
             self.index < self.count,
             "SplitRow: emitted child #{} but only {} cell(s) were declared",
@@ -189,6 +196,7 @@ impl LayoutState for SplitRowState {
     }
 
     fn end_deferred_layout(&mut self, height: Placement, extent: Vec2) -> LayoutResult<Rect> {
+        // Commit the measured deferred height and consume the next slot.
         let w = self.slot_w;
         let (h, v1) = height
             .resolve_size(Some(extent.y), self.space.height)

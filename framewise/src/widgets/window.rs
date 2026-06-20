@@ -32,6 +32,10 @@ pub mod raw {
         pub content_bounds: Rect,
     }
 
+    /// Return the size this window would request under `offer`.
+    ///
+    /// The current implementation ignores `offer` because the request is fixed
+    /// by the window style and optional status bar.
     pub fn size_window(spec: &WindowSizeSpec, _offer: SizeOffer) -> crate::layout::SizeRequest {
         let s = spec.style;
         let status_h = if spec.status_bar {

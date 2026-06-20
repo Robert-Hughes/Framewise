@@ -49,9 +49,10 @@ pub mod raw {
         pub focused: bool,
     }
 
-    /// Calculate a slider's size request from its spec.
+    /// Return the size this slider would request under `offer`.
     ///
-    /// A slider's extent is caller-driven: the track length comes from the layout,
+    /// The current implementation ignores `offer` because a slider's extent is
+    /// caller-driven: the track length comes from the layout,
     /// not from content, so there is nothing to report yet — this returns
     /// [`SizeRequest::UNKNOWN`]. A later revision may report a cross-axis minimum
     /// derived from `style.thumb_size`.

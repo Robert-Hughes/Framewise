@@ -35,7 +35,10 @@ pub mod raw {
         pub content_bounds: Rect,
     }
 
-    /// Return the size this segmented control would request under offer.
+    /// Return the size this segmented control would request under `offer`.
+    ///
+    /// This currently measures text with unbounded bounds; offer-sensitive
+    /// wrapping is future work.
     pub fn size_segmented<T: TextBackend>(
         spec: &SegmentedSizeSpec,
         _offer: SizeOffer,

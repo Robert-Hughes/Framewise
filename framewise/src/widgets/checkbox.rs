@@ -34,7 +34,10 @@ pub mod raw {
         pub content_bounds: Rect,
     }
 
-    /// Return the size this checkbox would request under offer.
+    /// Return the size this checkbox would request under `offer`.
+    ///
+    /// The current implementation ignores `offer` because this widget's request
+    /// is fixed by its style.
     pub fn size_checkbox(spec: &CheckboxSizeSpec, _offer: SizeOffer) -> SizeRequest {
         SizeRequest::preferred(Vec2::new(spec.style.size, spec.style.size))
     }
@@ -389,7 +392,7 @@ pub fn labelled_checkbox<T: TextBackend, S: LayoutState, CF>(
         );
     }
 
-    // Calculate size requests using the official functions of both widgets.
+    // Query size requests using the official functions of both widgets.
     let offer = ctx.peek_offer(layout_params.clone());
     let checkbox_size_spec = raw::CheckboxSizeSpec { style: spec.style };
     let checkbox_request = raw::size_checkbox(&checkbox_size_spec, offer);

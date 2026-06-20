@@ -26,10 +26,10 @@ pub mod raw {
         pub content_bounds: Rect,
     }
 
-    /// Calculate a color swatch's size request from its spec.
+    /// Return the size this color swatch would request under `offer`.
     ///
-    /// A color swatch has no inherent preferred size. This returns
-    /// [`SizeRequest::UNKNOWN`].
+    /// The current implementation ignores `offer` because a color swatch has no
+    /// inherent preferred size. This returns [`SizeRequest::UNKNOWN`].
     ///
     pub fn size_color_swatch(
         spec: &ColorSwatchSizeSpec,

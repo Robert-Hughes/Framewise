@@ -533,7 +533,7 @@ We define two traits:
 1. **`Layout`**: The user-facing configuration (e.g., `ColumnLayout { spacing: 4.0 }`). It dictates the `Params` required to position a widget and provides a `begin(space: impl Into<LayoutSpace>)` method to instantiate the layout's state. A plain `Rect` is a space with both axes `AxisBound::Exact` (`From<Rect>`), so the common `begin(some_rect)` call is unchanged; an axis only goes unbounded when a caller hands down a `LayoutSpace` that says so (see [Unbounded Axes](#unbounded-axes)).
 2. **`LayoutState`**: The mutable engine that lives inside the `WidgetContext`. It accumulates positions as widgets are added.
 
-The immediate placement call is `layout(params: S::Params, request: SizeRequest) -> Rect`. It merges three inputs: the caller's `params` (intent - fixed/auto/fill), the widget's size request (reported by a `size_*` companion under a `SizeOffer`, see [Size Offers and Requests](#size-offers-and-requests)), and the layout's own state (available space + cursor). Layouts that don't size from content (`ManualLayout`) ignore `request`; request-aware layouts (column/row/wrap) read it. There is still **no separate measuring pass over a retained tree** - the only extra work is the cheap, explicit spec measurement.
+The immediate placement call is `layout(params: S::Params, request: SizeRequest) -> Rect`. It merges three inputs: the caller's `params` (intent - fixed/auto/fill), the widget's size request (reported by a `size_*` companion under a `SizeOffer`, see [Size Offers and Requests](#size-offers-and-requests)), and the layout's own state (available space + cursor). Layouts that don't size from content (`ManualLayout`) ignore `request`; request-aware layouts (column/row/wrap) read it. There is still **no separate measuring pass over a retained tree** - the only extra work is the cheap, explicit size-request query.
 
 ### Built-in Layouts
 
@@ -620,7 +620,7 @@ Position is always concrete — a layout always knows *where* a child starts —
 
 #### The Unifying Rule of Alignment and Distribution
 
-> **Position and distribution policies — fill, right-align, center, space-between — require `AxisBound::Exact`: a committed frame with a far edge. `AtMost` and `Unbounded` bounds permit only measurement / shrink-wrap decisions.**
+> **Position and distribution policies — fill, right-align, center, space-between — require `AxisBound::Exact`: a committed frame with a far edge. `AtMost` and `Unbounded` bounds permit only size-request / shrink-wrap decisions.**
 
 If a layout (such as `ColumnLayout` or `RowLayout`) is configured with a cross-axis alignment of `Center` or `End`, the request is **unsatisfiable** when:
 1. The cross-axis boundary is `AtMost` or `Unbounded` — alignment math has no committed far edge to run against (the boundary was only ever a ceiling or a scroll extent). This is a *recoverable* violation: the layout returns a safe fallback (`Start`, offset `0.0`) tagged with a `LayoutViolation`, and how it surfaces is decided by the [violation policy](#unsatisfiable-requests-layoutresult-and-the-violation-policy) below.

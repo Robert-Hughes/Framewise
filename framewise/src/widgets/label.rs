@@ -32,7 +32,10 @@ pub mod raw {
         pub content_bounds: Rect,
     }
 
-    /// Return the size this label would request under offer.
+    /// Return the size this label would request under `offer`.
+    ///
+    /// This currently measures text with unbounded bounds; offer-sensitive
+    /// wrapping is future work.
     pub fn size_label<T: TextBackend>(
         spec: &LabelSizeSpec,
         _offer: SizeOffer,

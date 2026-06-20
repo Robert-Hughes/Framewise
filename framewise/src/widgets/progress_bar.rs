@@ -30,8 +30,10 @@ pub mod raw {
     #[derive(Debug, Clone, PartialEq)]
     pub struct ProgressBarResult {}
 
-    /// Calculate a progress bar's size request.
-    /// Currently returns UNKNOWN as per user preference.
+    /// Return the size this progress bar would request under `offer`.
+    ///
+    /// The current implementation ignores `offer` because a progress bar's
+    /// extent is caller-driven. This returns [`SizeRequest::UNKNOWN`].
     pub fn size_progress_bar(_spec: &ProgressBarSizeSpec, _offer: SizeOffer) -> SizeRequest {
         SizeRequest::UNKNOWN
     }
