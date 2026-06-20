@@ -1,5 +1,5 @@
 use crate::layout::{
-    AxisBound, Layout, LayoutResult, LayoutSpace, LayoutState, LayoutToken, SizeRequest,
+    AxisBound, Layout, LayoutResult, LayoutSpace, LayoutState, LayoutToken, SizeOffer, SizeRequest,
 };
 use crate::types::{Rect, Vec2};
 
@@ -27,6 +27,13 @@ pub struct ManualState {
 
 impl LayoutState for ManualState {
     type Params = Rect;
+
+    fn peek_offer(&self, layout_params: Rect) -> LayoutResult<SizeOffer> {
+        LayoutResult::Ok(SizeOffer::new(
+            AxisBound::Exact(layout_params.w),
+            AxisBound::Exact(layout_params.h),
+        ))
+    }
 
     fn layout(&mut self, layout_params: Rect, _request: SizeRequest) -> LayoutResult<Rect> {
         // Offset the requested rect by the layout's origin. This ensures if
@@ -91,6 +98,44 @@ mod tests {
             .layout(Rect::new(5.0, 5.0, 20.0, 20.0), SizeRequest::UNKNOWN)
             .unwrap();
         assert_eq!(r, Rect::new(15.0, 15.0, 20.0, 20.0));
+    }
+
+    #[test]
+    fn test_manual_peek_offer_returns_exact_rect_size() {
+        let state = ManualLayout.begin(Rect::new(10.0, 20.0, 300.0, 400.0));
+
+        let offer = state.peek_offer(Rect::new(5.0, 6.0, 70.0, 80.0)).unwrap();
+
+        assert_eq!(
+            offer,
+            SizeOffer::new(AxisBound::Exact(70.0), AxisBound::Exact(80.0))
+        );
+    }
+
+    #[test]
+    fn test_manual_peek_offer_does_not_change_resolve_space() {
+        let parent_space =
+            LayoutSpace::new(100.0, 100.0, AxisBound::Unbounded, AxisBound::Unbounded);
+        let state = ManualLayout.begin(parent_space);
+        let before = state.resolve_space();
+
+        let _ = state.peek_offer(Rect::new(0.0, 0.0, 50.0, 20.0)).unwrap();
+
+        assert_eq!(state.resolve_space(), before);
+    }
+
+    #[test]
+    fn test_manual_peek_then_layout_matches_layout_alone() {
+        let mut peeked = ManualLayout.begin(Rect::new(10.0, 20.0, 300.0, 400.0));
+        let mut direct = ManualLayout.begin(Rect::new(10.0, 20.0, 300.0, 400.0));
+        let params = Rect::new(5.0, 6.0, 70.0, 80.0);
+
+        let _ = peeked.peek_offer(params).unwrap();
+        let peeked_rect = peeked.layout(params, SizeRequest::UNKNOWN).unwrap();
+        let direct_rect = direct.layout(params, SizeRequest::UNKNOWN).unwrap();
+
+        assert_eq!(peeked_rect, direct_rect);
+        assert_eq!(peeked.resolve_space(), direct.resolve_space());
     }
 
     #[test]

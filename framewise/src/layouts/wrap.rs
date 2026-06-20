@@ -1,6 +1,6 @@
 use crate::layout::{
     AxisBound, Layout, LayoutResult, LayoutSpace, LayoutState, LayoutToken, Placement, Placement2D,
-    Size, SizeRequest,
+    Size, SizeOffer, SizeRequest,
 };
 use crate::types::{Rect, Vec2};
 
@@ -49,6 +49,13 @@ pub struct WrapState {
 
 impl LayoutState for WrapState {
     type Params = Placement2D;
+
+    fn peek_offer(&self, layout_params: Placement2D) -> LayoutResult<SizeOffer> {
+        LayoutResult::Ok(SizeOffer::new(
+            self.width_offer(layout_params.width),
+            self.height_offer(layout_params.height),
+        ))
+    }
 
     fn layout(&mut self, layout_params: Placement2D, request: SizeRequest) -> LayoutResult<Rect> {
         let pref = request.preferred;
@@ -207,6 +214,59 @@ impl LayoutState for WrapState {
     }
 }
 
+impl WrapState {
+    fn remaining_width_bound(&self) -> AxisBound {
+        let consumed = self.current_x - self.space.x;
+        match self.space.width {
+            AxisBound::Exact(width) => AxisBound::Exact((width - consumed).max(0.0)),
+            AxisBound::AtMost(width) => AxisBound::AtMost((width - consumed).max(0.0)),
+            AxisBound::Unbounded => AxisBound::Unbounded,
+        }
+    }
+
+    fn remaining_height_bound(&self) -> AxisBound {
+        let consumed = self.current_y - self.space.y;
+        match self.space.height {
+            AxisBound::Exact(height) => AxisBound::Exact((height - consumed).max(0.0)),
+            AxisBound::AtMost(height) => AxisBound::AtMost((height - consumed).max(0.0)),
+            AxisBound::Unbounded => AxisBound::Unbounded,
+        }
+    }
+
+    fn width_offer(&self, placement: Placement) -> AxisBound {
+        match placement {
+            Placement::Sized {
+                size: Size::Fixed(width),
+                ..
+            } => AxisBound::Exact(width),
+            Placement::Fill => self.remaining_width_bound(),
+            Placement::Sized {
+                size: Size::Auto, ..
+            } => at_most_if_bounded(self.remaining_width_bound()),
+        }
+    }
+
+    fn height_offer(&self, placement: Placement) -> AxisBound {
+        match placement {
+            Placement::Sized {
+                size: Size::Fixed(height),
+                ..
+            } => AxisBound::Exact(height),
+            Placement::Fill => self.remaining_height_bound(),
+            Placement::Sized {
+                size: Size::Auto, ..
+            } => at_most_if_bounded(self.remaining_height_bound()),
+        }
+    }
+}
+
+fn at_most_if_bounded(bound: AxisBound) -> AxisBound {
+    match bound {
+        AxisBound::Exact(size) | AxisBound::AtMost(size) => AxisBound::AtMost(size),
+        AxisBound::Unbounded => AxisBound::Unbounded,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -231,6 +291,127 @@ mod tests {
         // Third item (would end at 120 > 100) wraps to the next line at
         // y = line_height(20) + line_spacing(5) = 25.
         assert_eq!(r3, Rect::new(0.0, 25.0, 40.0, 20.0));
+    }
+
+    #[test]
+    fn test_wrap_peek_offer_fixed_auto_fill_bounds() {
+        let mut state = WrapLayout {
+            spacing: 10.0,
+            line_spacing: 5.0,
+        }
+        .begin(Rect::new(0.0, 0.0, 100.0, 80.0));
+        let _ = state
+            .layout(Placement2D::fixed(30.0, 20.0), SizeRequest::UNKNOWN)
+            .unwrap();
+
+        let fixed = state.peek_offer(Placement2D::fixed(40.0, 15.0)).unwrap();
+        assert_eq!(fixed.width, AxisBound::Exact(40.0));
+        assert_eq!(fixed.height, AxisBound::Exact(15.0));
+
+        let auto = state.peek_offer(Placement2D::auto()).unwrap();
+        assert_eq!(auto.width, AxisBound::AtMost(60.0));
+        assert_eq!(auto.height, AxisBound::AtMost(80.0));
+
+        let fill = state
+            .peek_offer(Placement2D {
+                width: Placement::fill(),
+                height: Placement::fill(),
+            })
+            .unwrap();
+        assert_eq!(fill.width, AxisBound::Exact(60.0));
+        assert_eq!(fill.height, AxisBound::Exact(80.0));
+    }
+
+    #[test]
+    fn test_wrap_peek_offer_under_at_most_and_unbounded_bounds() {
+        let at_most_space =
+            LayoutSpace::new(0.0, 0.0, AxisBound::AtMost(100.0), AxisBound::AtMost(80.0));
+        let mut at_most = WrapLayout {
+            spacing: 10.0,
+            line_spacing: 5.0,
+        }
+        .begin(at_most_space);
+        let _ = at_most
+            .layout(Placement2D::fixed(30.0, 20.0), SizeRequest::UNKNOWN)
+            .unwrap();
+
+        let offer = at_most
+            .peek_offer(Placement2D {
+                width: Placement::fill(),
+                height: Placement::auto(),
+            })
+            .unwrap();
+        assert_eq!(offer.width, AxisBound::AtMost(60.0));
+        assert_eq!(offer.height, AxisBound::AtMost(80.0));
+
+        let unbounded = WrapLayout {
+            spacing: 10.0,
+            line_spacing: 5.0,
+        }
+        .begin(LayoutSpace::new(
+            0.0,
+            0.0,
+            AxisBound::Unbounded,
+            AxisBound::Unbounded,
+        ));
+        let offer = unbounded.peek_offer(Placement2D::auto()).unwrap();
+        assert_eq!(offer.width, AxisBound::Unbounded);
+        assert_eq!(offer.height, AxisBound::Unbounded);
+    }
+
+    #[test]
+    fn test_wrap_peek_offer_does_not_wrap_or_mutate() {
+        let mut state = WrapLayout {
+            spacing: 10.0,
+            line_spacing: 5.0,
+        }
+        .begin(Rect::new(0.0, 0.0, 100.0, 80.0));
+        let _ = state
+            .layout(Placement2D::fixed(80.0, 20.0), SizeRequest::UNKNOWN)
+            .unwrap();
+        let before = state.resolve_space();
+
+        let offer = state
+            .peek_offer(Placement2D {
+                width: Placement::fixed(30.0),
+                height: Placement::auto(),
+            })
+            .unwrap();
+
+        assert_eq!(offer.width, AxisBound::Exact(30.0));
+        assert_eq!(state.resolve_space(), before);
+        let r = state
+            .layout(Placement2D::fixed(30.0, 10.0), SizeRequest::UNKNOWN)
+            .unwrap();
+        assert_eq!(r, Rect::new(0.0, 25.0, 30.0, 10.0));
+    }
+
+    #[test]
+    fn test_wrap_peek_then_layout_matches_layout_alone() {
+        let mut peeked = WrapLayout {
+            spacing: 10.0,
+            line_spacing: 5.0,
+        }
+        .begin(Rect::new(0.0, 0.0, 100.0, 80.0));
+        let mut direct = WrapLayout {
+            spacing: 10.0,
+            line_spacing: 5.0,
+        }
+        .begin(Rect::new(0.0, 0.0, 100.0, 80.0));
+        let _ = peeked
+            .layout(Placement2D::fixed(80.0, 20.0), SizeRequest::UNKNOWN)
+            .unwrap();
+        let _ = direct
+            .layout(Placement2D::fixed(80.0, 20.0), SizeRequest::UNKNOWN)
+            .unwrap();
+        let params = Placement2D::fixed(30.0, 10.0);
+
+        let _ = peeked.peek_offer(params).unwrap();
+        let peeked_rect = peeked.layout(params, SizeRequest::UNKNOWN).unwrap();
+        let direct_rect = direct.layout(params, SizeRequest::UNKNOWN).unwrap();
+
+        assert_eq!(peeked_rect, direct_rect);
+        assert_eq!(peeked.resolve_space(), direct.resolve_space());
     }
 
     #[test]

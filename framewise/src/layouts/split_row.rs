@@ -1,6 +1,6 @@
 use crate::layout::{
     Align, AxisBound, Layout, LayoutResult, LayoutSpace, LayoutState, LayoutToken, Placement, Size,
-    SizeRequest,
+    SizeOffer, SizeRequest,
 };
 use crate::types::{Rect, Vec2};
 
@@ -87,6 +87,25 @@ impl SplitRowState {
 
 impl LayoutState for SplitRowState {
     type Params = Placement;
+
+    fn peek_offer(&self, height: Placement) -> LayoutResult<SizeOffer> {
+        LayoutResult::Ok(SizeOffer::new(
+            AxisBound::Exact(self.slot_w),
+            match height {
+                Placement::Sized {
+                    size: Size::Fixed(h),
+                    ..
+                } => AxisBound::Exact(h),
+                Placement::Fill => self.space.height,
+                Placement::Sized {
+                    size: Size::Auto, ..
+                } => match self.space.height {
+                    AxisBound::Exact(h) | AxisBound::AtMost(h) => AxisBound::AtMost(h),
+                    AxisBound::Unbounded => AxisBound::Unbounded,
+                },
+            },
+        ))
+    }
 
     fn layout(&mut self, height: Placement, request: SizeRequest) -> LayoutResult<Rect> {
         debug_assert!(
@@ -228,6 +247,78 @@ mod tests {
     }
 
     #[test]
+    fn test_split_row_peek_offer_reports_exact_slot_width() {
+        let state = SplitRow {
+            count: 4,
+            spacing: 0.0,
+        }
+        .begin(Rect::new(0.0, 0.0, 80.0, 30.0));
+
+        let offer = state.peek_offer(Placement::auto()).unwrap();
+
+        assert_eq!(offer.width, AxisBound::Exact(20.0));
+        assert_eq!(offer.height, AxisBound::AtMost(30.0));
+    }
+
+    #[test]
+    fn test_split_row_peek_offer_does_not_increment_index() {
+        let mut state = SplitRow {
+            count: 4,
+            spacing: 0.0,
+        }
+        .begin(Rect::new(0.0, 0.0, 80.0, 30.0));
+
+        let _ = state.peek_offer(Placement::fill()).unwrap();
+        let rect = state
+            .layout(Placement::fill(), SizeRequest::UNKNOWN)
+            .unwrap();
+
+        assert_eq!(rect.x, 0.0);
+    }
+
+    #[test]
+    fn test_split_row_peek_then_layout_matches_layout_alone() {
+        let mut peeked = SplitRow {
+            count: 4,
+            spacing: 0.0,
+        }
+        .begin(Rect::new(0.0, 0.0, 80.0, 30.0));
+        let mut direct = SplitRow {
+            count: 4,
+            spacing: 0.0,
+        }
+        .begin(Rect::new(0.0, 0.0, 80.0, 30.0));
+        let params = Placement::auto().align(Align::Center);
+        let request = SizeRequest::preferred(Vec2::new(999.0, 10.0));
+
+        let _ = peeked.peek_offer(params).unwrap();
+        let peeked_rect = peeked.layout(params, request).unwrap();
+        let direct_rect = direct.layout(params, request).unwrap();
+
+        assert_eq!(peeked_rect, direct_rect);
+        assert_eq!(peeked.resolve_space(), direct.resolve_space());
+    }
+
+    #[test]
+    fn test_split_row_peek_offer_allows_auto_center_or_end_height() {
+        let state = SplitRow {
+            count: 2,
+            spacing: 0.0,
+        }
+        .begin(Rect::new(0.0, 0.0, 100.0, 50.0));
+
+        let center = state
+            .peek_offer(Placement::auto().align(Align::Center))
+            .unwrap();
+        let end = state
+            .peek_offer(Placement::auto().align(Align::End))
+            .unwrap();
+
+        assert_eq!(center.height, AxisBound::AtMost(50.0));
+        assert_eq!(end.height, AxisBound::AtMost(50.0));
+    }
+
+    #[test]
     fn test_split_row_fixed_height_aligns_center() {
         let mut state = SplitRow {
             count: 2,
@@ -260,6 +351,18 @@ mod tests {
             .layout(Placement::fill(), SizeRequest::UNKNOWN)
             .unwrap();
         assert_eq!(next.x, 20.0);
+    }
+
+    #[test]
+    #[should_panic(expected = "cannot be applied to an Auto-sized")]
+    fn test_deferred_split_row_auto_center_height_panic() {
+        let mut state = SplitRow {
+            count: 2,
+            spacing: 0.0,
+        }
+        .begin(Rect::new(0.0, 0.0, 100.0, 50.0));
+
+        let _ = state.begin_layout(Placement::auto().align(Align::Center), SizeRequest::UNKNOWN);
     }
 
     #[test]

@@ -1,5 +1,6 @@
 use crate::layout::{
-    Layout, LayoutResult, LayoutSpace, LayoutState, LayoutToken, SizeRequest, SpacerLayoutState,
+    Layout, LayoutResult, LayoutSpace, LayoutState, LayoutToken, SizeOffer, SizeRequest,
+    SpacerLayoutState,
 };
 use crate::types::{Rect, Vec2};
 
@@ -30,6 +31,10 @@ pub struct OffsetState<InnerS> {
 
 impl<InnerS: LayoutState> LayoutState for OffsetState<InnerS> {
     type Params = InnerS::Params;
+
+    fn peek_offer(&self, layout_params: Self::Params) -> LayoutResult<SizeOffer> {
+        self.inner.peek_offer(layout_params)
+    }
 
     fn layout(&mut self, layout_params: Self::Params, request: SizeRequest) -> LayoutResult<Rect> {
         self.inner.layout(layout_params, request).map(|mut r| {
@@ -101,6 +106,22 @@ mod tests {
             .unwrap();
         // resolved_space shifted by offset (origin: -13.0, -27.0)
         assert_eq!(state.resolve_space(), Rect::new(-13.0, -27.0, 100.0, 100.0));
+    }
+
+    #[test]
+    fn test_offset_peek_offer_delegates_without_offset() {
+        let offset = OffsetLayout {
+            offset: Vec2::new(13.0, 27.0),
+            inner: ColumnLayout,
+        };
+        let state = offset.begin(Rect::new(0.0, 0.0, 100.0, 200.0));
+
+        let offer = state
+            .peek_offer(ColumnLayoutParams::auto().fixed_y(30.0))
+            .unwrap();
+
+        assert_eq!(offer.width, crate::layout::AxisBound::AtMost(100.0));
+        assert_eq!(offer.height, crate::layout::AxisBound::Exact(30.0));
     }
 
     #[test]

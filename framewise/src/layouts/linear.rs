@@ -2,7 +2,7 @@ use std::marker::PhantomData;
 
 use crate::layout::{
     Align, AxisBound, Layout, LayoutResult, LayoutSpace, LayoutState, LayoutToken, LayoutViolation,
-    LayoutViolationKind, Size, SizeRequest, SpacerLayoutState,
+    LayoutViolationKind, Size, SizeOffer, SizeRequest, SpacerLayoutState,
 };
 use crate::types::{Rect, Vec2};
 
@@ -486,6 +486,23 @@ impl<A: LinearAxis> SpacerLayoutState for LinearState<A> {
 impl<A: LinearAxis> LayoutState for LinearState<A> {
     type Params = A::Params;
 
+    fn peek_offer(&self, layout_params: Self::Params) -> LayoutResult<SizeOffer> {
+        let params = A::orient_params(layout_params);
+        let offer = self.offer_for(params);
+
+        if self.is_closed {
+            return LayoutResult::Fallback {
+                value: offer,
+                violation: LayoutViolation {
+                    kind: LayoutViolationKind::LayoutClosed,
+                    location: core::panic::Location::caller(),
+                },
+            };
+        }
+
+        LayoutResult::Ok(offer)
+    }
+
     fn layout(&mut self, layout_params: Self::Params, request: SizeRequest) -> LayoutResult<Rect> {
         let params = A::orient_params(layout_params);
         let pref = A::orient_request(request.preferred);
@@ -655,6 +672,36 @@ impl<A: LinearAxis> LayoutState for LinearState<A> {
 }
 
 impl<A: LinearAxis> LinearState<A> {
+    fn offer_for(&self, params: OrientedPlacement) -> SizeOffer {
+        let main = match params.main {
+            LinearMain::Fill => self.remaining_main_bound(),
+            LinearMain::Sized {
+                size: Size::Fixed(size),
+                ..
+            } => AxisBound::Exact(size),
+            LinearMain::Sized {
+                size: Size::Auto, ..
+            } => at_most_if_bounded(self.remaining_main_bound()),
+        };
+        let cross = match params.cross {
+            LinearCross::Fill => self.space.cross,
+            LinearCross::Sized {
+                size: Size::Fixed(size),
+                ..
+            } => AxisBound::Exact(size),
+            LinearCross::Sized {
+                size: Size::Auto, ..
+            } => at_most_if_bounded(self.space.cross),
+        };
+
+        SizeOffer::from(A::physical_space(OrientedSpace {
+            origin_main: 0.0,
+            origin_cross: 0.0,
+            main,
+            cross,
+        }))
+    }
+
     fn place(
         &mut self,
         params: OrientedPlacement,
@@ -961,6 +1008,166 @@ mod tests {
                 y: LinearMain::fixed(32.0).align(MainAxisAlign::End),
             }
         );
+    }
+
+    #[test]
+    fn test_column_peek_offer_fixed_cross_auto_main() {
+        let mut state = column().begin(Rect::new(0.0, 0.0, 200.0, 300.0));
+        let _ = state
+            .layout(ColumnLayoutParams::fixed(50.0, 40.0), SizeRequest::UNKNOWN)
+            .unwrap();
+        state.spacer(10.0.into());
+
+        let offer = state
+            .peek_offer(ColumnLayoutParams {
+                x: LinearCross::fixed(80.0),
+                y: LinearMain::auto(),
+            })
+            .unwrap();
+
+        assert_eq!(offer.width, AxisBound::Exact(80.0));
+        assert_eq!(offer.height, AxisBound::AtMost(250.0));
+    }
+
+    #[test]
+    fn test_column_peek_offer_fill_cross_auto_main() {
+        let mut state = column().begin(Rect::new(0.0, 0.0, 200.0, 300.0));
+        let _ = state
+            .layout(ColumnLayoutParams::fixed(50.0, 40.0), SizeRequest::UNKNOWN)
+            .unwrap();
+        state.spacer(10.0.into());
+
+        let offer = state
+            .peek_offer(ColumnLayoutParams {
+                x: LinearCross::fill(),
+                y: LinearMain::auto(),
+            })
+            .unwrap();
+
+        assert_eq!(offer.width, AxisBound::Exact(200.0));
+        assert_eq!(offer.height, AxisBound::AtMost(250.0));
+    }
+
+    #[test]
+    fn test_column_peek_offer_auto_cross_under_exact_parent_width() {
+        let state = column().begin(Rect::new(0.0, 0.0, 200.0, 300.0));
+
+        let offer = state
+            .peek_offer(ColumnLayoutParams {
+                x: LinearCross::auto(),
+                y: LinearMain::fixed(30.0),
+            })
+            .unwrap();
+
+        assert_eq!(offer.width, AxisBound::AtMost(200.0));
+        assert_eq!(offer.height, AxisBound::Exact(30.0));
+    }
+
+    #[test]
+    fn test_row_peek_offer_main_and_cross_orientation() {
+        let mut state = row().begin(Rect::new(0.0, 0.0, 300.0, 200.0));
+        let _ = state
+            .layout(RowLayoutParams::fixed(40.0, 50.0), SizeRequest::UNKNOWN)
+            .unwrap();
+        state.spacer(10.0.into());
+
+        let fixed_cross = state
+            .peek_offer(RowLayoutParams {
+                x: LinearMain::auto(),
+                y: LinearCross::fixed(80.0),
+            })
+            .unwrap();
+        assert_eq!(fixed_cross.width, AxisBound::AtMost(250.0));
+        assert_eq!(fixed_cross.height, AxisBound::Exact(80.0));
+
+        let fill_cross = state
+            .peek_offer(RowLayoutParams {
+                x: LinearMain::auto(),
+                y: LinearCross::fill(),
+            })
+            .unwrap();
+        assert_eq!(fill_cross.width, AxisBound::AtMost(250.0));
+        assert_eq!(fill_cross.height, AxisBound::Exact(200.0));
+
+        let auto_cross = state
+            .peek_offer(RowLayoutParams {
+                x: LinearMain::fixed(30.0),
+                y: LinearCross::auto(),
+            })
+            .unwrap();
+        assert_eq!(auto_cross.width, AxisBound::Exact(30.0));
+        assert_eq!(auto_cross.height, AxisBound::AtMost(200.0));
+    }
+
+    #[test]
+    fn test_linear_peek_offer_does_not_advance_cursor_or_consume_spacing() {
+        let mut state = row().begin(Rect::new(0.0, 0.0, 100.0, 50.0));
+        let _ = state
+            .layout(RowLayoutParams::fixed(30.0, 10.0), SizeRequest::UNKNOWN)
+            .unwrap();
+        state.spacer(10.0.into());
+        let before = state.resolve_space();
+
+        let offer = state
+            .peek_offer(RowLayoutParams {
+                x: LinearMain::auto(),
+                y: LinearCross::fixed(10.0),
+            })
+            .unwrap();
+
+        assert_eq!(offer.width, AxisBound::AtMost(60.0));
+        assert_eq!(state.resolve_space(), before);
+        let r = state
+            .layout(RowLayoutParams::fixed(20.0, 10.0), SizeRequest::UNKNOWN)
+            .unwrap();
+        assert_eq!(r.x, 40.0);
+    }
+
+    #[test]
+    fn test_linear_peek_then_layout_matches_layout_alone() {
+        let mut peeked = row().begin(Rect::new(0.0, 0.0, 100.0, 50.0));
+        let mut direct = row().begin(Rect::new(0.0, 0.0, 100.0, 50.0));
+        let _ = peeked
+            .layout(RowLayoutParams::fixed(30.0, 10.0), SizeRequest::UNKNOWN)
+            .unwrap();
+        let _ = direct
+            .layout(RowLayoutParams::fixed(30.0, 10.0), SizeRequest::UNKNOWN)
+            .unwrap();
+        peeked.spacer(10.0.into());
+        direct.spacer(10.0.into());
+        let params = RowLayoutParams {
+            x: LinearMain::auto(),
+            y: LinearCross::fixed(10.0),
+        };
+        let request = SizeRequest::preferred(Vec2::new(20.0, 10.0));
+
+        let _ = peeked.peek_offer(params).unwrap();
+        let peeked_rect = peeked.layout(params, request).unwrap();
+        let direct_rect = direct.layout(params, request).unwrap();
+
+        assert_eq!(peeked_rect, direct_rect);
+        assert_eq!(peeked.resolve_space(), direct.resolve_space());
+    }
+
+    #[test]
+    fn test_linear_peek_offer_allows_auto_center_or_end_alignment() {
+        let state = column().begin(Rect::new(0.0, 0.0, 200.0, 300.0));
+
+        let center = state
+            .peek_offer(ColumnLayoutParams {
+                x: LinearCross::auto().align(Align::Center),
+                y: LinearMain::fixed(30.0),
+            })
+            .unwrap();
+        let end = state
+            .peek_offer(ColumnLayoutParams {
+                x: LinearCross::auto().align(Align::End),
+                y: LinearMain::fixed(30.0),
+            })
+            .unwrap();
+
+        assert_eq!(center.width, AxisBound::AtMost(200.0));
+        assert_eq!(end.width, AxisBound::AtMost(200.0));
     }
 
     #[test]

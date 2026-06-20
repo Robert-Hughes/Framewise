@@ -35,9 +35,10 @@ impl AxisBound {
 /// [`SizeOffer`] is the origin-free width/height-only form used for size-request
 /// calculation.
 ///
-/// A plain [`Rect`] converts via [`From`] to a fully-`Bounded` space — this is
-/// the common case, and is why `Layout::begin` accepts `impl Into<LayoutSpace>`
-/// (every `begin(some_rect)` call keeps working unchanged).
+/// A plain [`Rect`] converts via [`From`] to a space with both axes
+/// [`AxisBound::Exact`] — this is the common case, and is why `Layout::begin`
+/// accepts `impl Into<LayoutSpace>` (every `begin(some_rect)` call keeps working
+/// unchanged).
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct LayoutSpace {
     pub x: f32,
@@ -105,7 +106,7 @@ impl LayoutSpace {
     }
 }
 
-/// A fully-specified `Rect` is a fully-`Bounded` space.
+/// A fully-specified `Rect` is a space with both axes [`AxisBound::Exact`].
 impl From<Rect> for LayoutSpace {
     fn from(r: Rect) -> Self {
         Self {
@@ -548,8 +549,8 @@ pub trait Layout {
 
     /// Initializes the mutable layout state, given the space allocated by the
     /// parent. Accepts anything convertible to a [`LayoutSpace`]; a plain
-    /// [`Rect`] is a fully-bounded space, so existing `begin(rect)` calls are
-    /// unchanged.
+    /// [`Rect`] is a space with both axes [`AxisBound::Exact`], so existing
+    /// `begin(rect)` calls are unchanged.
     fn begin(self, space: impl Into<LayoutSpace>) -> Self::State;
 }
 
@@ -567,6 +568,17 @@ impl<'a, LS: LayoutState> LayoutToken<'a, LS> {
 
 pub trait LayoutState {
     type Params: Clone;
+
+    /// Non-mutating query for the size bounds an immediate child would receive if
+    /// laid out next with these params.
+    ///
+    /// This is for widgets that will not emit anything before final placement.
+    /// Callers that do not need offer-sensitive sizing may skip this and call
+    /// `layout` directly with a precomputed `SizeRequest`.
+    ///
+    /// Unlike `begin_layout`, this does not reserve a deferred placement and must
+    /// not advance layout state.
+    fn peek_offer(&self, layout_params: Self::Params) -> LayoutResult<SizeOffer>;
 
     /// Calculate the screen-space rectangle for a widget given the caller's
     /// `layout_params` (intent) and the widget's size `request`.
