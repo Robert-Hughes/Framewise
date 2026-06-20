@@ -193,10 +193,11 @@ impl<'a> LabelSpecBuilder<'a> {
 
 // ── High-level widget function ───────────────────────────────────────────────────
 
-/// High-level label widget function using WidgetContext.
+/// High-level label widget function using `WidgetContext`.
 ///
-/// This function accepts a LabelSpecBuilder and layout parameters, resolves layout and styles internally,
-/// and calls the low-level raw::label function.
+/// Resolves defaults, queries the layout offer, asks the raw size helper for a
+/// `SizeRequest`, resolves the final rect with `layout`, then calls the raw
+/// widget.
 pub fn label<'a, T: TextBackend, S: LayoutState, CF>(
     ctx: &mut WidgetContext<T, S, CF>,
     builder: LabelSpecBuilder<'a>,

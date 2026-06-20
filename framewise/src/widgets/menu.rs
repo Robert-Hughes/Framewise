@@ -402,9 +402,11 @@ impl<'a> MenuSpecBuilder<'a> {
 
 // ── High-level widget function ───────────────────────────────────────────────────
 
-/// High-level menu widget function using WidgetContext.
+/// High-level menu widget function using `WidgetContext`.
 ///
-/// This function accepts a MenuSpecBuilder and calls the low-level raw::menu function.
+/// Resolves defaults, queries the layout offer, asks the raw size helper for a
+/// `SizeRequest`, resolves the final rect with `layout`, then calls the raw
+/// widget.
 pub fn menu<'a, T: TextBackend, S: LayoutState, CF>(
     ctx: &mut WidgetContext<T, S, CF>,
     builder: MenuSpecBuilder<'a>,

@@ -273,9 +273,11 @@ impl SwitchSpecBuilder {
 
 // ── High-level widget function ───────────────────────────────────────────────────
 
-/// High-level switch widget function using WidgetContext.
+/// High-level switch widget function using `WidgetContext`.
 ///
-/// This function accepts a SwitchSpecBuilder and calls the low-level raw::switch function.
+/// Resolves defaults, queries the layout offer, asks the raw size helper for a
+/// `SizeRequest`, resolves the final rect with `layout`, then calls the raw
+/// widget.
 pub fn switch<T: TextBackend, S: LayoutState, CF>(
     ctx: &mut WidgetContext<T, S, CF>,
     builder: SwitchSpecBuilder,

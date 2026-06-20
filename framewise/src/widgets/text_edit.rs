@@ -1839,9 +1839,11 @@ pub fn logical_line_bounds(text: &str, byte_index: usize) -> (usize, usize) {
 
 // ── High-level widget function ───────────────────────────────────────────────────
 
-/// High-level text edit widget function using WidgetContext.
+/// High-level text edit widget function using `WidgetContext`.
 ///
-/// This function accepts a TextEditSpecBuilder and calls the low-level raw::text_edit function.
+/// Resolves defaults, queries the layout offer, asks the raw size helper for a
+/// `SizeRequest`, resolves the final rect with `layout`, then calls the raw
+/// widget.
 pub fn text_edit<T: TextBackend, S: LayoutState, CF>(
     ctx: &mut WidgetContext<T, S, CF>,
     builder: TextEditSpecBuilder,

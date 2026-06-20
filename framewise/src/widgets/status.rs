@@ -216,9 +216,11 @@ impl<'a> StatusSpecBuilder<'a> {
 
 // ── High-level widget function ───────────────────────────────────────────────────
 
-/// High-level status widget function using WidgetContext.
+/// High-level status widget function using `WidgetContext`.
 ///
-/// This function accepts a StatusSpecBuilder and calls the low-level raw::status function.
+/// Resolves defaults, queries the layout offer, asks the raw size helper for a
+/// `SizeRequest`, resolves the final rect with `layout`, then calls the raw
+/// widget.
 pub fn status<'a, T: TextBackend, S: LayoutState, CF>(
     ctx: &mut WidgetContext<T, S, CF>,
     builder: StatusSpecBuilder<'a>,

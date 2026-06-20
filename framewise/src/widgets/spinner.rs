@@ -225,9 +225,11 @@ impl SpinnerSpecBuilder {
 
 // ── High-level widget function ───────────────────────────────────────────────────
 
-/// High-level spinner widget function using WidgetContext.
+/// High-level spinner widget function using `WidgetContext`.
 ///
-/// This function accepts a SpinnerSpecBuilder and calls the low-level raw::spinner function.
+/// Resolves defaults, queries the layout offer, asks the raw size helper for a
+/// `SizeRequest`, resolves the final rect with `layout`, then calls the raw
+/// widget.
 pub fn spinner<T: TextBackend, S: LayoutState, CF>(
     ctx: &mut WidgetContext<T, S, CF>,
     builder: SpinnerSpecBuilder,
