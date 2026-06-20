@@ -116,11 +116,71 @@ For SplitRow, do we want an option to have alignment within each 'cell', like if
 
 - Also if you want just a column of widgets with nice spacing between them, rather than the default of them all being tightly packed!
 
-- How do we handle cases where a layout doesn't have "enough" remaining space in the LayoutSpace to layout the next child - error? fallback? overflow?
-
 - WrapLayout still panics - these should be layout violation errors! (Check other panics too!)
 
 - Do we want scroll_area to be able to be 'auto-sized if it fits', i.e. if there's enough space it shrink-wraps children like a Panel, but if not enough space it has scroll bars etc.
+
+### How do we handle cases where a layout doesn't have "enough" remaining space in the LayoutSpace to layout the next child - error? fallback? overflow?
+
+Yes. I think the text edit playground exposed one case of a broader underspecified rule: **is `LayoutSpace` a hard containment constraint, or just an offer/anchor for placement?**
+
+Right now Framewise behaves like a mix:
+
+- `AxisBound::AtMost` is a real clamp for `Auto`.
+- `AxisBound::Exact` is an anchor frame, but `Auto` can still resolve to its preferred size and overflow it.
+- `Fixed` can exceed remaining space without a violation.
+- `resolve_space()` clamps a layout’s reported outer size under `AtMost`, even if a child rect overflowed.
+- Layout violations currently represent “cannot interpret this placement rule,” not “child did not fit.”
+
+That last point is important. Existing `LayoutViolationKind` covers things like:
+- fill with no exact box
+- center/end alignment with no exact anchor
+- auto with no preferred size
+- placing after a closed end-aligned layout
+
+It does **not** cover “requested 180px but only 100px remained.”
+
+So today, “not enough space” generally means **overflow, silently**, unless the specific placement mode itself is unsatisfiable.
+
+I’d frame the design decision like this:
+
+**Option A: Overflow Is Allowed**
+LayoutSpace is an offer plus anchor. Children may exceed it. Clipping and scrolling are explicit widgets. This is simple and immediate-mode friendly, but needs docs and debug tooling so overflow is not surprising.
+
+**Option B: Overflow Is A Layout Violation**
+If fixed/auto placement resolves larger than remaining bounded space, emit something like:
+
+```rust
+LayoutViolationKind::InsufficientSpace {
+    axis,
+    available,
+    requested,
+}
+```
+
+Fallback could still place the child at requested size, or clamp depending on policy. This gives visibility without forcing a constraint solver.
+
+**Option C: Hard Clamp By Default**
+Every bounded parent clips/clamps children. I would avoid this as the default. It hides layout bugs, makes fixed sizing less honest, and pushes scroll/clip behavior into every layout.
+
+My recommendation: **Option B semantics, Option A fallback.**
+
+Concretely:
+- Overflow remains allowed and deterministic.
+- It becomes a layout violation when a child’s resolved rect exceeds an `Exact`/`AtMost` remaining bound.
+- The fallback rect remains the requested rect, so existing UI does not suddenly shrink.
+- Debug/highlight/panic policies can surface it.
+- Explicit scroll/clip containers remain the way to contain overflow intentionally.
+
+Then separately add a proper ergonomic API for “auto up to max”:
+
+```rust
+ColumnLayoutParams::auto().max_x(420.0).max_y(140.0)
+```
+
+or a bounded child/layout helper. The workaround I added to the demo is basically hand-building that missing concept with `LayoutSpace::AtMost`.
+
+So yes: I’d call this a missing spec decision, not just a text edit demo issue. The current implementation has reasonable pieces, but the contract around overflow vs insufficient remaining space needs to be made explicit and tested.
 
 ### Framing (now in DESIGN.md)
 
