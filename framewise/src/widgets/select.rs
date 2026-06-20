@@ -582,39 +582,37 @@ pub fn select<'a, T: TextBackend, S: LayoutState, CF>(
 
 #[cfg(test)]
 mod tests {
-    mod raw {
-        pub use super::super::raw::{SelectPreLayoutResult, SelectResult, SelectSpec};
-        pub fn select<'a, T: crate::text::TextBackend>(
-            spec: SelectSpec<'a>,
-            state: &mut super::super::SelectState,
-            input: &crate::Input,
-            focus_system: &mut crate::focus::FocusSystem,
-            text_backend: &mut T,
-            cmds: &mut crate::draw::DrawCommands,
-        ) -> SelectResult {
-            super::super::raw::post_layout_select(
-                spec,
-                SelectPreLayoutResult {
-                    size_request: crate::layout::SizeRequest::UNKNOWN,
-                },
-                state,
-                input,
-                focus_system,
-                text_backend,
-                cmds,
-            )
-        }
-    }
+    use super::raw::{SelectResult, SelectSpec};
     use super::*;
     use crate::test_utils::TestTextBackend;
     use crate::types::Vec2;
     use crate::{DrawGlyph, PreparedGlyphToken};
-    use raw::SelectSpec;
 
-    fn select_dummy<'a>(spec: SelectSpec<'a>) -> (raw::SelectResult, DrawCommands) {
+    fn post_layout_select_for_test<'a, T: crate::text::TextBackend>(
+        spec: SelectSpec<'a>,
+        state: &mut SelectState,
+        input: &crate::Input,
+        focus_system: &mut crate::focus::FocusSystem,
+        text_backend: &mut T,
+        cmds: &mut crate::draw::DrawCommands,
+    ) -> SelectResult {
+        raw::post_layout_select(
+            spec,
+            raw::SelectPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
+            state,
+            input,
+            focus_system,
+            text_backend,
+            cmds,
+        )
+    }
+
+    fn select_dummy<'a>(spec: SelectSpec<'a>) -> (SelectResult, DrawCommands) {
         let mut cmds = DrawCommands::new();
         let mut text_backend = TestTextBackend;
-        let result = raw::select(
+        let result = post_layout_select_for_test(
             spec,
             &mut SelectState::default(),
             &Input::default(),
@@ -733,7 +731,7 @@ mod tests {
 
         let mut state = state;
         let mut cmds = DrawCommands::new();
-        raw::select(
+        post_layout_select_for_test(
             spec,
             &mut state,
             &Input::default(),
@@ -968,7 +966,7 @@ mod tests {
         let mut state = state;
         focus_system.begin_frame();
         let mut cmds = DrawCommands::new();
-        raw::select(
+        post_layout_select_for_test(
             spec,
             &mut state,
             &input,
@@ -1011,7 +1009,7 @@ mod tests {
         let mut state = state;
         focus_system.begin_frame();
         let mut cmds = DrawCommands::new();
-        raw::select(
+        post_layout_select_for_test(
             spec,
             &mut state,
             &input,
@@ -1043,7 +1041,7 @@ mod tests {
         input.key_pressed_down = true;
         focus_system.begin_frame();
         let mut cmds = DrawCommands::new();
-        raw::select(
+        post_layout_select_for_test(
             SelectSpec {
                 layer: Layer::default(),
                 rect: Rect::new(0.0, 0.0, 180.0, 28.0),
@@ -1070,7 +1068,7 @@ mod tests {
         input.key_pressed_space = true;
         focus_system.begin_frame();
         let mut cmds = DrawCommands::new();
-        raw::select(
+        post_layout_select_for_test(
             SelectSpec {
                 layer: Layer::default(),
                 rect: Rect::new(0.0, 0.0, 180.0, 28.0),
@@ -1093,7 +1091,7 @@ mod tests {
         input.key_released_space = true;
         focus_system.begin_frame();
         let mut cmds = DrawCommands::new();
-        raw::select(
+        post_layout_select_for_test(
             SelectSpec {
                 layer: Layer::default(),
                 rect: Rect::new(0.0, 0.0, 180.0, 28.0),
@@ -1119,7 +1117,7 @@ mod tests {
         input.key_pressed_down = true;
         focus_system.begin_frame();
         let mut cmds = DrawCommands::new();
-        raw::select(
+        post_layout_select_for_test(
             SelectSpec {
                 layer: Layer::default(),
                 rect: Rect::new(0.0, 0.0, 180.0, 28.0),
@@ -1144,7 +1142,7 @@ mod tests {
         input.key_pressed_enter = true;
         focus_system.begin_frame();
         let mut cmds = DrawCommands::new();
-        raw::select(
+        post_layout_select_for_test(
             SelectSpec {
                 layer: Layer::default(),
                 rect: Rect::new(0.0, 0.0, 180.0, 28.0),

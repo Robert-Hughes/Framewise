@@ -451,9 +451,8 @@ impl<'a> ButtonSpecBuilder<'a> {
 
 /// High-level button widget function using `WidgetContext`.
 ///
-/// Resolves defaults, queries the layout offer, asks the raw size helper for a
-/// `SizeRequest`, resolves the final rect with `layout`, then calls the raw
-/// widget.
+/// Resolves defaults, runs the raw pre-layout phase to obtain a `SizeRequest`,
+/// resolves the final rect with layout, then runs the raw post-layout phase.
 pub fn button<'a, T: TextBackend, S: LayoutState, CF>(
     ctx: &mut WidgetContext<T, S, CF>,
     builder: ButtonSpecBuilder<'a>,

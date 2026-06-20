@@ -533,7 +533,7 @@ We define two traits:
 1. **`Layout`**: The user-facing configuration (e.g., `ColumnLayout { spacing: 4.0 }`). It dictates the `Params` required to position a widget and provides a `begin(space: impl Into<LayoutSpace>)` method to instantiate the layout's state. A plain `Rect` is a space with both axes `AxisBound::Exact` (`From<Rect>`), so the common `begin(some_rect)` call is unchanged; an axis only goes unbounded when a caller hands down a `LayoutSpace` that says so (see [Unbounded Axes](#unbounded-axes)).
 2. **`LayoutState`**: The mutable engine that lives inside the `WidgetContext`. It accumulates positions as widgets are added.
 
-The immediate placement call is `layout(params: S::Params, request: SizeRequest) -> Rect`. It merges three inputs: the caller's `params` (intent - fixed/auto/fill), the widget's size request (reported by a `size_*` companion under a `SizeOffer`, see [Size Offers and Requests](#size-offers-and-requests)), and the layout's own state (available space + cursor). Layouts that don't size from content (`ManualLayout`) ignore `request`; request-aware layouts (column/row/wrap) read it. There is still **no separate measuring pass over a retained tree** - the only extra work is the cheap, explicit size-request query.
+The immediate placement call is `layout(params: S::Params, request: SizeRequest) -> Rect`. It merges three inputs: the caller's `params` (intent - fixed/auto/fill), the widget's size request (reported by a `raw::pre_layout_*` phase under a `SizeOffer`, see [Size Offers and Requests](#size-offers-and-requests)), and the layout's own state (available space + cursor). Layouts that don't size from content (`ManualLayout`) ignore `request`; request-aware layouts (column/row/wrap) read it. There is still **no separate measuring pass over a retained tree** - the only extra work is the cheap, explicit pre-layout size-request query.
 
 ### Built-in Layouts
 
@@ -676,11 +676,11 @@ Three key rules keep these bounds from leaking infinity into leaf widget geometr
 
 **Reading the accumulated extent — `resolve_space`.** `LayoutState` exposes `fn resolve_space(&self) -> Rect`: the accumulated content resolved against the layout's own `LayoutSpace` bounds (an `Exact` axis reports the exact extent, `AtMost` caps the measured size, `Unbounded` shrink-wraps to it), measured from its origin (so it is independent of any scroll offset, and `OffsetState` forwards its inner's value unchanged). Every layout state implements it — a column reports its widest child and stacked height, `ManualLayout` the max far-edge of placed rects, etc. `WidgetContext::finish()` reads it and hands the resolved `Rect` to the cleanup closure, which is how a deferred scroll area learns how large its children turned out (see [Scroll Areas](#scroll-areas-windows-and-symmetrical-container-life-cycles)). It returns the origin with zero extent before any child is placed.
 
-**The `pre_layout_*` companion.** Each raw widget that participates has an independent `raw::pre_layout_*(spec, offer, ...) -> *PreLayoutResult`. It takes a dedicated raw pre-layout spec such as `raw::ButtonPreLayoutSpec`, containing only the fields needed to size that widget. Geometry, clipping, input state, focus state, and any draw-only fields are absent unless they genuinely affect the size request.
+**The `pre_layout_*` companion.** Each raw widget that participates has an independent `raw::pre_layout_*(spec, offer, ...) -> *PreLayoutResult`. It takes a dedicated raw pre-layout spec such as `raw::ButtonPreLayoutSpec`, containing only the fields needed before final geometry is known. Geometry, clipping, and draw-only fields are absent unless they genuinely affect the size request.
 
-This keeps the type honest: size requesting runs before layout, so the widget rect is not available and cannot appear in the size spec. Callers do not use placeholder rectangles to satisfy a broader raw widget spec; they construct the smaller size spec directly.
+This keeps the type honest: pre-layout runs before layout, so the widget rect is not available and cannot appear in the pre-layout spec. Callers do not use placeholder rectangles to satisfy a broader raw widget spec; they construct the smaller pre-layout spec directly. Future widget work may allow pre-layout functions to take runtime systems or `&mut State` parameters explicitly for rect-independent state changes, but those dependencies still do not belong inside spec structs.
 
-**High-level flow.** The high-level widget function: (1) resolves defaults into the high-level `*Spec`; (2) constructs `raw::*PreLayoutSpec` from the size-relevant fields; (3) calls `raw::pre_layout_*(&pre_layout_spec, offer, ...)`; (4) calls `layout(params, pre_layout.size_request)` to get the real rect; (5) constructs `raw::*Spec` from the resolved high-level spec plus the layout rect and context clip; (6) calls `raw::post_layout_*(spec, pre_layout, ...)`. Under `ManualLayout` the size request is computed but ignored — an accepted "double-shape" cost for now (the text is shaped in both sizing and raw draw); a later `Layout::WANTS_REQUEST` const can gate it.
+**High-level flow.** The high-level widget function: (1) resolves defaults into the high-level `*Spec`; (2) constructs `raw::*PreLayoutSpec` from the pre-layout-relevant fields; (3) calls `raw::pre_layout_*(&pre_layout_spec, offer, ...)`; (4) calls `layout(params, pre_layout.size_request)` to get the real rect; (5) constructs `raw::*Spec` from the resolved high-level spec plus the layout rect and context clip; (6) calls `raw::post_layout_*(spec, pre_layout, ...)` for one-shot widgets, or `raw::begin_*` for scoped containers. Under `ManualLayout` the size request is computed but ignored - an accepted "double-shape" cost for now (the text is shaped in both pre-layout and raw draw); a later `Layout::WANTS_REQUEST` const can gate it.
 
 #### Deferred-own-size containers
 
@@ -720,17 +720,106 @@ To support variable spacing between children in sequential layouts (like `RowLay
 
 Framewise has two layers:
 
-### Low-Level: Raw Widget Functions
+### Low-Level Raw Widget Functions
 
-Plain, low-level functions residing in `raw` submodules (e.g., `widgets::button::raw::button`). They are completely decoupled from `WidgetContext` and the layout system. They receive a fully resolved explicit specification struct, append draw commands directly to a caller-supplied `&mut DrawCommands` buffer, and return a `raw::*Result` containing interaction info. Every input is explicit; the cost is strictly local.
+Plain, low-level functions live in widget `raw` submodules. They are decoupled from `WidgetContext`, themes, hidden layout state, and retained widget trees. Every runtime dependency is passed explicitly. Some lifecycle phases may mutate widget state, but only through explicit `&mut *State` parameters.
 
-Appending directly to a caller-supplied buffer avoids intermediate `Vec` allocation and copying, and gives callers stable index-based access to the command list (which frame containers rely on for placeholder patching). The `cmds: &mut DrawCommands` parameter is always last, after all other inputs.
+Appending directly to a caller-supplied buffer avoids intermediate `Vec` allocation and copying, and gives callers stable index-based access to the command list. The `cmds: &mut DrawCommands` parameter is always last, after all other inputs.
+
+Raw widgets fall into three lifecycle categories.
+
+**One-shot widgets** have no child `WidgetContext` or child-layout scope. Examples include button, label, text_edit, checkbox, slider, meter, menu, and select. Menu and select may draw popup-like content, but in the current implementation they are still one-shot raw widgets because they do not open a child context.
+
+The lifecycle is:
 
 ```rust
-pub fn button<T: TextBackend>(spec: raw::ButtonSpec, state: &mut ButtonState, input: &Input, focus_system: &mut FocusSystem, text_backend: &mut T, cmds: &mut DrawCommands) -> raw::ButtonResult;
-pub fn label<T: TextBackend>(spec: raw::LabelSpec, text_backend: &mut T, cmds: &mut DrawCommands) -> raw::LabelResult;
-pub fn text_edit<T: TextBackend>(spec: raw::TextEditSpec, state: &mut TextEditState, input: &Input, focus_system: &mut FocusSystem, text_backend: &mut T, cmds: &mut DrawCommands) -> raw::TextEditResult;
+raw::pre_layout_foo(...) -> FooPreLayoutResult
+ctx.layout(params, pre_layout.size_request) -> Rect
+raw::post_layout_foo(spec_with_rect, pre_layout, ...) -> FooResult
 ```
+
+`pre_layout_*` runs before the final rect is known, returns a `*PreLayoutResult` that normally contains `size_request`, may eventually perform rect-independent stateful widget logic through explicit parameters, must not draw, must not hit-test against the final widget rect, and should not do geometry-dependent work.
+
+`post_layout_*` receives the final raw spec containing concrete geometry, consumes the matching pre-layout result, handles geometry-dependent interaction and drawing, and can mutate widget state through explicit `&mut State` parameters.
+
+Example:
+
+```rust
+pub struct ButtonPreLayoutResult {
+    pub size_request: SizeRequest,
+}
+
+pub fn pre_layout_button<T: TextBackend>(
+    spec: &raw::ButtonPreLayoutSpec,
+    offer: SizeOffer,
+    text_backend: &mut T,
+) -> raw::ButtonPreLayoutResult;
+
+pub fn post_layout_button<T: TextBackend>(
+    spec: raw::ButtonSpec,
+    pre_layout: raw::ButtonPreLayoutResult,
+    state: &mut ButtonState,
+    input: &Input,
+    focus_system: &mut FocusSystem,
+    text_backend: &mut T,
+    cmds: &mut DrawCommands,
+) -> raw::ButtonResult;
+```
+
+**Scoped containers with parent-resolved outer rects** resolve their own outer rect through the parent layout and then open a child scope. Examples include scroll_area and window.
+
+The lifecycle is:
+
+```rust
+raw::pre_layout_container(...) -> ContainerPreLayoutResult
+ctx.layout(params, pre_layout.size_request) -> outer Rect
+raw::begin_container(spec_with_outer_rect, pre_layout, ...) -> BeginResult/Token/inner space
+children run in child WidgetContext
+raw::end_container(token, measured child extent, ...)
+```
+
+`begin_*` opens the child drawing/layout scope, emits before-children commands, and computes inner space, clips, and tokens. `end_*` closes the scope after children are measured, clamps or resolves state, draws after-children chrome, pops clips, and performs equivalent cleanup.
+
+Example:
+
+```rust
+pub fn pre_layout_scroll_area(
+    spec: &raw::ScrollAreaPreLayoutSpec,
+    offer: SizeOffer,
+) -> raw::ScrollAreaPreLayoutResult;
+
+pub fn begin_scroll_area(
+    spec: raw::ScrollAreaSpec,
+    pre_layout: raw::ScrollAreaPreLayoutResult,
+    state: &mut ScrollState,
+    input: &Input,
+    focus_system: &mut FocusSystem,
+    cmds: &mut DrawCommands,
+) -> raw::ScrollAreaResult;
+
+pub fn end_scroll_area(
+    token: raw::ScrollAreaToken,
+    content_extent: Vec2,
+    state: &mut ScrollState,
+    input: &Input,
+    focus_system: &mut FocusSystem,
+    cmds: &mut DrawCommands,
+);
+```
+
+**Deferred-own-size containers** cannot know their final outer size until their children have been measured. The current example is frame.
+
+The lifecycle is:
+
+```rust
+raw::pre_layout_container(...) -> ContainerPreLayoutResult
+ctx.child_with_deferred_layout(...) / begin_deferred_layout(...)
+raw::begin_container(provisional_spec, pre_layout, ...) -> token/inner space
+children run
+raw::end_container(token, final_spec/final rect, ...)
+```
+
+`FramePreLayoutResult { size_request }` currently exists for lifecycle consistency and future pre-layout widget logic, but the high-level deferred frame path does not feed that size request into `ctx.layout`. The actual parent placement is still resolved through `begin_deferred_layout` / `end_deferred_layout`.
 
 Each `raw::*Result` is a concrete struct with no trait requirements on callers, no metadata maps, and no dynamic type slots. It does **not** contain a `DrawCommands` field — commands are written directly to the caller's buffer. (Result structs may derive utility traits such as `Debug` for inspection, but callers need not implement any traits to receive or use them.)
 
@@ -752,31 +841,25 @@ pub fn button<T, S, CF>(
 These freestanding functions automatically:
 1. Resolve layout geometries using the context's layout engine.
 2. Resolve styling parameters from the context's current settings.
-3. Call the low-level `raw` widget functions.
-4. Accumulate the returned draw commands inside the `WidgetContext`'s internal buffer.
+3. Call the low-level raw widget lifecycle functions.
+4. Accumulate draw commands inside the `WidgetContext`'s internal buffer.
 5. Return a `*Result` to the caller.
 
-### Output Types: `raw::*Result` and `*Result`
+### Output Types
 
-Each widget defines two result structs reflecting the two API layers.
+Each widget defines result structs reflecting lifecycle phase and API layer.
 
-**`raw::*Result`** is returned by the low-level raw function. It contains:
-- Interaction outputs (`InputInfo`, `focused`, etc.)
-- `content_bounds: Rect` when the widget computes an inner area distinct from the input rect (e.g. a widget with a border or padding). The raw function is the authoritative place to compute this, since it has the spec in hand.
-- **Not** the input `Rect` itself — the caller supplied it explicitly, echoing it back is redundant
-- **Not** `*State` — state is mutated in-place via the `&mut *State` parameter
+**`raw::*PreLayoutResult`** is returned by `raw::pre_layout_*`. It contains `size_request`, may later carry explicit pre-layout bookkeeping, and is consumed by the matching `post_layout_*` or `begin_*` function.
 
-**`*Result`** is returned by the high-level context function. It contains:
-- `layout: LayoutInfo` — includes `bounds` (the rect resolved by the layout engine, which the caller did not know before calling) and `content_bounds`. **Omitted by deferred-own-size containers** (see [Deferred-own-size containers](#deferred-own-size-containers)): a `Frame` does not know its own bounds at `begin`, so it would have nothing honest to put here — its `FrameResult` carries only `ctx`.
-- The same interaction outputs as `raw::*Result`
-- **Not** `DrawCommands` — accumulated into `WidgetContext` automatically
-- **Not** `*State` — mutated in-place
+**`raw::*Result`** is returned by post-layout or begin functions. It contains interaction and content outputs from the raw widget phase, such as `InputInfo`, `focused`, or `content_bounds: Rect` when the widget computes an inner area distinct from the input rect. It does not own draw commands, does not echo the input rect unless that is a real output, and does not contain `*State`; state is mutated in place through explicit `&mut *State` parameters.
 
-The high-level function maps between them: it resolves builder defaults into a high-level `*Spec`, constructs the smaller raw size spec, computes the `SizeRequest` under the `SizeOffer`, resolves the real rect via `ctx.layout_state.layout(params, request)`, constructs the raw widget spec with the resolved rect and context clip, calls `raw::widget()`, pushes draw commands into the context, then constructs the `*Result` forwarding the interaction fields and adding `LayoutInfo`.
+**High-level `*Result`** is returned by context-integrated high-level functions. It usually contains `LayoutInfo` with the bounds resolved by the layout engine and content bounds reported by the raw phase. It may contain a child `WidgetContext` for scoped containers. It may omit `LayoutInfo` for deferred-own-size containers where no honest final bounds are known at begin; `FrameResult` carries only the child context.
 
-Nesting a child layout is done with `ctx.child_with_layout(placement, inner_layout)`: it resolves `placement` against the *current* layout to get the child's bounds, begins `inner_layout` at those bounds, and returns a child `WidgetContext`. (Container widgets that compute their own bounds — scroll areas, windows — instead use the `child_with_layout_and_on_finish[_and_clip_rect]` variants, which take an already-begun layout state plus a self-derived clip.)
+The high-level function maps between them: it resolves builder defaults into a high-level `*Spec`, constructs the raw pre-layout spec, obtains a `SizeRequest` from `raw::pre_layout_*`, resolves the real rect when the lifecycle permits immediate placement, constructs the raw widget spec with resolved geometry and context-managed values, calls `raw::post_layout_*` or `raw::begin_*`, and then constructs the high-level `*Result`.
 
-### Spec, Size Spec, Raw Spec, and Builder Pattern
+Nesting a child layout is done with `ctx.child_with_layout(placement, inner_layout)`: it resolves `placement` against the *current* layout to get the child's bounds, begins `inner_layout` at those bounds, and returns a child `WidgetContext`. Container widgets that compute their own bounds, such as scroll areas and windows, instead use the `child_with_layout_and_on_finish[_and_clip_rect]` variants, which take an already-begun layout state plus a self-derived clip.
+
+### Spec, Pre-Layout Spec, Raw Spec, and Builder Pattern
 
 Every widget type follows a consistent layered configuration pattern:
 
@@ -784,20 +867,20 @@ Every widget type follows a consistent layered configuration pattern:
 
 - **`*SpecBuilder`**: A builder struct used by high-level callers to construct the high-level `*Spec`. The builder holds optional fields and provides ergonomic setter methods. It applies theme defaults for user-facing values and panics only for required high-level inputs with no sensible default.
 
-- **`raw::*PreLayoutSpec`**: A low-level pre-layout specification struct used by `raw::pre_layout_*`. It contains only the fields needed to compute a `SizeRequest`. For example, `raw::ButtonPreLayoutSpec` contains the button text and style, but not `rect` or `clip_rect`.
+- **`raw::*PreLayoutSpec`**: A low-level pre-layout specification struct used by `raw::pre_layout_*`. It contains only value fields needed before final geometry is known. For example, `raw::ButtonPreLayoutSpec` contains the button text and style, but not `rect` or `clip_rect`.
 
 - **`raw::*Spec`**: A fully resolved low-level specification struct used by the raw widget function. All fields are concrete values needed to draw and interact with the widget, including geometry such as `rect` and context-managed values such as `clip_rect` and `layer`. It is defined inside the widget's `pub mod raw {}` submodule (e.g. `button::raw::ButtonSpec`), co-located with the raw function that consumes it, and avoids cluttering the normal module level with details high-level users do not need.
 
 This pattern cleanly separates concerns:
-- **Low-level functions** are pure and testable — they receive explicit values and produce explicit results, with no knowledge of themes, layouts, or context.
-- **Pre-layout sizing** is type-safe — pre-layout specs cannot accidentally contain or read fields that are unavailable before layout.
-- **High-level functions** are ergonomic and integrated — they resolve defaults, handle layout, bridge from high-level specs to raw specs, and hide low-level geometry/context plumbing.
+- **Low-level raw functions** are explicit and testable. They receive every runtime dependency as an explicit parameter and do not depend on `WidgetContext`, themes, hidden layout state, or retained widget trees. Some lifecycle phases may mutate widget state, but only through explicit `&mut *State` parameters.
+- **Pre-layout sizing** is type-safe - pre-layout specs cannot accidentally contain or read fields that are unavailable before layout.
+- **High-level functions** are ergonomic and integrated - they resolve defaults, handle layout, bridge from high-level specs to raw specs, and hide low-level geometry/context plumbing.
 
 > [!IMPORTANT]
-> **Spec and SpecBuilder Value-Type Rule:** High-level `*Spec`, `*SpecBuilder`, `raw::*PreLayoutSpec`, and `raw::*Spec` structs must contain only basic parameters (colors, fonts, rectangles, strings, numeric values, etc.). They must NOT include references to runtime resources like `Input`, `FocusSystem`, a text backend, or other external state. These structs should be pure value-types with no external references, making them trivially copyable, serializable, and independent of any runtime context.
+> **Spec and SpecBuilder Value-Type Rule:** High-level `*Spec`, `*SpecBuilder`, `raw::*PreLayoutSpec`, and `raw::*Spec` structs must contain only basic parameters (colors, fonts, rectangles, strings, numeric values, etc.). They must NOT include references to runtime resources like `Input`, `FocusSystem`, a text backend, or other external state. These structs should be value types with no external references, making them trivially copyable, serializable, and independent of any runtime context. The raw lifecycle functions themselves - `raw::pre_layout_*`, `raw::post_layout_*`, `raw::begin_*`, and `raw::end_*` - may take runtime systems as explicit parameters when needed.
 
 > [!IMPORTANT]
-> **Theme Must Not Appear in Specs:** A high-level `*Spec`, raw size spec, or raw widget spec must never hold a `Theme` field. `Theme` is a high-level convenience that maps semantic intent to concrete values; by the time a spec is constructed, that mapping is complete. The `*SpecBuilder` is the only place `Theme` is touched — its `defaults_from_theme()` method reads the theme and writes resolved colours, sizes, and font handles into the builder's fields. The resulting specs contain only those resolved primitives. This keeps every spec self-contained and renderer-agnostic, and prevents the low-level widget layer from having any dependency on the theme system.
+> **Theme Must Not Appear in Specs:** A high-level `*Spec`, raw pre-layout spec, or raw widget spec must never hold a `Theme` field. `Theme` is a high-level convenience that maps semantic intent to concrete values; by the time a spec is constructed, that mapping is complete. The `*SpecBuilder` is the only place `Theme` is touched — its `defaults_from_theme()` method reads the theme and writes resolved colours, sizes, and font handles into the builder's fields. The resulting specs contain only those resolved primitives. This keeps every spec self-contained and renderer-agnostic, and prevents the low-level widget layer from having any dependency on the theme system.
 
 > [!IMPORTANT]
 > **Builder Construction Rule:** All `*SpecBuilder` structs use a no-args `new()` constructor. No field is singled out as a required constructor parameter — **every field, including bool flags like `disabled` and `large`, is `Option<T>`** and starts as `None`. `build()` applies defaults for fields that have an obvious, context-independent value (e.g. `disabled` → `unwrap_or(false)`) and panics with a clear message for fields with no sensible default; the message names the missing field and points to the fix (e.g. *"style not set — call .style() or defaults_from_theme()"*). Making every field `Option<T>` is essential: `None` means "the user did not set this", which lets both `defaults_from_theme` and the high-level widget function inject context-aware defaults — something impossible if bools silently default to `false` in `new()`.
@@ -819,7 +902,7 @@ This is the only correct behaviour given the call order: the app sets fields on 
 
 **High-level API callers never call `defaults_from_theme` directly.** It is called automatically inside every high-level context function. App code just sets the fields it cares about and passes the builder in.
 
-The high-level function calls `defaults_from_theme` internally before building its high-level `*Spec`. Low-level raw callers do not use high-level builders; they construct `raw::*Spec` and `raw::*SizeSpec` directly, supplying already-resolved styles and geometry. If a raw caller wants themed values, it calls the appropriate `*Style::from_theme` helper and places the resulting concrete style into the raw spec.
+The high-level function calls `defaults_from_theme` internally before building its high-level `*Spec`. Low-level raw callers do not use high-level builders; they construct `raw::*PreLayoutSpec` and `raw::*Spec` directly, supplying already-resolved styles, size inputs, and geometry for the appropriate lifecycle phase. If a raw caller wants themed values, it calls the appropriate `*Style::from_theme` helper and places the resulting concrete style into the raw spec.
 
 Explicit high-level placement is expressed through the layout parameters, not the spec. Under `ManualLayout`, the layout parameter *is* the rect. Callers that want to bypass layout entirely use the low-level `raw::` function and set `rect` directly on `raw::*Spec`.
 

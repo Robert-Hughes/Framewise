@@ -355,8 +355,9 @@ impl<'a> WindowSpecBuilder<'a> {
 
 /// High-level window begin function using WidgetContext.
 ///
-/// This function accepts layout parameters, a WindowSpecBuilder, and an inner layout,
-/// and returns a WindowResult containing the layout info and child WidgetContext.
+/// Resolves defaults, runs the raw pre-layout phase to obtain a `SizeRequest`,
+/// resolves the outer rect, runs the raw begin phase to open the child scope,
+/// and arranges for the raw end phase to run when the child context finishes.
 ///
 /// Note there is no low-level end_window - everything is handled by the on_finish callback of the child context, which calls raw::end_window internally.
 pub fn begin_window<'a, 'b, 'c, T: TextBackend, S: LayoutState, L: Layout, CF>(

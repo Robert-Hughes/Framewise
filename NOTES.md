@@ -4,9 +4,11 @@ Working notes, TODOs, open questions, and half-baked ideas.
 
 ## Current Work
 
+- pre/post_layout widget split
+  - figure out container/deferred layout widgets
+
 - Text Edit
-  - auto-sizing to height of text (like VS Code commit message)
-    - add auto-sizing width & height to demo page (width up to a max, then wraps)
+  - use pre/post_layout split to fix flickering on auto-size. Add unit test to check that new text performs the auto-size layout within that single frame.
 
   - Copy/paste integration with the OS (apparently not working!)
   - caret cursor when mouse is over a text_edit

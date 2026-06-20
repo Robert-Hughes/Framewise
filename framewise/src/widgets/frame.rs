@@ -221,8 +221,10 @@ impl FrameSpecBuilder {
 
 /// High-level frame container widget function using WidgetContext.
 ///
-/// This function accepts a FrameSpecBuilder, parent layout parameters, and an inner layout,
-/// and returns a FrameResult containing the child WidgetContext.
+/// Resolves defaults and runs the raw pre-layout phase for lifecycle consistency,
+/// then uses deferred layout because the final frame size depends on child extent.
+/// The raw begin phase emits provisional placeholder commands and raw end patches
+/// them once final bounds are known.
 ///
 /// ### Sizing and fitting
 /// Whether the frame fits to its children or respects a fixed/filled footprint is determined
@@ -249,7 +251,8 @@ pub fn begin_frame<'a, 'b, T: TextBackend, S: LayoutState, L: Layout, CF>(
     let inset = spec.style.border_width + spec.style.padding;
 
     let pre_layout_spec = raw::FramePreLayoutSpec { style: spec.style };
-    let pre_layout = raw::pre_layout_frame(&pre_layout_spec, SizeOffer::UNBOUNDED);
+    let offer = ctx.peek_offer(layout_params.clone());
+    let pre_layout = raw::pre_layout_frame(&pre_layout_spec, offer);
 
     let policy = ctx.layout_policy;
     let violation_font = ctx.theme.sans_font;

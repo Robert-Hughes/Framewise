@@ -792,8 +792,9 @@ const SCROLL_PIXELS_PER_LINE: f32 = 30.0;
 
 /// High-level scroll area begin function using WidgetContext.
 ///
-/// This function accepts a ScrollAreaSpecBuilder, performs layout on the parent context,
-/// and returns a child WidgetContext parameterized with an OffsetLayout, along with the scroll scope.
+/// Resolves defaults, runs the raw pre-layout phase to obtain a `SizeRequest`,
+/// resolves the outer rect, runs the raw begin phase to open the child scope,
+/// and arranges for the raw end phase to run when the child context finishes.
 ///
 /// Note there is no low-level end_scroll_area - everything is handled by the on_finish callback of the child context, which calls raw::end_scroll_area internally. This is because the scroll area must be ended on the same context it was begun on, and we want to allow users to simply drop the child context when finished without needing to manually call an end function.
 #[allow(clippy::type_complexity)]
