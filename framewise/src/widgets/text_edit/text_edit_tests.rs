@@ -69,10 +69,10 @@ fn test_text_edit_style_scroll_area_defaults() {
     assert_eq!(style.scroll_area_style.corner_color, Some(theme.paper_elev));
     assert_eq!(
         style.scroll_area_style.scrollbar_style.before_style,
-        crate::widgets::slider::TrackStyle::Rect {
-            color: Color::linear_rgba(theme.ink.r, theme.ink.g, theme.ink.b, 0.04),
-            border: Some(Stroke::new(theme.line_soft, 1.0))
-        }
+        Stroke::new(
+            Color::linear_rgba(theme.ink.r, theme.ink.g, theme.ink.b, 0.04),
+            1.0
+        )
     );
     assert_eq!(
         style

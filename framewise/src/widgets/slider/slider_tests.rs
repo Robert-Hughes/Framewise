@@ -244,8 +244,8 @@ fn test_slider_drag() {
     );
     focus_system.end_frame();
 
-    // Endpoints map directly to the track, so 40px of drag is 40 value units.
-    assert_eq!(state.lower, 40.0);
+    // Endpoints map directly to the track, so 40px of drag is 50 value units.
+    assert_eq!(state.lower, 50.0);
 }
 
 #[test]
@@ -796,8 +796,8 @@ fn test_track_click_snaps_and_drags() {
     assert!(!state.is_track_clicking, "track clicking should end");
     // snap: thumb_start = 55 - 10 = 45 → val = 45/80*100 = 56.25
     assert!(
-        (state.lower - 55.0).abs() < 0.01,
-        "snap to 55, got {}",
+        (state.lower - 56.25).abs() < 0.01,
+        "snap to 56.25, got {}",
         state.lower
     );
 
@@ -816,8 +816,8 @@ fn test_track_click_snaps_and_drags() {
     );
     focus_system.end_frame();
     assert!(
-        (state.lower - 65.0).abs() < 0.01,
-        "drag to 65, got {}",
+        (state.lower - 68.75).abs() < 0.01,
+        "drag to 68.75, got {}",
         state.lower
     );
 }
@@ -919,8 +919,8 @@ fn test_track_click_repeat_does_not_overshoot_cursor() {
     );
     focus_system.end_frame();
     assert!(
-        (state.lower - 70.0).abs() < 0.01,
-        "repeat should stop at cursor position 70, got {}",
+        (state.lower - 75.0).abs() < 0.01,
+        "repeat should stop at cursor position 75, got {}",
         state.lower
     );
 
@@ -942,7 +942,7 @@ fn test_track_click_repeat_does_not_overshoot_cursor() {
     );
     focus_system.end_frame();
     assert!(
-        (state.lower - 70.0).abs() < 0.01,
+        (state.lower - 75.0).abs() < 0.01,
         "value should not change after thumb reaches cursor, got {}",
         state.lower
     );
@@ -977,8 +977,8 @@ fn test_track_click_repeat_does_not_overshoot_cursor() {
     );
     assert!(!state.is_track_clicking);
     assert!(
-        (state.lower - 75.0).abs() < 0.01,
-        "snap on drag entry: expected 75, got {}",
+        (state.lower - 81.25).abs() < 0.01,
+        "snap on drag entry: expected 81.25, got {}",
         state.lower
     );
 
@@ -1001,8 +1001,8 @@ fn test_track_click_repeat_does_not_overshoot_cursor() {
     );
     focus_system.end_frame();
     assert!(
-        (state.lower - 85.0).abs() < 0.01,
-        "drag: expected 85, got {}",
+        (state.lower - 93.75).abs() < 0.01,
+        "drag: expected 93.75, got {}",
         state.lower
     );
 }
@@ -1609,13 +1609,13 @@ fn test_slider_visual_normal() {
         &[
             DrawCmd::FillRect {
                 anti_alias: false,
-                rect: Rect::new(9.25, 0.0, 1.5, 50.0),
+                rect: Rect::new(9.25, 6.0, 1.5, 44.0),
                 color: theme.ink,
                 z: 0,
             },
             DrawCmd::FillRect {
                 anti_alias: false,
-                rect: Rect::new(9.25, 50.0, 1.5, 50.0),
+                rect: Rect::new(9.25, 50.0, 1.5, 44.0),
                 color: theme.line,
                 z: 0,
             },
@@ -1670,13 +1670,13 @@ fn test_slider_visual_hovered() {
         &[
             DrawCmd::FillRect {
                 anti_alias: false,
-                rect: Rect::new(9.25, 0.0, 1.5, 50.0),
+                rect: Rect::new(9.25, 6.0, 1.5, 44.0),
                 color: theme.ink,
                 z: 0,
             },
             DrawCmd::FillRect {
                 anti_alias: false,
-                rect: Rect::new(9.25, 50.0, 1.5, 50.0),
+                rect: Rect::new(9.25, 50.0, 1.5, 44.0),
                 color: theme.line,
                 z: 0,
             },
@@ -1731,13 +1731,13 @@ fn test_slider_visual_drag() {
         &[
             DrawCmd::FillRect {
                 anti_alias: false,
-                rect: Rect::new(9.25, 0.0, 1.5, 50.0),
-                color: theme.ink,
+                rect: Rect::new(9.25, 6.0, 1.5, 44.0),
+                color: theme.rust,
                 z: 0,
             },
             DrawCmd::FillRect {
                 anti_alias: false,
-                rect: Rect::new(9.25, 50.0, 1.5, 50.0),
+                rect: Rect::new(9.25, 50.0, 1.5, 44.0),
                 color: theme.line,
                 z: 0,
             },
@@ -1788,22 +1788,15 @@ fn test_slider_visual_focused() {
     assert_eq!(
         &cmds[..],
         &[
-            DrawCmd::StrokeRect {
-                anti_alias: false,
-                rect: Rect::new(-4.0, -4.0, 28.0, 108.0),
-                color: theme.rust,
-                width: 2.0,
-                z: 1,
-            },
             DrawCmd::FillRect {
                 anti_alias: false,
-                rect: Rect::new(9.25, 0.0, 1.5, 50.0),
+                rect: Rect::new(9.25, 6.0, 1.5, 44.0),
                 color: theme.ink,
                 z: 0,
             },
             DrawCmd::FillRect {
                 anti_alias: false,
-                rect: Rect::new(9.25, 50.0, 1.5, 50.0),
+                rect: Rect::new(9.25, 50.0, 1.5, 44.0),
                 color: theme.line,
                 z: 0,
             },
@@ -1819,6 +1812,13 @@ fn test_slider_visual_focused() {
                 color: theme.ink,
                 width: 1.0,
                 z: 0,
+            },
+            DrawCmd::StrokeRect {
+                anti_alias: false,
+                rect: Rect::new(-4.0, -4.0, 28.0, 108.0),
+                color: theme.rust,
+                width: 2.0,
+                z: 1,
             },
         ]
     );
@@ -1868,14 +1868,14 @@ fn test_high_level_explicit_placement_via_manual_layout() {
     // to place a high-level widget explicitly.
     super::slider(&mut ctx, SliderSpecBuilder::new(), placement, &mut state);
     // First draw command for a horizontal slider is the track-line FillRect,
-    // whose x starts at the resolved track rect's x = placement.x.
+    // whose x starts at the resolved track rect's x = placement.x + padding.
     match &cmds[0] {
         crate::draw::DrawCmd::FillRect {
             anti_alias: false,
             rect,
             ..
         } => {
-            assert_eq!(rect.x, placement.x);
+            assert_eq!(rect.x, placement.x + 6.0);
         }
         other => panic!("Expected FillRect, got {:?}", other),
     }
@@ -2097,42 +2097,40 @@ fn test_scrollbar_visual_normal() {
     let border_color = theme.line_soft;
     let thumb_color = theme.ink;
 
-    // Scrollbar-style: before/after gutter regions plus fill-track segment with margin.
+    // Scrollbar-style: background_fill, before/after gutter strokes, segment, and separator line.
     assert_eq!(
         &cmds[..],
         &[
             DrawCmd::FillRect {
                 anti_alias: false,
-                rect: Rect::new(0.0, 0.0, 20.0, 38.0),
+                rect: Rect::new(0.0, 0.0, 20.0, 100.0),
                 color: track_color,
-                z: 0,
-            },
-            DrawCmd::StrokeLine {
-                anti_alias: false,
-                p0: Vec2::new(0.0, 0.0),
-                p1: Vec2::new(0.0, 38.0),
-                color: border_color,
-                width: 1.0,
                 z: 0,
             },
             DrawCmd::FillRect {
                 anti_alias: false,
-                rect: Rect::new(0.0, 62.0, 20.0, 38.0),
+                rect: Rect::new(9.5, 0.0, 1.0, 38.0),
                 color: track_color,
                 z: 0,
             },
-            DrawCmd::StrokeLine {
+            DrawCmd::FillRect {
                 anti_alias: false,
-                p0: Vec2::new(0.0, 62.0),
-                p1: Vec2::new(0.0, 100.0),
-                color: border_color,
-                width: 1.0,
+                rect: Rect::new(9.5, 62.0, 1.0, 38.0),
+                color: track_color,
                 z: 0,
             },
             DrawCmd::FillRect {
                 anti_alias: false,
                 rect: Rect::new(1.0, 38.0, 18.0, 24.0),
                 color: thumb_color,
+                z: 0,
+            },
+            DrawCmd::StrokeLine {
+                anti_alias: false,
+                p0: Vec2::new(0.0, 0.0),
+                p1: Vec2::new(0.0, 100.0),
+                color: border_color,
+                width: 1.0,
                 z: 0,
             },
         ]
@@ -2145,14 +2143,8 @@ fn test_slider_track_line_invisible_stroke() {
     let mut spec = test_spec(0.0, 100.0, false);
 
     // Set track stroke to an invisible stroke (e.g. width = 0.0)
-    if let TrackStyle::Line { stroke } = &mut spec.style.before_style {
-        stroke.width = 0.0;
-    } else {
-        panic!("expected default TrackStyle::Line");
-    }
-    if let TrackStyle::Line { stroke } = &mut spec.style.after_style {
-        stroke.width = 0.0;
-    }
+    spec.style.before_style.width = 0.0;
+    spec.style.after_style.width = 0.0;
 
     let mut focus_system = FocusSystem::new();
     let mut cmds = DrawCommands::new();

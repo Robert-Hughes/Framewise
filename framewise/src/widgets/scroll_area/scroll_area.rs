@@ -333,10 +333,7 @@ pub mod raw {
                     color: corner_color,
                     z: token.layer.get_z(),
                 });
-                let border = match token.style.scrollbar_style.before_style {
-                    crate::widgets::slider::TrackStyle::Rect { border, .. } => border,
-                    crate::widgets::slider::TrackStyle::Line { .. } => None,
-                };
+                let border = token.style.scrollbar_style.separator_line;
                 if let Some(border) = border {
                     // Left border of the corner
                     cmds.push_stroke_line(

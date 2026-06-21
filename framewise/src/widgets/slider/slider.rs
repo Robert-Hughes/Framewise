@@ -101,19 +101,49 @@ pub mod raw {
         repair_values(state, min, max, spec.min_gap, spec.max_gap);
 
         let is_visible = spec.clip_rect.is_none_or(|c| c.contains(input.mouse_pos));
+        let is_vert = spec.orientation == Orientation::Vertical;
 
-        let track_rect = spec.rect;
+        let (main_start_padding, main_end_padding) = if state.upper.is_none() {
+            if let Some(lower_style) = spec.style.lower_thumb_style {
+                let len = main_axis_len(lower_style.cross_axis, spec.rect, is_vert);
+                (len * 0.5, len * 0.5)
+            } else {
+                (0.0, 0.0)
+            }
+        } else {
+            let start_pad = if let Some(lower_style) = spec.style.lower_thumb_style {
+                main_axis_len(lower_style.cross_axis, spec.rect, is_vert) * 0.5
+            } else {
+                0.0
+            };
+            let end_pad = if let Some(upper_style) = spec.style.upper_thumb_style {
+                main_axis_len(upper_style.cross_axis, spec.rect, is_vert) * 0.5
+            } else {
+                0.0
+            };
+            (start_pad, end_pad)
+        };
+
+        let track_rect = if is_vert {
+            let new_y = spec.rect.y + main_start_padding;
+            let new_h = (spec.rect.h - (main_start_padding + main_end_padding)).max(0.0);
+            Rect::new(spec.rect.x, new_y, spec.rect.w, new_h)
+        } else {
+            let new_x = spec.rect.x + main_start_padding;
+            let new_w = (spec.rect.w - (main_start_padding + main_end_padding)).max(0.0);
+            Rect::new(new_x, spec.rect.y, new_w, spec.rect.h)
+        };
+
         let focused = if spec.disabled || !spec.keyboard_focusable {
             false
         } else {
-            focus_system.register_keyboard(state.focus_id, track_rect, spec.clip_rect)
+            focus_system.register_keyboard(state.focus_id, spec.rect, spec.clip_rect)
         };
 
         if !spec.disabled && track_rect.contains(input.mouse_pos) && is_visible {
             focus_system.claim_hover(state.focus_id);
         }
         let is_hover_active = !spec.disabled && focus_system.is_hover_active(state.focus_id);
-        let is_vert = spec.orientation == Orientation::Vertical;
 
         let track_len = if is_vert { track_rect.h } else { track_rect.w };
         let track_start = if is_vert { track_rect.y } else { track_rect.x };
@@ -490,18 +520,31 @@ pub mod raw {
             }
         };
 
-        // Focus outline.
-        if focused {
-            if let Some(outline) = spec.style.focus {
-                let tint_stroke = |st: Stroke| Stroke::new(tint(st.color), st.width);
-                cmds.push_stroke_rect(
-                    track_rect.inset(-(outline.offset + outline.stroke.width)),
-                    Some(tint_stroke(outline.stroke)),
-                    spec.layer.get_focus_z(),
-                    false,
-                );
-            }
+        if let Some(background_fill) = spec.style.background_fill {
+            cmds.push(DrawCmd::FillRect {
+                anti_alias: false,
+                rect: spec.rect,
+                color: tint(background_fill),
+                z: spec.layer.get_z(),
+            });
         }
+
+        let before_stroke = if state.upper.is_none()
+            && state.active_part == Some(SliderPart::LowerThumb)
+            && !spec.disabled
+        {
+            spec.style
+                .lower_thumb_style
+                .map_or(spec.style.before_style, |lower_thumb_style| {
+                    Stroke::new(
+                        lower_thumb_style.fill.dragged,
+                        spec.style.before_style.width,
+                    )
+                })
+        } else {
+            spec.style.before_style
+        };
+
         draw_track_region(
             cmds,
             spec.layer,
@@ -509,7 +552,7 @@ pub mod raw {
             is_vert,
             track_start,
             lower_coord,
-            spec.style.before_style,
+            before_stroke,
             &tint,
         );
         draw_track_region(
@@ -576,6 +619,28 @@ pub mod raw {
             input.mouse_pos,
             &tint,
         );
+
+        draw_separator_line(
+            cmds,
+            spec.layer,
+            spec.rect,
+            is_vert,
+            spec.style.separator_line,
+            &tint,
+        );
+
+        // Focus outline.
+        if focused {
+            if let Some(outline) = spec.style.focus {
+                let tint_stroke = |st: Stroke| Stroke::new(tint(st.color), st.width);
+                cmds.push_stroke_rect(
+                    spec.rect.inset(-(outline.offset + outline.stroke.width)),
+                    Some(tint_stroke(outline.stroke)),
+                    spec.layer.get_focus_z(),
+                    false,
+                );
+            }
+        }
 
         SliderResult {
             focused,
@@ -850,57 +915,58 @@ fn draw_track_region(
     is_vert: bool,
     start: f32,
     end: f32,
-    style: TrackStyle,
+    stroke: Stroke,
     tint: &impl Fn(Color) -> Color,
 ) {
     let len = (end - start).max(0.0);
     if len <= 0.0 {
         return;
     }
-    match style {
-        TrackStyle::Line { stroke } => {
-            if !stroke.is_visible() {
-                return;
-            }
-            let thickness = stroke.width;
-            let half = thickness * 0.5;
-            let rect = if is_vert {
-                let cx = track_rect.x + track_rect.w * 0.5;
-                Rect::new(cx - half, start, thickness, len)
-            } else {
-                let cy = track_rect.y + track_rect.h * 0.5;
-                Rect::new(start, cy - half, len, thickness)
-            };
-            cmds.push(DrawCmd::FillRect {
-                anti_alias: false,
-                rect,
-                color: tint(stroke.color),
-                z: layer.get_z(),
-            });
-        }
-        TrackStyle::Rect { color, border } => {
-            let rect = if is_vert {
-                Rect::new(track_rect.x, start, track_rect.w, len)
-            } else {
-                Rect::new(start, track_rect.y, len, track_rect.h)
-            };
-            cmds.push(DrawCmd::FillRect {
-                anti_alias: false,
-                rect,
-                color: tint(color),
-                z: layer.get_z(),
-            });
-            if let Some(border) = border {
-                let tint_stroke = |st: Stroke| Stroke::new(tint(st.color), st.width);
-                let (p0, p1) = if is_vert {
-                    (Vec2::new(rect.x, rect.y), Vec2::new(rect.x, rect.bottom()))
-                } else {
-                    (Vec2::new(rect.x, rect.y), Vec2::new(rect.right(), rect.y))
-                };
-                cmds.push_stroke_line(p0, p1, Some(tint_stroke(border)), layer.get_z(), false);
-            }
-        }
+    if !stroke.is_visible() {
+        return;
     }
+    let thickness = stroke.width;
+    let half = thickness * 0.5;
+    let rect = if is_vert {
+        let cx = track_rect.x + track_rect.w * 0.5;
+        Rect::new(cx - half, start, thickness, len)
+    } else {
+        let cy = track_rect.y + track_rect.h * 0.5;
+        Rect::new(start, cy - half, len, thickness)
+    };
+    cmds.push(DrawCmd::FillRect {
+        anti_alias: false,
+        rect,
+        color: tint(stroke.color),
+        z: layer.get_z(),
+    });
+}
+
+fn draw_separator_line(
+    cmds: &mut DrawCommands,
+    layer: Layer,
+    rect: Rect,
+    is_vert: bool,
+    separator: Option<Stroke>,
+    tint: &impl Fn(Color) -> Color,
+) {
+    let Some(separator) = separator else {
+        return;
+    };
+
+    if !separator.is_visible() {
+        return;
+    }
+
+    let tint_stroke = |st: Stroke| Stroke::new(tint(st.color), st.width);
+
+    let (p0, p1) = if is_vert {
+        (Vec2::new(rect.x, rect.y), Vec2::new(rect.x, rect.bottom()))
+    } else {
+        (Vec2::new(rect.x, rect.y), Vec2::new(rect.right(), rect.y))
+    };
+
+    cmds.push_stroke_line(p0, p1, Some(tint_stroke(separator)), layer.get_z(), false);
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -969,7 +1035,7 @@ pub enum ScrollClaimPolicy {
 
 /// Visual parts of the slider.
 ///
-/// The track is always drawn in two regions:
+/// The track is always drawn in two stroked regions:
 ///
 /// With no upper endpoint:
 ///
@@ -983,40 +1049,62 @@ pub enum ScrollClaimPolicy {
 /// min -- before_style -- lower == segment == upper -- after_style -- max
 /// ```
 ///
+/// `background_fill`, when present, is drawn behind the whole slider rect.
+/// This is mainly useful for scrollbar gutters.
+///
+/// `separator_line`, when present, is drawn across the whole slider rect as an
+/// orientation-aware edge:
+///
+/// ```text
+/// vertical:   left edge
+/// horizontal: top edge
+/// ```
+///
 /// The lower thumb, upper thumb, and segment are independently optional.
 /// If a part's style is `None`, that part is not drawn and should not be
 /// independently interactable.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct SliderStyle {
-    /// Style for the track region before `lower`.
-    pub before_style: TrackStyle,
-    /// Style for the track region after `upper`, or after `lower` when
-    /// `upper == None`.
-    pub after_style: TrackStyle,
-    /// Optional bar drawn between `lower` and `upper`.
+    /// Optional fill behind the whole slider rect.
+    ///
+    /// Used by scrollbar-like sliders to paint the gutter/background behind
+    /// the segment, including any segment margin.
+    ///
+    /// Drawn before track strokes, segment, thumbs, separator line, and focus.
+    pub background_fill: Option<Color>,
+
+    /// Stroke for the track region from min → lower.
+    pub before_style: Stroke,
+
+    /// Stroke for the track region from upper/lower → max.
+    pub after_style: Stroke,
+
+    /// Optional bar drawn between lower and upper.
     ///
     /// Only drawn when `state.upper.is_some()`.
-    /// This is the scrollbar thumb/span/range-fill visual.
     pub segment_style: Option<SegmentStyle>,
-    /// Optional thumb drawn at `lower`.
+
+    /// Optional thumb drawn at lower.
     pub lower_thumb_style: Option<ThumbStyle>,
-    /// Optional thumb drawn at `upper`.
+
+    /// Optional thumb drawn at upper.
     ///
     /// Only drawn when `state.upper.is_some()`.
     pub upper_thumb_style: Option<ThumbStyle>,
+
+    /// Orientation-aware separator line for scrollbar-like sliders.
+    ///
+    /// Drawn across the whole slider rect, independent of lower/upper/segment:
+    ///
+    /// - vertical slider: line on the left edge
+    /// - horizontal slider: line on the top edge
+    ///
+    /// This restores the old scrollbar/content separator behaviour without
+    /// making before/after track regions responsible for the whole scrollbar edge.
+    pub separator_line: Option<Stroke>,
+
     pub focus: Option<Outline>,
     pub disabled_alpha: f32,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub enum TrackStyle {
-    Line {
-        stroke: Stroke,
-    },
-    Rect {
-        color: Color,
-        border: Option<Stroke>,
-    },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -1057,16 +1145,15 @@ impl SliderStyle {
             },
             border: Some(Stroke::new(theme.ink, 1.0)),
         };
+
         Self {
-            before_style: TrackStyle::Line {
-                stroke: Stroke::new(theme.ink, 1.5),
-            },
-            after_style: TrackStyle::Line {
-                stroke: Stroke::new(theme.line, 1.5),
-            },
+            background_fill: None,
+            before_style: Stroke::new(theme.ink, 1.5),
+            after_style: Stroke::new(theme.line, 1.5),
             segment_style: None,
             lower_thumb_style: Some(default_thumb),
             upper_thumb_style: None,
+            separator_line: None,
             focus: Some(Outline::new(
                 theme.rust,
                 theme.focus_width,
@@ -1077,13 +1164,21 @@ impl SliderStyle {
     }
 
     pub fn scrollbar_from_theme(theme: &crate::theme::Theme) -> Self {
-        let gutter_style = TrackStyle::Rect {
-            color: Color::linear_rgba(theme.ink.r, theme.ink.g, theme.ink.b, 0.04),
-            border: Some(Stroke::new(theme.line_soft, 1.0)),
-        };
         Self {
-            before_style: gutter_style,
-            after_style: gutter_style,
+            background_fill: Some(Color::linear_rgba(
+                theme.ink.r,
+                theme.ink.g,
+                theme.ink.b,
+                0.04,
+            )),
+            before_style: Stroke::new(
+                Color::linear_rgba(theme.ink.r, theme.ink.g, theme.ink.b, 0.04),
+                1.0,
+            ),
+            after_style: Stroke::new(
+                Color::linear_rgba(theme.ink.r, theme.ink.g, theme.ink.b, 0.04),
+                1.0,
+            ),
             segment_style: Some(SegmentStyle {
                 cross_axis: ThumbCrossAxis::FillTrack { margin: 1.0 },
                 fill: InteractiveColor {
@@ -1095,6 +1190,7 @@ impl SliderStyle {
             }),
             lower_thumb_style: None,
             upper_thumb_style: None,
+            separator_line: Some(Stroke::new(theme.line_soft, 1.0)),
             focus: Some(Outline::new(
                 theme.rust,
                 theme.focus_width,
