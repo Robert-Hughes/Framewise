@@ -461,7 +461,11 @@ fn draw_text_edit_fake_state<T: TextBackend, LS: LayoutState, CF>(
 ) {
     let rect = b.layout(layout_params, SizeRequest::UNKNOWN);
     let mut state = TextEditState::new(value);
-    let style = TextEditStyle::from_theme(&b.theme);
+    let style = {
+        let mut s = TextEditStyle::from_theme(&b.theme);
+        s.size = b.theme.text_md;
+        s
+    };
 
     let fake_input = if hovered {
         Input {
@@ -824,7 +828,7 @@ impl Default for SpecWidgetsState {
             te_prefixed: TextEditState::new("0.1.0"),
             #[cfg(feature = "text_edit")]
             te_multiline: TextEditState::new(
-                "A small, procedural Rust library for describing GUI elements per frame.",
+                "A small, procedural Rust library that helps an application describe and draw GUI elements for the current frame.",
             ),
             #[cfg(all(feature = "slider", feature = "drag_number", feature = "color_swatch"))]
             slider1_state: SliderState {
@@ -1979,7 +1983,13 @@ fn section_02_text_inputs<CF>(
                     }
                     _ => {
                         let state = &mut state.te_matrix[idx];
+                        let style = {
+                            let mut s = TextEditStyle::from_theme(&b.theme);
+                            s.size = b.theme.text_md;
+                            s
+                        };
                         let spec_builder = TextEditSpecBuilder::new()
+                            .style(style)
                             .placeholder(placeholder)
                             .error(error)
                             .disabled(disabled);
@@ -1999,16 +2009,15 @@ fn section_02_text_inputs<CF>(
         let lx = 0.0;
         let field_x = lx;
         {
-            let layout_params = Rect::new(field_x, y, 120.0, 14.0);
-            let size = b.theme.text_sm;
+            let layout_params = Rect::new(field_x, y, 220.0, 20.0);
             let color = b.theme.muted;
             let spec_builder = LabelSpecBuilder::new()
                 .text("CRATE NAME")
                 .style(LabelStyle {
-                    text_style: framewise::TextStyle {
-                        size,
-                        ..(LabelStyle::from_theme(&b.theme)).text_style
-                    },
+                    text_style: b
+                        .theme
+                        .overline_text_style(b.theme.text_sm)
+                        .with_letter_spacing(0.10),
                     text_color: color,
                     ..LabelStyle::from_theme(&b.theme)
                 });
@@ -2016,21 +2025,28 @@ fn section_02_text_inputs<CF>(
         };
         let _info = {
             let state = &mut state.te_labelled;
-            let layout_params = Rect::new(field_x, y + 18.0, 160.0, b.theme.h_md);
-            let spec_builder = TextEditSpecBuilder::new();
+            let layout_params = Rect::new(field_x, y + 18.0, 220.0, b.theme.h_md);
+            let style = {
+                let mut s = TextEditStyle::from_theme(&b.theme);
+                s.size = b.theme.text_md;
+                s
+            };
+            let spec_builder = TextEditSpecBuilder::new().style(style);
             text_edit(&mut b, spec_builder, layout_params, state)
         };
         {
-            let layout_params = Rect::new(field_x, y + 18.0 + b.theme.h_md + 4.0, 200.0, 14.0);
-            let size = b.theme.text_sm;
+            let layout_params = Rect::new(field_x, y + 18.0 + b.theme.h_md + 4.0, 220.0, 20.0);
             let color = b.theme.muted;
             let spec_builder = LabelSpecBuilder::new()
                 .text("a–z, 0–9, hyphen; max 64")
                 .style(LabelStyle {
-                    text_style: framewise::TextStyle {
-                        size,
-                        ..(LabelStyle::from_theme(&b.theme)).text_style
-                    },
+                    text_style: framewise::TextStyle::new(
+                        b.theme.mono_font,
+                        b.theme.text_sm,
+                        b.theme.sans_weight_regular,
+                        framewise::TextFlow::single_line(),
+                    )
+                    .with_letter_spacing(0.04),
                     text_color: color,
                     ..LabelStyle::from_theme(&b.theme)
                 });
@@ -2038,16 +2054,15 @@ fn section_02_text_inputs<CF>(
         };
 
         // Prefixed field (draw prefix addon manually)
-        let pf_x = 200.0;
+        let pf_x = 248.0;
         {
-            let layout_params = Rect::new(pf_x, y, 120.0, 14.0);
-            let size = b.theme.text_sm;
+            let layout_params = Rect::new(pf_x, y, 240.0, 20.0);
             let color = b.theme.muted;
             let spec_builder = LabelSpecBuilder::new().text("VERSION").style(LabelStyle {
-                text_style: framewise::TextStyle {
-                    size,
-                    ..(LabelStyle::from_theme(&b.theme)).text_style
-                },
+                text_style: b
+                    .theme
+                    .overline_text_style(b.theme.text_sm)
+                    .with_letter_spacing(0.10),
                 text_color: color,
                 ..LabelStyle::from_theme(&b.theme)
             });
@@ -2074,36 +2089,74 @@ fn section_02_text_inputs<CF>(
             b.append_cmds(cmds);
         };
         {
-            let layout_params = Rect::new(pf_x + 6.0, y + 18.0 + 7.0, 16.0, 14.0);
-            let size = b.theme.text_sm;
-            let color = b.theme.muted;
+            let layout_params = Rect::new(pf_x, y + 18.0, 24.0, b.theme.h_md);
+            let color = b.theme.paper;
             let spec_builder = LabelSpecBuilder::new().text("v").style(LabelStyle {
-                text_style: framewise::TextStyle {
-                    size,
-                    ..(LabelStyle::from_theme(&b.theme)).text_style
-                },
+                text_style: framewise::TextStyle::new(
+                    b.theme.mono_font,
+                    b.theme.text_mono,
+                    b.theme.sans_weight_regular,
+                    framewise::TextFlow::single_line(),
+                )
+                .with_letter_spacing(0.04),
                 text_color: color,
+                content_placement: framewise::TextContentPlacement::logical(
+                    framewise::ContentPlacement::Align(Align::Center),
+                    framewise::ContentPlacement::Align(Align::Center),
+                ),
                 ..LabelStyle::from_theme(&b.theme)
             });
             label(&mut b, spec_builder, layout_params)
         };
         let _info = {
             let state = &mut state.te_prefixed;
-            let layout_params = Rect::new(pf_x + 24.0, y + 18.0, 120.0, b.theme.h_md);
-            let spec_builder = TextEditSpecBuilder::new();
+            let layout_params = Rect::new(pf_x + 24.0, y + 18.0, 216.0, b.theme.h_md);
+            let style = {
+                let mut s = TextEditStyle::from_theme(&b.theme);
+                s.size = b.theme.text_md;
+                s
+            };
+            let spec_builder = TextEditSpecBuilder::new().style(style);
             text_edit(&mut b, spec_builder, layout_params, state)
         };
+        let err_y = y + 18.0 + b.theme.h_md + 4.0;
         {
-            let layout_params = Rect::new(pf_x, y + 18.0 + b.theme.h_md + 4.0, 200.0, 14.0);
-            let size = b.theme.text_sm;
+            let badge_rect = Rect::new(pf_x, err_y + 1.0, 12.0, 12.0);
+            let rect = b.layout(badge_rect, SizeRequest::UNKNOWN);
+            let cmds = DrawCommands::from_vec(vec![DrawCmd::FillRect {
+                anti_alias: false,
+                rect,
+                color: b.theme.rust,
+                z: 0,
+            }]);
+            b.append_cmds(cmds);
+
+            let spec_builder = LabelSpecBuilder::new().text("!").style(LabelStyle {
+                text_style: framewise::TextStyle::new(
+                    b.theme.mono_font,
+                    9.0,
+                    b.theme.sans_weight_bold,
+                    framewise::TextFlow::single_line(),
+                )
+                .with_line_height(framewise::LineHeight::Relative(1.0)),
+                text_color: b.theme.paper,
+                content_placement: framewise::TextContentPlacement::INK_CENTER,
+                ..LabelStyle::from_theme(&b.theme)
+            });
+            label(&mut b, spec_builder, badge_rect);
+        }
+        {
+            let layout_params = Rect::new(pf_x + 18.0, err_y, 222.0, 20.0);
             let color = b.theme.rust;
             let spec_builder = LabelSpecBuilder::new()
                 .text("semver mismatch — bump minor")
                 .style(LabelStyle {
-                    text_style: framewise::TextStyle {
-                        size,
-                        ..(LabelStyle::from_theme(&b.theme)).text_style
-                    },
+                    text_style: framewise::TextStyle::new(
+                        b.theme.mono_font,
+                        b.theme.text_sm,
+                        b.theme.sans_weight_regular,
+                        framewise::TextFlow::single_line(),
+                    ),
                     text_color: color,
                     ..LabelStyle::from_theme(&b.theme)
                 });
@@ -2111,18 +2164,17 @@ fn section_02_text_inputs<CF>(
         };
 
         // Multiline field
-        let ml_x = 420.0;
+        let ml_x = 516.0;
         {
-            let layout_params = Rect::new(ml_x, y, 120.0, 14.0);
-            let size = b.theme.text_sm;
+            let layout_params = Rect::new(ml_x, y, 280.0, 20.0);
             let color = b.theme.muted;
             let spec_builder = LabelSpecBuilder::new()
                 .text("DESCRIPTION")
                 .style(LabelStyle {
-                    text_style: framewise::TextStyle {
-                        size,
-                        ..(LabelStyle::from_theme(&b.theme)).text_style
-                    },
+                    text_style: b
+                        .theme
+                        .overline_text_style(b.theme.text_sm)
+                        .with_letter_spacing(0.10),
                     text_color: color,
                     ..LabelStyle::from_theme(&b.theme)
                 });
@@ -2130,8 +2182,15 @@ fn section_02_text_inputs<CF>(
         };
         let _info = {
             let state = &mut state.te_multiline;
-            let layout_params = Rect::new(ml_x, y + 18.0, 280.0, 68.0);
-            let spec_builder = TextEditSpecBuilder::new().newline_policy(NewlinePolicy::Preserve);
+            let layout_params = Rect::new(ml_x, y + 18.0, 280.0, 88.0);
+            let style = {
+                let mut s = TextEditStyle::from_theme(&b.theme);
+                s.size = b.theme.text_md;
+                s.padding_y = 8.0;
+                s.line_height = b.theme.body_line_height;
+                s
+            };
+            let spec_builder = TextEditSpecBuilder::new().style(style).multiline_wrapped();
             text_edit(&mut b, spec_builder, layout_params, state)
         };
         b.finish();
