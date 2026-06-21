@@ -2,7 +2,7 @@ use crate::{
     draw::{DrawCmd, DrawCommands},
     layout::{LayoutState, SizeOffer},
     text::{layout_text, TextBackend},
-    types::{Color, Layer, Rect, Vec2},
+    types::{Color, Layer, Rect, Stroke, Vec2},
     widget::{LayoutInfo, WidgetContext},
 };
 
@@ -78,13 +78,7 @@ pub mod raw {
             color: spec.style.background,
             z: spec.layer.get_z(),
         });
-        cmds.push(DrawCmd::StrokeRect {
-            anti_alias: false,
-            rect: spec.rect,
-            color: spec.style.border,
-            width: spec.style.border_width,
-            z: spec.layer.get_z(),
-        });
+        cmds.push_stroke_rect(spec.rect, spec.style.border, spec.layer.get_z(), false);
         // Bottom shadow line
         let shadow_rect = Rect::new(
             spec.rect.x + spec.style.shadow_offset,
@@ -124,7 +118,7 @@ pub mod raw {
         }
 
         KeycapResult {
-            content_bounds: spec.rect.inset(spec.style.border_width),
+            content_bounds: spec.rect.inset(spec.style.border.map_or(0.0, |s| s.width)),
         }
     }
 }
@@ -138,8 +132,7 @@ pub struct KeycapStyle {
     pub shadow: Color,
     pub shadow_offset: f32,
     pub shadow_height: f32,
-    pub border: Color,
-    pub border_width: f32,
+    pub border: Option<Stroke>,
     pub text_color: Color,
     pub text_style: crate::text::TextStyle,
     pub content_placement: crate::text::TextContentPlacement,
@@ -152,8 +145,7 @@ impl KeycapStyle {
             shadow: theme.line,
             shadow_offset: 1.0,
             shadow_height: 2.0,
-            border: theme.line,
-            border_width: theme.border,
+            border: Some(Stroke::new(theme.line, theme.border)),
             text_color: theme.ink,
             text_style: crate::text::TextStyle::new(
                 theme.mono_font,

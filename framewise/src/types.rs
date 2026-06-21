@@ -261,3 +261,47 @@ impl Layer {
         1
     }
 }
+
+// ── Stroke & Outline ──────────────────────────────────────────────────────────
+
+/// A solid stroke specification representing a visible line drawn on geometry.
+/// Used for borders, separators, dividers, checkmarks, slider thumb borders, rules, etc.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Stroke {
+    pub color: Color,
+    pub width: f32,
+}
+
+/// An outline specification representing a stroke drawn offset from a target shape.
+///
+/// An `Outline` is not just "a border"; it represents a focus ring or highlight
+/// style that has a visual gap/offset from the shape itself.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Outline {
+    pub stroke: Stroke,
+    pub offset: f32,
+}
+
+impl Stroke {
+    pub const fn new(color: Color, width: f32) -> Self {
+        Self { color, width }
+    }
+    pub const fn solid(color: Color, width: f32) -> Self {
+        Self { color, width }
+    }
+    pub fn is_visible(self) -> bool {
+        self.width > 0.0 && self.color.a > 0.0
+    }
+}
+
+impl Outline {
+    pub const fn new(color: Color, width: f32, offset: f32) -> Self {
+        Self {
+            stroke: Stroke::new(color, width),
+            offset,
+        }
+    }
+    pub const fn from_stroke(stroke: Stroke, offset: f32) -> Self {
+        Self { stroke, offset }
+    }
+}

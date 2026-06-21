@@ -77,10 +77,10 @@ fn test_menu_bounds_and_content_bounds() {
     );
 
     let expected_content = Rect::new(
-        layout_rect.x + style.border_width + style.pad_x,
-        layout_rect.y + style.border_width + style.pad_y,
-        expected_w - (style.border_width + style.pad_x) * 2.0,
-        expected_h - (style.border_width + style.pad_y) * 2.0,
+        layout_rect.x + style.border.map_or(0.0, |b| b.width) + style.pad_x,
+        layout_rect.y + style.border.map_or(0.0, |b| b.width) + style.pad_y,
+        expected_w - (style.border.map_or(0.0, |b| b.width) + style.pad_x) * 2.0,
+        expected_h - (style.border.map_or(0.0, |b| b.width) + style.pad_y) * 2.0,
     );
     assert_eq!(res.layout.content_bounds, expected_content);
 }

@@ -3,7 +3,7 @@ use crate::{
     focus::{FocusId, FocusSystem},
     input::Input,
     layout::{LayoutState, SizeOffer},
-    types::{ClipRect, Color, Layer, Rect, Vec2},
+    types::{ClipRect, Color, Layer, Outline, Rect, Stroke, Vec2},
     widget::{InputInfo, LayoutInfo, WidgetContext},
     TextBackend,
 };
@@ -138,15 +138,13 @@ pub mod raw {
                 color: tint(spec.style.background),
                 z: spec.layer.get_z(),
             });
-            if spec.style.border_width > 0.0 {
-                cmds.push(DrawCmd::StrokeRect {
-                    anti_alias: false,
-                    rect: spec.rect,
-                    color: tint(spec.style.border),
-                    width: spec.style.border_width,
-                    z: spec.layer.get_z(),
-                });
-            }
+            let tint_stroke = |s: Stroke| Stroke::new(tint(s.color), s.width);
+            cmds.push_stroke_rect(
+                spec.rect,
+                spec.style.border.map(tint_stroke),
+                spec.layer.get_z(),
+                false,
+            );
             emit_placed_text(
                 spec.text,
                 &spec.style,
@@ -157,7 +155,7 @@ pub mod raw {
                 spec.layer.get_z(),
             );
             return ButtonResult {
-                content_bounds: spec.rect.inset(spec.style.border_width),
+                content_bounds: spec.rect.inset(spec.style.border.map_or(0.0, |s| s.width)),
                 input: InputInfo {
                     hovered: false,
                     pressed: false,
@@ -195,15 +193,14 @@ pub mod raw {
         // CSS outline sits outside the border box. StrokeRect draws inside its
         // rect, so expand by both the desired gap and the stroke width.
         if focused {
-            cmds.push(DrawCmd::StrokeRect {
-                anti_alias: false,
-                rect: spec
-                    .rect
-                    .inset(-(spec.style.focus_offset + spec.style.focus_width)),
-                color: spec.style.focus,
-                width: spec.style.focus_width,
-                z: spec.layer.get_focus_z(),
-            });
+            if let Some(outline) = spec.style.focus {
+                cmds.push_stroke_rect(
+                    spec.rect.inset(-(outline.offset + outline.stroke.width)),
+                    Some(outline.stroke),
+                    spec.layer.get_focus_z(),
+                    false,
+                );
+            }
         }
 
         // Background fill.
@@ -215,15 +212,7 @@ pub mod raw {
         });
 
         // Border.
-        if spec.style.border_width > 0.0 {
-            cmds.push(DrawCmd::StrokeRect {
-                anti_alias: false,
-                rect: spec.rect,
-                color: spec.style.border,
-                width: spec.style.border_width,
-                z: spec.layer.get_z(),
-            });
-        }
+        cmds.push_stroke_rect(spec.rect, spec.style.border, spec.layer.get_z(), false);
 
         // Text centered.
         emit_placed_text(
@@ -237,7 +226,7 @@ pub mod raw {
         );
 
         ButtonResult {
-            content_bounds: spec.rect.inset(spec.style.border_width),
+            content_bounds: spec.rect.inset(spec.style.border.map_or(0.0, |s| s.width)),
             input: input_info,
             focused,
         }
@@ -252,11 +241,8 @@ pub struct ButtonStyle {
     pub background: Color,
     pub hovered: Color,
     pub pressed: Color,
-    pub border: Color,
-    pub border_width: f32,
-    pub focus: Color,
-    pub focus_width: f32,
-    pub focus_offset: f32,
+    pub border: Option<Stroke>,
+    pub focus: Option<Outline>,
     pub text_style: crate::text::TextStyle,
     /// Placement of the prepared text block inside the padded button content rect.
     pub content_placement: crate::text::TextContentPlacement,
@@ -277,11 +263,12 @@ impl ButtonStyle {
             background: Color::TRANSPARENT,
             hovered: theme.hover,
             pressed: theme.press,
-            border: theme.ink,
-            border_width: theme.border,
-            focus: theme.rust,
-            focus_width: theme.focus_width,
-            focus_offset: theme.focus_offset,
+            border: Some(Stroke::new(theme.ink, theme.border)),
+            focus: Some(Outline::new(
+                theme.rust,
+                theme.focus_width,
+                theme.focus_offset,
+            )),
             text_style: crate::text::TextStyle::new(
                 theme.sans_font,
                 theme.text_md,
@@ -302,11 +289,12 @@ impl ButtonStyle {
             background: theme.ink,
             hovered: Color::BLACK,
             pressed: Color::from_srgb_u8(42, 37, 32, 255),
-            border: theme.ink,
-            border_width: theme.border,
-            focus: theme.rust,
-            focus_width: theme.focus_width,
-            focus_offset: theme.focus_offset,
+            border: Some(Stroke::new(theme.ink, theme.border)),
+            focus: Some(Outline::new(
+                theme.rust,
+                theme.focus_width,
+                theme.focus_offset,
+            )),
             text_style: crate::text::TextStyle::new(
                 theme.sans_font,
                 theme.text_md,
@@ -327,11 +315,12 @@ impl ButtonStyle {
             background: theme.rust,
             hovered: Color::from_srgb_u8(176, 79, 35, 255),
             pressed: Color::from_srgb_u8(156, 69, 32, 255),
-            border: theme.rust,
-            border_width: theme.border,
-            focus: theme.rust,
-            focus_width: theme.focus_width,
-            focus_offset: theme.focus_offset,
+            border: Some(Stroke::new(theme.rust, theme.border)),
+            focus: Some(Outline::new(
+                theme.rust,
+                theme.focus_width,
+                theme.focus_offset,
+            )),
             text_style: crate::text::TextStyle::new(
                 theme.sans_font,
                 theme.text_md,
@@ -352,11 +341,12 @@ impl ButtonStyle {
             background: Color::TRANSPARENT,
             hovered: theme.hover,
             pressed: theme.press,
-            border: Color::TRANSPARENT,
-            border_width: theme.border,
-            focus: theme.rust,
-            focus_width: theme.focus_width,
-            focus_offset: theme.focus_offset,
+            border: None,
+            focus: Some(Outline::new(
+                theme.rust,
+                theme.focus_width,
+                theme.focus_offset,
+            )),
             text_style: crate::text::TextStyle::new(
                 theme.sans_font,
                 theme.text_md,

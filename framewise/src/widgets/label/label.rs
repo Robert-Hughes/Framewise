@@ -1,9 +1,9 @@
 #[cfg(test)]
 use crate::focus::FocusSystem;
 use crate::{
-    draw::{DrawCmd, DrawCommands},
+    draw::DrawCommands,
     layout::{LayoutState, SizeOffer},
-    types::{Color, Layer, Rect, Vec2},
+    types::{Color, Layer, Rect, Stroke, Vec2},
     widget::{LayoutInfo, WidgetContext},
     TextBackend,
 };
@@ -93,19 +93,18 @@ pub mod raw {
             text_backend,
             Vec2::new(text_rect.x, text_rect.y),
             spec.style.text_color,
-            0,
+            spec.layer.get_z(),
         );
 
-        if spec.style.rule {
+        if let Some(rule_stroke) = spec.style.rule {
             let y = spec.rect.y + spec.rect.h;
-            cmds.push(DrawCmd::StrokeLine {
-                anti_alias: false,
-                p0: Vec2::new(spec.rect.x, y),
-                p1: Vec2::new(spec.rect.x + spec.rect.w, y),
-                color: spec.style.rule_color,
-                width: 1.0,
-                z: 0,
-            });
+            cmds.push_stroke_line(
+                Vec2::new(spec.rect.x, y),
+                Vec2::new(spec.rect.x + spec.rect.w, y),
+                Some(rule_stroke),
+                spec.layer.get_z(),
+                false,
+            );
         }
 
         LabelResult {
@@ -130,8 +129,7 @@ pub struct LabelStyle {
     /// Placement of the prepared text block inside the label's own rect.
     pub content_placement: crate::text::TextContentPlacement,
     pub text_color: Color,
-    pub rule: bool,
-    pub rule_color: Color,
+    pub rule: Option<Stroke>,
 }
 
 impl LabelStyle {
@@ -148,8 +146,7 @@ impl LabelStyle {
                 crate::text::ContentPlacement::Align(crate::Align::Start),
             ),
             text_color: theme.ink,
-            rule: false,
-            rule_color: theme.line,
+            rule: None,
         }
     }
 }

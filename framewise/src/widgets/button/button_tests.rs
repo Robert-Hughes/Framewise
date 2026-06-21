@@ -518,13 +518,11 @@ fn test_button_visual_normal() {
     );
     focus_system.end_frame();
 
-    let ButtonStyle {
-        background,
-        border,
-        border_width,
-        text_color,
-        ..
-    } = ButtonStyle::primary_from_theme(&theme::Theme::default());
+    let style = ButtonStyle::primary_from_theme(&theme::Theme::default());
+    let background = style.background;
+    let border = style.border.unwrap().color;
+    let border_width = style.border.unwrap().width;
+    let text_color = style.text_color;
 
     assert_eq!(
         cmds.commands(),
@@ -614,7 +612,6 @@ fn test_button_visual_hovered() {
     let ButtonStyle {
         hovered,
         border,
-        border_width,
         text_color,
         ..
     } = ButtonStyle::primary_from_theme(&theme::Theme::default());
@@ -631,8 +628,8 @@ fn test_button_visual_hovered() {
             DrawCmd::StrokeRect {
                 anti_alias: false,
                 rect: Rect::new(10.0, 10.0, 100.0, 30.0),
-                color: border,
-                width: border_width,
+                color: border.unwrap().color,
+                width: border.unwrap().width,
                 z: 0,
             },
             DrawCmd::GlyphRun {
@@ -709,7 +706,6 @@ fn test_button_visual_pressed() {
     let ButtonStyle {
         pressed,
         border,
-        border_width,
         text_color,
         ..
     } = ButtonStyle::primary_from_theme(&theme::Theme::default());
@@ -726,8 +722,8 @@ fn test_button_visual_pressed() {
             DrawCmd::StrokeRect {
                 anti_alias: false,
                 rect: Rect::new(10.0, 10.0, 100.0, 30.0),
-                color: border,
-                width: border_width,
+                color: border.unwrap().color,
+                width: border.unwrap().width,
                 z: 0,
             },
             DrawCmd::GlyphRun {
@@ -781,16 +777,14 @@ fn test_button_visual_focused() {
     );
     focus_system.end_frame();
 
-    let ButtonStyle {
-        background,
-        border,
-        border_width,
-        text_color,
-        focus,
-        focus_offset,
-        focus_width,
-        ..
-    } = ButtonStyle::primary_from_theme(&theme::Theme::default());
+    let style = ButtonStyle::primary_from_theme(&theme::Theme::default());
+    let background = style.background;
+    let border = style.border.unwrap().color;
+    let border_width = style.border.unwrap().width;
+    let text_color = style.text_color;
+    let focus = style.focus.unwrap().stroke.color;
+    let focus_offset = style.focus.unwrap().offset;
+    let focus_width = style.focus.unwrap().stroke.width;
 
     let expected_focus_rect =
         Rect::new(10.0, 10.0, 100.0, 30.0).inset(-(focus_offset + focus_width));
@@ -876,9 +870,9 @@ fn test_button_visual_disabled() {
 
     let primary_style = ButtonStyle::primary_from_theme(&theme::Theme::default());
     let expected_bg = tint(primary_style.background);
-    let expected_border = tint(primary_style.border);
+    let expected_border = tint(primary_style.border.unwrap().color);
     let expected_text = tint(primary_style.text_color);
-    let border_width = primary_style.border_width;
+    let border_width = primary_style.border.map_or(0.0, |b| b.width);
 
     assert_eq!(
         cmds.commands(),
@@ -1014,11 +1008,8 @@ fn test_regression_custom_style_no_theme_lookup() {
         background: Color::from_srgb_u8(100, 150, 200, 255),
         hovered: Color::from_srgb_u8(110, 160, 210, 255),
         pressed: Color::from_srgb_u8(120, 170, 220, 255),
-        border: Color::from_srgb_u8(220, 230, 240, 255),
-        border_width: 4.5,
-        focus: Color::from_srgb_u8(255, 0, 0, 255),
-        focus_width: 2.0,
-        focus_offset: 2.0,
+        border: Some(Stroke::new(Color::from_srgb_u8(220, 230, 240, 255), 4.5)),
+        focus: Some(Outline::new(Color::from_srgb_u8(255, 0, 0, 255), 2.0, 2.0)),
         text_style: crate::text::TextStyle::new(
             FontId(0),
             19.5,
@@ -1070,8 +1061,8 @@ fn test_regression_custom_style_no_theme_lookup() {
             DrawCmd::StrokeRect {
                 anti_alias: false,
                 rect: Rect::new(5.0, 15.0, 120.0, 45.0),
-                color: custom_style.border,
-                width: custom_style.border_width,
+                color: custom_style.border.unwrap().color,
+                width: custom_style.border.unwrap().width,
                 z: 0,
             },
             DrawCmd::GlyphRun {

@@ -56,7 +56,7 @@ pub use text::{
     TextLineLayoutMetrics, TextMetrics, TextStyle, WrapClusterFallback, WrapWordFallback,
 };
 pub use theme::Theme;
-pub use types::{ClipRect, Color, Layer, Rect, Vec2};
+pub use types::{ClipRect, Color, Layer, Outline, Rect, Stroke, Vec2};
 pub use widget::{InputInfo, LayoutInfo, LayoutViolationPolicy, WidgetContext};
 
 // Widget functions (low-level API)

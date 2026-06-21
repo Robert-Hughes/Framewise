@@ -71,7 +71,7 @@ fn test_text_edit_style_scroll_area_defaults() {
         style.scroll_area_style.scrollbar_style.track,
         crate::widgets::slider::TrackStyle::Rect {
             color: Color::linear_rgba(theme.ink.r, theme.ink.g, theme.ink.b, 0.04),
-            border_color: Some(theme.line_soft)
+            border: Some(Stroke::new(theme.line_soft, 1.0))
         }
     );
     assert_eq!(
@@ -134,7 +134,9 @@ fn find_caret_rect(cmds: &DrawCommands, caret_color: Color) -> Rect {
 }
 
 fn test_text_edit_scroll_outer_rect(edit_spec: &TextEditSpec) -> Rect {
-    let mut scroll_outer_rect = edit_spec.rect.inset(edit_spec.style.border_width);
+    let mut scroll_outer_rect = edit_spec
+        .rect
+        .inset(edit_spec.style.border.map_or(0.0, |b| b.width));
     if edit_spec.error {
         scroll_outer_rect.x += edit_spec.style.error_stripe_width;
         scroll_outer_rect.w -= edit_spec.style.error_stripe_width;
@@ -186,8 +188,8 @@ fn test_high_level_auto_sized_text_edit_sizes_same_frame_text_input() {
     let mut style = TextEditStyle::from_theme(&theme);
     style.padding_x = 0.0;
     style.padding_y = 0.0;
-    style.border_width = 0.0;
-    style.focus_width = 0.0;
+    style.border = None;
+    style.focus_border = None;
     style.min_height = 0.0;
     style.error_stripe_width = 0.0;
 
@@ -243,8 +245,8 @@ fn test_high_level_text_edit_pre_layout_select_all_then_char_replaces_selection(
     let mut style = TextEditStyle::from_theme(&theme);
     style.padding_x = 0.0;
     style.padding_y = 0.0;
-    style.border_width = 0.0;
-    style.focus_width = 0.0;
+    style.border = None;
+    style.focus_border = None;
     style.min_height = 0.0;
     style.error_stripe_width = 0.0;
 
@@ -803,7 +805,7 @@ fn test_mouse_clicking_and_dragging() {
 
     let mut input = Input {
         mouse_pos: crate::types::Vec2::new(
-            40.0 + spec().style.padding_x + spec().style.border_width,
+            40.0 + spec().style.padding_x + spec().style.border.map_or(0.0, |b| b.width),
             15.0,
         ),
         ..Default::default()
@@ -884,7 +886,7 @@ fn test_double_click_selection_and_drag() {
     // Click on "rust" (byte index 8 -> pixel 64)
     let mut input = Input {
         mouse_pos: crate::types::Vec2::new(
-            64.0 + spec().style.padding_x + spec().style.border_width,
+            64.0 + spec().style.padding_x + spec().style.border.map_or(0.0, |b| b.width),
             15.0,
         ),
         ..Default::default()
@@ -926,7 +928,8 @@ fn test_double_click_selection_and_drag() {
 
     // Frame 3: Drag right to "world" (byte index 14 -> pixel 112)
     input.mouse_pressed = false;
-    input.mouse_pos.x = 112.0 + spec().style.padding_x + spec().style.border_width;
+    input.mouse_pos.x =
+        112.0 + spec().style.padding_x + spec().style.border.map_or(0.0, |b| b.width);
     focus_system.begin_frame();
     raw::post_layout_text_edit(
         spec(),
@@ -943,7 +946,8 @@ fn test_double_click_selection_and_drag() {
     assert_eq!(caret_byte(&state), 16); // end of "world"
 
     // Frame 4: Drag left to "hello" (byte index 2 -> pixel 16)
-    input.mouse_pos.x = 16.0 + spec().style.padding_x + spec().style.border_width;
+    input.mouse_pos.x =
+        16.0 + spec().style.padding_x + spec().style.border.map_or(0.0, |b| b.width);
     focus_system.begin_frame();
     raw::post_layout_text_edit(
         spec(),
@@ -968,7 +972,7 @@ fn test_double_click_symmetry() {
     let mut run_double_click = |x_within_text: f32| -> (Option<usize>, usize) {
         let mut state = TextEditState::new("a b");
         let mut input = Input::default();
-        let x_offset = spec().style.padding_x + spec().style.border_width;
+        let x_offset = spec().style.padding_x + spec().style.border.map_or(0.0, |b| b.width);
         input.mouse_pos = crate::types::Vec2::new(x_within_text + x_offset, 8.0);
 
         // Frame 1: Hover
@@ -1032,7 +1036,7 @@ fn test_double_click_after_line_end() {
         let mut state = TextEditState::new(text);
         let mut input = Input::default();
         // Click way past the end of the line (e.g. x = 100.0)
-        let x_offset = spec().style.padding_x + spec().style.border_width;
+        let x_offset = spec().style.padding_x + spec().style.border.map_or(0.0, |b| b.width);
         input.mouse_pos = crate::types::Vec2::new(100.0 + x_offset, y_pos);
 
         let edit_spec = TextEditSpec {
@@ -1463,7 +1467,7 @@ fn test_caret_blink_reset_on_mouse_focus_even_without_caret_move() {
 
     let mut input = Input {
         mouse_pos: crate::types::Vec2::new(
-            40.0 + spec().style.padding_x + spec().style.border_width,
+            40.0 + spec().style.padding_x + spec().style.border.map_or(0.0, |b| b.width),
             15.0,
         ),
         ..Input::default()
@@ -1586,7 +1590,7 @@ fn test_mouse_focus_no_select_all() {
 
     let mut input = Input {
         mouse_pos: crate::types::Vec2::new(
-            40.0 + spec().style.padding_x + spec().style.border_width,
+            40.0 + spec().style.padding_x + spec().style.border.map_or(0.0, |b| b.width),
             15.0,
         ),
         ..Default::default()
@@ -1813,8 +1817,8 @@ fn test_text_edit_visual_normal() {
             DrawCmd::StrokeRect {
                 anti_alias: false,
                 rect: Rect::new(0.0, 0.0, 200.0, 30.0),
-                color: spec().style.border,
-                width: spec().style.border_width,
+                color: spec().style.border.unwrap().color,
+                width: spec().style.border.map_or(0.0, |b| b.width),
                 z: 0,
             },
             DrawCmd::PushClip {
@@ -1983,8 +1987,8 @@ fn test_text_edit_visual_focused_caret() {
             DrawCmd::StrokeRect {
                 anti_alias: false,
                 rect: Rect::new(0.0, 0.0, 200.0, 30.0),
-                color: spec().style.focus,
-                width: spec().style.focus_width,
+                color: spec().style.focus_border.unwrap().color,
+                width: spec().style.focus_border.unwrap().width,
                 z: 0,
             },
             DrawCmd::PushClip {
@@ -2053,8 +2057,8 @@ fn test_text_edit_visual_focused_selection() {
             DrawCmd::StrokeRect {
                 anti_alias: false,
                 rect: Rect::new(0.0, 0.0, 200.0, 30.0),
-                color: spec().style.focus,
-                width: spec().style.focus_width,
+                color: spec().style.focus_border.unwrap().color,
+                width: spec().style.focus_border.unwrap().width,
                 z: 0,
             },
             DrawCmd::PushClip {
@@ -2252,14 +2256,14 @@ fn test_text_edit_visual_error() {
             DrawCmd::FillRect {
                 anti_alias: false,
                 rect: Rect::new(0.0, 0.0, 4.0, 30.0),
-                color: sp.style.error_border,
+                color: sp.style.error_border.unwrap().color,
                 z: 0,
             },
             DrawCmd::StrokeRect {
                 anti_alias: false,
                 rect: Rect::new(0.0, 0.0, 200.0, 30.0),
-                color: sp.style.error_border,
-                width: spec().style.border_width,
+                color: sp.style.error_border.unwrap().color,
+                width: spec().style.border.map_or(0.0, |b| b.width),
                 z: 0,
             },
             DrawCmd::PushClip {
@@ -2592,7 +2596,7 @@ fn test_selection_aware_auto_scrolling() {
     input.mouse_pressed = true;
     input.mouse_click_count = 2;
     input.mouse_pos = Vec2::new(
-        136.0 + spec().style.padding_x + spec().style.border_width - 120.0,
+        136.0 + spec().style.padding_x + spec().style.border.map_or(0.0, |b| b.width) - 120.0,
         15.0,
     );
     focus_system.begin_frame();
@@ -2617,7 +2621,7 @@ fn test_selection_aware_auto_scrolling() {
     input.mouse_pressed = true;
     input.mouse_click_count = 2;
     input.mouse_pos = Vec2::new(
-        256.0 + spec().style.padding_x + spec().style.border_width - 120.0,
+        256.0 + spec().style.padding_x + spec().style.border.map_or(0.0, |b| b.width) - 120.0,
         15.0,
     );
     focus_system.begin_frame();
@@ -4711,8 +4715,8 @@ fn test_text_edit_visual_multiline_selection() {
             DrawCmd::StrokeRect {
                 anti_alias: false,
                 rect: Rect::new(0.0, 0.0, 200.0, 100.0),
-                color: spec().style.focus,
-                width: spec().style.focus_width,
+                color: spec().style.focus_border.unwrap().color,
+                width: spec().style.focus_border.unwrap().width,
                 z: 0,
             },
             DrawCmd::PushClip {
@@ -4853,8 +4857,8 @@ fn test_text_edit_visual_multiline_selection_three_lines() {
             DrawCmd::StrokeRect {
                 anti_alias: false,
                 rect: Rect::new(0.0, 0.0, 200.0, 100.0),
-                color: spec().style.focus,
-                width: spec().style.focus_width,
+                color: spec().style.focus_border.unwrap().color,
+                width: spec().style.focus_border.unwrap().width,
                 z: 0,
             },
             DrawCmd::PushClip {
@@ -4932,7 +4936,7 @@ fn test_text_edit_caret_up_down_width_mismatch() {
     // Configure style to enable wrapping
     let mut spec_error = spec();
     spec_error.rect = Rect::new(0.0, 0.0, 52.0, 100.0); // 50px width content boundary + 2px borders
-    spec_error.style.border_width = 1.0;
+    spec_error.style.border = Some(Stroke::new(Color::BLACK, 1.0));
     spec_error.style.padding_x = 0.0;
     spec_error.style.padding_y = 0.0;
     spec_error.wrap = true;
@@ -5142,7 +5146,7 @@ fn test_prepare_text_edit_layout_applies_wrapped_gutter_to_layout_width() {
     let mut edit_spec = spec();
     edit_spec.rect = Rect::new(0.0, 0.0, 100.0, 30.0);
     edit_spec.wrap = true;
-    edit_spec.style.border_width = 1.0;
+    edit_spec.style.border = Some(Stroke::new(Color::BLACK, 1.0));
     edit_spec.style.padding_x = 4.0;
     edit_spec.style.padding_y = 4.0;
 
@@ -5175,12 +5179,14 @@ fn test_should_reserve_vertical_scrollbar_gutter_counts_non_wrapped_lines() {
     let mut edit_spec = spec();
     edit_spec.rect = Rect::new(0.0, 0.0, 100.0, 50.0);
     edit_spec.wrap = false;
-    edit_spec.style.border_width = 1.0;
+    edit_spec.style.border = Some(Stroke::new(Color::BLACK, 1.0));
     edit_spec.style.padding_x = 4.0;
     edit_spec.style.padding_y = 4.0;
     let text_style = super::to_text_style(edit_spec.style, edit_spec.wrap, edit_spec.line_align);
 
-    let scroll_outer_rect = edit_spec.rect.inset(edit_spec.style.border_width);
+    let scroll_outer_rect = edit_spec
+        .rect
+        .inset(edit_spec.style.border.map_or(0.0, |b| b.width));
     assert!(
         !super::raw::should_reserve_vertical_scrollbar_gutter(
             "one",
@@ -5213,7 +5219,9 @@ fn test_should_reserve_vertical_scrollbar_gutter_counts_non_wrapped_lines() {
     );
 
     edit_spec.rect = Rect::new(0.0, 0.0, 100.0, 20.0);
-    let short_scroll_outer_rect = edit_spec.rect.inset(edit_spec.style.border_width);
+    let short_scroll_outer_rect = edit_spec
+        .rect
+        .inset(edit_spec.style.border.map_or(0.0, |b| b.width));
     assert!(
         super::raw::should_reserve_vertical_scrollbar_gutter(
             "one",
@@ -5246,7 +5254,7 @@ fn test_prepare_text_edit_layout_non_wrapped_gutter_rules() {
     let mut edit_spec = spec();
     edit_spec.rect = Rect::new(0.0, 0.0, 100.0, 30.0);
     edit_spec.wrap = false;
-    edit_spec.style.border_width = 1.0;
+    edit_spec.style.border = Some(Stroke::new(Color::BLACK, 1.0));
     edit_spec.style.padding_x = 4.0;
     edit_spec.style.padding_y = 4.0;
 
@@ -5796,7 +5804,7 @@ fn test_narrow_text_edit_caret_reset() {
 fn test_size_text_edit_geometry_deductions() {
     let mut text_backend = TestTextBackend::default();
     let mut style = TextEditStyle::from_theme(&crate::theme::Theme::framewise());
-    style.border_width = 2.0;
+    style.border = Some(Stroke::new(Color::BLACK, 2.0));
     style.padding_x = 4.0;
     style.error_stripe_width = 8.0;
 

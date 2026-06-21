@@ -4,7 +4,7 @@ use crate::{
     input::Input,
     layout::{LayoutState, SizeOffer},
     text::{layout_text, TextBackend},
-    types::{ClipRect, Color, Layer, Rect, Vec2},
+    types::{ClipRect, Color, Layer, Outline, Rect, Stroke, Vec2},
     widget::{InputInfo, LayoutInfo, WidgetContext},
 };
 
@@ -172,19 +172,15 @@ pub mod raw {
         let alpha = if spec.disabled { s.disabled_alpha } else { 1.0 };
         let tint = |c: Color| Color::linear_rgba(c.r, c.g, c.b, c.a * alpha);
 
+        let border_width = s.border.map_or(0.0, |stroke| stroke.width);
         cmds.push(DrawCmd::FillRect {
             anti_alias: false,
             rect: outer,
             color: tint(s.background),
             z: spec.layer.get_z(),
         });
-        cmds.push(DrawCmd::StrokeRect {
-            anti_alias: false,
-            rect: outer,
-            color: tint(s.border),
-            width: s.border_width,
-            z: spec.layer.get_z(),
-        });
+        let tint_stroke = |st: Stroke| Stroke::new(tint(st.color), st.width);
+        cmds.push_stroke_rect(outer, s.border.map(tint_stroke), spec.layer.get_z(), false);
 
         let mut x = spec.rect.x;
         for (i, ((_label, layout), &w)) in spec
@@ -210,26 +206,27 @@ pub mod raw {
             // Focus ring (inset to stay within bounds).
             let visually_focused = focused && i == state.active_index;
             if visually_focused && !spec.disabled {
-                cmds.push(DrawCmd::StrokeRect {
-                    anti_alias: false,
-                    rect: seg_rect.inset(s.focus_offset),
-                    color: tint(s.focus),
-                    width: s.focus_width,
-                    z: spec.layer.get_focus_z(),
-                });
+                if let Some(outline) = s.focus {
+                    let tint_stroke = |st: Stroke| Stroke::new(tint(st.color), st.width);
+                    cmds.push_stroke_rect(
+                        seg_rect.inset(-(outline.offset + outline.stroke.width)),
+                        Some(tint_stroke(outline.stroke)),
+                        spec.layer.get_focus_z(),
+                        false,
+                    );
+                }
             }
 
             // Divider between segments (right edge, except last).
             if i + 1 < spec.items.len() {
                 let div_x = x + w;
-                cmds.push(DrawCmd::StrokeLine {
-                    anti_alias: false,
-                    p0: Vec2::new(div_x, spec.rect.y),
-                    p1: Vec2::new(div_x, spec.rect.y + h),
-                    color: tint(s.border),
-                    width: s.border_width,
-                    z: spec.layer.get_z(),
-                });
+                cmds.push_stroke_line(
+                    Vec2::new(div_x, spec.rect.y),
+                    Vec2::new(div_x, spec.rect.y + h),
+                    s.border.map(tint_stroke),
+                    spec.layer.get_z(),
+                    false,
+                );
             }
 
             let text_color = if is_active { s.active_text } else { s.text };
@@ -254,7 +251,7 @@ pub mod raw {
                 clicked: is_clicked,
             },
             focused,
-            content_bounds: outer.inset(s.border_width),
+            content_bounds: outer.inset(border_width),
         }
     }
 }
@@ -267,14 +264,11 @@ pub struct SegmentedStyle {
     pub pad_x: f32,
     pub text_style: crate::text::TextStyle,
     pub background: Color,
-    pub border: Color,
+    pub border: Option<Stroke>,
     pub active_bg: Color,
     pub text: Color,
     pub active_text: Color,
-    pub focus: Color,
-    pub border_width: f32,
-    pub focus_width: f32,
-    pub focus_offset: f32,
+    pub focus: Option<Outline>,
     pub disabled_alpha: f32,
 }
 
@@ -290,14 +284,15 @@ impl SegmentedStyle {
                 crate::text::TextFlow::single_line(),
             ),
             background: theme.paper_elev,
-            border: theme.ink,
+            border: Some(Stroke::new(theme.ink, theme.border)),
             active_bg: theme.ink,
             text: theme.ink,
             active_text: theme.paper,
-            focus: theme.rust,
-            border_width: theme.border,
-            focus_width: theme.focus_width,
-            focus_offset: theme.focus_offset,
+            focus: Some(Outline::new(
+                theme.rust,
+                theme.focus_width,
+                -theme.focus_offset - theme.focus_width,
+            )),
             disabled_alpha: 0.35,
         }
     }

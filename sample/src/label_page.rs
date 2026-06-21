@@ -9,7 +9,7 @@ use framewise::{
         WrapWordFallback,
     },
     theme::Theme,
-    types::{Color, Rect},
+    types::{Color, Rect, Stroke},
     widget::WidgetContext,
     widgets::frame::{begin_frame, FrameSpecBuilder, FrameStyle},
     widgets::label::{label, LabelSpecBuilder, LabelStyle},
@@ -90,8 +90,7 @@ pub(crate) fn draw_label_page_content<'a, 'b, CF>(
 
     let box_style = FrameStyle {
         background: Color::from_srgb_u8(240, 240, 243, 255),
-        border: Color::from_srgb_u8(210, 210, 215, 255),
-        border_width: 1.0,
+        border: Some(Stroke::new(Color::from_srgb_u8(210, 210, 215, 255), 1.0)),
         padding: 8.0,
     };
 
@@ -106,8 +105,7 @@ pub(crate) fn draw_label_page_content<'a, 'b, CF>(
             ),
             content_placement: framewise::TextContentPlacement::TOP_LEFT,
             text_color: theme.ink,
-            rule: true,
-            rule_color: theme.line,
+            rule: Some(Stroke::new(theme.line, 1.0)),
         };
         label(
             ctx,
@@ -135,8 +133,7 @@ pub(crate) fn draw_label_page_content<'a, 'b, CF>(
                         ),
                         content_placement: framewise::TextContentPlacement::TOP_LEFT,
                         text_color: theme.rust,
-                        rule: false,
-                        rule_color: theme.line,
+                        rule: None,
                     }),
                 ColumnLayoutParams::auto(),
             );
@@ -161,8 +158,7 @@ pub(crate) fn draw_label_page_content<'a, 'b, CF>(
                         ),
                         content_placement: framewise::TextContentPlacement::TOP_LEFT,
                         text_color: theme.ink,
-                        rule: false,
-                        rule_color: theme.line,
+                        rule: None,
                     }),
                     ColumnLayoutParams::auto(),
                 );
@@ -188,8 +184,7 @@ pub(crate) fn draw_label_page_content<'a, 'b, CF>(
                         ),
                         content_placement: framewise::TextContentPlacement::TOP_LEFT,
                         text_color: theme.rust,
-                        rule: false,
-                        rule_color: theme.line,
+                        rule: None,
                     }),
                 ColumnLayoutParams::auto(),
             );
@@ -214,8 +209,7 @@ pub(crate) fn draw_label_page_content<'a, 'b, CF>(
                         ),
                         content_placement: framewise::TextContentPlacement::TOP_LEFT,
                         text_color: theme.ink,
-                        rule: false,
-                        rule_color: theme.line,
+                        rule: None,
                     }),
                     ColumnLayoutParams::auto(),
                 );
@@ -239,8 +233,7 @@ pub(crate) fn draw_label_page_content<'a, 'b, CF>(
             ),
             content_placement: framewise::TextContentPlacement::TOP_LEFT,
             text_color: theme.ink,
-            rule: true,
-            rule_color: theme.line,
+            rule: Some(Stroke::new(theme.line, 1.0)),
         };
         label(
             ctx,
@@ -280,8 +273,7 @@ pub(crate) fn draw_label_page_content<'a, 'b, CF>(
                         ),
                         content_placement: framewise::TextContentPlacement::TOP_LEFT,
                         text_color: color,
-                        rule: false,
-                        rule_color: theme.line,
+                        rule: None,
                     }),
                     ColumnLayoutParams::auto(),
                 );
@@ -318,8 +310,7 @@ pub(crate) fn draw_label_page_content<'a, 'b, CF>(
                         ),
                         content_placement: framewise::TextContentPlacement::TOP_LEFT,
                         text_color: text_col,
-                        rule: true,
-                        rule_color: rule_col,
+                        rule: Some(Stroke::new(rule_col, 1.0)),
                     }),
                     ColumnLayoutParams::auto(),
                 );
@@ -343,8 +334,7 @@ pub(crate) fn draw_label_page_content<'a, 'b, CF>(
             ),
             content_placement: framewise::TextContentPlacement::TOP_LEFT,
             text_color: theme.ink,
-            rule: true,
-            rule_color: theme.line,
+            rule: Some(Stroke::new(theme.line, 1.0)),
         };
         label(
             ctx,
@@ -361,8 +351,7 @@ pub(crate) fn draw_label_page_content<'a, 'b, CF>(
 
         let clip_test_box_style = FrameStyle {
             background: Color::from_srgb_u8(255, 255, 255, 255),
-            border: Color::from_srgb_u8(180, 50, 50, 255),
-            border_width: 0.0,
+            border: None,
             padding: 0.0,
         };
 
@@ -867,8 +856,7 @@ pub(crate) fn draw_label_page_content<'a, 'b, CF>(
             ),
             content_placement: framewise::TextContentPlacement::TOP_LEFT,
             text_color: theme.ink,
-            rule: true,
-            rule_color: theme.line,
+            rule: Some(Stroke::new(theme.line, 1.0)),
         };
         label(
             ctx,
@@ -886,8 +874,7 @@ pub(crate) fn draw_label_page_content<'a, 'b, CF>(
 
         let clip_test_box_style = FrameStyle {
             background: Color::from_srgb_u8(255, 255, 255, 255),
-            border: Color::from_srgb_u8(180, 50, 50, 255),
-            border_width: 0.0,
+            border: None,
             padding: 0.0,
         };
 
@@ -1474,8 +1461,7 @@ pub(crate) fn draw_label_page_content<'a, 'b, CF>(
             ),
             content_placement: framewise::TextContentPlacement::TOP_LEFT,
             text_color: theme.ink,
-            rule: true,
-            rule_color: theme.line,
+            rule: Some(Stroke::new(theme.line, 1.0)),
         };
         label(
             ctx,
@@ -1560,8 +1546,7 @@ pub(crate) fn draw_label_page_content<'a, 'b, CF>(
             ),
             content_placement: framewise::TextContentPlacement::TOP_LEFT,
             text_color: theme.ink,
-            rule: true,
-            rule_color: theme.line,
+            rule: Some(Stroke::new(theme.line, 1.0)),
         };
         label(
             ctx,
@@ -1591,8 +1576,7 @@ pub(crate) fn draw_label_page_content<'a, 'b, CF>(
                     &mut row,
                     FrameSpecBuilder::new().style(FrameStyle {
                         background: Color::from_srgb_u8(255, 255, 255, 255),
-                        border: theme.line,
-                        border_width: 1.0,
+                        border: Some(Stroke::new(theme.line, 1.0)),
                         padding: 0.0,
                     }),
                     RowLayoutParams::fixed(150.0, 72.0),
@@ -1638,8 +1622,7 @@ pub(crate) fn draw_label_page_content<'a, 'b, CF>(
         };
         let icon_frame = FrameStyle {
             background: Color::from_srgb_u8(255, 255, 255, 255),
-            border: theme.line,
-            border_width: 1.0,
+            border: Some(Stroke::new(theme.line, 1.0)),
             padding: 0.0,
         };
 
@@ -1711,8 +1694,7 @@ pub(crate) fn draw_label_page_content<'a, 'b, CF>(
                 ),
                 content_placement: framewise::TextContentPlacement::TOP_LEFT,
                 text_color: Color::from_srgb_u8(120, 120, 130, 255),
-                rule: false,
-                rule_color: theme.line,
+                rule: None,
             }),
         ColumnLayoutParams::auto(),
     );

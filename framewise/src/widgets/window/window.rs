@@ -3,7 +3,7 @@ use crate::{
     focus::FocusSystem,
     layout::{Layout, LayoutState, SizeOffer},
     text::{layout_text, TextBackend},
-    types::{Color, Layer, Rect, Vec2},
+    types::{Color, Layer, Rect, Stroke, Vec2},
     widget::{LayoutInfo, WidgetContext},
 };
 
@@ -93,13 +93,7 @@ pub mod raw {
             color: s.background,
             z: spec.layer.get_z(),
         });
-        cmds.push(DrawCmd::StrokeRect {
-            anti_alias: false,
-            rect: spec.rect,
-            color: s.border,
-            width: s.border_width,
-            z: spec.layer.get_z(),
-        });
+        cmds.push_stroke_rect(spec.rect, s.border, spec.layer.get_z(), false);
 
         // Title bar.
         let title_rect = Rect::new(spec.rect.x, spec.rect.y, spec.rect.w, title_h);
@@ -162,14 +156,13 @@ pub mod raw {
         // Status bar.
         if spec.status_bar {
             let bar_y = spec.rect.y + spec.rect.h - status_h;
-            cmds.push(DrawCmd::StrokeLine {
-                anti_alias: false,
-                p0: Vec2::new(spec.rect.x, bar_y),
-                p1: Vec2::new(spec.rect.x + spec.rect.w, bar_y),
-                color: s.status_border,
-                width: s.border_width,
-                z: spec.layer.get_z(),
-            });
+            cmds.push_stroke_line(
+                Vec2::new(spec.rect.x, bar_y),
+                Vec2::new(spec.rect.x + spec.rect.w, bar_y),
+                s.status_border,
+                spec.layer.get_z(),
+                false,
+            );
             let status_text = spec.status_text.unwrap_or("");
             let status_layout = layout_text(
                 text_backend,
@@ -238,12 +231,11 @@ pub struct WindowStyle {
     pub text_pad_x: f32,
     pub text_style: crate::text::TextStyle,
     pub background: Color,
-    pub border: Color,
+    pub border: Option<Stroke>,
     pub title_bg: Color,
     pub title_text: Color,
     pub status_text: Color,
-    pub status_border: Color,
-    pub border_width: f32,
+    pub status_border: Option<Stroke>,
 }
 
 impl WindowStyle {
@@ -264,12 +256,11 @@ impl WindowStyle {
                 crate::text::TextFlow::single_line(),
             ),
             background: theme.paper_elev,
-            border: theme.ink,
+            border: Some(Stroke::new(theme.ink, theme.border)),
             title_bg: theme.ink,
             title_text: theme.paper,
             status_text: theme.muted,
-            status_border: theme.line,
-            border_width: theme.border,
+            status_border: Some(Stroke::new(theme.line, theme.border)),
         }
     }
 }

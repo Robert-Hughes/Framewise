@@ -222,8 +222,8 @@ fn test_checkbox_visual_off() {
             DrawCmd::StrokeRect {
                 anti_alias: false,
                 rect: Rect::new(10.0, 10.0, 14.0, 14.0),
-                color: s.border,
-                width: s.border_width,
+                color: s.border.unwrap().color,
+                width: s.border.unwrap().width,
                 z: 0,
             },
         ])
@@ -259,8 +259,8 @@ fn test_checkbox_visual_vertically_centered() {
             DrawCmd::StrokeRect {
                 anti_alias: false,
                 rect: expected_rect,
-                color: s.border,
-                width: s.border_width,
+                color: s.border.unwrap().color,
+                width: s.border.unwrap().width,
                 z: 0,
             },
         ])
@@ -321,8 +321,8 @@ fn test_checkbox_visual_hovered() {
             DrawCmd::StrokeRect {
                 anti_alias: false,
                 rect: r,
-                color: s.border,
-                width: s.border_width,
+                color: s.border.unwrap().color,
+                width: s.border.unwrap().width,
                 z: 0,
             },
         ])
@@ -385,8 +385,8 @@ fn test_checkbox_visual_pressed() {
             DrawCmd::StrokeRect {
                 anti_alias: false,
                 rect: r,
-                color: s.border,
-                width: s.border_width,
+                color: s.border.unwrap().color,
+                width: s.border.unwrap().width,
                 z: 0,
             },
         ])
@@ -427,24 +427,24 @@ fn test_checkbox_visual_on() {
             DrawCmd::StrokeRect {
                 anti_alias: false,
                 rect: r,
-                color: s.border,
-                width: s.border_width,
+                color: s.border.unwrap().color,
+                width: s.border.unwrap().width,
                 z: 0,
             },
             DrawCmd::StrokeLine {
                 anti_alias: true,
                 p0,
                 p1,
-                color: s.mark,
-                width: s.mark_width,
+                color: s.mark.color,
+                width: s.mark.width,
                 z: 0,
             },
             DrawCmd::StrokeLine {
                 anti_alias: true,
                 p0: p1,
                 p1: p2,
-                color: s.mark,
-                width: s.mark_width,
+                color: s.mark.color,
+                width: s.mark.width,
                 z: 0,
             },
         ])
@@ -511,24 +511,24 @@ fn test_checkbox_visual_on_hovered() {
             DrawCmd::StrokeRect {
                 anti_alias: false,
                 rect: r,
-                color: s.border,
-                width: s.border_width,
+                color: s.border.unwrap().color,
+                width: s.border.unwrap().width,
                 z: 0,
             },
             DrawCmd::StrokeLine {
                 anti_alias: true,
                 p0,
                 p1,
-                color: s.mark,
-                width: s.mark_width,
+                color: s.mark.color,
+                width: s.mark.width,
                 z: 0,
             },
             DrawCmd::StrokeLine {
                 anti_alias: true,
                 p0: p1,
                 p1: p2,
-                color: s.mark,
-                width: s.mark_width,
+                color: s.mark.color,
+                width: s.mark.width,
                 z: 0,
             },
         ])
@@ -566,14 +566,14 @@ fn test_checkbox_visual_indeterminate() {
             DrawCmd::StrokeRect {
                 anti_alias: false,
                 rect: r,
-                color: s.border,
-                width: s.border_width,
+                color: s.border.unwrap().color,
+                width: s.border.unwrap().width,
                 z: 0,
             },
             DrawCmd::FillRect {
                 anti_alias: false,
                 rect: Rect::new(r.x + 2.0, r.y + 6.0, 10.0, 2.0),
-                color: s.mark,
+                color: s.mark.color,
                 z: 0,
             },
         ])
@@ -639,14 +639,14 @@ fn test_checkbox_visual_indeterminate_pressed() {
             DrawCmd::StrokeRect {
                 anti_alias: false,
                 rect: r,
-                color: s.border,
-                width: s.border_width,
+                color: s.border.unwrap().color,
+                width: s.border.unwrap().width,
                 z: 0,
             },
             DrawCmd::FillRect {
                 anti_alias: false,
                 rect: Rect::new(r.x + 2.0, r.y + 6.0, 10.0, 2.0),
-                color: s.mark,
+                color: s.mark.color,
                 z: 0,
             },
         ])
@@ -790,9 +790,9 @@ fn test_checkbox_visual_focused() {
         DrawCommands::from_vec(vec![
             DrawCmd::StrokeRect {
                 anti_alias: false,
-                rect: r.inset(-(s.focus_offset + s.focus_width)),
-                color: s.focus,
-                width: s.focus_width,
+                rect: r.inset(-(s.focus.unwrap().offset + s.focus.unwrap().stroke.width)),
+                color: s.focus.unwrap().stroke.color,
+                width: s.focus.unwrap().stroke.width,
                 z: 1,
             },
             DrawCmd::FillRect {
@@ -804,8 +804,8 @@ fn test_checkbox_visual_focused() {
             DrawCmd::StrokeRect {
                 anti_alias: false,
                 rect: r,
-                color: s.border,
-                width: s.border_width,
+                color: s.border.unwrap().color,
+                width: s.border.unwrap().width,
                 z: 0,
             },
         ])
@@ -845,8 +845,8 @@ fn test_checkbox_visual_disabled() {
             DrawCmd::StrokeRect {
                 anti_alias: false,
                 rect: r,
-                color: tint(s.border),
-                width: s.border_width,
+                color: tint(s.border.unwrap().color),
+                width: s.border.unwrap().width,
                 z: 0,
             },
         ])

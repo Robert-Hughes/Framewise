@@ -1,8 +1,8 @@
 use crate::{
-    draw::{DrawCmd, DrawCommands},
+    draw::DrawCommands,
     layout::{LayoutState, SizeOffer, SizeRequest},
     text::TextBackend,
-    types::{Color, Layer, Rect, Vec2},
+    types::{Layer, Rect, Stroke, Vec2},
     widget::{LayoutInfo, WidgetContext},
 };
 
@@ -71,87 +71,77 @@ pub mod raw {
         } else {
             spec.style.small_arm
         };
-        let w = spec.style.width;
 
         // Top-left bracket.
-        cmds.push(DrawCmd::StrokeLine {
-            anti_alias: false,
-            p0: Vec2::new(x, y + arm),
-            p1: Vec2::new(x, y),
-            color: spec.style.color,
-            width: w,
-            z: spec.layer.get_z(),
-        });
-        cmds.push(DrawCmd::StrokeLine {
-            anti_alias: false,
-            p0: Vec2::new(x, y),
-            p1: Vec2::new(x + arm, y),
-            color: spec.style.color,
-            width: w,
-            z: spec.layer.get_z(),
-        });
+        cmds.push_stroke_line(
+            Vec2::new(x, y + arm),
+            Vec2::new(x, y),
+            Some(spec.style.stroke),
+            spec.layer.get_z(),
+            false,
+        );
+        cmds.push_stroke_line(
+            Vec2::new(x, y),
+            Vec2::new(x + arm, y),
+            Some(spec.style.stroke),
+            spec.layer.get_z(),
+            false,
+        );
         // Top-right bracket.
-        cmds.push(DrawCmd::StrokeLine {
-            anti_alias: false,
-            p0: Vec2::new(x + size - arm, y),
-            p1: Vec2::new(x + size, y),
-            color: spec.style.color,
-            width: w,
-            z: spec.layer.get_z(),
-        });
-        cmds.push(DrawCmd::StrokeLine {
-            anti_alias: false,
-            p0: Vec2::new(x + size, y),
-            p1: Vec2::new(x + size, y + arm),
-            color: spec.style.color,
-            width: w,
-            z: spec.layer.get_z(),
-        });
+        cmds.push_stroke_line(
+            Vec2::new(x + size - arm, y),
+            Vec2::new(x + size, y),
+            Some(spec.style.stroke),
+            spec.layer.get_z(),
+            false,
+        );
+        cmds.push_stroke_line(
+            Vec2::new(x + size, y),
+            Vec2::new(x + size, y + arm),
+            Some(spec.style.stroke),
+            spec.layer.get_z(),
+            false,
+        );
         // Bottom-right bracket.
-        cmds.push(DrawCmd::StrokeLine {
-            anti_alias: false,
-            p0: Vec2::new(x + size, y + size - arm),
-            p1: Vec2::new(x + size, y + size),
-            color: spec.style.color,
-            width: w,
-            z: spec.layer.get_z(),
-        });
-        cmds.push(DrawCmd::StrokeLine {
-            anti_alias: false,
-            p0: Vec2::new(x + size, y + size),
-            p1: Vec2::new(x + size - arm, y + size),
-            color: spec.style.color,
-            width: w,
-            z: spec.layer.get_z(),
-        });
+        cmds.push_stroke_line(
+            Vec2::new(x + size, y + size - arm),
+            Vec2::new(x + size, y + size),
+            Some(spec.style.stroke),
+            spec.layer.get_z(),
+            false,
+        );
+        cmds.push_stroke_line(
+            Vec2::new(x + size, y + size),
+            Vec2::new(x + size - arm, y + size),
+            Some(spec.style.stroke),
+            spec.layer.get_z(),
+            false,
+        );
         // Bottom-left bracket.
-        cmds.push(DrawCmd::StrokeLine {
-            anti_alias: false,
-            p0: Vec2::new(x + arm, y + size),
-            p1: Vec2::new(x, y + size),
-            color: spec.style.color,
-            width: w,
-            z: spec.layer.get_z(),
-        });
-        cmds.push(DrawCmd::StrokeLine {
-            anti_alias: false,
-            p0: Vec2::new(x, y + size),
-            p1: Vec2::new(x, y + size - arm),
-            color: spec.style.color,
-            width: w,
-            z: spec.layer.get_z(),
-        });
+        cmds.push_stroke_line(
+            Vec2::new(x + arm, y + size),
+            Vec2::new(x, y + size),
+            Some(spec.style.stroke),
+            spec.layer.get_z(),
+            false,
+        );
+        cmds.push_stroke_line(
+            Vec2::new(x, y + size),
+            Vec2::new(x, y + size - arm),
+            Some(spec.style.stroke),
+            spec.layer.get_z(),
+            false,
+        );
 
-        // Animated segment on the top edge — drawn as a rust highlight.
+        // Animated segment on the top edge — drawn as a highlight.
         let seg_w = size * spec.style.highlight_fraction;
-        cmds.push(DrawCmd::StrokeLine {
-            anti_alias: false,
-            p0: Vec2::new(x + size * 0.1, y),
-            p1: Vec2::new(x + size * 0.1 + seg_w, y),
-            color: spec.style.highlight,
-            width: w,
-            z: spec.layer.get_z(),
-        });
+        cmds.push_stroke_line(
+            Vec2::new(x + size * 0.1, y),
+            Vec2::new(x + size * 0.1 + seg_w, y),
+            Some(spec.style.highlight_stroke),
+            spec.layer.get_z(),
+            false,
+        );
     }
 }
 
@@ -159,26 +149,24 @@ pub mod raw {
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct SpinnerStyle {
-    pub color: Color,
-    pub highlight: Color,
+    pub stroke: Stroke,
+    pub highlight_stroke: Stroke,
     pub small_size: f32,
     pub large_size: f32,
     pub small_arm: f32,
     pub large_arm: f32,
-    pub width: f32,
     pub highlight_fraction: f32,
 }
 
 impl SpinnerStyle {
     pub fn from_theme(theme: &crate::theme::Theme) -> Self {
         Self {
-            color: theme.ink,
-            highlight: theme.rust,
+            stroke: Stroke::new(theme.ink, 1.5),
+            highlight_stroke: Stroke::new(theme.rust, 1.5),
             small_size: 16.0,
             large_size: 24.0,
             small_arm: 5.0,
             large_arm: 7.0,
-            width: 1.5,
             highlight_fraction: 0.4,
         }
     }

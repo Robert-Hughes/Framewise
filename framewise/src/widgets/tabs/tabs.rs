@@ -4,7 +4,7 @@ use crate::{
     input::Input,
     layout::{LayoutState, SizeOffer, SizeRequest},
     text::{layout_text, TextBackend, TextBounds, TextStyle},
-    types::{ClipRect, Color, Layer, Rect, Vec2},
+    types::{ClipRect, Color, Layer, Outline, Rect, Stroke, Vec2},
     widget::{InputInfo, LayoutInfo, WidgetContext},
 };
 
@@ -147,15 +147,16 @@ pub mod raw {
         let tint = |c: Color| Color::linear_rgba(c.r, c.g, c.b, c.a * alpha);
 
         // Bottom border across the full width.
+        let border_width = s.border.map_or(0.0, |stroke| stroke.width);
         let border_y = spec.rect.y + tab_h;
-        cmds.push(DrawCmd::StrokeLine {
-            anti_alias: false,
-            p0: Vec2::new(spec.rect.x, border_y),
-            p1: Vec2::new(spec.rect.x + spec.rect.w, border_y),
-            color: tint(s.border),
-            width: s.border_width,
-            z: spec.layer.get_z(),
-        });
+        let tint_stroke = |st: Stroke| Stroke::new(tint(st.color), st.width);
+        cmds.push_stroke_line(
+            Vec2::new(spec.rect.x, border_y),
+            Vec2::new(spec.rect.x + spec.rect.w, border_y),
+            s.border.map(tint_stroke),
+            spec.layer.get_z(),
+            false,
+        );
 
         let mut x = spec.rect.x;
 
@@ -172,13 +173,15 @@ pub mod raw {
             // Focus ring.
             let visually_focused = focused && i == state.active_index;
             if visually_focused && !spec.disabled {
-                cmds.push(DrawCmd::StrokeRect {
-                    anti_alias: false,
-                    rect: tab_rect.inset(-(s.focus_offset + s.focus_width)),
-                    color: tint(s.focus),
-                    width: s.focus_width,
-                    z: spec.layer.get_focus_z(),
-                });
+                if let Some(outline) = s.focus {
+                    let tint_stroke = |st: Stroke| Stroke::new(tint(st.color), st.width);
+                    cmds.push_stroke_rect(
+                        tab_rect.inset(-(outline.offset + outline.stroke.width)),
+                        Some(tint_stroke(outline.stroke)),
+                        spec.layer.get_focus_z(),
+                        false,
+                    );
+                }
             }
 
             let text_color = if is_active { s.text } else { s.inactive_text };
@@ -228,12 +231,7 @@ pub mod raw {
                 clicked: is_clicked,
             },
             focused,
-            content_bounds: Rect::new(
-                spec.rect.x,
-                spec.rect.y,
-                spec.rect.w,
-                tab_h - s.border_width,
-            ),
+            content_bounds: Rect::new(spec.rect.x, spec.rect.y, spec.rect.w, tab_h - border_width),
         }
     }
 }
@@ -246,14 +244,11 @@ pub struct TabsStyle {
     pub pad_x: f32,
     pub underbar_height: f32,
     pub text_style: TextStyle,
-    pub border: Color,
+    pub border: Option<Stroke>,
     pub text: Color,
     pub inactive_text: Color,
     pub accent: Color,
-    pub focus: Color,
-    pub border_width: f32,
-    pub focus_width: f32,
-    pub focus_offset: f32,
+    pub focus: Option<Outline>,
     pub disabled_alpha: f32,
 }
 
@@ -269,14 +264,15 @@ impl TabsStyle {
                 theme.sans_weight_regular,
                 crate::text::TextFlow::single_line(),
             ),
-            border: theme.ink,
+            border: Some(Stroke::new(theme.ink, theme.border)),
             text: theme.ink,
             inactive_text: theme.muted,
             accent: theme.rust,
-            focus: theme.rust,
-            border_width: theme.border,
-            focus_width: theme.focus_width,
-            focus_offset: theme.focus_offset,
+            focus: Some(Outline::new(
+                theme.rust,
+                theme.focus_width,
+                theme.focus_offset,
+            )),
             disabled_alpha: 0.35,
         }
     }

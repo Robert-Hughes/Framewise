@@ -2,7 +2,7 @@ use crate::{
     draw::{DrawCmd, DrawCommands},
     layout::{LayoutState, SizeOffer},
     text::TextBackend,
-    types::{Color, Layer, Rect},
+    types::{Color, Layer, Rect, Stroke},
     widget::{LayoutInfo, WidgetContext},
 };
 
@@ -14,8 +14,8 @@ pub mod raw {
         pub layer: Layer,
         pub rect: Rect,
         pub color: Color,
-        /// Border color drawn around the swatch. Transparent by default.
-        pub border: Color,
+        /// Border stroke drawn around the swatch.
+        pub border: Option<Stroke>,
     }
 
     #[derive(Debug, Clone, PartialEq)]
@@ -68,15 +68,9 @@ pub mod raw {
             color: spec.color,
             z: spec.layer.get_z(),
         });
-        cmds.push(DrawCmd::StrokeRect {
-            anti_alias: false,
-            rect: spec.rect,
-            color: spec.border,
-            width: 1.0,
-            z: spec.layer.get_z(),
-        });
+        cmds.push_stroke_rect(spec.rect, spec.border, spec.layer.get_z(), false);
         ColorSwatchResult {
-            content_bounds: spec.rect.inset(1.0),
+            content_bounds: spec.rect.inset(spec.border.map_or(0.0, |b| b.width)),
         }
     }
 }
@@ -93,7 +87,7 @@ pub struct ColorSwatchResult {
 #[derive(Debug, Clone, PartialEq)]
 pub struct ColorSwatchSpec {
     pub color: Color,
-    pub border: Color,
+    pub border: Option<Stroke>,
 }
 
 // ── Spec Builder ─────────────────────────────────────────────────────────────
@@ -101,7 +95,7 @@ pub struct ColorSwatchSpec {
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct ColorSwatchSpecBuilder {
     pub color: Option<Color>,
-    pub border: Option<Color>,
+    pub border: Option<Option<Stroke>>,
 }
 
 impl ColorSwatchSpecBuilder {
@@ -114,7 +108,7 @@ impl ColorSwatchSpecBuilder {
         self
     }
 
-    pub fn border(mut self, border: Color) -> Self {
+    pub fn border(mut self, border: Option<Stroke>) -> Self {
         self.border = Some(border);
         self
     }
@@ -123,7 +117,7 @@ impl ColorSwatchSpecBuilder {
     /// context functions.
     pub fn defaults_from_theme(mut self, theme: &crate::theme::Theme) -> Self {
         if self.border.is_none() {
-            self.border = Some(theme.ink);
+            self.border = Some(Some(Stroke::new(theme.ink, 1.0)));
         }
         // Note color doesn't come from theme - this is the colour being indicated by the swatch!
         self
@@ -131,9 +125,7 @@ impl ColorSwatchSpecBuilder {
 
     pub fn build(self) -> ColorSwatchSpec {
         ColorSwatchSpec {
-            color: self
-                .color
-                .expect("color not set — call .color() or defaults_from_theme()"),
+            color: self.color.expect("color not set — call .color()"),
             border: self
                 .border
                 .expect("border not set — call .border() or defaults_from_theme()"),

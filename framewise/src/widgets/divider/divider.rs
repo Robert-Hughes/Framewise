@@ -1,10 +1,10 @@
 #[cfg(test)]
 use crate::focus::FocusSystem;
 use crate::{
-    draw::{DrawCmd, DrawCommands},
+    draw::DrawCommands,
     layout::{LayoutState, SizeOffer},
     text::TextBackend,
-    types::{Color, Layer, Rect, Vec2},
+    types::{Color, Layer, Rect, Stroke, Vec2},
     widget::{LayoutInfo, WidgetContext},
 };
 
@@ -15,8 +15,7 @@ pub mod raw {
     pub struct DividerSpec {
         pub layer: Layer,
         pub rect: Rect,
-        pub color: Color,
-        pub width: f32,
+        pub stroke: Stroke,
     }
 
     #[derive(Debug, Clone, PartialEq)]
@@ -62,14 +61,13 @@ pub mod raw {
         cmds: &mut DrawCommands,
     ) -> DividerResult {
         let mid_y = spec.rect.y + spec.rect.h * 0.5;
-        cmds.push(DrawCmd::StrokeLine {
-            anti_alias: false,
-            p0: Vec2::new(spec.rect.x, mid_y),
-            p1: Vec2::new(spec.rect.x + spec.rect.w, mid_y),
-            color: spec.color,
-            width: spec.width,
-            z: 0,
-        });
+        cmds.push_stroke_line(
+            Vec2::new(spec.rect.x, mid_y),
+            Vec2::new(spec.rect.x + spec.rect.w, mid_y),
+            Some(spec.stroke),
+            spec.layer.get_z(),
+            false,
+        );
         DividerResult {}
     }
 }
@@ -85,14 +83,14 @@ pub struct DividerResult {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct DividerSpec {
-    pub color: Color,
-    pub width: f32,
+    pub stroke: Stroke,
 }
 
 // ── Spec Builder ─────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct DividerSpecBuilder {
+    pub stroke: Option<Stroke>,
     pub color: Option<Color>,
     pub width: Option<f32>,
 }
@@ -100,6 +98,10 @@ pub struct DividerSpecBuilder {
 impl DividerSpecBuilder {
     pub fn new() -> Self {
         Self::default()
+    }
+    pub fn stroke(mut self, stroke: Stroke) -> Self {
+        self.stroke = Some(stroke);
+        self
     }
     pub fn color(mut self, color: Color) -> Self {
         self.color = Some(color);
@@ -112,17 +114,27 @@ impl DividerSpecBuilder {
     /// Fills unset fields from `theme`. Called automatically by high-level
     /// context functions.
     pub fn defaults_from_theme(mut self, theme: &crate::theme::Theme) -> Self {
-        if self.color.is_none() {
-            self.color = Some(theme.line);
+        if self.stroke.is_none() {
+            let color = self.color.unwrap_or(theme.line);
+            let width = self.width.unwrap_or(1.0);
+            self.stroke = Some(Stroke::new(color, width));
+        } else {
+            let mut s = self.stroke.unwrap();
+            if let Some(c) = self.color {
+                s.color = c;
+            }
+            if let Some(w) = self.width {
+                s.width = w;
+            }
+            self.stroke = Some(s);
         }
         self
     }
     pub fn build(self) -> DividerSpec {
         DividerSpec {
-            color: self
-                .color
-                .expect("color not set — call .color() or defaults_from_theme()"),
-            width: self.width.unwrap_or(1.0),
+            stroke: self
+                .stroke
+                .expect("stroke not set — call defaults_from_theme() or stroke()"),
         }
     }
 }
@@ -146,8 +158,7 @@ pub fn divider<T: TextBackend, S: LayoutState, CF>(
     let raw_spec = raw::DividerSpec {
         layer: ctx.layer,
         rect,
-        color: spec.color,
-        width: spec.width,
+        stroke: spec.stroke,
     };
     let _result = raw::post_layout_divider(raw_spec, pre_layout, ctx.cmds);
 

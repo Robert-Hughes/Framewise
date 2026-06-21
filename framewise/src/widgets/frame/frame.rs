@@ -3,7 +3,7 @@ use crate::{
     focus::FocusSystem,
     layout::{Layout, LayoutState, SizeOffer},
     text::TextBackend,
-    types::{Color, Layer, Rect, Vec2},
+    types::{Color, Layer, Rect, Stroke, Vec2},
     widget::WidgetContext,
 };
 
@@ -80,7 +80,8 @@ pub mod raw {
     ) -> FrameResult {
         let rect = spec.rect;
         let style = spec.style;
-        let inset = style.border_width + style.padding;
+        let border_width = style.border.map_or(0.0, |s| s.width);
+        let inset = border_width + style.padding;
         let content = rect.inset(inset);
 
         let fill_index = cmds.len();
@@ -116,7 +117,8 @@ pub mod raw {
     pub fn end_frame(token: FrameToken, spec: FrameSpec, cmds: &mut DrawCommands) {
         let rect = spec.rect;
         let style = spec.style;
-        let inset = style.border_width + style.padding;
+        let border_width = style.border.map_or(0.0, |s| s.width);
+        let inset = border_width + style.padding;
         let content = rect.inset(inset);
 
         match cmds.get_mut(token.fill_index) {
@@ -136,15 +138,7 @@ pub mod raw {
 
         cmds.push(DrawCmd::PopClip);
 
-        if style.border_width > 0.0 {
-            cmds.push(DrawCmd::StrokeRect {
-                anti_alias: false,
-                rect,
-                color: style.border,
-                width: style.border_width,
-                z: spec.layer.get_z(),
-            });
-        }
+        cmds.push_stroke_rect(rect, style.border, spec.layer.get_z(), false);
     }
 }
 
@@ -154,8 +148,7 @@ pub mod raw {
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct FrameStyle {
     pub background: Color,
-    pub border: Color,
-    pub border_width: f32,
+    pub border: Option<Stroke>,
     /// Padding between the border and the content area.
     pub padding: f32,
 }
@@ -164,8 +157,7 @@ impl FrameStyle {
     pub fn from_theme(theme: &crate::theme::Theme) -> Self {
         Self {
             background: theme.paper_elev,
-            border: theme.ink,
-            border_width: theme.border,
+            border: Some(Stroke::new(theme.ink, theme.border)),
             padding: 4.0,
         }
     }
@@ -248,7 +240,8 @@ pub fn begin_frame<'a, 'b, T: TextBackend, S: LayoutState, L: Layout, CF>(
 ) -> FrameResult<'b, T, L::State, impl FnOnce(&mut FocusSystem, &mut T, &mut DrawCommands, Rect) + 'b>
 {
     let spec = builder.defaults_from_theme(&ctx.theme).build();
-    let inset = spec.style.border_width + spec.style.padding;
+    let border_width = spec.style.border.map_or(0.0, |b| b.width);
+    let inset = border_width + spec.style.padding;
 
     let pre_layout_spec = raw::FramePreLayoutSpec { style: spec.style };
     let offer = ctx.peek_offer(layout_params.clone());

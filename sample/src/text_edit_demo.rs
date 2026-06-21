@@ -5,7 +5,7 @@ use framewise::{
     layout::{AxisBound, Layout, LayoutSpace, SizeRequest},
     layouts::linear::{ColumnLayout, ColumnLayoutParams, RowLayout, RowLayoutParams},
     theme::Theme,
-    types::{Color, Rect},
+    types::{Color, Rect, Stroke},
     widget::WidgetContext,
     widgets::checkbox::{labelled_checkbox, CheckboxSpecBuilder, CheckboxState, CheckedState},
     widgets::label::{label, LabelSpecBuilder, LabelStyle},
@@ -203,8 +203,7 @@ pub(crate) fn draw_text_edit_demo_content<'a, 'b, CF>(
         ),
         content_placement: framewise::TextContentPlacement::TOP_LEFT,
         text_color: theme.ink,
-        rule: true,
-        rule_color: theme.line,
+        rule: Some(Stroke::new(theme.line, 1.0)),
     };
 
     let desc_style = LabelStyle {
@@ -216,8 +215,7 @@ pub(crate) fn draw_text_edit_demo_content<'a, 'b, CF>(
         ),
         content_placement: framewise::TextContentPlacement::TOP_LEFT,
         text_color: theme.muted,
-        rule: false,
-        rule_color: theme.line,
+        rule: None,
     };
 
     let mut page_row = ctx.child_with_layout(ColumnLayoutParams::auto().fill_x(), RowLayout);
@@ -685,11 +683,9 @@ pub(crate) fn draw_text_edit_demo_content<'a, 'b, CF>(
             background: Color::from_srgb_u8(36, 30, 45, 255),
             background_hovered: Color::from_srgb_u8(43, 36, 54, 255),
             error_background: Color::from_srgb_u8(58, 30, 34, 255),
-            border: Color::from_srgb_u8(226, 181, 101, 255),
-            focus: Color::from_srgb_u8(121, 199, 184, 255),
-            border_width: 2.0,
-            focus_width: 3.0,
-            error_border: Color::from_srgb_u8(236, 105, 86, 255),
+            border: Some(Stroke::new(Color::from_srgb_u8(226, 181, 101, 255), 2.0)),
+            focus_border: Some(Stroke::new(Color::from_srgb_u8(121, 199, 184, 255), 3.0)),
+            error_border: Some(Stroke::new(Color::from_srgb_u8(236, 105, 86, 255), 2.0)),
             error_stripe_width: 6.0,
             min_height: 92.0,
             padding_x: 14.0,

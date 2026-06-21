@@ -66,8 +66,8 @@ fn test_select_visual_normal() {
             DrawCmd::StrokeRect {
                 anti_alias: false,
                 rect: Rect::new(0.0, 0.0, 180.0, 28.0),
-                color: s.border,
-                width: s.border_width,
+                color: s.border.unwrap().color,
+                width: s.border.unwrap().width,
                 z: 0,
             },
             DrawCmd::GlyphRun {
@@ -164,9 +164,9 @@ fn test_select_visual_open() {
         vec![
             DrawCmd::StrokeRect {
                 anti_alias: false,
-                rect: r.inset(-s.focus_offset),
-                color: s.focus,
-                width: s.focus_width,
+                rect: r.inset(-(s.focus.unwrap().offset + s.focus.unwrap().stroke.width)),
+                color: s.focus.unwrap().stroke.color,
+                width: s.focus.unwrap().stroke.width,
                 z: 1,
             },
             DrawCmd::FillRect {
@@ -178,8 +178,8 @@ fn test_select_visual_open() {
             DrawCmd::StrokeRect {
                 anti_alias: false,
                 rect: r,
-                color: s.border,
-                width: s.border_width,
+                color: s.border.unwrap().color,
+                width: s.border.unwrap().width,
                 z: 0,
             },
             DrawCmd::GlyphRun {
@@ -201,8 +201,8 @@ fn test_select_visual_open() {
             DrawCmd::StrokeRect {
                 anti_alias: false,
                 rect: popup,
-                color: s.border,
-                width: s.border_width,
+                color: s.border.unwrap().color,
+                width: s.border.unwrap().width,
                 z: 0,
             },
             DrawCmd::FillRect {

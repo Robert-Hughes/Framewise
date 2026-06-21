@@ -2,7 +2,7 @@ use crate::{
     draw::{DrawCmd, DrawCommands},
     layout::{LayoutState, SizeOffer, SizeRequest},
     text::{layout_text, TextBackend, TextBounds, TextStyle},
-    types::{Color, Layer, Rect, Vec2},
+    types::{Color, Layer, Rect, Stroke, Vec2},
     widget::{LayoutInfo, WidgetContext},
 };
 
@@ -76,13 +76,8 @@ pub mod raw {
             color: s.background,
             z: spec.layer.get_z(),
         });
-        cmds.push(DrawCmd::StrokeRect {
-            anti_alias: false,
-            rect: outer,
-            color: s.border,
-            width: s.border_width,
-            z: spec.layer.get_z(),
-        });
+        let border_width = s.border.map_or(0.0, |stroke| stroke.width);
+        cmds.push_stroke_rect(outer, s.border, spec.layer.get_z(), false);
 
         let mut y = spec.rect.y + s.pad_y;
 
@@ -186,10 +181,10 @@ pub mod raw {
         }
 
         let content_bounds = Rect::new(
-            outer.x + s.border_width + s.pad_x,
-            outer.y + s.border_width + s.pad_y,
-            outer.w - (s.border_width + s.pad_x) * 2.0,
-            outer.h - (s.border_width + s.pad_y) * 2.0,
+            outer.x + border_width + s.pad_x,
+            outer.y + border_width + s.pad_y,
+            outer.w - (border_width + s.pad_x) * 2.0,
+            outer.h - (border_width + s.pad_y) * 2.0,
         );
 
         TreeResult {
@@ -222,13 +217,12 @@ pub struct TreeStyle {
     pub min_width: f32,
     pub text_style: TextStyle,
     pub background: Color,
-    pub border: Color,
+    pub border: Option<Stroke>,
     pub selected_bg: Color,
     pub text: Color,
     pub selected_text: Color,
     pub muted: Color,
     pub selected_meta_alpha: f32,
-    pub border_width: f32,
 }
 
 impl TreeStyle {
@@ -247,13 +241,12 @@ impl TreeStyle {
                 crate::text::TextFlow::single_line(),
             ),
             background: theme.paper_elev,
-            border: theme.ink,
+            border: Some(Stroke::new(theme.ink, theme.border)),
             selected_bg: theme.ink,
             text: theme.ink,
             selected_text: theme.paper,
             muted: theme.muted,
             selected_meta_alpha: 0.7,
-            border_width: theme.border,
         }
     }
 }

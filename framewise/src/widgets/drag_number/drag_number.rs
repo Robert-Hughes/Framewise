@@ -4,7 +4,7 @@ use crate::{
     input::Input,
     layout::{LayoutState, SizeOffer},
     text::{layout_text, TextBackend},
-    types::{ClipRect, Color, Layer, Rect, Vec2},
+    types::{ClipRect, Color, Layer, Outline, Rect, Stroke, Vec2},
     widget::{InputInfo, LayoutInfo, WidgetContext},
 };
 
@@ -180,13 +180,15 @@ pub mod raw {
 
         // Focus / active ring.
         if visually_active && !spec.disabled {
-            cmds.push(DrawCmd::StrokeRect {
-                anti_alias: false,
-                rect: spec.rect.inset(-s.focus_offset),
-                color: tint(s.focus),
-                width: s.focus_width,
-                z: spec.layer.get_z(),
-            });
+            if let Some(outline) = s.focus {
+                let focus_stroke = Stroke::new(tint(outline.stroke.color), outline.stroke.width);
+                cmds.push_stroke_rect(
+                    spec.rect.inset(-(outline.offset + outline.stroke.width)),
+                    Some(focus_stroke),
+                    spec.layer.get_z(),
+                    false,
+                );
+            }
         }
 
         cmds.push(DrawCmd::FillRect {
@@ -195,13 +197,8 @@ pub mod raw {
             color: tint(s.background),
             z: spec.layer.get_z(),
         });
-        cmds.push(DrawCmd::StrokeRect {
-            anti_alias: false,
-            rect: spec.rect,
-            color: tint(s.border),
-            width: s.border_width,
-            z: spec.layer.get_z(),
-        });
+        let tinted_border = s.border.map(|b| Stroke::new(tint(b.color), b.width));
+        cmds.push_stroke_rect(spec.rect, tinted_border, spec.layer.get_z(), false);
 
         // text section (ink/rust bg, paper text).
         let text_rect = Rect::new(spec.rect.x, spec.rect.y, text_w, spec.rect.h);
@@ -275,7 +272,7 @@ pub mod raw {
                 clicked: clicked && !state.is_dragging,
             },
             focused,
-            content_bounds: spec.rect.inset(s.border_width),
+            content_bounds: spec.rect.inset(s.border.map_or(0.0, |b| b.width)),
         }
     }
 }
@@ -288,16 +285,13 @@ pub struct DragNumberStyle {
     pub text_pad_x: f32,
     pub text_style: crate::text::TextStyle,
     pub background: Color,
-    pub border: Color,
-    pub focus: Color,
+    pub border: Option<Stroke>,
+    pub focus: Option<Outline>,
     pub text_bg: Color,
     pub active_text_bg: Color,
     pub text_text: Color,
     pub value_text: Color,
     pub value_fill: Color,
-    pub border_width: f32,
-    pub focus_width: f32,
-    pub focus_offset: f32,
     pub disabled_alpha: f32,
 }
 
@@ -313,16 +307,17 @@ impl DragNumberStyle {
                 crate::text::TextFlow::single_line(),
             ),
             background: theme.paper_elev,
-            border: theme.ink,
-            focus: theme.rust,
+            border: Some(Stroke::new(theme.ink, theme.border)),
+            focus: Some(Outline::new(
+                theme.rust,
+                theme.focus_width,
+                -theme.focus_offset_tight,
+            )),
             text_bg: theme.ink,
             active_text_bg: theme.rust,
             text_text: theme.paper,
             value_text: theme.ink,
             value_fill: theme.rust_soft,
-            border_width: theme.border,
-            focus_width: theme.focus_width,
-            focus_offset: theme.focus_offset_tight,
             disabled_alpha: 0.35,
         }
     }

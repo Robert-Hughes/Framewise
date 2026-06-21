@@ -1,5 +1,6 @@
 use super::raw::DividerSpec;
 use super::*;
+use crate::draw::DrawCmd;
 use crate::test_utils::TestTextBackend;
 
 #[test]
@@ -7,8 +8,7 @@ fn test_divider_visual() {
     let spec = DividerSpec {
         layer: Layer::default(),
         rect: Rect::new(0.0, 0.0, 100.0, 10.0),
-        color: Color::WHITE,
-        width: 1.0,
+        stroke: Stroke::new(Color::WHITE, 1.0),
     };
     let mut cmds = DrawCommands::new();
     let _res = raw::post_layout_divider(
@@ -35,19 +35,21 @@ fn test_divider_visual() {
 #[test]
 fn test_builder_defaults_from_theme_fills_unset_color() {
     let theme = crate::theme::Theme::framewise();
-    let builder = DividerSpecBuilder::new();
-    assert!(builder.color.is_none());
-    let builder = builder.defaults_from_theme(&theme);
-    assert_eq!(builder.color, Some(theme.line));
+    let spec = DividerSpecBuilder::new()
+        .defaults_from_theme(&theme)
+        .build();
+    assert_eq!(spec.stroke.color, theme.line);
 }
 
 #[test]
 fn test_builder_defaults_from_theme_preserves_explicit_color() {
     let theme = crate::theme::Theme::framewise();
     let sentinel = Color::from_srgb_u8(1, 2, 3, 255);
-    let builder = DividerSpecBuilder::new().color(sentinel);
-    let builder = builder.defaults_from_theme(&theme);
-    assert_eq!(builder.color, Some(sentinel));
+    let spec = DividerSpecBuilder::new()
+        .color(sentinel)
+        .defaults_from_theme(&theme)
+        .build();
+    assert_eq!(spec.stroke.color, sentinel);
 }
 
 #[test]

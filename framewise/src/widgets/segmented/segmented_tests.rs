@@ -52,8 +52,8 @@ fn test_segmented_visual_normal() {
             DrawCmd::StrokeRect {
                 anti_alias: false,
                 rect: Rect::new(0.0, 0.0, 72.0, 28.0),
-                color: style.border,
-                width: style.border_width,
+                color: style.border.unwrap().color,
+                width: style.border.unwrap().width,
                 z: 0,
             },
             DrawCmd::FillRect {
@@ -66,8 +66,8 @@ fn test_segmented_visual_normal() {
                 anti_alias: false,
                 p0: Vec2::new(36.0, 0.0),
                 p1: Vec2::new(36.0, 28.0),
-                color: style.border,
-                width: style.border_width,
+                color: style.border.unwrap().color,
+                width: style.border.unwrap().width,
                 z: 0,
             },
             DrawCmd::GlyphRun {
@@ -143,16 +143,16 @@ fn test_segmented_visual_focused() {
             DrawCmd::StrokeRect {
                 anti_alias: false,
                 rect: Rect::new(0.0, 0.0, 72.0, 28.0),
-                color: style.border,
-                width: style.border_width,
+                color: style.border.unwrap().color,
+                width: style.border.unwrap().width,
                 z: 0,
             },
             DrawCmd::StrokeLine {
                 anti_alias: false,
                 p0: Vec2::new(36.0, 0.0),
                 p1: Vec2::new(36.0, 28.0),
-                color: style.border,
-                width: style.border_width,
+                color: style.border.unwrap().color,
+                width: style.border.unwrap().width,
                 z: 0,
             },
             DrawCmd::GlyphRun {
@@ -169,8 +169,8 @@ fn test_segmented_visual_focused() {
             DrawCmd::StrokeRect {
                 anti_alias: false,
                 rect: Rect::new(38.0, 2.0, 32.0, 24.0),
-                color: style.focus,
-                width: style.focus_width,
+                color: style.focus.unwrap().stroke.color,
+                width: style.focus.unwrap().stroke.width,
                 z: 1,
             },
             DrawCmd::GlyphRun {

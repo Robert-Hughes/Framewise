@@ -2,7 +2,7 @@ use crate::{
     draw::{DrawCmd, DrawCommands},
     layout::{LayoutState, SizeOffer},
     text::{layout_text, TextBackend},
-    types::{Color, Layer, Rect, Vec2},
+    types::{Color, Layer, Rect, Stroke, Vec2},
     widget::{LayoutInfo, WidgetContext},
 };
 
@@ -136,13 +136,8 @@ pub mod raw {
             color: s.background,
             z: spec.layer.get_z(),
         });
-        cmds.push(DrawCmd::StrokeRect {
-            anti_alias: false,
-            rect: outer,
-            color: s.border,
-            width: s.border_width,
-            z: spec.layer.get_z(),
-        });
+        let border_width = s.border.map_or(0.0, |stroke| stroke.width);
+        cmds.push_stroke_rect(outer, s.border, spec.layer.get_z(), false);
 
         let mut y = spec.rect.y + s.pad_y;
 
@@ -150,14 +145,13 @@ pub mod raw {
             match item {
                 MenuItem::Separator => {
                     let sep_y = y + s.separator_y;
-                    cmds.push(DrawCmd::StrokeLine {
-                        anti_alias: false,
-                        p0: Vec2::new(outer.x, sep_y),
-                        p1: Vec2::new(outer.x + w, sep_y),
-                        color: s.separator,
-                        width: s.border_width,
-                        z: spec.layer.get_z(),
-                    });
+                    cmds.push_stroke_line(
+                        Vec2::new(outer.x, sep_y),
+                        Vec2::new(outer.x + w, sep_y),
+                        s.separator,
+                        spec.layer.get_z(),
+                        false,
+                    );
                     y += sep_h;
                 }
                 MenuItem::Group(label) => {
@@ -272,10 +266,10 @@ pub mod raw {
         }
 
         let content_bounds = Rect::new(
-            outer.x + s.border_width + s.pad_x,
-            outer.y + s.border_width + s.pad_y,
-            outer.w - (s.border_width + s.pad_x) * 2.0,
-            outer.h - (s.border_width + s.pad_y) * 2.0,
+            outer.x + border_width + s.pad_x,
+            outer.y + border_width + s.pad_y,
+            outer.w - (border_width + s.pad_x) * 2.0,
+            outer.h - (border_width + s.pad_y) * 2.0,
         );
 
         MenuResult {
@@ -312,15 +306,14 @@ pub struct MenuStyle {
     pub label_style: crate::text::TextStyle,
     pub meta_style: crate::text::TextStyle,
     pub background: Color,
-    pub border: Color,
-    pub separator: Color,
+    pub border: Option<Stroke>,
+    pub separator: Option<Stroke>,
     pub selected_bg: Color,
     pub selected_text: Color,
     pub text: Color,
     pub muted: Color,
     pub shortcut_selected_alpha: f32,
     pub disabled_alpha: f32,
-    pub border_width: f32,
 }
 
 impl MenuStyle {
@@ -347,15 +340,14 @@ impl MenuStyle {
                 crate::text::TextFlow::single_line(),
             ),
             background: theme.paper_elev,
-            border: theme.ink,
-            separator: theme.line,
+            border: Some(Stroke::new(theme.ink, theme.border)),
+            separator: Some(Stroke::new(theme.line, theme.border)),
             selected_bg: theme.ink,
             selected_text: theme.paper,
             text: theme.ink,
             muted: theme.muted,
             shortcut_selected_alpha: 0.6,
             disabled_alpha: 0.4,
-            border_width: theme.border,
         }
     }
 }

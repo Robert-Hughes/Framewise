@@ -46,8 +46,8 @@ fn test_chip_visual_normal() {
             DrawCmd::StrokeRect {
                 anti_alias: false,
                 rect: Rect::new(0.0, 0.0, 50.0, 22.0),
-                color: style.border,
-                width: style.border_width,
+                color: style.border.unwrap().color,
+                width: style.border.unwrap().width,
                 z: 0,
             },
             DrawCmd::GlyphRun {
@@ -117,8 +117,8 @@ fn test_chip_visual_active() {
             DrawCmd::StrokeRect {
                 anti_alias: false,
                 rect: Rect::new(0.0, 0.0, 50.0, 22.0),
-                color: style.border,
-                width: style.border_width,
+                color: style.border.unwrap().color,
+                width: style.border.unwrap().width,
                 z: 0,
             },
             DrawCmd::GlyphRun {
@@ -179,15 +179,16 @@ fn test_chip_visual_focused() {
     focus_system.end_frame();
 
     let r = Rect::new(0.0, 0.0, 50.0, 22.0);
-    let expected_focus_rect = r.inset(-(style.focus_offset + style.focus_width));
+    let expected_focus_rect =
+        r.inset(-(style.focus.unwrap().offset + style.focus.unwrap().stroke.width));
     assert_eq!(
         cmds.commands(),
         vec![
             DrawCmd::StrokeRect {
                 anti_alias: false,
                 rect: expected_focus_rect,
-                color: style.focus,
-                width: style.focus_width,
+                color: style.focus.unwrap().stroke.color,
+                width: style.focus.unwrap().stroke.width,
                 z: 1,
             },
             DrawCmd::FillRect {
@@ -199,8 +200,8 @@ fn test_chip_visual_focused() {
             DrawCmd::StrokeRect {
                 anti_alias: false,
                 rect: r,
-                color: style.border,
-                width: style.border_width,
+                color: style.border.unwrap().color,
+                width: style.border.unwrap().width,
                 z: 0,
             },
             DrawCmd::GlyphRun {

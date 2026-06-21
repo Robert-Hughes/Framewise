@@ -4,7 +4,7 @@ use crate::{
     input::Input,
     layout::{LayoutState, SizeOffer},
     text::TextBackend,
-    types::{ClipRect, Color, Layer, Rect, Vec2},
+    types::{ClipRect, Color, Layer, Outline, Rect, Stroke, Vec2},
     widget::{InputInfo, LayoutInfo, WidgetContext},
 };
 
@@ -464,21 +464,23 @@ pub mod raw {
 
         // Focus outline.
         if focused {
-            cmds.push(DrawCmd::StrokeRect {
-                anti_alias: false,
-                rect: track_rect.inset(-spec.style.focus.offset),
-                color: tint(spec.style.focus.color),
-                width: spec.style.focus.width,
-                z: spec.layer.get_focus_z(),
-            });
+            if let Some(outline) = spec.style.focus {
+                let tint_stroke = |st: Stroke| Stroke::new(tint(st.color), st.width);
+                cmds.push_stroke_rect(
+                    track_rect.inset(-(outline.offset + outline.stroke.width)),
+                    Some(tint_stroke(outline.stroke)),
+                    spec.layer.get_focus_z(),
+                    false,
+                );
+            }
         }
 
         match spec.style.track {
             TrackStyle::Line {
-                color,
-                thickness,
+                stroke,
                 fill_before_thumb,
             } => {
+                let thickness = stroke.width;
                 let half_thick = thickness * 0.5;
                 let track_line = if is_vert {
                     let cx = track_rect.x + track_rect.w * 0.5;
@@ -492,11 +494,11 @@ pub mod raw {
                 cmds.push(DrawCmd::FillRect {
                     anti_alias: false,
                     rect: track_line,
-                    color: tint(color),
+                    color: tint(stroke.color),
                     z: spec.layer.get_z(),
                 });
 
-                if fill_before_thumb.is_some() {
+                if let Some(fill_color) = fill_before_thumb {
                     let fill_len = thumb_pos - (if is_vert { track_rect.y } else { track_rect.x })
                         + thumb_len * 0.5;
                     let fill_bar = if is_vert {
@@ -509,7 +511,7 @@ pub mod raw {
                     let fill_color = if !spec.disabled && state.is_dragging {
                         spec.style.thumb.fill.dragged
                     } else {
-                        color
+                        fill_color
                     };
                     // Fill bar (active section before thumb).
                     cmds.push(DrawCmd::FillRect {
@@ -520,10 +522,7 @@ pub mod raw {
                     });
                 }
             }
-            TrackStyle::Rect {
-                color,
-                border_color,
-            } => {
+            TrackStyle::Rect { color, border } => {
                 // Filled track background.
                 cmds.push(DrawCmd::FillRect {
                     anti_alias: false,
@@ -531,7 +530,7 @@ pub mod raw {
                     color: tint(color),
                     z: spec.layer.get_z(),
                 });
-                if let Some(bc) = border_color {
+                if let Some(border) = border {
                     let (p0, p1) = if is_vert {
                         (
                             Vec2::new(track_rect.x, track_rect.y),
@@ -544,14 +543,14 @@ pub mod raw {
                         )
                     };
                     // Separator border line.
-                    cmds.push(DrawCmd::StrokeLine {
-                        anti_alias: false,
+                    let tint_stroke = |st: Stroke| Stroke::new(tint(st.color), st.width);
+                    cmds.push_stroke_line(
                         p0,
                         p1,
-                        color: tint(bc),
-                        width: 1.0,
-                        z: spec.layer.get_z(),
-                    });
+                        Some(tint_stroke(border)),
+                        spec.layer.get_z(),
+                        false,
+                    );
                 }
             }
         }
@@ -581,14 +580,14 @@ pub mod raw {
             } else {
                 border.color
             };
-            // Thumb border.
-            cmds.push(DrawCmd::StrokeRect {
-                anti_alias: false,
-                rect: thumb_rect,
-                color: tint(border_color),
-                width: border.width,
-                z: spec.layer.get_z(),
-            });
+            let effective_border = Stroke::new(border_color, border.width);
+            let tint_stroke = |st: Stroke| Stroke::new(tint(st.color), st.width);
+            cmds.push_stroke_rect(
+                thumb_rect,
+                Some(tint_stroke(effective_border)),
+                spec.layer.get_z(),
+                false,
+            );
         }
 
         SliderResult {
@@ -648,31 +647,27 @@ pub enum ScrollClaimPolicy {
 pub struct SliderStyle {
     pub track: TrackStyle,
     pub thumb: ThumbStyle,
-    pub focus: FocusStyle,
+    pub focus: Option<Outline>,
     pub disabled_alpha: f32,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum TrackStyle {
     Line {
-        color: Color,
-        thickness: f32,
-        fill_before_thumb: Option<TrackFillStyle>,
+        stroke: Stroke,
+        fill_before_thumb: Option<Color>,
     },
     Rect {
         color: Color,
-        border_color: Option<Color>,
+        border: Option<Stroke>,
     },
 }
-
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub struct TrackFillStyle;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct ThumbStyle {
     pub cross_axis: ThumbCrossAxis,
     pub fill: InteractiveColor,
-    pub border: Option<StrokeStyle>,
+    pub border: Option<Stroke>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -688,26 +683,12 @@ pub struct InteractiveColor {
     pub dragged: Color,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub struct StrokeStyle {
-    pub color: Color,
-    pub width: f32,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub struct FocusStyle {
-    pub color: Color,
-    pub width: f32,
-    pub offset: f32,
-}
-
 impl SliderStyle {
     pub fn from_theme(theme: &crate::theme::Theme) -> Self {
         Self {
             track: TrackStyle::Line {
-                color: theme.ink,
-                thickness: 1.5,
-                fill_before_thumb: Some(TrackFillStyle),
+                stroke: Stroke::new(theme.ink, 1.5),
+                fill_before_thumb: Some(theme.ink),
             },
             thumb: ThumbStyle {
                 cross_axis: ThumbCrossAxis::FixedCentered(12.0),
@@ -716,16 +697,13 @@ impl SliderStyle {
                     hovered: theme.paper_elev,
                     dragged: theme.rust,
                 },
-                border: Some(StrokeStyle {
-                    color: theme.ink,
-                    width: 1.5,
-                }),
+                border: Some(Stroke::new(theme.ink, 1.5)),
             },
-            focus: FocusStyle {
-                color: theme.rust,
-                width: theme.focus_width,
-                offset: theme.focus_offset,
-            },
+            focus: Some(Outline::new(
+                theme.rust,
+                theme.focus_width,
+                theme.focus_offset,
+            )),
             disabled_alpha: 0.32,
         }
     }
@@ -734,7 +712,7 @@ impl SliderStyle {
         Self {
             track: TrackStyle::Rect {
                 color: Color::linear_rgba(theme.ink.r, theme.ink.g, theme.ink.b, 0.04),
-                border_color: Some(theme.line_soft),
+                border: Some(Stroke::new(theme.line_soft, 1.0)),
             },
             thumb: ThumbStyle {
                 cross_axis: ThumbCrossAxis::FillTrack { margin: 1.0 },
@@ -745,11 +723,11 @@ impl SliderStyle {
                 },
                 border: None,
             },
-            focus: FocusStyle {
-                color: theme.rust,
-                width: theme.focus_width,
-                offset: theme.focus_offset,
-            },
+            focus: Some(Outline::new(
+                theme.rust,
+                theme.focus_width,
+                theme.focus_offset,
+            )),
             disabled_alpha: 0.4,
         }
     }

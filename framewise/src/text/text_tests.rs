@@ -392,8 +392,7 @@ fn card_label_glyph_counts_by_line(
                 text_style: style(flow),
                 content_placement: TextContentPlacement::TOP_LEFT,
                 text_color: Color::BLACK,
-                rule: false,
-                rule_color: Color::BLACK,
+                rule: None,
             },
         },
         raw_label::LabelPreLayoutResult {

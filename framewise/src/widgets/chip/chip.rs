@@ -3,7 +3,7 @@ use crate::{
     focus::{FocusId, FocusSystem},
     input::Input,
     layout::{LayoutState, SizeOffer},
-    types::{ClipRect, Color, Layer, Rect, Vec2},
+    types::{ClipRect, Color, Layer, Outline, Rect, Stroke, Vec2},
     widget::{InputInfo, LayoutInfo, WidgetContext},
     TextBackend,
 };
@@ -138,13 +138,15 @@ pub mod raw {
 
         // Focus ring.
         if focused {
-            cmds.push(DrawCmd::StrokeRect {
-                anti_alias: false,
-                rect: r.inset(-(s.focus_offset + s.focus_width)),
-                color: tint(s.focus),
-                width: s.focus_width,
-                z: spec.layer.get_focus_z(),
-            });
+            if let Some(outline) = s.focus {
+                let tint_stroke = |st: Stroke| Stroke::new(tint(st.color), st.width);
+                cmds.push_stroke_rect(
+                    r.inset(-(outline.offset + outline.stroke.width)),
+                    Some(tint_stroke(outline.stroke)),
+                    spec.layer.get_focus_z(),
+                    false,
+                );
+            }
         }
 
         let bg = if state.checked {
@@ -158,13 +160,9 @@ pub mod raw {
             color: tint(bg),
             z: spec.layer.get_z(),
         });
-        cmds.push(DrawCmd::StrokeRect {
-            anti_alias: false,
-            rect: r,
-            color: tint(s.border),
-            width: s.border_width,
-            z: spec.layer.get_z(),
-        });
+
+        let tint_stroke = |st: Stroke| Stroke::new(tint(st.color), st.width);
+        cmds.push_stroke_rect(r, s.border.map(tint_stroke), spec.layer.get_z(), false);
 
         let text_color = if state.checked { s.active_text } else { s.text };
         let metrics = layout.metrics();
@@ -191,7 +189,7 @@ pub mod raw {
                 clicked: is_clicked,
             },
             focused,
-            content_bounds: r.inset(s.border_width),
+            content_bounds: r.inset(s.border.map_or(0.0, |st| st.width)),
         }
     }
 }
@@ -205,13 +203,10 @@ pub struct ChipStyle {
     pub text_style: crate::text::TextStyle,
     pub background: Color,
     pub active_bg: Color,
-    pub border: Color,
+    pub border: Option<Stroke>,
     pub text: Color,
     pub active_text: Color,
-    pub focus: Color,
-    pub border_width: f32,
-    pub focus_width: f32,
-    pub focus_offset: f32,
+    pub focus: Option<Outline>,
     pub disabled_alpha: f32,
 }
 
@@ -228,13 +223,14 @@ impl ChipStyle {
             ),
             background: theme.paper_elev,
             active_bg: theme.ink,
-            border: theme.ink,
+            border: Some(Stroke::new(theme.ink, theme.border)),
             text: theme.ink,
             active_text: theme.paper,
-            focus: theme.rust,
-            border_width: theme.border,
-            focus_width: theme.focus_width,
-            focus_offset: theme.focus_offset,
+            focus: Some(Outline::new(
+                theme.rust,
+                theme.focus_width,
+                theme.focus_offset,
+            )),
             disabled_alpha: 0.35,
         }
     }

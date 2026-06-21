@@ -18,8 +18,7 @@ fn test_keycap_visual() {
         text: "K",
         style: KeycapStyle {
             background: custom_bg,
-            border: custom_border,
-            border_width: 1.0,
+            border: Some(Stroke::new(custom_border, 1.0)),
             shadow: custom_shadow,
             shadow_offset: 1.0,
             shadow_height: 2.0,
@@ -102,8 +101,7 @@ fn test_builder_defaults_from_theme_preserves_explicit_style() {
         shadow: Color::BLACK,
         shadow_offset: 1.0,
         shadow_height: 2.0,
-        border: Color::WHITE,
-        border_width: 1.0,
+        border: Some(Stroke::new(Color::WHITE, 1.0)),
         text_color: Color::WHITE,
         text_style: crate::text::TextStyle::new(
             FontId(99),
@@ -170,8 +168,7 @@ fn test_keycap_bounds_and_content_bounds() {
             shadow: Color::BLACK,
             shadow_offset: 1.0,
             shadow_height: 2.0,
-            border: Color::WHITE,
-            border_width: custom_border_width,
+            border: Some(Stroke::new(Color::WHITE, custom_border_width)),
             text_color: Color::WHITE,
             text_style: crate::text::TextStyle::new(
                 FontId(0),

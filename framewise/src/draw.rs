@@ -1,4 +1,4 @@
-use crate::types::{Color, Rect, Vec2};
+use crate::types::{Color, Rect, Stroke, Vec2};
 use std::ops::Range;
 
 /// An opaque backend/renderer-owned token for a renderer-ready glyph resource.
@@ -237,6 +237,70 @@ impl DrawCommands {
     /// reordering, it preserves index stability.
     pub fn get_mut(&mut self, index: usize) -> Option<&mut DrawCmd> {
         self.cmds.get_mut(index)
+    }
+
+    pub fn push_stroke_rect(
+        &mut self,
+        rect: Rect,
+        stroke: Option<Stroke>,
+        z: u32,
+        anti_alias: bool,
+    ) {
+        if let Some(s) = stroke {
+            if s.is_visible() {
+                self.push(DrawCmd::StrokeRect {
+                    rect,
+                    color: s.color,
+                    width: s.width,
+                    z,
+                    anti_alias,
+                });
+            }
+        }
+    }
+
+    pub fn push_stroke_line(
+        &mut self,
+        p0: Vec2,
+        p1: Vec2,
+        stroke: Option<Stroke>,
+        z: u32,
+        anti_alias: bool,
+    ) {
+        if let Some(s) = stroke {
+            if s.is_visible() {
+                self.push(DrawCmd::StrokeLine {
+                    p0,
+                    p1,
+                    color: s.color,
+                    width: s.width,
+                    z,
+                    anti_alias,
+                });
+            }
+        }
+    }
+
+    pub fn push_stroke_circle(
+        &mut self,
+        center: Vec2,
+        radius: f32,
+        stroke: Option<Stroke>,
+        z: u32,
+        anti_alias: bool,
+    ) {
+        if let Some(s) = stroke {
+            if s.is_visible() {
+                self.push(DrawCmd::StrokeCircle {
+                    center,
+                    radius,
+                    color: s.color,
+                    width: s.width,
+                    z,
+                    anti_alias,
+                });
+            }
+        }
     }
 }
 

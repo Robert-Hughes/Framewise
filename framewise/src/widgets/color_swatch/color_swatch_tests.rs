@@ -9,7 +9,7 @@ fn test_color_swatch_visual_normal() {
         layer: Layer::default(),
         rect: Rect::new(0.0, 0.0, 16.0, 16.0),
         color: Color::from_srgb_f32(0.5, 0.5, 0.5, 1.0),
-        border: Color::linear_rgba(0.0, 0.0, 0.0, 0.20),
+        border: Some(Stroke::new(Color::linear_rgba(0.0, 0.0, 0.0, 0.20), 1.0)),
     };
     let mut cmds = DrawCommands::new();
     let res = raw::post_layout_color_swatch(
@@ -54,7 +54,7 @@ fn test_color_swatch_visual_custom() {
         layer: Layer::default(),
         rect: Rect::new(0.0, 0.0, 20.0, 20.0),
         color: custom_color,
-        border: custom_border,
+        border: Some(Stroke::new(custom_border, 1.0)),
     };
     let mut cmds = DrawCommands::new();
     let res = raw::post_layout_color_swatch(

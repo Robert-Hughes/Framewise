@@ -4,7 +4,7 @@ use crate::{
     input::Input,
     layout::{LayoutState, SizeOffer},
     text::{layout_text, TextBackend},
-    types::{ClipRect, Color, Layer, Rect, Vec2},
+    types::{ClipRect, Color, Layer, Outline, Rect, Stroke, Vec2},
     widget::{InputInfo, LayoutInfo, WidgetContext},
 };
 
@@ -228,16 +228,18 @@ pub mod raw {
 
         let alpha = if spec.disabled { s.disabled_alpha } else { 1.0 };
         let tint = |c: Color| Color::linear_rgba(c.r, c.g, c.b, c.a * alpha);
+        let tint_stroke = |st: Stroke| Stroke::new(tint(st.color), st.width);
 
         // Focus / open ring.
         if focused || state.open {
-            cmds.push(DrawCmd::StrokeRect {
-                anti_alias: false,
-                rect: r.inset(-s.focus_offset),
-                color: tint(s.focus),
-                width: s.focus_width,
-                z: spec.layer.get_focus_z(),
-            });
+            if let Some(outline) = s.focus {
+                cmds.push_stroke_rect(
+                    r.inset(-(outline.offset + outline.stroke.width)),
+                    Some(tint_stroke(outline.stroke)),
+                    spec.layer.get_focus_z(),
+                    false,
+                );
+            }
         }
 
         cmds.push(DrawCmd::FillRect {
@@ -246,13 +248,7 @@ pub mod raw {
             color: tint(s.background),
             z: spec.layer.get_z(),
         });
-        cmds.push(DrawCmd::StrokeRect {
-            anti_alias: false,
-            rect: r,
-            color: tint(s.border),
-            width: s.border_width,
-            z: spec.layer.get_z(),
-        });
+        cmds.push_stroke_rect(r, s.border.map(tint_stroke), spec.layer.get_z(), false);
 
         // Selected value text.
         let display_text = if !spec.items.is_empty() && state.selected_index < spec.items.len() {
@@ -319,13 +315,7 @@ pub mod raw {
                 color: tint(s.background),
                 z: spec.layer.get_z(),
             });
-            cmds.push(DrawCmd::StrokeRect {
-                anti_alias: false,
-                rect: popup,
-                color: tint(s.border),
-                width: s.border_width,
-                z: spec.layer.get_z(),
-            });
+            cmds.push_stroke_rect(popup, s.border.map(tint_stroke), spec.layer.get_z(), false);
 
             for (i, opt) in spec.items.iter().enumerate() {
                 let is_selected = i == state.selected_index;
@@ -382,7 +372,7 @@ pub mod raw {
                 clicked: is_clicked,
             },
             focused,
-            content_bounds: r.inset(s.border_width),
+            content_bounds: r.inset(s.border.map_or(0.0, |b| b.width)),
         }
     }
 }
@@ -401,17 +391,14 @@ pub struct SelectStyle {
     pub text_style: crate::text::TextStyle,
     pub chevron_style: crate::text::TextStyle,
     pub background: Color,
-    pub border: Color,
+    pub border: Option<Stroke>,
     pub text: Color,
     pub selected_bg: Color,
     pub selected_text: Color,
     pub hover: Color,
     pub muted: Color,
     pub accent: Color,
-    pub focus: Color,
-    pub border_width: f32,
-    pub focus_width: f32,
-    pub focus_offset: f32,
+    pub focus: Option<Outline>,
     pub disabled_alpha: f32,
 }
 
@@ -438,17 +425,18 @@ impl SelectStyle {
                 crate::text::TextFlow::single_line(),
             ),
             background: theme.paper_elev,
-            border: theme.ink,
+            border: Some(Stroke::new(theme.ink, theme.border)),
             text: theme.ink,
             selected_bg: theme.ink,
             selected_text: theme.paper,
             hover: theme.hover,
             muted: theme.muted,
             accent: theme.rust,
-            focus: theme.rust,
-            border_width: theme.border,
-            focus_width: theme.focus_width,
-            focus_offset: theme.focus_offset_tight,
+            focus: Some(Outline::new(
+                theme.rust,
+                theme.focus_width,
+                -theme.focus_offset_tight,
+            )),
             disabled_alpha: 0.35,
         }
     }

@@ -4,7 +4,7 @@ use framewise::{
     layout::{Layout, LayoutState, SizeOffer},
     layouts::linear::ColumnState,
     widgets::label::{raw::LabelSpec as RawLabelSpec, LabelSpecBuilder, LabelStyle},
-    ColumnLayoutParams, LayoutViolationPolicy, Rect, TextBackend, WidgetContext,
+    ColumnLayoutParams, LayoutViolationPolicy, Rect, Stroke, TextBackend, WidgetContext,
 };
 
 #[derive(Default)]
@@ -84,8 +84,7 @@ pub fn begin_demo_page<'a, 'b, T: TextBackend, L: Layout, CF>(
     let title_style = LabelStyle {
         text_style: theme.heading_text_style(24.0),
         text_color: theme.ink,
-        rule: true,
-        rule_color: theme.line,
+        rule: Some(Stroke::new(theme.line, 1.0)),
         content_placement: framewise::TextContentPlacement::TOP_LEFT,
     };
 
@@ -228,8 +227,7 @@ pub fn begin_demo_page_no_scroll<'a, 'b, T: TextBackend, L: Layout, CF>(
     let title_style = LabelStyle {
         text_style: theme.heading_text_style(24.0),
         text_color: theme.ink,
-        rule: true,
-        rule_color: theme.line,
+        rule: Some(Stroke::new(theme.line, 1.0)),
         content_placement: framewise::TextContentPlacement::TOP_LEFT,
     };
 

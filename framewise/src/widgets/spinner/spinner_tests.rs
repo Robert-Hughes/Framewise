@@ -1,5 +1,6 @@
 use super::raw::SpinnerSpec;
 use super::*;
+use crate::draw::DrawCmd;
 use crate::focus::FocusSystem;
 
 #[test]
@@ -28,16 +29,16 @@ fn test_spinner_visual_normal() {
                 anti_alias: false,
                 p0: Vec2::new(0.0, 5.0),
                 p1: Vec2::new(0.0, 0.0),
-                color: style.color,
-                width: style.width,
+                color: style.stroke.color,
+                width: style.stroke.width,
                 z: 0,
             },
             DrawCmd::StrokeLine {
                 anti_alias: false,
                 p0: Vec2::new(0.0, 0.0),
                 p1: Vec2::new(5.0, 0.0),
-                color: style.color,
-                width: style.width,
+                color: style.stroke.color,
+                width: style.stroke.width,
                 z: 0,
             },
             // Top-right
@@ -45,16 +46,16 @@ fn test_spinner_visual_normal() {
                 anti_alias: false,
                 p0: Vec2::new(11.0, 0.0),
                 p1: Vec2::new(16.0, 0.0),
-                color: style.color,
-                width: style.width,
+                color: style.stroke.color,
+                width: style.stroke.width,
                 z: 0,
             },
             DrawCmd::StrokeLine {
                 anti_alias: false,
                 p0: Vec2::new(16.0, 0.0),
                 p1: Vec2::new(16.0, 5.0),
-                color: style.color,
-                width: style.width,
+                color: style.stroke.color,
+                width: style.stroke.width,
                 z: 0,
             },
             // Bottom-right
@@ -62,16 +63,16 @@ fn test_spinner_visual_normal() {
                 anti_alias: false,
                 p0: Vec2::new(16.0, 11.0),
                 p1: Vec2::new(16.0, 16.0),
-                color: style.color,
-                width: style.width,
+                color: style.stroke.color,
+                width: style.stroke.width,
                 z: 0,
             },
             DrawCmd::StrokeLine {
                 anti_alias: false,
                 p0: Vec2::new(16.0, 16.0),
                 p1: Vec2::new(11.0, 16.0),
-                color: style.color,
-                width: style.width,
+                color: style.stroke.color,
+                width: style.stroke.width,
                 z: 0,
             },
             // Bottom-left
@@ -79,16 +80,16 @@ fn test_spinner_visual_normal() {
                 anti_alias: false,
                 p0: Vec2::new(5.0, 16.0),
                 p1: Vec2::new(0.0, 16.0),
-                color: style.color,
-                width: style.width,
+                color: style.stroke.color,
+                width: style.stroke.width,
                 z: 0,
             },
             DrawCmd::StrokeLine {
                 anti_alias: false,
                 p0: Vec2::new(0.0, 16.0),
                 p1: Vec2::new(0.0, 11.0),
-                color: style.color,
-                width: style.width,
+                color: style.stroke.color,
+                width: style.stroke.width,
                 z: 0,
             },
             // Highlight
@@ -96,8 +97,8 @@ fn test_spinner_visual_normal() {
                 anti_alias: false,
                 p0: Vec2::new(1.6, 0.0),
                 p1: Vec2::new(8.0, 0.0),
-                color: style.highlight,
-                width: style.width,
+                color: style.highlight_stroke.color,
+                width: style.stroke.width,
                 z: 0,
             },
         ])
@@ -130,16 +131,16 @@ fn test_spinner_visual_large() {
                 anti_alias: false,
                 p0: Vec2::new(0.0, 7.0),
                 p1: Vec2::new(0.0, 0.0),
-                color: style.color,
-                width: style.width,
+                color: style.stroke.color,
+                width: style.stroke.width,
                 z: 0,
             },
             DrawCmd::StrokeLine {
                 anti_alias: false,
                 p0: Vec2::new(0.0, 0.0),
                 p1: Vec2::new(7.0, 0.0),
-                color: style.color,
-                width: style.width,
+                color: style.stroke.color,
+                width: style.stroke.width,
                 z: 0,
             },
             // Top-right
@@ -147,16 +148,16 @@ fn test_spinner_visual_large() {
                 anti_alias: false,
                 p0: Vec2::new(17.0, 0.0),
                 p1: Vec2::new(24.0, 0.0),
-                color: style.color,
-                width: style.width,
+                color: style.stroke.color,
+                width: style.stroke.width,
                 z: 0,
             },
             DrawCmd::StrokeLine {
                 anti_alias: false,
                 p0: Vec2::new(24.0, 0.0),
                 p1: Vec2::new(24.0, 7.0),
-                color: style.color,
-                width: style.width,
+                color: style.stroke.color,
+                width: style.stroke.width,
                 z: 0,
             },
             // Bottom-right
@@ -164,16 +165,16 @@ fn test_spinner_visual_large() {
                 anti_alias: false,
                 p0: Vec2::new(24.0, 17.0),
                 p1: Vec2::new(24.0, 24.0),
-                color: style.color,
-                width: style.width,
+                color: style.stroke.color,
+                width: style.stroke.width,
                 z: 0,
             },
             DrawCmd::StrokeLine {
                 anti_alias: false,
                 p0: Vec2::new(24.0, 24.0),
                 p1: Vec2::new(17.0, 24.0),
-                color: style.color,
-                width: style.width,
+                color: style.stroke.color,
+                width: style.stroke.width,
                 z: 0,
             },
             // Bottom-left
@@ -181,16 +182,16 @@ fn test_spinner_visual_large() {
                 anti_alias: false,
                 p0: Vec2::new(7.0, 24.0),
                 p1: Vec2::new(0.0, 24.0),
-                color: style.color,
-                width: style.width,
+                color: style.stroke.color,
+                width: style.stroke.width,
                 z: 0,
             },
             DrawCmd::StrokeLine {
                 anti_alias: false,
                 p0: Vec2::new(0.0, 24.0),
                 p1: Vec2::new(0.0, 17.0),
-                color: style.color,
-                width: style.width,
+                color: style.stroke.color,
+                width: style.stroke.width,
                 z: 0,
             },
             // Highlight
@@ -198,8 +199,8 @@ fn test_spinner_visual_large() {
                 anti_alias: false,
                 p0: Vec2::new(2.4, 0.0),
                 p1: Vec2::new(12.0, 0.0),
-                color: style.highlight,
-                width: style.width,
+                color: style.highlight_stroke.color,
+                width: style.stroke.width,
                 z: 0,
             },
         ])
@@ -219,10 +220,10 @@ fn test_builder_defaults_from_theme_fills_unset_style() {
 fn test_builder_defaults_from_theme_preserves_explicit_style() {
     let theme = crate::theme::Theme::framewise();
     let mut custom_style = SpinnerStyle::from_theme(&theme);
-    custom_style.width = 99.0;
+    custom_style.stroke.width = 99.0;
     let builder = SpinnerSpecBuilder::new().style(custom_style);
     let builder = builder.defaults_from_theme(&theme);
-    assert_eq!(builder.style.unwrap().width, 99.0);
+    assert_eq!(builder.style.unwrap().stroke.width, 99.0);
 }
 
 #[test]

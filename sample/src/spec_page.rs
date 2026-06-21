@@ -18,7 +18,7 @@ use framewise::{
     layouts::ManualLayout,
     text::{TextFlow, TextStyle},
     theme::Theme,
-    types::{Rect, Vec2},
+    types::{Color, Rect, Stroke, Vec2},
     widget::WidgetContext,
     Align, ColumnLayout, ColumnLayoutParams, ColumnState, LayoutViolationPolicy, LinearSpacer,
     ManualState, RowLayout, RowLayoutParams, TextLineAlign,
@@ -33,9 +33,6 @@ use framewise::widgets::scroll_area::{
     ScrollbarVisibility,
 };
 use framewise::widgets::{DividerSpecBuilder, LabelSpecBuilder, LabelStyle};
-
-#[allow(unused_imports)]
-use framewise::types::Color;
 
 // Per-widget imports — present only when the owning feature is enabled. Marked
 // `unused_imports`-allowed because a widget feature can be on while the (possibly
@@ -2761,7 +2758,7 @@ fn section_04_sliders<CF>(
         for (color, hex) in swatches {
             let spec = ColorSwatchSpecBuilder::new()
                 .color(*color)
-                .border(b.theme.line);
+                .border(Some(Stroke::new(b.theme.line, 1.0)));
             let rect = Rect::new(x, 0.0, 18.0, b.theme.h_md);
             color_swatch(&mut b, spec, rect);
             let spec = LabelSpecBuilder::new().text(hex).style(LabelStyle {
@@ -4280,7 +4277,7 @@ fn section_12_in_use<CF>(
         };
         let spec = ColorSwatchSpecBuilder::new()
             .color(win.theme.rust)
-            .border(win.theme.line);
+            .border(Some(Stroke::new(win.theme.line, 1.0)));
         color_swatch(&mut win, spec, Rect::new(widget_x, fy + 4.0, 18.0, 20.0));
         {
             let layout_params = Rect::new(widget_x + 22.0, fy + 7.0, 60.0, 14.0);

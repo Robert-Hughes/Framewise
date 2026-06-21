@@ -1,7 +1,8 @@
 use super::raw::LabelSpec;
 use super::*;
 use crate::{
-    test_utils::TestTextBackend, text::FontId, theme, DrawGlyph, Input, PreparedGlyphToken,
+    draw::DrawCmd, test_utils::TestTextBackend, text::FontId, theme, DrawGlyph, Input,
+    PreparedGlyphToken,
 };
 
 fn placement_text_backend() -> TestTextBackend {
@@ -28,8 +29,7 @@ fn test_label_draws_text() {
             ),
             content_placement: crate::text::TextContentPlacement::TOP_LEFT,
             text_color: Color::WHITE,
-            rule: false,
-            rule_color: Color::WHITE,
+            rule: None,
         },
     };
     let mut cmds = DrawCommands::new();
@@ -94,8 +94,7 @@ fn test_label_rule() {
             ),
             content_placement: crate::text::TextContentPlacement::TOP_LEFT,
             text_color: Color::WHITE,
-            rule: true,
-            rule_color: Color::WHITE,
+            rule: Some(Stroke::new(Color::WHITE, 1.0)),
         },
     };
     let mut cmds = DrawCommands::new();
@@ -266,8 +265,7 @@ fn test_label_passes_spec_font_to_text_backend() {
             ),
             content_placement: crate::text::TextContentPlacement::TOP_LEFT,
             text_color: Color::WHITE,
-            rule: false,
-            rule_color: Color::WHITE,
+            rule: None,
         },
     };
 
@@ -311,8 +309,7 @@ fn test_builder_defaults_from_theme_preserves_explicit_fields() {
         ),
         content_placement: crate::text::TextContentPlacement::TOP_LEFT,
         text_color: Color::from_srgb_u8(1, 2, 3, 255),
-        rule: true,
-        rule_color: Color::from_srgb_u8(4, 5, 6, 255),
+        rule: Some(Stroke::new(Color::from_srgb_u8(4, 5, 6, 255), 1.0)),
     };
     let builder = LabelSpecBuilder::new().text("test").style(custom_style);
     let builder = builder.defaults_from_theme(&theme);

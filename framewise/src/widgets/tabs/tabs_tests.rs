@@ -48,8 +48,8 @@ fn test_tabs_visual_normal() {
                 anti_alias: false,
                 p0: Vec2::new(0.0, 36.0),
                 p1: Vec2::new(300.0, 36.0),
-                color: style.border,
-                width: style.border_width,
+                color: style.border.unwrap().color,
+                width: style.border.unwrap().width,
                 z: 0,
             },
             DrawCmd::GlyphRun {
@@ -155,8 +155,8 @@ fn test_tabs_visual_focused() {
                 anti_alias: false,
                 p0: Vec2::new(0.0, 36.0),
                 p1: Vec2::new(300.0, 36.0),
-                color: style.border,
-                width: style.border_width,
+                color: style.border.unwrap().color,
+                width: style.border.unwrap().width,
                 z: 0,
             },
             DrawCmd::GlyphRun {
@@ -167,8 +167,8 @@ fn test_tabs_visual_focused() {
             DrawCmd::StrokeRect {
                 anti_alias: false,
                 rect: Rect::new(64.0, -4.0, 76.0, 44.0),
-                color: style.focus,
-                width: style.focus_width,
+                color: style.focus.unwrap().stroke.color,
+                width: style.focus.unwrap().stroke.width,
                 z: 1,
             },
             DrawCmd::GlyphRun {

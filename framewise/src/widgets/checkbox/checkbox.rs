@@ -3,7 +3,7 @@ use crate::{
     focus::{FocusId, FocusSystem},
     input::Input,
     layout::{LayoutState, SizeOffer, SizeRequest},
-    types::{ClipRect, Color, Layer, Rect, Vec2},
+    types::{ClipRect, Color, Layer, Outline, Rect, Stroke, Vec2},
     widget::{InputInfo, LayoutInfo, WidgetContext},
     TextBackend,
 };
@@ -127,13 +127,15 @@ pub mod raw {
 
         // Focus ring (outset 2px).
         if focused {
-            cmds.push(DrawCmd::StrokeRect {
-                anti_alias: false,
-                rect: r.inset(-(s.focus_offset + s.focus_width)),
-                color: tint(s.focus),
-                width: s.focus_width,
-                z: spec.layer.get_focus_z(),
-            });
+            if let Some(outline) = s.focus {
+                let tint_stroke = |st: Stroke| Stroke::new(tint(st.color), st.width);
+                cmds.push_stroke_rect(
+                    r.inset(-(outline.offset + outline.stroke.width)),
+                    Some(tint_stroke(outline.stroke)),
+                    spec.layer.get_focus_z(),
+                    false,
+                );
+            }
         }
 
         // Box fill.
@@ -161,13 +163,8 @@ pub mod raw {
         });
 
         // Box border.
-        cmds.push(DrawCmd::StrokeRect {
-            anti_alias: false,
-            rect: r,
-            color: tint(s.border),
-            width: s.border_width,
-            z: spec.layer.get_z(),
-        });
+        let tint_stroke = |st: Stroke| Stroke::new(tint(st.color), st.width);
+        cmds.push_stroke_rect(r, s.border.map(tint_stroke), spec.layer.get_z(), false);
 
         // Inner mark.
         match state.checked {
@@ -176,30 +173,16 @@ pub mod raw {
                 let p0 = Vec2::new(r.x + 2.5, r.y + 7.0);
                 let p1 = Vec2::new(r.x + 5.5, r.y + 10.5);
                 let p2 = Vec2::new(r.x + 11.5, r.y + 4.0);
-                let mark = tint(s.mark);
-                cmds.push(DrawCmd::StrokeLine {
-                    anti_alias: true,
-                    p0,
-                    p1,
-                    color: mark,
-                    width: s.mark_width,
-                    z: spec.layer.get_z(),
-                });
-                cmds.push(DrawCmd::StrokeLine {
-                    anti_alias: true,
-                    p0: p1,
-                    p1: p2,
-                    color: mark,
-                    width: s.mark_width,
-                    z: spec.layer.get_z(),
-                });
+                let mark = tint_stroke(s.mark);
+                cmds.push_stroke_line(p0, p1, Some(mark), spec.layer.get_z(), true);
+                cmds.push_stroke_line(p1, p2, Some(mark), spec.layer.get_z(), true);
             }
             CheckedState::Indeterminate => {
                 // Horizontal dash.
                 cmds.push(DrawCmd::FillRect {
                     anti_alias: false,
                     rect: Rect::new(r.x + 2.0, r.y + 6.0, 10.0, 2.0),
-                    color: tint(s.mark),
+                    color: tint(s.mark.color),
                     z: spec.layer.get_z(),
                 });
             }
@@ -209,7 +192,7 @@ pub mod raw {
         CheckboxResult {
             input: input_info,
             focused,
-            content_bounds: r.inset(s.border_width),
+            content_bounds: r.inset(s.border.map_or(0.0, |st| st.width)),
         }
     }
 }
@@ -225,13 +208,9 @@ pub struct CheckboxStyle {
     pub selected_fill: Color,
     pub selected_hovered: Color,
     pub selected_pressed: Color,
-    pub border: Color,
-    pub mark: Color,
-    pub focus: Color,
-    pub border_width: f32,
-    pub mark_width: f32,
-    pub focus_width: f32,
-    pub focus_offset: f32,
+    pub border: Option<Stroke>,
+    pub mark: Stroke,
+    pub focus: Option<Outline>,
     pub disabled_alpha: f32,
 }
 
@@ -245,13 +224,13 @@ impl CheckboxStyle {
             selected_fill: theme.ink,
             selected_hovered: Color::BLACK,
             selected_pressed: Color::from_srgb_u8(42, 37, 32, 255),
-            border: theme.ink,
-            mark: theme.paper,
-            focus: theme.rust,
-            border_width: 1.0,
-            mark_width: 1.5,
-            focus_width: theme.focus_width,
-            focus_offset: theme.focus_offset,
+            border: Some(Stroke::new(theme.ink, 1.0)),
+            mark: Stroke::new(theme.paper, 1.5),
+            focus: Some(Outline::new(
+                theme.rust,
+                theme.focus_width,
+                theme.focus_offset,
+            )),
             disabled_alpha: 0.35,
         }
     }

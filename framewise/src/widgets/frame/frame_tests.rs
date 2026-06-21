@@ -8,8 +8,7 @@ fn test_frame_layout_and_draw() {
     let rect = Rect::new(10.0, 10.0, 100.0, 50.0);
     let style = FrameStyle {
         background: Color::WHITE,
-        border: Color::linear_rgb(0.5, 0.5, 0.5),
-        border_width: 2.0,
+        border: Some(Stroke::new(Color::linear_rgb(0.5, 0.5, 0.5), 2.0)),
         padding: 3.0,
     };
 
@@ -83,8 +82,7 @@ fn test_frame_layout_and_draw() {
 fn test_size_frame() {
     let style = FrameStyle {
         background: Color::WHITE,
-        border: Color::BLACK,
-        border_width: 2.0,
+        border: Some(Stroke::new(Color::BLACK, 2.0)),
         padding: 4.0,
     };
     let spec = raw::FramePreLayoutSpec { style };
@@ -102,7 +100,10 @@ fn test_builder_defaults_from_theme_fills_unset_style() {
     let builder = builder.defaults_from_theme(&theme);
     assert!(builder.style.is_some());
     let expected = FrameStyle::from_theme(&theme);
-    assert_eq!(builder.style.unwrap().border_width, expected.border_width);
+    assert_eq!(
+        builder.style.unwrap().border.unwrap().width,
+        expected.border.unwrap().width
+    );
     assert_eq!(builder.style.unwrap().padding, expected.padding);
 }
 
@@ -111,13 +112,12 @@ fn test_builder_defaults_from_theme_preserves_explicit_style() {
     let theme = crate::theme::Theme::framewise();
     let custom_style = FrameStyle {
         background: Color::TRANSPARENT,
-        border: Color::TRANSPARENT,
-        border_width: 99.0,
+        border: Some(Stroke::new(Color::BLACK, 99.0)),
         padding: 0.0,
     };
     let builder = FrameSpecBuilder::new().style(custom_style);
     let builder = builder.defaults_from_theme(&theme);
-    assert_eq!(builder.style.unwrap().border_width, 99.0);
+    assert_eq!(builder.style.unwrap().border.unwrap().width, 99.0);
 }
 
 #[test]
@@ -143,8 +143,7 @@ fn test_high_level_container_fit_to_children() {
     // 1. Begin an auto-sizing frame inside the column
     let style = FrameStyle {
         background: Color::WHITE,
-        border: Color::BLACK,
-        border_width: 2.0,
+        border: Some(Stroke::new(Color::BLACK, 2.0)),
         padding: 8.0,
     };
     let FrameResult { ctx: mut f_ctx } = begin_frame(

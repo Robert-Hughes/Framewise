@@ -4,7 +4,7 @@ use crate::{
     input::Input,
     layout::{LayoutState, SizeOffer, SizeRequest},
     text::TextBackend,
-    types::{ClipRect, Color, Layer, Rect, Vec2},
+    types::{ClipRect, Color, Layer, Outline, Rect, Stroke, Vec2},
     widget::{InputInfo, LayoutInfo, WidgetContext},
 };
 
@@ -100,13 +100,15 @@ pub mod raw {
 
         // Focus ring.
         if focused {
-            cmds.push(DrawCmd::StrokeRect {
-                anti_alias: false,
-                rect: r.inset(-(s.focus_offset + s.focus_width)),
-                color: tint(s.focus),
-                width: s.focus_width,
-                z: spec.layer.get_focus_z(),
-            });
+            if let Some(outline) = s.focus {
+                let tint_stroke = |st: Stroke| Stroke::new(tint(st.color), st.width);
+                cmds.push_stroke_rect(
+                    r.inset(-(outline.offset + outline.stroke.width)),
+                    Some(tint_stroke(outline.stroke)),
+                    spec.layer.get_focus_z(),
+                    false,
+                );
+            }
         }
 
         // Track fill.
@@ -135,20 +137,16 @@ pub mod raw {
         });
 
         // Track border.
-        cmds.push(DrawCmd::StrokeRect {
-            anti_alias: false,
-            rect: r,
-            color: tint(s.border),
-            width: s.border_width,
-            z: spec.layer.get_z(),
-        });
+        let tint_stroke = |st: Stroke| Stroke::new(tint(st.color), st.width);
+        cmds.push_stroke_rect(r, s.border.map(tint_stroke), spec.layer.get_z(), false);
 
+        let border_width = s.border.map_or(0.0, |st| st.width);
         // Thumb dot (10x10, vertically centered, left/right positioned).
         let dot_y = r.y + (r.h - s.thumb_size) * 0.5;
         let dot_x = if state.checked {
-            r.x + r.w - s.border_width - s.thumb_offset - s.thumb_size
+            r.x + r.w - border_width - s.thumb_offset - s.thumb_size
         } else {
-            r.x + s.border_width + s.thumb_offset
+            r.x + border_width + s.thumb_offset
         };
         let dot_color = if state.checked {
             s.on_thumb
@@ -165,7 +163,7 @@ pub mod raw {
         SwitchResult {
             input: input_info,
             focused,
-            content_bounds: r.inset(s.border_width),
+            content_bounds: r.inset(border_width),
         }
     }
 }
@@ -182,14 +180,11 @@ pub struct SwitchStyle {
     pub on_fill: Color,
     pub selected_hovered: Color,
     pub selected_pressed: Color,
-    pub border: Color,
+    pub border: Option<Stroke>,
     pub off_thumb: Color,
     pub on_thumb: Color,
-    pub focus: Color,
-    pub border_width: f32,
+    pub focus: Option<Outline>,
     pub thumb_offset: f32,
-    pub focus_width: f32,
-    pub focus_offset: f32,
     pub disabled_alpha: f32,
 }
 
@@ -204,14 +199,15 @@ impl SwitchStyle {
             on_fill: theme.ink,
             selected_hovered: Color::BLACK,
             selected_pressed: Color::from_srgb_u8(42, 37, 32, 255),
-            border: theme.ink,
+            border: Some(Stroke::new(theme.ink, 1.0)),
             off_thumb: theme.ink,
             on_thumb: theme.paper,
-            focus: theme.rust,
-            border_width: 1.0,
+            focus: Some(Outline::new(
+                theme.rust,
+                theme.focus_width,
+                theme.focus_offset,
+            )),
             thumb_offset: 1.0,
-            focus_width: theme.focus_width,
-            focus_offset: theme.focus_offset,
             disabled_alpha: 0.35,
         }
     }

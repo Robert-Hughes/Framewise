@@ -8,7 +8,7 @@ use crate::{
         layout_text, CaretPosition, FontId, LineEndKind, LineHeight, LineMetrics, TextBackend,
         TextBounds, TextFlow, TextLayout, TextLineAlign, TextStyle,
     },
-    types::{ClipRect, Color, Layer, Rect, Vec2},
+    types::{ClipRect, Color, Layer, Rect, Stroke, Vec2},
     widget::{InputInfo, LayoutInfo, WidgetContext},
     widgets::scroll_area::{ScrollAreaStyle, ScrollState},
 };
@@ -162,7 +162,8 @@ pub mod raw {
         style: TextEditStyle,
         error: bool,
     ) -> f32 {
-        let mut w = (outer_width - style.border_width * 2.0).max(0.0);
+        let border_width = style.border.map_or(0.0, |s| s.width);
+        let mut w = (outer_width - border_width * 2.0).max(0.0);
         if error {
             w = (w - style.error_stripe_width).max(0.0);
         }
@@ -520,8 +521,9 @@ pub mod raw {
         );
         let metrics = layout.metrics();
 
+        let border_width = spec.style.border.map_or(0.0, |s| s.width);
         let mut preferred_width =
-            metrics.logical_size.x + spec.style.padding_x * 2.0 + spec.style.border_width * 2.0;
+            metrics.logical_size.x + spec.style.padding_x * 2.0 + border_width * 2.0;
         if spec.error {
             preferred_width += spec.style.error_stripe_width;
         }
@@ -529,7 +531,7 @@ pub mod raw {
 
         SizeRequest::preferred(Vec2::new(
             preferred_width,
-            (metrics.logical_size.y + (spec.style.border_width + spec.style.padding_y) * 2.0)
+            (metrics.logical_size.y + (border_width + spec.style.padding_y) * 2.0)
                 .max(spec.style.min_height),
         ))
     }
@@ -566,18 +568,16 @@ pub mod raw {
             //TODO: update this to match new layout? Perhaps remove this separate branch entirely?
             let tint =
                 |c: Color| Color::linear_rgba(c.r, c.g, c.b, c.a * spec.style.disabled_alpha);
-            // Transparent bg per mockup, just border.
-            if spec.style.border_width > 0.0 {
-                cmds.push(DrawCmd::StrokeRect {
-                    anti_alias: false,
-                    rect: spec.rect,
-                    color: tint(spec.style.border),
-                    width: spec.style.border_width,
-                    z: spec.layer.get_z(),
-                });
-            }
-            let inset_x = spec.style.border_width + spec.style.padding_x;
-            let inset_y = spec.style.border_width + spec.style.padding_y;
+            let tint_stroke = |s: Stroke| Stroke::new(tint(s.color), s.width);
+            cmds.push_stroke_rect(
+                spec.rect,
+                spec.style.border.map(tint_stroke),
+                spec.layer.get_z(),
+                false,
+            );
+            let border_width = spec.style.border.map_or(0.0, |s| s.width);
+            let inset_x = border_width + spec.style.padding_x;
+            let inset_y = border_width + spec.style.padding_y;
             let content_rect = Rect::new(
                 spec.rect.x + inset_x,
                 spec.rect.y + inset_y,
@@ -848,33 +848,23 @@ pub mod raw {
             cmds.push(DrawCmd::FillRect {
                 anti_alias: false,
                 rect: stripe,
-                color: spec.style.error_border,
+                color: spec
+                    .style
+                    .error_border
+                    .map_or(Color::TRANSPARENT, |s| s.color),
                 z: spec.layer.get_z(),
             });
         }
 
         // Border
-        let border_width = if focused && !spec.error {
-            spec.style.focus_width
+        let border = if spec.error {
+            spec.style.error_border
+        } else if focused {
+            spec.style.focus_border
         } else {
-            spec.style.border_width
+            spec.style.border
         };
-        if border_width > 0.0 {
-            let b_color = if spec.error {
-                spec.style.error_border
-            } else if focused {
-                spec.style.focus
-            } else {
-                spec.style.border
-            };
-            cmds.push(DrawCmd::StrokeRect {
-                anti_alias: false,
-                rect: spec.rect,
-                color: b_color,
-                width: border_width,
-                z: spec.layer.get_z(),
-            });
-        }
+        cmds.push_stroke_rect(spec.rect, border, spec.layer.get_z(), false);
 
         let scroll_spec = raw::ScrollAreaSpec {
             rect: scroll_outer_rect,
@@ -1355,7 +1345,8 @@ pub mod raw {
     }
 
     pub(super) fn text_edit_scroll_outer_rect(spec: &TextEditSpec) -> Rect {
-        let mut scroll_outer_rect = spec.rect.inset(spec.style.border_width);
+        let border_width = spec.style.border.map_or(0.0, |s| s.width);
+        let mut scroll_outer_rect = spec.rect.inset(border_width);
         if spec.error {
             scroll_outer_rect.x += spec.style.error_stripe_width;
             scroll_outer_rect.w -= spec.style.error_stripe_width;
@@ -1720,11 +1711,9 @@ pub struct TextEditStyle {
     pub background: Color,
     pub background_hovered: Color,
     pub error_background: Color,
-    pub border: Color,
-    pub focus: Color,
-    pub border_width: f32,
-    pub focus_width: f32,
-    pub error_border: Color,
+    pub border: Option<Stroke>,
+    pub focus_border: Option<Stroke>,
+    pub error_border: Option<Stroke>,
     pub error_stripe_width: f32,
     pub min_height: f32,
     pub padding_x: f32,
@@ -1755,12 +1744,10 @@ impl TextEditStyle {
             background: theme.paper_elev,
             background_hovered: Color::WHITE,
             error_background: theme.rust_soft,
-            border: theme.ink,
-            focus: theme.rust,
-            error_border: theme.rust,
+            border: Some(Stroke::new(theme.ink, theme.border)),
+            focus_border: Some(Stroke::new(theme.rust, theme.focus_width)),
+            error_border: Some(Stroke::new(theme.rust, theme.border)),
             error_stripe_width: 4.0,
-            border_width: theme.border,
-            focus_width: theme.focus_width,
             min_height: theme.h_md,
             padding_x: 10.0,
             padding_y: 0.0,

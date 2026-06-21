@@ -343,29 +343,27 @@ pub mod raw {
                     color: corner_color,
                     z: token.layer.get_z(),
                 });
-                let border_color = match token.style.scrollbar_style.track {
-                    crate::widgets::slider::TrackStyle::Rect { border_color, .. } => border_color,
+                let border = match token.style.scrollbar_style.track {
+                    crate::widgets::slider::TrackStyle::Rect { border, .. } => border,
                     _ => None,
                 };
-                if let Some(border_color) = border_color {
+                if let Some(border) = border {
                     // Left border of the corner
-                    cmds.push(DrawCmd::StrokeLine {
-                        anti_alias: false,
-                        p0: Vec2::new(corner_rect.x, corner_rect.y),
-                        p1: Vec2::new(corner_rect.x, corner_rect.y + corner_rect.h),
-                        color: border_color,
-                        width: 1.0,
-                        z: token.layer.get_z(),
-                    });
+                    cmds.push_stroke_line(
+                        Vec2::new(corner_rect.x, corner_rect.y),
+                        Vec2::new(corner_rect.x, corner_rect.y + corner_rect.h),
+                        Some(border),
+                        token.layer.get_z(),
+                        false,
+                    );
                     // Top border of the corner
-                    cmds.push(DrawCmd::StrokeLine {
-                        anti_alias: false,
-                        p0: Vec2::new(corner_rect.x, corner_rect.y),
-                        p1: Vec2::new(corner_rect.x + corner_rect.w, corner_rect.y),
-                        color: border_color,
-                        width: 1.0,
-                        z: token.layer.get_z(),
-                    });
+                    cmds.push_stroke_line(
+                        Vec2::new(corner_rect.x, corner_rect.y),
+                        Vec2::new(corner_rect.x + corner_rect.w, corner_rect.y),
+                        Some(border),
+                        token.layer.get_z(),
+                        false,
+                    );
                 }
             }
         }

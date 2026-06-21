@@ -4,7 +4,7 @@ use crate::{
     input::Input,
     layout::{LayoutState, SizeOffer, SizeRequest},
     text::TextBackend,
-    types::{ClipRect, Color, Layer, Rect, Vec2},
+    types::{ClipRect, Color, Layer, Outline, Rect, Stroke, Vec2},
     widget::{InputInfo, LayoutInfo, WidgetContext},
 };
 
@@ -101,14 +101,16 @@ pub mod raw {
 
         // Focus ring (outset 2px).
         if focused {
-            cmds.push(DrawCmd::StrokeCircle {
-                anti_alias: true,
-                center,
-                radius: s.radius + s.focus_offset + s.focus_width * 0.5,
-                color: tint(s.focus),
-                width: s.focus_width,
-                z: spec.layer.get_focus_z(),
-            });
+            if let Some(outline) = s.focus {
+                let tint_stroke = |st: Stroke| Stroke::new(tint(st.color), st.width);
+                cmds.push_stroke_circle(
+                    center,
+                    s.radius + outline.offset + outline.stroke.width * 0.5,
+                    Some(tint_stroke(outline.stroke)),
+                    spec.layer.get_focus_z(),
+                    true,
+                );
+            }
         }
 
         // Background fill.
@@ -138,14 +140,14 @@ pub mod raw {
         });
 
         // Outer ring.
-        cmds.push(DrawCmd::StrokeCircle {
-            anti_alias: true,
+        let tint_stroke = |st: Stroke| Stroke::new(tint(st.color), st.width);
+        cmds.push_stroke_circle(
             center,
-            radius: s.radius,
-            color: tint(s.border),
-            width: s.border_width,
-            z: spec.layer.get_z(),
-        });
+            s.radius,
+            s.border.map(tint_stroke),
+            spec.layer.get_z(),
+            true,
+        );
 
         // Inner dot when selected.
         if state.checked {
@@ -161,7 +163,7 @@ pub mod raw {
         RadioResult {
             input: input_info,
             focused,
-            content_bounds: r.inset(s.border_width),
+            content_bounds: r.inset(s.border.map_or(0.0, |st| st.width)),
         }
     }
 }
@@ -177,12 +179,9 @@ pub struct RadioStyle {
     pub pressed: Color,
     pub selected_hovered: Color,
     pub selected_pressed: Color,
-    pub border: Color,
+    pub border: Option<Stroke>,
     pub dot: Color,
-    pub focus: Color,
-    pub border_width: f32,
-    pub focus_width: f32,
-    pub focus_offset: f32,
+    pub focus: Option<Outline>,
     pub disabled_alpha: f32,
 }
 
@@ -196,12 +195,13 @@ impl RadioStyle {
             pressed: theme.press,
             selected_hovered: theme.hover,
             selected_pressed: theme.press,
-            border: theme.ink,
+            border: Some(Stroke::new(theme.ink, 1.5)),
             dot: theme.ink,
-            focus: theme.rust,
-            border_width: 1.5,
-            focus_width: theme.focus_width,
-            focus_offset: theme.focus_offset,
+            focus: Some(Outline::new(
+                theme.rust,
+                theme.focus_width,
+                theme.focus_offset,
+            )),
             disabled_alpha: 0.35,
         }
     }

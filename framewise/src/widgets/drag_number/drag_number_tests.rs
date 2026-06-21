@@ -52,8 +52,8 @@ fn test_drag_number_visual_normal() {
             DrawCmd::StrokeRect {
                 anti_alias: false,
                 rect: Rect::new(10.0, 10.0, 100.0, 28.0),
-                color: style.border,
-                width: style.border_width,
+                color: style.border.unwrap().color,
+                width: style.border.unwrap().width,
                 z: 0,
             },
             DrawCmd::FillRect {
@@ -155,8 +155,8 @@ fn test_drag_number_visual_active() {
             DrawCmd::StrokeRect {
                 anti_alias: false,
                 rect: Rect::new(9.0, 9.0, 102.0, 30.0),
-                color: style.focus,
-                width: style.focus_width,
+                color: style.focus.unwrap().stroke.color,
+                width: style.focus.unwrap().stroke.width,
                 z: 0,
             },
             DrawCmd::FillRect {
@@ -168,8 +168,8 @@ fn test_drag_number_visual_active() {
             DrawCmd::StrokeRect {
                 anti_alias: false,
                 rect: Rect::new(10.0, 10.0, 100.0, 28.0),
-                color: style.border,
-                width: style.border_width,
+                color: style.border.unwrap().color,
+                width: style.border.unwrap().width,
                 z: 0,
             },
             DrawCmd::FillRect {
@@ -267,8 +267,8 @@ fn test_drag_number_visual_min_value() {
             DrawCmd::StrokeRect {
                 anti_alias: false,
                 rect: Rect::new(10.0, 10.0, 100.0, 28.0),
-                color: style.border,
-                width: style.border_width,
+                color: style.border.unwrap().color,
+                width: style.border.unwrap().width,
                 z: 0,
             },
             DrawCmd::FillRect {

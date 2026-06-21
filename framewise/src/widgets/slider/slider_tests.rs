@@ -1655,9 +1655,9 @@ fn test_slider_visual_focused() {
         &[
             DrawCmd::StrokeRect {
                 anti_alias: false,
-                rect: Rect::new(-2.0, -2.0, 24.0, 104.0),
+                rect: Rect::new(-4.0, -4.0, 28.0, 108.0),
                 color: theme.rust,
-                width: theme.focus_width,
+                width: 2.0,
                 z: 1,
             },
             DrawCmd::FillRect {
