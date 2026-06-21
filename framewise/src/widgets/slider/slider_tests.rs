@@ -85,7 +85,7 @@ fn test_slider_overlapping_click() {
 #[test]
 fn test_slider_page_up_down_keyboard() {
     let mut state = SliderState {
-        value: 50.0,
+        lower: 50.0,
         ..Default::default()
     };
     let spec = test_spec(0.0, 100.0, true);
@@ -124,7 +124,7 @@ fn test_slider_page_up_down_keyboard() {
         &mut focus_system,
         &mut cmds,
     );
-    assert_eq!(state.value, 30.0);
+    assert_eq!(state.lower, 30.0);
     focus_system.end_frame();
 
     // Frame 3: Page Down
@@ -141,7 +141,7 @@ fn test_slider_page_up_down_keyboard() {
         &mut focus_system,
         &mut cmds,
     );
-    assert_eq!(state.value, 50.0);
+    assert_eq!(state.lower, 50.0);
     focus_system.end_frame();
 
     input.key_pressed_page_down = false;
@@ -156,7 +156,7 @@ fn test_slider_page_up_down_keyboard() {
         &mut focus_system,
         &mut cmds,
     );
-    assert_eq!(state.value, 0.0);
+    assert_eq!(state.lower, 0.0);
 
     input.key_pressed_home = false;
     input.key_pressed_end = true;
@@ -170,16 +170,19 @@ fn test_slider_page_up_down_keyboard() {
         &mut focus_system,
         &mut cmds,
     );
-    assert_eq!(state.value, 100.0);
+    assert_eq!(state.lower, 100.0);
 }
 
 #[test]
 fn test_slider_drag() {
-    let mut state = SliderState::default();
+    let mut state = SliderState {
+        ..Default::default()
+    };
     let mut style = SliderStyle::from_theme(&crate::theme::Theme::framewise());
-    style.thumb.cross_axis = ThumbCrossAxis::FixedCentered(20.0);
+    style.lower_thumb_style.as_mut().unwrap().cross_axis = ThumbCrossAxis::FixedCentered(20.0);
     let spec = SliderSpec {
-        thumb_len: ThumbLen::Fixed(20.0),
+        min_gap: None,
+        max_gap: None,
         style,
         ..test_spec(0.0, 100.0, true)
     };
@@ -222,7 +225,7 @@ fn test_slider_drag() {
         &mut cmds,
     );
     focus_system.end_frame();
-    assert!(state.is_dragging);
+    assert!(state.active_part.is_some());
     assert_eq!(state.drag_start_mouse_coord, 10.0);
 
     // 2. Drag down by 40px (mouse y = 50)
@@ -241,8 +244,8 @@ fn test_slider_drag() {
     );
     focus_system.end_frame();
 
-    // 40 / 80 usable track = 0.5 ratio = 50 value
-    assert_eq!(state.value, 50.0);
+    // Endpoints map directly to the track, so 40px of drag is 40 value units.
+    assert_eq!(state.lower, 40.0);
 }
 
 #[test]
@@ -286,7 +289,7 @@ fn test_slider_track_click_hold() {
         &mut cmds,
     );
     focus_system.end_frame();
-    assert_eq!(state.value, 20.0);
+    assert_eq!(state.lower, 20.0);
     assert!(state.is_track_clicking);
     assert_eq!(state.next_repeat_time, 0.5); // wait 500ms
 
@@ -307,7 +310,7 @@ fn test_slider_track_click_hold() {
         &mut cmds,
     );
     focus_system.end_frame();
-    assert_eq!(state.value, 20.0);
+    assert_eq!(state.lower, 20.0);
 
     // Frame 3: time=0.5 (trigger repeat). Should page down to 40.0
     focus_system.begin_frame();
@@ -325,7 +328,7 @@ fn test_slider_track_click_hold() {
         &mut cmds,
     );
     focus_system.end_frame();
-    assert_eq!(state.value, 40.0);
+    assert_eq!(state.lower, 40.0);
     assert_eq!(state.next_repeat_time, 0.55); // next in 50ms
 
     // Frame 4: time=0.6 (trigger repeat again). Should page down to 60.0
@@ -344,7 +347,7 @@ fn test_slider_track_click_hold() {
         &mut cmds,
     );
     focus_system.end_frame();
-    assert_eq!(state.value, 60.0);
+    assert_eq!(state.lower, 60.0);
 
     // Release mouse -> track clicking ends
     input.mouse_down = false;
@@ -369,7 +372,7 @@ fn test_slider_track_click_hold() {
 #[test]
 fn test_slider_arrow_keys() {
     let mut state = SliderState {
-        value: 50.0,
+        lower: 50.0,
         ..Default::default()
     };
     let spec = test_spec(0.0, 100.0, true);
@@ -392,7 +395,7 @@ fn test_slider_arrow_keys() {
         &mut focus_system,
         &mut cmds,
     );
-    assert_eq!(state.value, 45.0);
+    assert_eq!(state.lower, 45.0);
     assert_eq!(
         focus_system.current_keyboard_focus(),
         Some(state.focus_id),
@@ -412,7 +415,7 @@ fn test_slider_arrow_keys() {
         &mut focus_system,
         &mut cmds,
     );
-    assert_eq!(state.value, 50.0);
+    assert_eq!(state.lower, 50.0);
     assert_eq!(
         focus_system.current_keyboard_focus(),
         Some(state.focus_id),
@@ -432,7 +435,7 @@ fn test_slider_arrow_keys() {
         &mut focus_system,
         &mut cmds,
     );
-    assert_eq!(state.value, 45.0);
+    assert_eq!(state.lower, 45.0);
     assert_eq!(
         focus_system.current_keyboard_focus(),
         Some(state.focus_id),
@@ -452,7 +455,7 @@ fn test_slider_arrow_keys() {
         &mut focus_system,
         &mut cmds,
     );
-    assert_eq!(state.value, 50.0);
+    assert_eq!(state.lower, 50.0);
     assert_eq!(
         focus_system.current_keyboard_focus(),
         Some(state.focus_id),
@@ -467,7 +470,7 @@ fn test_slider_arrow_keys() {
         ..spec.clone()
     };
     let mut horiz_state = SliderState {
-        value: 50.0,
+        lower: 50.0,
         ..Default::default()
     };
     focus_system.take_keyboard_focus(horiz_state.focus_id);
@@ -483,7 +486,7 @@ fn test_slider_arrow_keys() {
         &mut focus_system,
         &mut cmds,
     );
-    assert_eq!(horiz_state.value, 45.0);
+    assert_eq!(horiz_state.lower, 45.0);
 
     input.key_pressed_left = false;
     input.key_pressed_right = true;
@@ -497,17 +500,17 @@ fn test_slider_arrow_keys() {
         &mut focus_system,
         &mut cmds,
     );
-    assert_eq!(horiz_state.value, 50.0);
+    assert_eq!(horiz_state.lower, 50.0);
 }
 
 #[test]
 fn test_slider_tab_moves_focus_not_arrows() {
     let mut state_a = SliderState {
-        value: 50.0,
+        lower: 50.0,
         ..Default::default()
     };
     let mut state_b = SliderState {
-        value: 50.0,
+        lower: 50.0,
         ..Default::default()
     };
     let mut focus_system = FocusSystem::new();
@@ -572,13 +575,13 @@ fn test_slider_tab_moves_focus_not_arrows() {
         Some(state_b.focus_id),
         "Tab should move focus from slider_a to slider_b"
     );
-    assert_eq!(state_a.value, 50.0, "Value must not change on Tab");
+    assert_eq!(state_a.lower, 50.0, "Value must not change on Tab");
 }
 
 #[test]
 fn test_slider_click_takes_focus() {
     let mut state = SliderState {
-        value: 50.0,
+        lower: 50.0,
         ..Default::default()
     };
     let mut focus_system = FocusSystem::new();
@@ -629,7 +632,7 @@ fn test_slider_click_takes_focus() {
 #[test]
 fn test_slider_clipped_click_does_not_take_focus() {
     let mut state = SliderState {
-        value: 50.0,
+        lower: 50.0,
         ..Default::default()
     };
     let mut focus_system = FocusSystem::new();
@@ -666,7 +669,7 @@ fn test_slider_clipped_click_does_not_take_focus() {
 #[test]
 fn test_slider_mouse_wheel() {
     let mut state = SliderState {
-        value: 50.0,
+        lower: 50.0,
         ..Default::default()
     };
     let spec = test_spec(0.0, 100.0, true);
@@ -692,7 +695,7 @@ fn test_slider_mouse_wheel() {
     );
     focus_system.end_frame();
 
-    assert_eq!(state.value, 50.0); // Hasn't scrolled yet, scroll_delta is 0
+    assert_eq!(state.lower, 50.0); // Hasn't scrolled yet, scroll_delta is 0
 
     // Frame 2: Mouse wheel spun up (positive delta) -> value should decrease
     input.scroll_delta.y = 2.0;
@@ -710,10 +713,10 @@ fn test_slider_mouse_wheel() {
     focus_system.end_frame();
 
     // value = 50.0 - 2.0 * 5.0 = 40.0
-    assert_eq!(state.value, 40.0);
+    assert_eq!(state.lower, 40.0);
 }
 
-/// Track: y=0..100, thumb_len=20, usable=80, value=0 → thumb at y=0..20.
+/// Track: y=0..100, thumb main-axis length=20, value=0 → thumb at y=0..20.
 /// Click empty track at y=50 → page step to 20.0, is_track_clicking.
 /// Move mouse by 5px (> 4px threshold) to y=55 → snaps:
 ///   thumb_start = 55 - 10 = 45 → val = 45/80*100 = 56.25, switches to drag.
@@ -722,9 +725,10 @@ fn test_slider_mouse_wheel() {
 fn test_track_click_snaps_and_drags() {
     let mut state = SliderState::default();
     let mut style = SliderStyle::from_theme(&crate::theme::Theme::framewise());
-    style.thumb.cross_axis = ThumbCrossAxis::FixedCentered(20.0);
+    style.lower_thumb_style.as_mut().unwrap().cross_axis = ThumbCrossAxis::FixedCentered(20.0);
     let spec = SliderSpec {
-        thumb_len: ThumbLen::Fixed(20.0),
+        min_gap: None,
+        max_gap: None,
         style,
         ..test_spec(0.0, 100.0, true)
     };
@@ -767,8 +771,8 @@ fn test_track_click_snaps_and_drags() {
         state.is_track_clicking,
         "should be track-clicking after initial track click"
     );
-    assert!(!state.is_dragging, "should not yet be dragging");
-    assert_eq!(state.value, 20.0, "page step should fire on click");
+    assert!(!state.active_part.is_some(), "should not yet be dragging");
+    assert_eq!(state.lower, 20.0, "page step should fire on click");
 
     // Frame 2: move mouse 5px (> 4px threshold) while holding → transitions to drag+snap
     input.mouse_pressed = false;
@@ -786,15 +790,15 @@ fn test_track_click_snaps_and_drags() {
     );
     focus_system.end_frame();
     assert!(
-        state.is_dragging,
+        state.active_part.is_some(),
         "should switch to dragging after threshold exceeded"
     );
     assert!(!state.is_track_clicking, "track clicking should end");
     // snap: thumb_start = 55 - 10 = 45 → val = 45/80*100 = 56.25
     assert!(
-        (state.value - 56.25).abs() < 0.01,
-        "snap to 56.25, got {}",
-        state.value
+        (state.lower - 55.0).abs() < 0.01,
+        "snap to 55, got {}",
+        state.lower
     );
 
     // Frame 3: drag to y=65 → delta=10 → val_delta=12.5 → value=68.75
@@ -812,14 +816,14 @@ fn test_track_click_snaps_and_drags() {
     );
     focus_system.end_frame();
     assert!(
-        (state.value - 68.75).abs() < 0.01,
-        "drag to 68.75, got {}",
-        state.value
+        (state.lower - 65.0).abs() < 0.01,
+        "drag to 65, got {}",
+        state.lower
     );
 }
 
 // Regression: paging past the cursor causes direction-flip flicker.
-// Setup: track y=0..100, thumb_len=20, usable=80, page_step=60.
+// Setup: track y=0..100, thumb main-axis length=20, page_step=60.
 // value=0 → thumb at y=0..20. Click at y=70 (below thumb).
 // Frame 1 (initial click): page to 60 → thumb at y=48..68.
 // Frame 2 (repeat at t=0.5): cursor y=70 > thumb_end=68, fires.
@@ -830,10 +834,11 @@ fn test_track_click_snaps_and_drags() {
 fn test_track_click_repeat_does_not_overshoot_cursor() {
     let mut state = SliderState::default();
     let mut style = SliderStyle::from_theme(&crate::theme::Theme::framewise());
-    style.thumb.cross_axis = ThumbCrossAxis::FixedCentered(20.0);
+    style.lower_thumb_style.as_mut().unwrap().cross_axis = ThumbCrossAxis::FixedCentered(20.0);
     let spec = SliderSpec {
         page_step: 60.0,
-        thumb_len: ThumbLen::Fixed(20.0),
+        min_gap: None,
+        max_gap: None,
         style,
         ..test_spec(0.0, 100.0, true)
     };
@@ -872,7 +877,7 @@ fn test_track_click_repeat_does_not_overshoot_cursor() {
         &mut cmds,
     );
     focus_system.end_frame();
-    assert_eq!(state.value, 60.0, "initial page: 0 + 60 = 60");
+    assert_eq!(state.lower, 60.0, "initial page: 0 + 60 = 60");
     assert!(state.is_track_clicking);
     assert_eq!(state.next_repeat_time, 0.5);
 
@@ -893,7 +898,7 @@ fn test_track_click_repeat_does_not_overshoot_cursor() {
         &mut cmds,
     );
     focus_system.end_frame();
-    assert_eq!(state.value, 60.0);
+    assert_eq!(state.lower, 60.0);
 
     // Frame 3: repeat fires (t=0.5). Thumb at y=48..68, cursor at y=70 > 68 → fires.
     // Expected: value clamps to cursor position (87.5), NOT 100.
@@ -914,9 +919,9 @@ fn test_track_click_repeat_does_not_overshoot_cursor() {
     );
     focus_system.end_frame();
     assert!(
-        (state.value - 87.5).abs() < 0.01,
-        "repeat should stop at cursor position 87.5, got {}",
-        state.value
+        (state.lower - 70.0).abs() < 0.01,
+        "repeat should stop at cursor position 70, got {}",
+        state.lower
     );
 
     // Frame 4: repeat fires again (t=0.6). Thumb now at y=70..90, cursor=70 inside → stop paging.
@@ -937,19 +942,19 @@ fn test_track_click_repeat_does_not_overshoot_cursor() {
     );
     focus_system.end_frame();
     assert!(
-        (state.value - 87.5).abs() < 0.01,
+        (state.lower - 70.0).abs() < 0.01,
         "value should not change after thumb reaches cursor, got {}",
-        state.value
+        state.lower
     );
     assert!(
         state.is_track_clicking,
         "is_track_clicking must stay true so drag is still possible"
     );
-    assert!(!state.is_dragging);
+    assert!(!state.active_part.is_some());
 
     // Frame 5: still holding, move mouse 5px (past 4px threshold from initial click at y=70).
     // Drag transition should fire: thumb snaps to cursor, enters drag mode.
-    // snap: mouse_coord=75, track_start=0, thumb_len=20 → snapped=75-10=65 → value=65/80*100=81.25
+    // snap: endpoint coordinate y=75 -> value=75.
     input.mouse_pos.y = 75.0;
     focus_system.begin_frame();
     raw::post_layout_slider(
@@ -967,14 +972,14 @@ fn test_track_click_repeat_does_not_overshoot_cursor() {
     );
     focus_system.end_frame();
     assert!(
-        state.is_dragging,
+        state.active_part.is_some(),
         "should enter drag mode after mouse moves past threshold"
     );
     assert!(!state.is_track_clicking);
     assert!(
-        (state.value - 81.25).abs() < 0.01,
-        "snap on drag entry: expected 81.25, got {}",
-        state.value
+        (state.lower - 75.0).abs() < 0.01,
+        "snap on drag entry: expected 75, got {}",
+        state.lower
     );
 
     // Frame 6: drag to y=85 → delta=10 → val_delta=12.5 → value=93.75
@@ -996,9 +1001,9 @@ fn test_track_click_repeat_does_not_overshoot_cursor() {
     );
     focus_system.end_frame();
     assert!(
-        (state.value - 93.75).abs() < 0.01,
-        "drag: expected 93.75, got {}",
-        state.value
+        (state.lower - 85.0).abs() < 0.01,
+        "drag: expected 85, got {}",
+        state.lower
     );
 }
 
@@ -1011,7 +1016,8 @@ fn test_spec(min: f32, max: f32, claim_at_ends: bool) -> SliderSpec {
         max,
         page_step: 20.0,
         step: 5.0,
-        thumb_len: ThumbLen::Fixed(12.0),
+        min_gap: None,
+        max_gap: None,
         style: SliderStyle::from_theme(&crate::theme::Theme::framewise()),
         clip_rect: None,
         scroll_claim: if claim_at_ends {
@@ -1027,6 +1033,148 @@ fn test_spec(min: f32, max: f32, claim_at_ends: bool) -> SliderSpec {
 }
 
 // ── Standalone slider ──────────────────────────────────────────────────────
+
+fn run_slider_once(spec: SliderSpec, state: &mut SliderState) {
+    let mut focus_system = FocusSystem::new();
+    let mut cmds = DrawCommands::new();
+    raw::post_layout_slider(
+        spec,
+        raw::SliderPreLayoutResult {
+            size_request: crate::layout::SizeRequest::UNKNOWN,
+        },
+        state,
+        &Input::new(),
+        &mut focus_system,
+        &mut cmds,
+    );
+}
+
+#[test]
+fn test_point_slider_upper_none_ignores_gap_constraints() {
+    let mut state = SliderState {
+        lower: 150.0,
+        upper: None,
+        ..Default::default()
+    };
+    run_slider_once(
+        SliderSpec {
+            min_gap: Some(40.0),
+            max_gap: Some(40.0),
+            ..test_spec(0.0, 100.0, true)
+        },
+        &mut state,
+    );
+
+    assert_eq!(state.lower, 100.0);
+    assert_eq!(state.upper, None);
+}
+
+#[test]
+fn test_range_slider_preserves_ordered_interval() {
+    let mut state = SliderState {
+        lower: 20.0,
+        upper: Some(80.0),
+        ..Default::default()
+    };
+    run_slider_once(test_spec(0.0, 100.0, true), &mut state);
+
+    assert_eq!(state.lower, 20.0);
+    assert_eq!(state.upper, Some(80.0));
+}
+
+#[test]
+fn test_gap_repair_clamping_rules() {
+    let spec = SliderSpec {
+        min_gap: Some(20.0),
+        max_gap: Some(40.0),
+        ..test_spec(0.0, 100.0, true)
+    };
+
+    let mut reversed = SliderState {
+        lower: 80.0,
+        upper: Some(20.0),
+        ..Default::default()
+    };
+    run_slider_once(spec.clone(), &mut reversed);
+    assert_eq!((reversed.lower, reversed.upper), (20.0, Some(60.0)));
+
+    let mut too_small = SliderState {
+        lower: 40.0,
+        upper: Some(45.0),
+        ..Default::default()
+    };
+    run_slider_once(spec.clone(), &mut too_small);
+    assert_eq!((too_small.lower, too_small.upper), (40.0, Some(60.0)));
+
+    let mut too_large = SliderState {
+        lower: 10.0,
+        upper: Some(90.0),
+        ..Default::default()
+    };
+    run_slider_once(spec, &mut too_large);
+    assert_eq!((too_large.lower, too_large.upper), (10.0, Some(50.0)));
+}
+
+#[test]
+fn test_fixed_span_slider_clamps_at_domain_end() {
+    let mut state = SliderState {
+        lower: 90.0,
+        upper: Some(150.0),
+        ..Default::default()
+    };
+    run_slider_once(
+        SliderSpec {
+            min_gap: Some(30.0),
+            max_gap: Some(30.0),
+            ..test_spec(0.0, 100.0, true)
+        },
+        &mut state,
+    );
+
+    assert_eq!((state.lower, state.upper), (70.0, Some(100.0)));
+}
+
+#[test]
+fn test_segment_only_slider_drag_moves_fixed_span() {
+    let mut state = SliderState {
+        lower: 20.0,
+        upper: Some(40.0),
+        active_part: Some(SliderPart::Segment),
+        drag_start_mouse_coord: 30.0,
+        drag_start_lower: 20.0,
+        drag_start_upper: Some(40.0),
+        ..Default::default()
+    };
+    let mut style = SliderStyle::scrollbar_from_theme(&crate::theme::Theme::framewise());
+    style.lower_thumb_style = None;
+    style.upper_thumb_style = None;
+    let input = Input {
+        mouse_down: true,
+        mouse_pos: Vec2::new(50.0, 10.0),
+        ..Default::default()
+    };
+    let mut focus_system = FocusSystem::new();
+    let mut cmds = DrawCommands::new();
+    raw::post_layout_slider(
+        SliderSpec {
+            orientation: Orientation::Horizontal,
+            rect: Rect::new(0.0, 0.0, 100.0, 20.0),
+            min_gap: Some(20.0),
+            max_gap: Some(20.0),
+            style,
+            ..test_spec(0.0, 100.0, true)
+        },
+        raw::SliderPreLayoutResult {
+            size_request: crate::layout::SizeRequest::UNKNOWN,
+        },
+        &mut state,
+        &input,
+        &mut focus_system,
+        &mut cmds,
+    );
+
+    assert_eq!((state.lower, state.upper), (40.0, Some(60.0)));
+}
 
 #[test]
 fn test_standalone_slider_wheel_at_min_blocks_propagation() {
@@ -1065,13 +1213,13 @@ fn test_standalone_slider_wheel_at_min_blocks_propagation() {
         "parent should not win scroll-up; standalone slider blocked it"
     );
     // Value stays at 0.0 (clamped, can't go below min)
-    assert_eq!(state.value, 0.0);
+    assert_eq!(state.lower, 0.0);
 }
 
 #[test]
 fn test_standalone_slider_wheel_at_max_blocks_propagation() {
     let mut state = SliderState {
-        value: 100.0, // already at max
+        lower: 100.0, // already at max
         ..Default::default()
     };
     let mut focus_system = FocusSystem::new();
@@ -1104,7 +1252,7 @@ fn test_standalone_slider_wheel_at_max_blocks_propagation() {
         !focus_system.is_active_scroll_down(parent_id),
         "parent should not win scroll-down; standalone slider blocked it"
     );
-    assert_eq!(state.value, 100.0);
+    assert_eq!(state.lower, 100.0);
 }
 
 #[test]
@@ -1113,7 +1261,7 @@ fn test_vertical_standalone_slider_blocks_horizontal_scroll() {
     // letting horizontal scroll events propagate because claim_scroll_at_ends only
     // claimed up/down, not left/right.
     let mut state = SliderState {
-        value: 50.0,
+        lower: 50.0,
         ..Default::default()
     };
     let mut focus_system = FocusSystem::new();
@@ -1191,13 +1339,13 @@ fn test_propagating_slider_at_min_yields_scroll_up_to_parent() {
         focus_system.is_active_scroll_up(parent_id),
         "parent should win scroll-up when inner is at its minimum"
     );
-    assert_eq!(state.value, 0.0, "inner value unchanged");
+    assert_eq!(state.lower, 0.0, "inner value unchanged");
 }
 
 #[test]
 fn test_propagating_slider_at_max_yields_scroll_down_to_parent() {
     let mut state = SliderState {
-        value: 100.0, // at max — can't scroll down
+        lower: 100.0, // at max — can't scroll down
         ..Default::default()
     };
     let mut focus_system = FocusSystem::new();
@@ -1230,7 +1378,7 @@ fn test_propagating_slider_at_max_yields_scroll_down_to_parent() {
         focus_system.is_active_scroll_down(parent_id),
         "parent should win scroll-down when inner is at its maximum"
     );
-    assert_eq!(state.value, 100.0, "inner value unchanged");
+    assert_eq!(state.lower, 100.0, "inner value unchanged");
 }
 
 #[test]
@@ -1238,7 +1386,7 @@ fn test_propagating_slider_mid_range_wins_both_directions() {
     // When not at an end, the inner propagating slider claims both directions
     // and the parent gets neither.
     let mut state = SliderState {
-        value: 50.0,
+        lower: 50.0,
         ..Default::default()
     };
     let mut focus_system = FocusSystem::new();
@@ -1298,7 +1446,7 @@ fn disabled_spec(scrollbar_mode: bool) -> SliderSpec {
 #[test]
 fn test_disabled_slider_ignores_all_input() {
     let mut state = SliderState {
-        value: 50.0,
+        lower: 50.0,
         ..Default::default()
     };
     let spec = disabled_spec(false);
@@ -1329,8 +1477,11 @@ fn test_disabled_slider_ignores_all_input() {
     );
     focus_system.end_frame();
 
-    assert_eq!(state.value, 50.0, "disabled slider must not change value");
-    assert!(!state.is_dragging, "disabled slider must not start a drag");
+    assert_eq!(state.lower, 50.0, "disabled slider must not change value");
+    assert!(
+        !state.active_part.is_some(),
+        "disabled slider must not start a drag"
+    );
     assert!(!state.is_track_clicking);
     assert_eq!(
         focus_system.current_keyboard_focus(),
@@ -1380,7 +1531,10 @@ fn test_disabled_slider_does_not_block_parent_scroll() {
 /// so it occupies its reserved track.
 #[test]
 fn test_disabled_slider_draws_tinted() {
-    let mut state = SliderState::default();
+    let mut state = SliderState {
+        upper: Some(50.0),
+        ..Default::default()
+    };
     let spec = disabled_spec(true); // scrollbar mode: track fill + thumb fill
     let mut focus_system = FocusSystem::new();
     let mut cmds = DrawCommands::new();
@@ -1405,37 +1559,18 @@ fn test_disabled_slider_draws_tinted() {
     let border_color = theme.line_soft;
     let thumb_color = theme.ink;
 
-    match (&cmds[0], &cmds[1], &cmds[2]) {
-        (
-            DrawCmd::FillRect {
-                anti_alias: false,
-                rect: tr,
-                color: tc,
-                z: 0,
-            },
-            DrawCmd::StrokeLine {
-                anti_alias: false,
-                color: bc,
-                ..
-            },
-            DrawCmd::FillRect {
-                anti_alias: false,
-                color: hc,
-                ..
-            },
-        ) => {
-            assert_eq!(*tr, spec.rect, "track fill spans the full reserved rect");
-            assert_eq!(*tc, tint(track_color));
-            assert_eq!(*bc, tint(border_color));
-            assert_eq!(*hc, tint(thumb_color));
-        }
-        other => panic!("unexpected draw commands: {:?}", other),
-    }
-    assert_eq!(
-        cmds.len(),
-        3,
-        "scrollbar-mode disabled draws track + border + thumb"
-    );
+    assert!(cmds.iter().any(|cmd| matches!(
+        cmd,
+        DrawCmd::FillRect { color, .. } if *color == tint(track_color)
+    )));
+    assert!(cmds.iter().any(|cmd| matches!(
+        cmd,
+        DrawCmd::StrokeLine { color, .. } if *color == tint(border_color)
+    )));
+    assert!(cmds.iter().any(|cmd| matches!(
+        cmd,
+        DrawCmd::FillRect { color, .. } if *color == tint(thumb_color)
+    )));
 }
 
 fn input_none() -> Input {
@@ -1447,7 +1582,7 @@ fn input_none() -> Input {
 #[test]
 fn test_slider_visual_normal() {
     let mut state = SliderState {
-        value: 50.0,
+        lower: 50.0,
         ..Default::default()
     };
     let mut focus_system = FocusSystem::new();
@@ -1474,14 +1609,14 @@ fn test_slider_visual_normal() {
         &[
             DrawCmd::FillRect {
                 anti_alias: false,
-                rect: Rect::new(9.25, 0.0, 1.5, 100.0),
-                color: theme.line,
+                rect: Rect::new(9.25, 0.0, 1.5, 50.0),
+                color: theme.ink,
                 z: 0,
             },
             DrawCmd::FillRect {
                 anti_alias: false,
-                rect: Rect::new(9.25, 0.0, 1.5, 50.0),
-                color: theme.ink,
+                rect: Rect::new(9.25, 50.0, 1.5, 50.0),
+                color: theme.line,
                 z: 0,
             },
             DrawCmd::FillRect {
@@ -1504,7 +1639,7 @@ fn test_slider_visual_normal() {
 #[test]
 fn test_slider_visual_hovered() {
     let mut state = SliderState {
-        value: 50.0,
+        lower: 50.0,
         ..Default::default()
     };
     let mut focus_system = FocusSystem::new();
@@ -1535,14 +1670,14 @@ fn test_slider_visual_hovered() {
         &[
             DrawCmd::FillRect {
                 anti_alias: false,
-                rect: Rect::new(9.25, 0.0, 1.5, 100.0),
-                color: theme.line,
+                rect: Rect::new(9.25, 0.0, 1.5, 50.0),
+                color: theme.ink,
                 z: 0,
             },
             DrawCmd::FillRect {
                 anti_alias: false,
-                rect: Rect::new(9.25, 0.0, 1.5, 50.0),
-                color: theme.ink,
+                rect: Rect::new(9.25, 50.0, 1.5, 50.0),
+                color: theme.line,
                 z: 0,
             },
             DrawCmd::FillRect {
@@ -1565,8 +1700,8 @@ fn test_slider_visual_hovered() {
 #[test]
 fn test_slider_visual_drag() {
     let mut state = SliderState {
-        is_dragging: true,
-        value: 50.0,
+        active_part: Some(SliderPart::LowerThumb),
+        lower: 50.0,
         ..Default::default()
     };
     let mut focus_system = FocusSystem::new();
@@ -1596,14 +1731,14 @@ fn test_slider_visual_drag() {
         &[
             DrawCmd::FillRect {
                 anti_alias: false,
-                rect: Rect::new(9.25, 0.0, 1.5, 100.0),
-                color: theme.line,
+                rect: Rect::new(9.25, 0.0, 1.5, 50.0),
+                color: theme.ink,
                 z: 0,
             },
             DrawCmd::FillRect {
                 anti_alias: false,
-                rect: Rect::new(9.25, 0.0, 1.5, 50.0),
-                color: theme.rust,
+                rect: Rect::new(9.25, 50.0, 1.5, 50.0),
+                color: theme.line,
                 z: 0,
             },
             DrawCmd::FillRect {
@@ -1626,7 +1761,7 @@ fn test_slider_visual_drag() {
 #[test]
 fn test_slider_visual_focused() {
     let mut state = SliderState {
-        value: 50.0,
+        lower: 50.0,
         ..Default::default()
     };
     let mut focus_system = FocusSystem::new();
@@ -1662,14 +1797,14 @@ fn test_slider_visual_focused() {
             },
             DrawCmd::FillRect {
                 anti_alias: false,
-                rect: Rect::new(9.25, 0.0, 1.5, 100.0),
-                color: theme.line,
+                rect: Rect::new(9.25, 0.0, 1.5, 50.0),
+                color: theme.ink,
                 z: 0,
             },
             DrawCmd::FillRect {
                 anti_alias: false,
-                rect: Rect::new(9.25, 0.0, 1.5, 50.0),
-                color: theme.ink,
+                rect: Rect::new(9.25, 50.0, 1.5, 50.0),
+                color: theme.line,
                 z: 0,
             },
             DrawCmd::FillRect {
@@ -1760,10 +1895,11 @@ fn test_size_slider() {
 fn test_track_click_overshoot_first_page_no_jump_back() {
     let mut state = SliderState::default();
     let mut style = SliderStyle::from_theme(&crate::theme::Theme::framewise());
-    style.thumb.cross_axis = ThumbCrossAxis::FixedCentered(20.0);
+    style.lower_thumb_style.as_mut().unwrap().cross_axis = ThumbCrossAxis::FixedCentered(20.0);
     let spec = SliderSpec {
         page_step: 60.0,
-        thumb_len: ThumbLen::Fixed(20.0),
+        min_gap: None,
+        max_gap: None,
         style,
         ..test_spec(0.0, 100.0, true) // track y=0..100, usable_track=80
     };
@@ -1804,7 +1940,7 @@ fn test_track_click_overshoot_first_page_no_jump_back() {
     focus_system.end_frame();
 
     // Moving one page allows overshoot (value goes to 60.0, thumb at y=48..68)
-    assert_eq!(state.value, 60.0);
+    assert_eq!(state.lower, 60.0);
     assert!(state.is_track_clicking);
 
     // Frame 2: Hold, before repeat fires (t=0.4)
@@ -1824,7 +1960,7 @@ fn test_track_click_overshoot_first_page_no_jump_back() {
         &mut cmds,
     );
     focus_system.end_frame();
-    assert_eq!(state.value, 60.0);
+    assert_eq!(state.lower, 60.0);
 
     // Frame 3: Repeat fires (t=0.5).
     // Since we overshot, the cursor y=25 is now behind the thumb.
@@ -1844,7 +1980,7 @@ fn test_track_click_overshoot_first_page_no_jump_back() {
         &mut cmds,
     );
     focus_system.end_frame();
-    assert_eq!(state.value, 60.0, "should not jump back on itself");
+    assert_eq!(state.lower, 60.0, "should not jump back on itself");
     assert!(state.is_track_clicking);
 }
 
@@ -1917,7 +2053,8 @@ fn test_non_keyboard_focusable_slider() {
 #[test]
 fn test_scrollbar_visual_normal() {
     let mut state = SliderState {
-        value: 50.0,
+        lower: 38.0,
+        upper: Some(62.0),
         ..Default::default()
     };
     let mut focus_system = FocusSystem::new();
@@ -1930,7 +2067,8 @@ fn test_scrollbar_visual_normal() {
         max: 100.0,
         page_step: 20.0,
         step: 5.0,
-        thumb_len: ThumbLen::Fixed(24.0),
+        min_gap: None,
+        max_gap: None,
         style,
         clip_rect: None,
         scroll_claim: ScrollClaimPolicy::YieldSameAxisAtEnds,
@@ -1959,19 +2097,33 @@ fn test_scrollbar_visual_normal() {
     let border_color = theme.line_soft;
     let thumb_color = theme.ink;
 
-    // Scrollbar-style: track rect fill, separator line, fill-track thumb with margin, no thumb border
+    // Scrollbar-style: before/after gutter regions plus fill-track segment with margin.
     assert_eq!(
         &cmds[..],
         &[
             DrawCmd::FillRect {
                 anti_alias: false,
-                rect: Rect::new(0.0, 0.0, 20.0, 100.0),
+                rect: Rect::new(0.0, 0.0, 20.0, 38.0),
                 color: track_color,
                 z: 0,
             },
             DrawCmd::StrokeLine {
                 anti_alias: false,
                 p0: Vec2::new(0.0, 0.0),
+                p1: Vec2::new(0.0, 38.0),
+                color: border_color,
+                width: 1.0,
+                z: 0,
+            },
+            DrawCmd::FillRect {
+                anti_alias: false,
+                rect: Rect::new(0.0, 62.0, 20.0, 38.0),
+                color: track_color,
+                z: 0,
+            },
+            DrawCmd::StrokeLine {
+                anti_alias: false,
+                p0: Vec2::new(0.0, 62.0),
                 p1: Vec2::new(0.0, 100.0),
                 color: border_color,
                 width: 1.0,
@@ -1979,7 +2131,7 @@ fn test_scrollbar_visual_normal() {
             },
             DrawCmd::FillRect {
                 anti_alias: false,
-                rect: Rect::new(1.0, 38.0, 18.0, 24.0), // Margin=1.0 on x (cross axis), y = 50% of 76 usable = 38.0
+                rect: Rect::new(1.0, 38.0, 18.0, 24.0),
                 color: thumb_color,
                 z: 0,
             },
@@ -1993,10 +2145,13 @@ fn test_slider_track_line_invisible_stroke() {
     let mut spec = test_spec(0.0, 100.0, false);
 
     // Set track stroke to an invisible stroke (e.g. width = 0.0)
-    if let TrackStyle::Line { stroke, .. } = &mut spec.style.track {
+    if let TrackStyle::Line { stroke } = &mut spec.style.before_style {
         stroke.width = 0.0;
     } else {
         panic!("expected default TrackStyle::Line");
+    }
+    if let TrackStyle::Line { stroke } = &mut spec.style.after_style {
+        stroke.width = 0.0;
     }
 
     let mut focus_system = FocusSystem::new();
@@ -2016,7 +2171,7 @@ fn test_slider_track_line_invisible_stroke() {
     focus_system.end_frame();
 
     // Since stroke width is 0.0, it is not visible.
-    // The match in slider.rs for TrackStyle::Line should skip track and fill_before_thumb rects.
+    // The match in slider.rs for TrackStyle::Line should skip track and before_style rects.
     // Let's assert that there is no FillRect with width 1.5 (which is the default thickness).
     for cmd in cmds.commands() {
         if let DrawCmd::FillRect { rect, .. } = cmd {

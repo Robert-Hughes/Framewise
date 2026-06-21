@@ -1737,8 +1737,10 @@ impl TextEditStyle {
     pub fn from_theme(theme: &crate::theme::Theme) -> Self {
         let mut scroll_area_style = ScrollAreaStyle::from_theme(theme);
         scroll_area_style.scrollbar_width = TEXT_EDIT_SCROLLBAR_WIDTH;
-        scroll_area_style.scrollbar_style.thumb.cross_axis =
-            crate::widgets::slider::ThumbCrossAxis::FillTrack { margin: 0.0 };
+        if let Some(segment_style) = &mut scroll_area_style.scrollbar_style.segment_style {
+            segment_style.cross_axis =
+                crate::widgets::slider::ThumbCrossAxis::FillTrack { margin: 0.0 };
+        }
 
         Self {
             background: theme.paper_elev,

@@ -68,14 +68,19 @@ fn test_text_edit_style_scroll_area_defaults() {
     );
     assert_eq!(style.scroll_area_style.corner_color, Some(theme.paper_elev));
     assert_eq!(
-        style.scroll_area_style.scrollbar_style.track,
+        style.scroll_area_style.scrollbar_style.before_style,
         crate::widgets::slider::TrackStyle::Rect {
             color: Color::linear_rgba(theme.ink.r, theme.ink.g, theme.ink.b, 0.04),
             border: Some(Stroke::new(theme.line_soft, 1.0))
         }
     );
     assert_eq!(
-        style.scroll_area_style.scrollbar_style.thumb.cross_axis,
+        style
+            .scroll_area_style
+            .scrollbar_style
+            .segment_style
+            .unwrap()
+            .cross_axis,
         crate::widgets::slider::ThumbCrossAxis::FillTrack { margin: 0.0 }
     );
 }
@@ -5448,18 +5453,13 @@ fn test_text_edit_error_vertical_scrollbar_layout_and_hit_test() {
     );
 
     assert!(
-        cmds.iter().any(|cmd| matches!(
-            cmd,
-            DrawCmd::FillRect {
-                rect: Rect {
-                    x: 194.0,
-                    y: 1.0,
-                    w: 5.0,
-                    h: 38.0
-                },
-                ..
+        cmds.iter().any(|cmd| {
+            if let DrawCmd::FillRect { rect, .. } = cmd {
+                rect.x == 194.0 && rect.w == 5.0 && rect.y >= 1.0 && rect.bottom() <= 39.0
+            } else {
+                false
             }
-        )),
+        }),
         "vertical scrollbar should stay tucked against the right edge"
     );
 

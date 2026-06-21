@@ -232,11 +232,7 @@ pub mod raw {
         cmds.push(DrawCmd::PopClip);
 
         if token.needs_v {
-            let view_ratio = if content_extent.y > 0.0 {
-                (token.content_bounds.h / content_extent.y).min(1.0)
-            } else {
-                1.0
-            };
+            let span = token.content_bounds.h;
             let track_rect = Rect::new(
                 token.content_bounds.right(),
                 token.rect.y,
@@ -248,13 +244,11 @@ pub mod raw {
                 orientation: crate::widgets::slider::Orientation::Vertical,
                 rect: track_rect,
                 min: 0.0,
-                max: max_scroll.y,
-                page_step: token.content_bounds.h,
+                max: content_extent.y,
+                min_gap: Some(span),
+                max_gap: Some(span),
+                page_step: span,
                 step: 40.0,
-                thumb_len: crate::widgets::slider::ThumbLen::Proportional {
-                    ratio: view_ratio,
-                    min_len: 24.0,
-                },
                 style: token.style.scrollbar_style,
                 clip_rect: token.clip_rect,
                 scroll_claim: crate::widgets::slider::ScrollClaimPolicy::YieldSameAxisAtEnds,
@@ -267,7 +261,8 @@ pub mod raw {
                 keyboard_focusable: token.keyboard_focusable,
             };
 
-            state.vert_slider_state.value = state.offset.y;
+            state.vert_slider_state.lower = state.offset.y;
+            state.vert_slider_state.upper = Some(state.offset.y + span);
             crate::widgets::slider::raw::post_layout_slider(
                 slider_spec,
                 crate::widgets::slider::raw::SliderPreLayoutResult {
@@ -278,15 +273,11 @@ pub mod raw {
                 focus_system,
                 cmds,
             );
-            state.offset.y = state.vert_slider_state.value;
+            state.offset.y = state.vert_slider_state.lower;
         }
 
         if token.needs_h {
-            let view_ratio = if content_extent.x > 0.0 {
-                (token.content_bounds.w / content_extent.x).min(1.0)
-            } else {
-                1.0
-            };
+            let span = token.content_bounds.w;
             let track_rect = Rect::new(
                 token.rect.x,
                 token.content_bounds.bottom(),
@@ -298,13 +289,11 @@ pub mod raw {
                 orientation: crate::widgets::slider::Orientation::Horizontal,
                 rect: track_rect,
                 min: 0.0,
-                max: max_scroll.x,
-                page_step: token.content_bounds.w,
+                max: content_extent.x,
+                min_gap: Some(span),
+                max_gap: Some(span),
+                page_step: span,
                 step: 40.0,
-                thumb_len: crate::widgets::slider::ThumbLen::Proportional {
-                    ratio: view_ratio,
-                    min_len: 24.0,
-                },
                 style: token.style.scrollbar_style,
                 clip_rect: token.clip_rect,
                 scroll_claim: crate::widgets::slider::ScrollClaimPolicy::YieldSameAxisAtEnds,
@@ -315,7 +304,8 @@ pub mod raw {
                 keyboard_focusable: token.keyboard_focusable,
             };
 
-            state.horiz_slider_state.value = state.offset.x;
+            state.horiz_slider_state.lower = state.offset.x;
+            state.horiz_slider_state.upper = Some(state.offset.x + span);
             crate::widgets::slider::raw::post_layout_slider(
                 slider_spec,
                 crate::widgets::slider::raw::SliderPreLayoutResult {
@@ -326,7 +316,7 @@ pub mod raw {
                 focus_system,
                 cmds,
             );
-            state.offset.x = state.horiz_slider_state.value;
+            state.offset.x = state.horiz_slider_state.lower;
         }
 
         if token.needs_v && token.needs_h {
@@ -343,9 +333,9 @@ pub mod raw {
                     color: corner_color,
                     z: token.layer.get_z(),
                 });
-                let border = match token.style.scrollbar_style.track {
+                let border = match token.style.scrollbar_style.before_style {
                     crate::widgets::slider::TrackStyle::Rect { border, .. } => border,
-                    _ => None,
+                    crate::widgets::slider::TrackStyle::Line { .. } => None,
                 };
                 if let Some(border) = border {
                     // Left border of the corner

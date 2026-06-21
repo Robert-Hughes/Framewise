@@ -196,6 +196,58 @@ fn nested_scroll_two_frames(
 }
 
 #[test]
+fn test_scroll_area_vertical_scrollbar_segment_drag_updates_offset_y() {
+    let mut state = ScrollState::default();
+    state.vert_slider_state.active_part = Some(crate::widgets::slider::SliderPart::Segment);
+    state.vert_slider_state.drag_start_mouse_coord = 10.0;
+    state.vert_slider_state.drag_start_lower = 0.0;
+    state.vert_slider_state.drag_start_upper = Some(200.0);
+    let input = Input {
+        mouse_down: true,
+        mouse_pos: Vec2::new(194.0, 50.0),
+        ..Default::default()
+    };
+    let mut focus_system = FocusSystem::new();
+    let (_, _, _) = scroll_area(
+        Rect::new(0.0, 0.0, 200.0, 200.0),
+        Vec2::new(188.0, 400.0),
+        &mut state,
+        &input,
+        &mut focus_system,
+        None,
+        0.0,
+    );
+
+    assert!(state.offset.y > 0.0);
+}
+
+#[test]
+fn test_scroll_area_horizontal_scrollbar_segment_drag_updates_offset_x() {
+    let mut state = ScrollState::default();
+    state.horiz_slider_state.active_part = Some(crate::widgets::slider::SliderPart::Segment);
+    state.horiz_slider_state.drag_start_mouse_coord = 10.0;
+    state.horiz_slider_state.drag_start_lower = 0.0;
+    state.horiz_slider_state.drag_start_upper = Some(200.0);
+    let input = Input {
+        mouse_down: true,
+        mouse_pos: Vec2::new(50.0, 194.0),
+        ..Default::default()
+    };
+    let mut focus_system = FocusSystem::new();
+    let (_, _, _) = scroll_area(
+        Rect::new(0.0, 0.0, 200.0, 200.0),
+        Vec2::new(400.0, 188.0),
+        &mut state,
+        &input,
+        &mut focus_system,
+        None,
+        0.0,
+    );
+
+    assert!(state.offset.x > 0.0);
+}
+
+#[test]
 fn test_nested_scroll_areas() {
     let outer_bounds = Rect::new(0.0, 0.0, 200.0, 200.0);
     let inner_bounds = Rect::new(10.0, 10.0, 150.0, 100.0);
@@ -549,7 +601,10 @@ fn test_slider_drag_with_wheel_drag_wins() {
         &mut cmds,
     );
     focus_system.end_frame();
-    assert!(state.vert_slider_state.is_dragging, "Drag must be active");
+    assert!(
+        state.vert_slider_state.active_part.is_some(),
+        "Drag must be active"
+    );
 
     // Frame 1: held, mouse moved down, AND a wheel tick. Drag should win.
     focus_system.begin_frame();
