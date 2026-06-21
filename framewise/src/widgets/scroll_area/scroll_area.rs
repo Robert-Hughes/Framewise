@@ -261,8 +261,10 @@ pub mod raw {
                 keyboard_focusable: token.keyboard_focusable,
             };
 
-            state.vert_slider_state.lower = state.offset.y;
-            state.vert_slider_state.upper = Some(state.offset.y + span);
+            state.vert_slider_state.value = crate::widgets::SliderValue::Range {
+                lower: state.offset.y,
+                upper: state.offset.y + span,
+            };
             crate::widgets::slider::raw::post_layout_slider(
                 slider_spec,
                 crate::widgets::slider::raw::SliderPreLayoutResult {
@@ -273,7 +275,7 @@ pub mod raw {
                 focus_system,
                 cmds,
             );
-            state.offset.y = state.vert_slider_state.lower;
+            state.offset.y = state.vert_slider_state.value.lower();
         }
 
         if token.needs_h {
@@ -304,8 +306,10 @@ pub mod raw {
                 keyboard_focusable: token.keyboard_focusable,
             };
 
-            state.horiz_slider_state.lower = state.offset.x;
-            state.horiz_slider_state.upper = Some(state.offset.x + span);
+            state.horiz_slider_state.value = crate::widgets::SliderValue::Range {
+                lower: state.offset.x,
+                upper: state.offset.x + span,
+            };
             crate::widgets::slider::raw::post_layout_slider(
                 slider_spec,
                 crate::widgets::slider::raw::SliderPreLayoutResult {
@@ -316,7 +320,7 @@ pub mod raw {
                 focus_system,
                 cmds,
             );
-            state.offset.x = state.horiz_slider_state.lower;
+            state.offset.x = state.horiz_slider_state.value.lower();
         }
 
         if token.needs_v && token.needs_h {

@@ -83,9 +83,6 @@ pub mod raw {
         crate::layout::SizeRequest::UNKNOWN
     }
 
-    /// Low-level slider widget function.
-    ///
-    /// This is the raw implementation that takes all parameters explicitly.
     /// High-level wrappers should use this internally.
     pub fn post_layout_slider(
         spec: SliderSpec,
@@ -103,7 +100,7 @@ pub mod raw {
         let is_visible = spec.clip_rect.is_none_or(|c| c.contains(input.mouse_pos));
         let is_vert = spec.orientation == Orientation::Vertical;
 
-        let (main_start_padding, main_end_padding) = if state.upper.is_none() {
+        let (main_start_padding, main_end_padding) = if !state.value.is_range() {
             if let Some(lower_style) = spec.style.lower_thumb_style {
                 let len = main_axis_len(lower_style.cross_axis, spec.rect, is_vert);
                 (len * 0.5, len * 0.5)
@@ -134,22 +131,12 @@ pub mod raw {
             Rect::new(new_x, spec.rect.y, new_w, spec.rect.h)
         };
 
-        let focused = if spec.disabled || !spec.keyboard_focusable {
-            false
-        } else {
-            focus_system.register_keyboard(state.focus_id, spec.rect, spec.clip_rect)
-        };
-
-        if !spec.disabled && track_rect.contains(input.mouse_pos) && is_visible {
-            focus_system.claim_hover(state.focus_id);
-        }
-        let is_hover_active = !spec.disabled && focus_system.is_hover_active(state.focus_id);
-
         let track_len = if is_vert { track_rect.h } else { track_rect.w };
         let track_start = if is_vert { track_rect.y } else { track_rect.x };
-        let lower_coord = value_to_coord(state.lower, min, range, track_start, track_len);
+        let lower_coord = value_to_coord(state.value.lower(), min, range, track_start, track_len);
         let upper_coord = state
-            .upper
+            .value
+            .upper()
             .map(|upper| value_to_coord(upper, min, range, track_start, track_len));
         let lower_thumb_rect = spec
             .style
@@ -165,6 +152,26 @@ pub mod raw {
             .segment_style
             .zip(upper_coord)
             .map(|(style, coord)| segment_rect(track_rect, is_vert, lower_coord, coord, style));
+
+        let hit_part = hit_test_parts(
+            input.mouse_pos,
+            lower_thumb_rect,
+            upper_thumb_rect,
+            segment_rect,
+        );
+
+        let pointer_over_slider = track_rect.contains(input.mouse_pos) || hit_part.is_some();
+
+        let focused = if spec.disabled || !spec.keyboard_focusable {
+            false
+        } else {
+            focus_system.register_keyboard(state.focus_id, spec.rect, spec.clip_rect)
+        };
+
+        if !spec.disabled && pointer_over_slider && is_visible {
+            focus_system.claim_hover(state.focus_id);
+        }
+        let is_hover_active = !spec.disabled && focus_system.is_hover_active(state.focus_id);
 
         // 2. Input Handling
         if !spec.disabled {
@@ -214,18 +221,33 @@ pub mod raw {
                 && input.mouse_down
                 && (mouse_coord - state.track_click_start_coord).abs() > TRACK_DRAG_THRESHOLD
             {
-                let part = first_interactable_part(&spec.style, state.upper.is_some());
+                let part = first_interactable_part(&spec.style, state.value.is_range());
                 if let Some(part) = part {
                     let value = coord_to_value(mouse_coord, min, range, track_start, track_len);
                     match part {
-                        SliderPart::LowerThumb => state.lower = value,
-                        SliderPart::UpperThumb => state.upper = Some(value),
+                        SliderPart::LowerThumb => match state.value {
+                            SliderValue::Single(_) => state.value = SliderValue::Single(value),
+                            SliderValue::Range { upper, .. } => {
+                                state.value = SliderValue::Range {
+                                    lower: value,
+                                    upper,
+                                }
+                            }
+                        },
+                        SliderPart::UpperThumb => match state.value {
+                            SliderValue::Single(_) => {}
+                            SliderValue::Range { lower, .. } => {
+                                state.value = SliderValue::Range {
+                                    lower,
+                                    upper: value,
+                                }
+                            }
+                        },
                         SliderPart::Segment => move_segment_center_to(state, value, min, max),
                     }
                     repair_values(state, min, max, spec.min_gap, spec.max_gap);
                     state.drag_start_mouse_coord = mouse_coord;
-                    state.drag_start_lower = state.lower;
-                    state.drag_start_upper = state.upper;
+                    state.drag_start_value = state.value;
                     state.active_part = Some(part);
                 }
                 state.is_track_clicking = false;
@@ -327,12 +349,6 @@ pub mod raw {
             // Track click (mouse down on track, not on thumb)
             let active_start = lower_coord.min(upper_coord.unwrap_or(lower_coord));
             let active_end = upper_coord.unwrap_or(lower_coord).max(lower_coord);
-            let hit_part = hit_test_parts(
-                input.mouse_pos,
-                lower_thumb_rect,
-                upper_thumb_rect,
-                segment_rect,
-            );
             if is_visible
                 && is_hover_active
                 && input.mouse_pressed
@@ -363,8 +379,7 @@ pub mod raw {
                     }
                     state.active_part = Some(part);
                     state.drag_start_mouse_coord = mouse_coord;
-                    state.drag_start_lower = state.lower;
-                    state.drag_start_upper = state.upper;
+                    state.drag_start_value = state.value;
                 }
             }
 
@@ -382,7 +397,7 @@ pub mod raw {
                                     spec.min_gap,
                                     spec.max_gap,
                                 );
-                                if state.upper.is_none() {
+                                if !state.value.is_range() {
                                     let cursor_val = coord_to_value(
                                         mouse_coord,
                                         min,
@@ -390,7 +405,8 @@ pub mod raw {
                                         track_start,
                                         track_len,
                                     );
-                                    state.lower = state.lower.max(cursor_val);
+                                    let val = state.value.lower().max(cursor_val);
+                                    state.value = SliderValue::Single(val);
                                 }
                                 state.next_repeat_time = spec.time + 0.05;
                             }
@@ -405,7 +421,7 @@ pub mod raw {
                                     spec.min_gap,
                                     spec.max_gap,
                                 );
-                                if state.upper.is_none() {
+                                if !state.value.is_range() {
                                     let cursor_val = coord_to_value(
                                         mouse_coord,
                                         min,
@@ -413,7 +429,8 @@ pub mod raw {
                                         track_start,
                                         track_len,
                                     );
-                                    state.lower = state.lower.min(cursor_val);
+                                    let val = state.value.lower().min(cursor_val);
+                                    state.value = SliderValue::Single(val);
                                 }
                                 state.next_repeat_time = spec.time + 0.05;
                             }
@@ -529,42 +546,43 @@ pub mod raw {
             });
         }
 
-        let before_stroke = if state.upper.is_none()
+        let before_stroke = if !state.value.is_range()
             && state.active_part == Some(SliderPart::LowerThumb)
             && !spec.disabled
         {
-            spec.style
-                .lower_thumb_style
-                .map_or(spec.style.before_style, |lower_thumb_style| {
-                    Stroke::new(
-                        lower_thumb_style.fill.dragged,
-                        spec.style.before_style.width,
-                    )
+            spec.style.before_stroke.map(|s| {
+                spec.style.lower_thumb_style.map_or(s, |lower_thumb_style| {
+                    Stroke::new(lower_thumb_style.fill.dragged, s.width)
                 })
+            })
         } else {
-            spec.style.before_style
+            spec.style.before_stroke
         };
 
-        draw_track_region(
-            cmds,
-            spec.layer,
-            track_rect,
-            is_vert,
-            track_start,
-            lower_coord,
-            before_stroke,
-            &tint,
-        );
-        draw_track_region(
-            cmds,
-            spec.layer,
-            track_rect,
-            is_vert,
-            upper_coord.unwrap_or(lower_coord),
-            track_start + track_len,
-            spec.style.after_style,
-            &tint,
-        );
+        if let Some(before_stroke) = before_stroke {
+            draw_track_region(
+                cmds,
+                spec.layer,
+                track_rect,
+                is_vert,
+                track_start,
+                lower_coord,
+                before_stroke,
+                &tint,
+            );
+        }
+        if let Some(after_stroke) = spec.style.after_stroke {
+            draw_track_region(
+                cmds,
+                spec.layer,
+                track_rect,
+                is_vert,
+                upper_coord.unwrap_or(lower_coord),
+                track_start + track_len,
+                after_stroke,
+                &tint,
+            );
+        }
 
         if let Some((style, rect)) = spec.style.segment_style.zip(segment_rect) {
             let segment_is_hovered = !spec.disabled && rect.contains(input.mouse_pos) && is_visible;
@@ -645,10 +663,7 @@ pub mod raw {
         SliderResult {
             focused,
             input: InputInfo {
-                hovered: !spec.disabled
-                    && track_rect.contains(input.mouse_pos)
-                    && is_visible
-                    && is_hover_active,
+                hovered: !spec.disabled && pointer_over_slider && is_visible && is_hover_active,
                 pressed: !spec.disabled && (state.active_part.is_some() || state.is_track_clicking),
                 clicked: false,
             },
@@ -740,6 +755,13 @@ fn segment_rect(
     cross_axis_rect(track_rect, is_vert, start, len, style.cross_axis)
 }
 
+fn effective_gaps(min: f32, max: f32, min_gap: Option<f32>, max_gap: Option<f32>) -> (f32, f32) {
+    let domain = max - min;
+    let min_gap = min_gap.unwrap_or(0.0).clamp(0.0, domain);
+    let max_gap = max_gap.unwrap_or(domain).clamp(min_gap, domain);
+    (min_gap, max_gap)
+}
+
 fn repair_values(
     state: &mut SliderState,
     min: f32,
@@ -747,25 +769,29 @@ fn repair_values(
     min_gap: Option<f32>,
     max_gap: Option<f32>,
 ) {
-    state.lower = state.lower.clamp(min, max);
-    let Some(mut upper) = state.upper else {
-        return;
-    };
+    match state.value {
+        SliderValue::Single(lower) => {
+            state.value = SliderValue::Single(lower.clamp(min, max));
+        }
+        SliderValue::Range {
+            mut lower,
+            mut upper,
+        } => {
+            lower = lower.clamp(min, max);
+            upper = upper.clamp(min, max);
+            if lower > upper {
+                core::mem::swap(&mut lower, &mut upper);
+            }
 
-    upper = upper.clamp(min, max);
-    if state.lower > upper {
-        core::mem::swap(&mut state.lower, &mut upper);
+            let (min_gap_val, max_gap_val) = effective_gaps(min, max, min_gap, max_gap);
+            let gap = (upper - lower).clamp(min_gap_val, max_gap_val);
+
+            upper = (lower + gap).min(max);
+            lower = (upper - gap).max(min);
+            upper = (lower + gap).min(max);
+            state.value = SliderValue::Range { lower, upper };
+        }
     }
-
-    let domain = max - min;
-    let min_gap = min_gap.unwrap_or(0.0).clamp(0.0, domain);
-    let max_gap = max_gap.unwrap_or(domain).clamp(min_gap, domain);
-    let gap = (upper - state.lower).clamp(min_gap, max_gap);
-
-    upper = (state.lower + gap).min(max);
-    state.lower = (upper - gap).max(min);
-    upper = (state.lower + gap).min(max);
-    state.upper = Some(upper);
 }
 
 fn apply_drag_delta(
@@ -778,34 +804,60 @@ fn apply_drag_delta(
     max_gap: Option<f32>,
 ) {
     match part {
-        SliderPart::LowerThumb => state.lower = state.drag_start_lower + val_delta,
-        SliderPart::UpperThumb => {
-            if let Some(start_upper) = state.drag_start_upper {
-                state.upper = Some(start_upper + val_delta);
+        SliderPart::LowerThumb => match state.value {
+            SliderValue::Single(_) => {
+                let requested_lower = state.drag_start_value.lower() + val_delta;
+                state.value = SliderValue::Single(requested_lower.clamp(min, max));
+            }
+            SliderValue::Range { upper, .. } => {
+                let requested_lower = state.drag_start_value.lower() + val_delta;
+                let (min_gap_val, max_gap_val) = effective_gaps(min, max, min_gap, max_gap);
+                let min_lower = (upper - max_gap_val).max(min);
+                let max_lower = (upper - min_gap_val).min(max);
+                let lower = requested_lower.clamp(min_lower, max_lower);
+                state.value = SliderValue::Range { lower, upper };
+            }
+        },
+        SliderPart::UpperThumb => match state.value {
+            SliderValue::Single(_) => {}
+            SliderValue::Range { lower, .. } => {
+                let requested_upper = state.drag_start_value.upper().unwrap_or(max) + val_delta;
+                let (min_gap_val, max_gap_val) = effective_gaps(min, max, min_gap, max_gap);
+                let min_upper = (lower + min_gap_val).max(min);
+                let max_upper = (lower + max_gap_val).min(max);
+                let upper = requested_upper.clamp(min_upper, max_upper);
+                state.value = SliderValue::Range { lower, upper };
+            }
+        },
+        SliderPart::Segment => {
+            if let SliderValue::Range { .. } = state.value {
+                let start_lower = state.drag_start_value.lower();
+                let start_upper = state.drag_start_value.upper().unwrap_or(max);
+                let gap = start_upper - start_lower;
+                let lower = (start_lower + val_delta).clamp(min, max - gap);
+                state.value = SliderValue::Range {
+                    lower,
+                    upper: lower + gap,
+                };
             }
         }
-        SliderPart::Segment => {
-            let Some(start_upper) = state.drag_start_upper else {
-                return;
-            };
-            let gap = start_upper - state.drag_start_lower;
-            let lower = (state.drag_start_lower + val_delta).clamp(min, max - gap);
-            state.lower = lower;
-            state.upper = Some(lower + gap);
-        }
     }
-    repair_values(state, min, max, min_gap, max_gap);
 }
 
 fn move_segment_center_to(state: &mut SliderState, value: f32, min: f32, max: f32) {
-    let Some(upper) = state.upper else {
-        state.lower = value;
-        return;
-    };
-    let gap = upper - state.lower;
-    let lower = (value - gap * 0.5).clamp(min, max - gap);
-    state.lower = lower;
-    state.upper = Some(lower + gap);
+    match state.value {
+        SliderValue::Single(_) => {
+            state.value = SliderValue::Single(value.clamp(min, max));
+        }
+        SliderValue::Range { lower, upper } => {
+            let gap = upper - lower;
+            let new_lower = (value - gap * 0.5).clamp(min, max - gap);
+            state.value = SliderValue::Range {
+                lower: new_lower,
+                upper: new_lower + gap,
+            };
+        }
+    }
 }
 
 fn step_active_value(
@@ -816,13 +868,18 @@ fn step_active_value(
     min_gap: Option<f32>,
     max_gap: Option<f32>,
 ) {
-    if let Some(upper) = state.upper {
-        let gap = upper - state.lower;
-        let lower = (state.lower + delta).clamp(min, max - gap);
-        state.lower = lower;
-        state.upper = Some(lower + gap);
-    } else {
-        state.lower = (state.lower + delta).clamp(min, max);
+    match state.value {
+        SliderValue::Single(lower) => {
+            state.value = SliderValue::Single((lower + delta).clamp(min, max));
+        }
+        SliderValue::Range { lower, upper } => {
+            let gap = upper - lower;
+            let new_lower = (lower + delta).clamp(min, max - gap);
+            state.value = SliderValue::Range {
+                lower: new_lower,
+                upper: new_lower + gap,
+            };
+        }
     }
     repair_values(state, min, max, min_gap, max_gap);
 }
@@ -839,30 +896,41 @@ fn page_active_value(
 }
 
 fn active_min_value(state: &SliderState) -> f32 {
-    state.lower
+    state.value.lower()
 }
 
 fn active_max_value(state: &SliderState) -> f32 {
-    state.upper.unwrap_or(state.lower)
+    state.value.upper().unwrap_or(state.value.lower())
 }
 
 fn set_active_min(state: &mut SliderState, min: f32) {
-    if let Some(upper) = state.upper {
-        let gap = upper - state.lower;
-        state.lower = min;
-        state.upper = Some(min + gap);
-    } else {
-        state.lower = min;
+    match state.value {
+        SliderValue::Single(_) => {
+            state.value = SliderValue::Single(min);
+        }
+        SliderValue::Range { lower, upper } => {
+            let gap = upper - lower;
+            state.value = SliderValue::Range {
+                lower: min,
+                upper: min + gap,
+            };
+        }
     }
 }
 
 fn set_active_max(state: &mut SliderState, min: f32, max: f32) {
-    if let Some(upper) = state.upper {
-        let gap = upper - state.lower;
-        state.upper = Some(max);
-        state.lower = (max - gap).max(min);
-    } else {
-        state.lower = max;
+    match state.value {
+        SliderValue::Single(_) => {
+            state.value = SliderValue::Single(max);
+        }
+        SliderValue::Range { lower, upper } => {
+            let gap = upper - lower;
+            let new_lower = (max - gap).max(min);
+            state.value = SliderValue::Range {
+                lower: new_lower,
+                upper: max,
+            };
+        }
     }
 }
 
@@ -1074,10 +1142,10 @@ pub struct SliderStyle {
     pub background_fill: Option<Color>,
 
     /// Stroke for the track region from min → lower.
-    pub before_style: Stroke,
+    pub before_stroke: Option<Stroke>,
 
     /// Stroke for the track region from upper/lower → max.
-    pub after_style: Stroke,
+    pub after_stroke: Option<Stroke>,
 
     /// Optional bar drawn between lower and upper.
     ///
@@ -1148,8 +1216,8 @@ impl SliderStyle {
 
         Self {
             background_fill: None,
-            before_style: Stroke::new(theme.ink, 1.5),
-            after_style: Stroke::new(theme.line, 1.5),
+            before_stroke: Some(Stroke::new(theme.ink, 1.5)),
+            after_stroke: Some(Stroke::new(theme.line, 1.5)),
             segment_style: None,
             lower_thumb_style: Some(default_thumb),
             upper_thumb_style: None,
@@ -1171,14 +1239,8 @@ impl SliderStyle {
                 theme.ink.b,
                 0.04,
             )),
-            before_style: Stroke::new(
-                Color::linear_rgba(theme.ink.r, theme.ink.g, theme.ink.b, 0.04),
-                1.0,
-            ),
-            after_style: Stroke::new(
-                Color::linear_rgba(theme.ink.r, theme.ink.g, theme.ink.b, 0.04),
-                1.0,
-            ),
+            before_stroke: None,
+            after_stroke: None,
             segment_style: Some(SegmentStyle {
                 cross_axis: ThumbCrossAxis::FillTrack { margin: 1.0 },
                 fill: InteractiveColor {
@@ -1220,20 +1282,18 @@ pub enum SliderPart {
     Segment,
 }
 
-// ── State ─────────────────────────────────────────────────────────────────────
+// ── Slider Value ─────────────────────────────────────────────────────────────
 
-/// Slider values are modelled as one required lower endpoint and one optional
-/// upper endpoint.
+/// Slider values are modelled as either a single point or an interval.
 ///
-/// Point slider:
+/// Single-value slider:
 ///
 /// ```text
-/// min -------- lower ---------------- max
+/// min -------- value ---------------- max
 ///                ^
-///              value
 /// ```
 ///
-/// Interval slider:
+/// Range/span/scrollbar-like slider:
 ///
 /// ```text
 /// min ---- lower ======== upper ----- max
@@ -1241,24 +1301,92 @@ pub enum SliderPart {
 ///         start           end
 /// ```
 ///
-/// When `upper` is `None`, the slider represents a single value at `lower`.
-/// When `upper` is `Some`, the slider represents the interval
-/// `lower..upper`.
-#[derive(Debug, Clone, Default, PartialEq)]
+/// `Single` represents one value. `Range` represents the interval
+/// `lower..upper`. Fixed-size spans are represented by `Range` together with
+/// equal `min_gap` and `max_gap` constraints on `SliderSpec`.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum SliderValue {
+    Single(f32),
+    Range { lower: f32, upper: f32 },
+}
+
+impl Default for SliderValue {
+    fn default() -> Self {
+        SliderValue::Single(0.0)
+    }
+}
+
+impl SliderValue {
+    pub fn single(value: f32) -> Self {
+        SliderValue::Single(value)
+    }
+    pub fn range(lower: f32, upper: f32) -> Self {
+        SliderValue::Range { lower, upper }
+    }
+
+    pub fn lower(self) -> f32 {
+        match self {
+            SliderValue::Single(v) => v,
+            SliderValue::Range { lower, .. } => lower,
+        }
+    }
+    pub fn upper(self) -> Option<f32> {
+        match self {
+            SliderValue::Single(_) => None,
+            SliderValue::Range { upper, .. } => Some(upper),
+        }
+    }
+    pub fn is_range(self) -> bool {
+        match self {
+            SliderValue::Single(_) => false,
+            SliderValue::Range { .. } => true,
+        }
+    }
+
+    pub fn as_pair(self) -> (f32, Option<f32>) {
+        match self {
+            SliderValue::Single(v) => (v, None),
+            SliderValue::Range { lower, upper } => (lower, Some(upper)),
+        }
+    }
+    pub fn from_pair(lower: f32, upper: Option<f32>) -> Self {
+        if let Some(upper) = upper {
+            SliderValue::Range { lower, upper }
+        } else {
+            SliderValue::Single(lower)
+        }
+    }
+}
+
+// ── State ─────────────────────────────────────────────────────────────────────
+
+#[derive(Debug, Clone, PartialEq)]
 pub struct SliderState {
-    /// Required lower endpoint. For point sliders this is the single value.
-    pub lower: f32,
-    /// Optional upper endpoint. When present the slider represents an interval.
-    pub upper: Option<f32>,
+    pub value: SliderValue,
     pub focus_id: FocusId,
     pub active_part: Option<SliderPart>,
     pub drag_start_mouse_coord: f32,
-    pub drag_start_lower: f32,
-    pub drag_start_upper: Option<f32>,
+    pub drag_start_value: SliderValue,
     pub is_track_clicking: bool,
     pub track_click_start_coord: f32,
     pub next_repeat_time: f64,
     pub track_click_direction: Option<PagingDirection>,
+}
+
+impl Default for SliderState {
+    fn default() -> Self {
+        Self {
+            value: SliderValue::default(),
+            focus_id: FocusId::default(),
+            active_part: None,
+            drag_start_mouse_coord: 0.0,
+            drag_start_value: SliderValue::default(),
+            is_track_clicking: false,
+            track_click_start_coord: 0.0,
+            next_repeat_time: 0.0,
+            track_click_direction: None,
+        }
+    }
 }
 
 // ── Result ───────────────────────────────────────────────────────────────────

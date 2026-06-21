@@ -200,8 +200,10 @@ fn test_scroll_area_vertical_scrollbar_segment_drag_updates_offset_y() {
     let mut state = ScrollState::default();
     state.vert_slider_state.active_part = Some(crate::widgets::slider::SliderPart::Segment);
     state.vert_slider_state.drag_start_mouse_coord = 10.0;
-    state.vert_slider_state.drag_start_lower = 0.0;
-    state.vert_slider_state.drag_start_upper = Some(200.0);
+    state.vert_slider_state.drag_start_value = crate::widgets::SliderValue::Range {
+        lower: 0.0,
+        upper: 200.0,
+    };
     let input = Input {
         mouse_down: true,
         mouse_pos: Vec2::new(194.0, 50.0),
@@ -226,8 +228,10 @@ fn test_scroll_area_horizontal_scrollbar_segment_drag_updates_offset_x() {
     let mut state = ScrollState::default();
     state.horiz_slider_state.active_part = Some(crate::widgets::slider::SliderPart::Segment);
     state.horiz_slider_state.drag_start_mouse_coord = 10.0;
-    state.horiz_slider_state.drag_start_lower = 0.0;
-    state.horiz_slider_state.drag_start_upper = Some(200.0);
+    state.horiz_slider_state.drag_start_value = crate::widgets::SliderValue::Range {
+        lower: 0.0,
+        upper: 200.0,
+    };
     let input = Input {
         mouse_down: true,
         mouse_pos: Vec2::new(50.0, 194.0),

@@ -9,7 +9,9 @@ use framewise::{
     widgets::{
         button::button,
         scroll_area::{begin_scroll_area, ScrollAreaSpecBuilder},
-        slider::{slider, Orientation as SliderOrientation, SliderSpecBuilder, SliderState},
+        slider::{
+            slider, Orientation as SliderOrientation, SliderSpecBuilder, SliderState, SliderValue,
+        },
         ButtonSpecBuilder,
     },
     ColumnLayoutParams, RowLayoutParams,
@@ -46,11 +48,11 @@ impl Default for NestedRowState {
             horiz_btns: std::array::from_fn(|_| SampleButton::default()),
             both_btns: std::array::from_fn(|_| SampleButton::default()),
             slider_state: SliderState {
-                lower: 50.0,
+                value: SliderValue::Single(50.0),
                 ..Default::default()
             },
             horiz_slider_state: SliderState {
-                lower: 50.0,
+                value: SliderValue::Single(50.0),
                 ..Default::default()
             },
         }
@@ -105,7 +107,7 @@ impl Default for ScrollDemoState {
             top_btn1: SampleButton::default(),
             top_btn2: SampleButton::default(),
             standalone_slider_state: SliderState {
-                lower: 50.0,
+                value: SliderValue::Single(50.0),
                 ..Default::default()
             },
             double_horiz_outer_scroll: Default::default(),
@@ -121,7 +123,7 @@ impl Default for ScrollDemoState {
             triple_inner_scroll: Default::default(),
             triple_inner_btns: std::array::from_fn(|_| SampleButton::default()),
             triple_inner_slider_state: SliderState {
-                lower: 50.0,
+                value: SliderValue::Single(50.0),
                 ..Default::default()
             },
             triple_innermost_scroll: Default::default(),

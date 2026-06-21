@@ -80,7 +80,8 @@ use framewise::widgets::select::{select, SelectSpecBuilder, SelectState, SelectS
 #[cfg(feature = "slider")]
 #[allow(unused_imports)]
 use framewise::widgets::slider::{
-    slider, Orientation, ScrollClaimPolicy, SliderPart, SliderSpecBuilder, SliderState, SliderStyle,
+    slider, Orientation, ScrollClaimPolicy, SliderPart, SliderSpecBuilder, SliderState,
+    SliderStyle, SliderValue,
 };
 #[cfg(feature = "spinner")]
 #[allow(unused_imports)]
@@ -363,10 +364,10 @@ fn draw_slider_fake_state<T: TextBackend, LS: LayoutState, CF>(
 ) {
     let rect = b.layout(layout_params, SizeRequest::UNKNOWN);
     let mut state = SliderState {
-        lower: val,
+        value: SliderValue::Single(val),
         active_part: is_dragging.then_some(SliderPart::LowerThumb),
         drag_start_mouse_coord: 0.0,
-        drag_start_lower: val,
+        drag_start_value: SliderValue::Single(val),
         ..Default::default()
     };
     let dummy_input = Input {
@@ -883,22 +884,22 @@ impl Default for SpecWidgetsState {
             ),
             #[cfg(all(feature = "slider", feature = "drag_number", feature = "color_swatch"))]
             slider1_state: SliderState {
-                lower: 0.14,
+                value: SliderValue::Single(0.14),
                 ..Default::default()
             },
             #[cfg(all(feature = "slider", feature = "drag_number", feature = "color_swatch"))]
             slider2_state: SliderState {
-                lower: 0.62,
+                value: SliderValue::Single(0.62),
                 ..Default::default()
             },
             #[cfg(all(feature = "slider", feature = "drag_number", feature = "color_swatch"))]
             slider3_state: SliderState {
-                lower: 0.88,
+                value: SliderValue::Single(0.88),
                 ..Default::default()
             },
             #[cfg(all(feature = "slider", feature = "drag_number", feature = "color_swatch"))]
             slider4_state: SliderState {
-                lower: 3.0,
+                value: SliderValue::Single(3.0),
                 ..Default::default()
             },
             #[cfg(all(feature = "checkbox", feature = "radio", feature = "switch"))]
@@ -1094,7 +1095,7 @@ impl Default for SpecWidgetsState {
                 feature = "menu"
             ))]
             iu_fps_slider: SliderState {
-                lower: 60.0,
+                value: SliderValue::Single(60.0),
                 ..Default::default()
             },
             #[cfg(all(
@@ -2577,9 +2578,9 @@ fn section_04_sliders<CF>(
             let text = if is_static {
                 format!("{:.2}", 0.88)
             } else if show_ticks {
-                format!("{:.0} / 9", slider_state.lower)
+                format!("{:.0} / 9", slider_state.value.lower())
             } else {
-                format!("{:.2}", slider_state.lower)
+                format!("{:.2}", slider_state.value.lower())
             };
             let spec = LabelSpecBuilder::new().text(&text).style(LabelStyle {
                 text_style: framewise::TextStyle {
@@ -4220,7 +4221,7 @@ fn section_12_in_use<CF>(
         };
         {
             let layout_params = Rect::new(widget_x + widget_w - 34.0, fy + 7.0, 34.0, 14.0);
-            let text: &str = &format!("{:.0}", state.iu_fps_slider.lower);
+            let text: &str = &format!("{:.0}", state.iu_fps_slider.value.lower());
             let size = win.theme.text_sm;
             let color = win.theme.ink;
             let spec_builder = LabelSpecBuilder::new().text(text).style(LabelStyle {

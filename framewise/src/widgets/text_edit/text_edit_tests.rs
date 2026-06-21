@@ -67,13 +67,7 @@ fn test_text_edit_style_scroll_area_defaults() {
         TEXT_EDIT_SCROLLBAR_WIDTH
     );
     assert_eq!(style.scroll_area_style.corner_color, Some(theme.paper_elev));
-    assert_eq!(
-        style.scroll_area_style.scrollbar_style.before_style,
-        Stroke::new(
-            Color::linear_rgba(theme.ink.r, theme.ink.g, theme.ink.b, 0.04),
-            1.0
-        )
-    );
+    assert_eq!(style.scroll_area_style.scrollbar_style.before_stroke, None);
     assert_eq!(
         style
             .scroll_area_style
