@@ -245,18 +245,19 @@ impl DrawCommands {
         stroke: Option<Stroke>,
         z: u32,
         anti_alias: bool,
-    ) {
-        if let Some(s) = stroke {
-            if s.is_visible() {
-                self.push(DrawCmd::StrokeRect {
-                    rect,
-                    color: s.color,
-                    width: s.width,
-                    z,
-                    anti_alias,
-                });
-            }
+    ) -> Option<usize> {
+        let s = stroke?;
+        if !s.is_visible() {
+            return None;
         }
+
+        Some(self.push(DrawCmd::StrokeRect {
+            rect,
+            color: s.color,
+            width: s.width,
+            z,
+            anti_alias,
+        }))
     }
 
     pub fn push_stroke_line(
@@ -266,19 +267,20 @@ impl DrawCommands {
         stroke: Option<Stroke>,
         z: u32,
         anti_alias: bool,
-    ) {
-        if let Some(s) = stroke {
-            if s.is_visible() {
-                self.push(DrawCmd::StrokeLine {
-                    p0,
-                    p1,
-                    color: s.color,
-                    width: s.width,
-                    z,
-                    anti_alias,
-                });
-            }
+    ) -> Option<usize> {
+        let s = stroke?;
+        if !s.is_visible() {
+            return None;
         }
+
+        Some(self.push(DrawCmd::StrokeLine {
+            p0,
+            p1,
+            color: s.color,
+            width: s.width,
+            z,
+            anti_alias,
+        }))
     }
 
     pub fn push_stroke_circle(
@@ -288,19 +290,20 @@ impl DrawCommands {
         stroke: Option<Stroke>,
         z: u32,
         anti_alias: bool,
-    ) {
-        if let Some(s) = stroke {
-            if s.is_visible() {
-                self.push(DrawCmd::StrokeCircle {
-                    center,
-                    radius,
-                    color: s.color,
-                    width: s.width,
-                    z,
-                    anti_alias,
-                });
-            }
+    ) -> Option<usize> {
+        let s = stroke?;
+        if !s.is_visible() {
+            return None;
         }
+
+        Some(self.push(DrawCmd::StrokeCircle {
+            center,
+            radius,
+            color: s.color,
+            width: s.width,
+            z,
+            anti_alias,
+        }))
     }
 }
 
@@ -400,5 +403,52 @@ mod tests {
         assert_eq!(index, None);
         assert!(cmds.commands().is_empty());
         assert!(cmds.glyphs().is_empty());
+    }
+
+    #[test]
+    fn test_push_stroke_helpers() {
+        let mut cmds = DrawCommands::new();
+        let r = Rect::new(0.0, 0.0, 10.0, 10.0);
+
+        // 1. push_stroke_rect returns Some(index) when it pushes.
+        let s_valid = Stroke::new(color(), 2.0);
+        let index = cmds.push_stroke_rect(r, Some(s_valid), 1, true);
+        assert_eq!(index, Some(0));
+        assert_eq!(cmds.len(), 1);
+
+        // 2. push_stroke_rect returns None and does not push for None.
+        let index_none = cmds.push_stroke_rect(r, None, 1, true);
+        assert_eq!(index_none, None);
+        assert_eq!(cmds.len(), 1);
+
+        // 3. push_stroke_rect returns None and does not push for Stroke { width: 0.0, ... }.
+        let s_zero_width = Stroke::new(color(), 0.0);
+        let index_zero_width = cmds.push_stroke_rect(r, Some(s_zero_width), 1, true);
+        assert_eq!(index_zero_width, None);
+        assert_eq!(cmds.len(), 1);
+
+        // 4. push_stroke_rect returns None and does not push for alpha-zero color.
+        let transparent_color = Color::from_srgb_u8(1, 2, 3, 0);
+        let s_transparent = Stroke::new(transparent_color, 2.0);
+        let index_transparent = cmds.push_stroke_rect(r, Some(s_transparent), 1, true);
+        assert_eq!(index_transparent, None);
+        assert_eq!(cmds.len(), 1);
+
+        // Smoke test for push_stroke_line
+        let index_line = cmds.push_stroke_line(
+            Vec2::new(0.0, 0.0),
+            Vec2::new(1.0, 1.0),
+            Some(s_valid),
+            1,
+            true,
+        );
+        assert_eq!(index_line, Some(1));
+        assert_eq!(cmds.len(), 2);
+
+        // Smoke test for push_stroke_circle
+        let index_circle =
+            cmds.push_stroke_circle(Vec2::new(0.0, 0.0), 5.0, Some(s_valid), 1, true);
+        assert_eq!(index_circle, Some(2));
+        assert_eq!(cmds.len(), 3);
     }
 }

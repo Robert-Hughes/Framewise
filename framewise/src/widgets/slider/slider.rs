@@ -474,52 +474,54 @@ pub mod raw {
                 );
             }
         }
-
         match spec.style.track {
             TrackStyle::Line {
                 stroke,
                 fill_before_thumb,
             } => {
-                let thickness = stroke.width;
-                let half_thick = thickness * 0.5;
-                let track_line = if is_vert {
-                    let cx = track_rect.x + track_rect.w * 0.5;
-                    Rect::new(cx - half_thick, track_rect.y, thickness, track_rect.h)
-                } else {
-                    let cy = track_rect.y + track_rect.h * 0.5;
-                    Rect::new(track_rect.x, cy - half_thick, track_rect.w, thickness)
-                };
-
-                // Full track line (e.g. ink).
-                cmds.push(DrawCmd::FillRect {
-                    anti_alias: false,
-                    rect: track_line,
-                    color: tint(stroke.color),
-                    z: spec.layer.get_z(),
-                });
-
-                if let Some(fill_color) = fill_before_thumb {
-                    let fill_len = thumb_pos - (if is_vert { track_rect.y } else { track_rect.x })
-                        + thumb_len * 0.5;
-                    let fill_bar = if is_vert {
+                if stroke.is_visible() {
+                    let thickness = stroke.width;
+                    let half_thick = thickness * 0.5;
+                    let track_line = if is_vert {
                         let cx = track_rect.x + track_rect.w * 0.5;
-                        Rect::new(cx - half_thick, track_rect.y, thickness, fill_len.max(0.0))
+                        Rect::new(cx - half_thick, track_rect.y, thickness, track_rect.h)
                     } else {
                         let cy = track_rect.y + track_rect.h * 0.5;
-                        Rect::new(track_rect.x, cy - half_thick, fill_len.max(0.0), thickness)
+                        Rect::new(track_rect.x, cy - half_thick, track_rect.w, thickness)
                     };
-                    let fill_color = if !spec.disabled && state.is_dragging {
-                        spec.style.thumb.fill.dragged
-                    } else {
-                        fill_color
-                    };
-                    // Fill bar (active section before thumb).
+
+                    // Full track line (e.g. ink).
                     cmds.push(DrawCmd::FillRect {
                         anti_alias: false,
-                        rect: fill_bar,
-                        color: tint(fill_color),
+                        rect: track_line,
+                        color: tint(stroke.color),
                         z: spec.layer.get_z(),
                     });
+
+                    if let Some(fill_color) = fill_before_thumb {
+                        let fill_len = thumb_pos
+                            - (if is_vert { track_rect.y } else { track_rect.x })
+                            + thumb_len * 0.5;
+                        let fill_bar = if is_vert {
+                            let cx = track_rect.x + track_rect.w * 0.5;
+                            Rect::new(cx - half_thick, track_rect.y, thickness, fill_len.max(0.0))
+                        } else {
+                            let cy = track_rect.y + track_rect.h * 0.5;
+                            Rect::new(track_rect.x, cy - half_thick, fill_len.max(0.0), thickness)
+                        };
+                        let fill_color = if !spec.disabled && state.is_dragging {
+                            spec.style.thumb.fill.dragged
+                        } else {
+                            fill_color
+                        };
+                        // Fill bar (active section before thumb).
+                        cmds.push(DrawCmd::FillRect {
+                            anti_alias: false,
+                            rect: fill_bar,
+                            color: tint(fill_color),
+                            z: spec.layer.get_z(),
+                        });
+                    }
                 }
             }
             TrackStyle::Rect { color, border } => {

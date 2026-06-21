@@ -1986,3 +1986,43 @@ fn test_scrollbar_visual_normal() {
         ]
     );
 }
+
+#[test]
+fn test_slider_track_line_invisible_stroke() {
+    let mut state = SliderState::default();
+    let mut spec = test_spec(0.0, 100.0, false);
+
+    // Set track stroke to an invisible stroke (e.g. width = 0.0)
+    if let TrackStyle::Line { stroke, .. } = &mut spec.style.track {
+        stroke.width = 0.0;
+    } else {
+        panic!("expected default TrackStyle::Line");
+    }
+
+    let mut focus_system = FocusSystem::new();
+    let mut cmds = DrawCommands::new();
+
+    focus_system.begin_frame();
+    raw::post_layout_slider(
+        spec.clone(),
+        raw::SliderPreLayoutResult {
+            size_request: crate::layout::SizeRequest::UNKNOWN,
+        },
+        &mut state,
+        &input_none(),
+        &mut focus_system,
+        &mut cmds,
+    );
+    focus_system.end_frame();
+
+    // Since stroke width is 0.0, it is not visible.
+    // The match in slider.rs for TrackStyle::Line should skip track and fill_before_thumb rects.
+    // Let's assert that there is no FillRect with width 1.5 (which is the default thickness).
+    for cmd in cmds.commands() {
+        if let DrawCmd::FillRect { rect, .. } = cmd {
+            if rect.w == 1.5 || rect.h == 1.5 {
+                panic!("found track line or fill bar DrawCmd::FillRect when track stroke is invisible: {:?}", rect);
+            }
+        }
+    }
+}

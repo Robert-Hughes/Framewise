@@ -276,6 +276,18 @@ pub struct Stroke {
 ///
 /// An `Outline` is not just "a border"; it represents a focus ring or highlight
 /// style that has a visual gap/offset from the shape itself.
+///
+/// Positive offsets move the outline outward / away from the target shape.
+/// Negative offsets move it inward / into the target shape.
+///
+/// For rectangle focus rings, the current convention is that call sites expand/inset
+/// the target rect by:
+///
+/// ```text
+/// -(outline.offset + outline.stroke.width)
+/// ```
+///
+/// or equivalent geometry-specific logic.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Outline {
     pub stroke: Stroke,
