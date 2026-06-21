@@ -1475,7 +1475,7 @@ fn test_slider_visual_normal() {
             DrawCmd::FillRect {
                 anti_alias: false,
                 rect: Rect::new(9.25, 0.0, 1.5, 100.0),
-                color: theme.ink,
+                color: theme.line,
                 z: 0,
             },
             DrawCmd::FillRect {
@@ -1494,7 +1494,7 @@ fn test_slider_visual_normal() {
                 anti_alias: false,
                 rect: Rect::new(4.0, 44.0, 12.0, 12.0),
                 color: theme.ink,
-                width: 1.5,
+                width: 1.0,
                 z: 0,
             },
         ]
@@ -1536,7 +1536,7 @@ fn test_slider_visual_hovered() {
             DrawCmd::FillRect {
                 anti_alias: false,
                 rect: Rect::new(9.25, 0.0, 1.5, 100.0),
-                color: theme.ink,
+                color: theme.line,
                 z: 0,
             },
             DrawCmd::FillRect {
@@ -1555,7 +1555,7 @@ fn test_slider_visual_hovered() {
                 anti_alias: false,
                 rect: Rect::new(4.0, 44.0, 12.0, 12.0),
                 color: theme.ink,
-                width: 1.5,
+                width: 1.0,
                 z: 0,
             },
         ]
@@ -1597,7 +1597,7 @@ fn test_slider_visual_drag() {
             DrawCmd::FillRect {
                 anti_alias: false,
                 rect: Rect::new(9.25, 0.0, 1.5, 100.0),
-                color: theme.ink,
+                color: theme.line,
                 z: 0,
             },
             DrawCmd::FillRect {
@@ -1616,7 +1616,7 @@ fn test_slider_visual_drag() {
                 anti_alias: false,
                 rect: Rect::new(4.0, 44.0, 12.0, 12.0),
                 color: theme.rust,
-                width: 1.5,
+                width: 1.0,
                 z: 0,
             },
         ]
@@ -1663,7 +1663,7 @@ fn test_slider_visual_focused() {
             DrawCmd::FillRect {
                 anti_alias: false,
                 rect: Rect::new(9.25, 0.0, 1.5, 100.0),
-                color: theme.ink,
+                color: theme.line,
                 z: 0,
             },
             DrawCmd::FillRect {
@@ -1682,7 +1682,7 @@ fn test_slider_visual_focused() {
                 anti_alias: false,
                 rect: Rect::new(4.0, 44.0, 12.0, 12.0),
                 color: theme.ink,
-                width: 1.5,
+                width: 1.0,
                 z: 0,
             },
         ]

@@ -127,8 +127,9 @@ pub mod raw {
             0.0
         };
 
-        let thumb_pos =
-            (if is_vert { track_rect.y } else { track_rect.x }) + (val_ratio * usable_track);
+        let thumb_pos = ((if is_vert { track_rect.y } else { track_rect.x })
+            + (val_ratio * usable_track))
+            .round();
         let track_cross_size = if is_vert { track_rect.w } else { track_rect.h };
 
         let thumb_rect = match spec.style.thumb.cross_axis {
@@ -689,7 +690,7 @@ impl SliderStyle {
     pub fn from_theme(theme: &crate::theme::Theme) -> Self {
         Self {
             track: TrackStyle::Line {
-                stroke: Stroke::new(theme.ink, 1.5),
+                stroke: Stroke::new(theme.line, 1.5),
                 fill_before_thumb: Some(theme.ink),
             },
             thumb: ThumbStyle {
@@ -699,7 +700,7 @@ impl SliderStyle {
                     hovered: theme.paper_elev,
                     dragged: theme.rust,
                 },
-                border: Some(Stroke::new(theme.ink, 1.5)),
+                border: Some(Stroke::new(theme.ink, 1.0)),
             },
             focus: Some(Outline::new(
                 theme.rust,

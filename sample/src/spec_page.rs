@@ -79,7 +79,9 @@ use framewise::widgets::segmented::{segmented, SegmentedSpecBuilder, SegmentedSt
 use framewise::widgets::select::{select, SelectSpecBuilder, SelectState, SelectStyle};
 #[cfg(feature = "slider")]
 #[allow(unused_imports)]
-use framewise::widgets::slider::{slider, SliderSpecBuilder, SliderState};
+use framewise::widgets::slider::{
+    slider, Orientation, ScrollClaimPolicy, SliderSpecBuilder, SliderState, SliderStyle, ThumbLen,
+};
 #[cfg(feature = "spinner")]
 #[allow(unused_imports)]
 use framewise::widgets::spinner::{spinner, SpinnerSpecBuilder};
@@ -349,6 +351,57 @@ fn draw_drag_number_fake_state<T: TextBackend, LS: LayoutState, CF>(
         b.cmds,
     );
     let _ = result;
+}
+
+#[cfg(feature = "slider")]
+fn draw_slider_fake_state<T: TextBackend, LS: LayoutState, CF>(
+    b: &mut WidgetContext<T, LS, CF>,
+    layout_params: LS::Params,
+    val: f32,
+    is_dragging: bool,
+    focused: bool,
+) {
+    let rect = b.layout(layout_params, SizeRequest::UNKNOWN);
+    let mut state = SliderState {
+        value: val,
+        is_dragging,
+        drag_start_mouse_coord: 0.0,
+        drag_start_val: val,
+        ..Default::default()
+    };
+    let dummy_input = Input {
+        mouse_down: is_dragging,
+        ..Input::default()
+    };
+    let mock_focus = if focused { Some(state.focus_id) } else { None };
+    let mut dummy_focus_sys = FocusSystem::new_mocked(mock_focus, None);
+    let spec = framewise::widgets::slider::raw::SliderSpec {
+        rect,
+        min: 0.0,
+        max: 1.0,
+        page_step: 0.1,
+        step: 0.1,
+        orientation: Orientation::Horizontal,
+        thumb_len: ThumbLen::Fixed(12.0),
+        style: SliderStyle::from_theme(&b.theme),
+        clip_rect: b.clip_rect,
+        scroll_claim: ScrollClaimPolicy::ClaimAllDirections,
+        time: b.time,
+        disabled: false,
+        keyboard_focusable: true,
+        layer: b.layer,
+    };
+    let pre_layout = framewise::widgets::slider::raw::SliderPreLayoutResult {
+        size_request: SizeRequest::UNKNOWN,
+    };
+    framewise::widgets::slider::raw::post_layout_slider(
+        spec,
+        pre_layout,
+        &mut state,
+        &dummy_input,
+        &mut dummy_focus_sys,
+        b.cmds,
+    );
 }
 
 #[cfg(feature = "button")]
@@ -2495,47 +2548,59 @@ fn section_04_sliders<CF>(
 
     group_y(b, "slider · single value");
     {
-        let mut b = b.child_with_layout(ColumnLayoutParams::fixed(content_w, 178.0), ManualLayout);
-        let slider_w = 360.0_f32;
-        let row_gap = 14.0_f32;
+        let mut b = b.child_with_layout(ColumnLayoutParams::fixed(content_w, 120.0), ManualLayout);
+        let slider_w = 260.0_f32;
+        let row_gap = 10.0_f32;
+        let row_h = 18.0_f32;
         let mut y = 0.0;
         let values = [
-            (0.1, &mut state.slider1_state, false),
-            (0.1, &mut state.slider2_state, false),
-            (0.1, &mut state.slider3_state, false),
-            (1.0, &mut state.slider4_state, true),
+            (0.1, &mut state.slider1_state, false, false),
+            (0.1, &mut state.slider2_state, false, false),
+            (0.1, &mut state.slider3_state, false, true),
+            (1.0, &mut state.slider4_state, true, false),
         ];
 
-        for (step, slider_state, show_ticks) in values {
-            let spec_builder = if show_ticks {
-                SliderSpecBuilder::new().max(9.0).page_step(step)
+        for (step, slider_state, show_ticks, is_static) in values {
+            let rect = Rect::new(0.0, y, slider_w, row_h);
+            if is_static {
+                draw_slider_fake_state(&mut b, rect, 0.88, true, true);
             } else {
-                SliderSpecBuilder::new().max(1.0).page_step(step).step(step)
-            };
-            let rect = Rect::new(0.0, y, slider_w, b.theme.h_md);
-            slider(&mut b, spec_builder, rect, slider_state);
+                let spec_builder = if show_ticks {
+                    SliderSpecBuilder::new().max(9.0).page_step(step)
+                } else {
+                    SliderSpecBuilder::new().max(1.0).page_step(step).step(step)
+                };
+                slider(&mut b, spec_builder, rect, slider_state);
+            }
 
-            let text = if show_ticks {
+            let text = if is_static {
+                format!("{:.2}", 0.88)
+            } else if show_ticks {
                 format!("{:.0} / 9", slider_state.value)
             } else {
                 format!("{:.2}", slider_state.value)
             };
             let spec = LabelSpecBuilder::new().text(&text).style(LabelStyle {
                 text_style: framewise::TextStyle {
-                    size: b.theme.text_sm,
+                    font: b.theme.mono_font,
+                    size: b.theme.text_mono,
                     ..(LabelStyle::from_theme(&b.theme)).text_style
                 },
                 text_color: b.theme.ink,
                 ..LabelStyle::from_theme(&b.theme)
             });
-            label(
-                &mut b,
-                spec,
-                Rect::new(slider_w + 12.0, y + 6.0, 80.0, 14.0),
-            );
+            label(&mut b, spec, Rect::new(slider_w + 12.0, y, 80.0, row_h));
+
+            if is_static {
+                let badge_rect = b.layout(
+                    Rect::new(slider_w + 60.0, y, 70.0, row_h),
+                    SizeRequest::UNKNOWN,
+                );
+                static_badge(&mut b, badge_rect);
+            }
 
             if show_ticks {
-                let tick_y = y + b.theme.h_md + 2.0;
+                let tick_y = y + row_h + 2.0;
                 let usable = slider_w - 12.0;
                 for i in 0..=9usize {
                     let tx = 6.0 + (i as f32 / 9.0) * usable;
@@ -2548,9 +2613,9 @@ fn section_04_sliders<CF>(
                         z: 0,
                     });
                 }
-                y += b.theme.h_md + 8.0;
+                y += row_h + 8.0;
             } else {
-                y += b.theme.h_md + row_gap;
+                y += row_h + row_gap;
             }
         }
         b.finish();
@@ -2558,12 +2623,9 @@ fn section_04_sliders<CF>(
 
     group_y(b, "range slider");
     {
-        let mut b = b.child_with_layout(
-            ColumnLayoutParams::fixed(content_w, b.theme.h_md),
-            ManualLayout,
-        );
-        let track_w = 360.0_f32;
-        let mid_y = b.theme.h_md * 0.5;
+        let mut b = b.child_with_layout(ColumnLayoutParams::fixed(content_w, 18.0), ManualLayout);
+        let track_w = 260.0_f32;
+        let mid_y = 18.0 * 0.5;
         let t1 = 0.24_f32;
         let t2 = 0.76_f32;
         let fill_x1 = track_w * t1;
@@ -2595,7 +2657,7 @@ fn section_04_sliders<CF>(
                 anti_alias: false,
                 rect: rect(fill_x1 - half_ts, mid_y - half_ts, ts, ts),
                 color: b.theme.ink,
-                width: 1.5,
+                width: 1.0,
                 z: 0,
             },
             DrawCmd::FillRect {
@@ -2608,19 +2670,20 @@ fn section_04_sliders<CF>(
                 anti_alias: false,
                 rect: rect(fill_x2 - half_ts, mid_y - half_ts, ts, ts),
                 color: b.theme.ink,
-                width: 1.5,
+                width: 1.0,
                 z: 0,
             },
         ]));
         let spec = LabelSpecBuilder::new().text(".24-.76").style(LabelStyle {
             text_style: framewise::TextStyle {
-                size: b.theme.text_sm,
+                font: b.theme.mono_font,
+                size: b.theme.text_mono,
                 ..(LabelStyle::from_theme(&b.theme)).text_style
             },
             text_color: b.theme.ink,
             ..LabelStyle::from_theme(&b.theme)
         });
-        label(&mut b, spec, Rect::new(track_w + 12.0, 6.0, 80.0, 14.0));
+        label(&mut b, spec, Rect::new(track_w + 12.0, 0.0, 80.0, 18.0));
         b.finish();
     }
 
