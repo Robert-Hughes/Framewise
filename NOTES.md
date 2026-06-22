@@ -5,9 +5,7 @@ Working notes, TODOs, open questions, and half-baked ideas.
 ## Current Work
 
 - Sliders!
-  - Focus rect for scrollbars seems bigger than before?
-  - mouse wheel on overhanging thumb works for the first detent, but then stops working cos the thumb moved!
-  - hover highlighting?
+  - hover highlighting makes thumbs see-through!
   - check test coverage for all the things!
     - visual appearance for all three 'kinds'
     - visual appearance for hover and focussed/dragging states
