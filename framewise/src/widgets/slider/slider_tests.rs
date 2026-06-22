@@ -920,6 +920,200 @@ fn test_track_click_snaps_and_drags() {
     );
 }
 
+#[test]
+fn test_track_click_cross_axis_drag_captures_pointer_outside_widget() {
+    let mut state = SliderState::default();
+
+    let mut style = SliderStyle::from_theme(&crate::theme::Theme::framewise());
+    style.lower_thumb_style.as_mut().unwrap().cross_axis = ThumbCrossAxis::FixedCentered(20.0);
+
+    let spec = SliderSpec {
+        orientation: Orientation::Horizontal,
+        rect: Rect::new(0.0, 0.0, 100.0, 20.0),
+        min_gap: None,
+        max_gap: None,
+        style,
+        ..test_spec(0.0, 100.0, true)
+    };
+
+    let mut input = Input::new();
+    let mut focus_system = FocusSystem::new();
+
+    // Horizontal slider:
+    // - widget rect: x=0..100, y=0..20
+    // - thumb main-axis length is 20, so usable track is x=10..90
+    // - initial value 0 => thumb is at x=0..20
+    //
+    // Click empty track at x=50, y=19.5: horizontally in the middle of the track,
+    // vertically right next to the bottom edge of the widget.
+    input.mouse_pos = crate::types::Vec2::new(50.0, 19.5);
+
+    // Warmup frame to establish hover claim.
+    focus_system.begin_frame();
+    let mut cmds = DrawCommands::new();
+    raw::post_layout_slider(
+        spec.clone(),
+        raw::SliderPreLayoutResult {
+            size_request: crate::layout::SizeRequest::UNKNOWN,
+        },
+        &mut state,
+        &input,
+        &mut focus_system,
+        &mut cmds,
+    );
+    focus_system.end_frame();
+
+    // Frame 1: press empty track. This should do the usual initial page step,
+    // but it should not yet be a drag.
+    input.mouse_pressed = true;
+    input.mouse_down = true;
+
+    focus_system.begin_frame();
+    let mut cmds = DrawCommands::new();
+    raw::post_layout_slider(
+        spec.clone(),
+        raw::SliderPreLayoutResult {
+            size_request: crate::layout::SizeRequest::UNKNOWN,
+        },
+        &mut state,
+        &input,
+        &mut focus_system,
+        &mut cmds,
+    );
+    focus_system.end_frame();
+
+    assert!(
+        state.is_track_clicking,
+        "initial track press should enter track-clicking mode"
+    );
+    assert_eq!(
+        state.active_part, None,
+        "initial track press should not immediately start a drag"
+    );
+    assert_eq!(
+        state.value.lower(),
+        20.0,
+        "initial track press should still perform the page step"
+    );
+
+    // Frame 1b: move the cursor a small distance (2.0px, less than the 4px drag threshold)
+    // cross-axis so it moves off the widget (y=21.5). Advance time to 0.5 (next_repeat_time).
+    // The repeated paging operation should still fire and continue.
+    input.mouse_pressed = false;
+    input.mouse_pos = crate::types::Vec2::new(50.0, 21.5);
+
+    focus_system.begin_frame();
+    raw::post_layout_slider(
+        SliderSpec {
+            time: 0.5,
+            ..spec.clone()
+        },
+        raw::SliderPreLayoutResult {
+            size_request: crate::layout::SizeRequest::UNKNOWN,
+        },
+        &mut state,
+        &input,
+        &mut focus_system,
+        &mut cmds,
+    );
+    focus_system.end_frame();
+
+    assert!(
+        state.is_track_clicking,
+        "should still be track-clicking since we are below the drag threshold"
+    );
+    assert_eq!(state.active_part, None, "should not start a drag yet");
+    assert_eq!(
+        state.value.lower(),
+        40.0,
+        "repeat paging should still fire even when cursor is slightly outside the widget"
+    );
+
+    // Frame 2: move only cross-axis, beyond the 4px drag threshold and outside
+    // the widget rect. This is the desired new behaviour: the slider should
+    // treat the original track press as captured, so leaving the widget must not
+    // cancel track-clicking before drag promotion can happen.
+    //
+    // Current buggy behaviour likely cancels `is_track_clicking` here because
+    // `track_rect.contains(input.mouse_pos)` becomes false, and no drag starts.
+    input.mouse_pos = crate::types::Vec2::new(50.0, 25.0);
+
+    focus_system.begin_frame();
+    raw::post_layout_slider(
+        SliderSpec {
+            time: 0.1,
+            ..spec.clone()
+        },
+        raw::SliderPreLayoutResult {
+            size_request: crate::layout::SizeRequest::UNKNOWN,
+        },
+        &mut state,
+        &input,
+        &mut focus_system,
+        &mut cmds,
+    );
+    focus_system.end_frame();
+
+    assert_eq!(
+        state.active_part,
+        Some(SliderPart::LowerThumb),
+        "cross-axis movement after a track press should promote to thumb drag, even outside the widget"
+    );
+    assert!(
+        !state.is_track_clicking,
+        "track-clicking should end once the interaction has promoted to a drag"
+    );
+
+    // On drag entry, the thumb should snap to the cursor's main-axis coordinate.
+    // For this horizontal slider:
+    //   track_start = 10
+    //   track_len = 80
+    //   mouse x = 50
+    //   value = (50 - 10) / 80 * 100 = 50
+    assert!(
+        (state.value.lower() - 50.0).abs() < 0.01,
+        "drag entry should snap to x=50 => value 50, got {}",
+        state.value.lower()
+    );
+
+    // Frame 3: keep the cursor outside the widget, but now move parallel to the
+    // track from x=50 to x=70. Because the track press has become a captured
+    // drag, this should update the thumb exactly like normal thumb dragging.
+    input.mouse_pos = crate::types::Vec2::new(70.0, 25.0);
+
+    focus_system.begin_frame();
+    raw::post_layout_slider(
+        SliderSpec {
+            time: 0.2,
+            ..spec.clone()
+        },
+        raw::SliderPreLayoutResult {
+            size_request: crate::layout::SizeRequest::UNKNOWN,
+        },
+        &mut state,
+        &input,
+        &mut focus_system,
+        &mut cmds,
+    );
+    focus_system.end_frame();
+
+    assert_eq!(
+        state.active_part,
+        Some(SliderPart::LowerThumb),
+        "drag should remain active while the mouse is held, even outside the widget"
+    );
+
+    // Drag started at value 50 with drag_start_mouse_coord = 50.
+    // Moving to x=70 gives delta=20.
+    // val_delta = 20 / 80 * 100 = 25.
+    // expected value = 50 + 25 = 75.
+    assert!(
+        (state.value.lower() - 75.0).abs() < 0.01,
+        "parallel movement outside the widget should continue dragging to value 75, got {}",
+        state.value.lower()
+    );
+}
+
 // Regression: paging past the cursor causes direction-flip flicker.
 // Setup: track y=0..100, thumb main-axis length=20, page_step=60.
 // value=0 → thumb at y=0..20. Click at y=70 (below thumb).

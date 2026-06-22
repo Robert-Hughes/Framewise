@@ -236,11 +236,11 @@ pub mod raw {
             } else {
                 input.mouse_pos.x
             };
+            let dx = input.mouse_pos.x - state.track_click_start_mouse_pos.x;
+            let dy = input.mouse_pos.y - state.track_click_start_mouse_pos.y;
+            let drag_dist = dx.hypot(dy);
             const TRACK_DRAG_THRESHOLD: f32 = 4.0;
-            if state.is_track_clicking
-                && input.mouse_down
-                && (mouse_coord - state.track_click_start_coord).abs() > TRACK_DRAG_THRESHOLD
-            {
+            if state.is_track_clicking && input.mouse_down && drag_dist > TRACK_DRAG_THRESHOLD {
                 let part = first_interactable_part(&spec.style, state.value.is_range());
                 if let Some(part) = part {
                     let value = coord_to_value(mouse_coord, min, range, track_start, track_len);
@@ -379,7 +379,7 @@ pub mod raw {
                     focus_system.take_keyboard_focus(state.focus_id);
                 }
                 state.is_track_clicking = true;
-                state.track_click_start_coord = mouse_coord;
+                state.track_click_start_mouse_pos = input.mouse_pos;
                 state.next_repeat_time = spec.time + 0.5;
                 // Page up/down towards mouse
                 if mouse_coord < active_start {
@@ -405,7 +405,7 @@ pub mod raw {
 
             // Track click repeat logic (time-based paging)
             if state.is_track_clicking && spec.time >= state.next_repeat_time {
-                if track_rect.contains(input.mouse_pos) {
+                if track_rect.contains(input.mouse_pos) || drag_dist <= TRACK_DRAG_THRESHOLD {
                     match state.track_click_direction {
                         Some(PagingDirection::Up) => {
                             if mouse_coord < active_start {
@@ -460,7 +460,6 @@ pub mod raw {
                     // else: cursor is now inside the thumb; paging stops but keep
                     // is_track_clicking=true so the drag-transition check can still fire.
                 } else {
-                    state.is_track_clicking = false;
                     state.track_click_direction = None;
                 }
             }
@@ -1410,7 +1409,7 @@ pub struct SliderState {
     pub drag_start_mouse_coord: f32,
     pub drag_start_value: SliderValue,
     pub is_track_clicking: bool,
-    pub track_click_start_coord: f32,
+    pub track_click_start_mouse_pos: Vec2,
     pub next_repeat_time: f64,
     pub track_click_direction: Option<PagingDirection>,
 }
@@ -1424,7 +1423,7 @@ impl Default for SliderState {
             drag_start_mouse_coord: 0.0,
             drag_start_value: SliderValue::default(),
             is_track_clicking: false,
-            track_click_start_coord: 0.0,
+            track_click_start_mouse_pos: Vec2::ZERO,
             next_repeat_time: 0.0,
             track_click_direction: None,
         }
