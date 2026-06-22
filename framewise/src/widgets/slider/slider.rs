@@ -138,15 +138,45 @@ pub mod raw {
             .value
             .upper()
             .map(|upper| value_to_coord(upper, min, range, track_start, track_len));
-        let lower_thumb_rect = spec
-            .style
-            .lower_thumb_style
-            .map(|style| thumb_rect(track_rect, is_vert, lower_coord, style));
+
+        let lower_start = lower_coord - main_start_padding;
+        let mut lower_end = lower_coord + main_start_padding;
+        let mut upper_start = upper_coord.map(|c| c - main_end_padding);
+        let upper_end = upper_coord.map(|c| c + main_end_padding);
+
+        let mut thumbs_touch = false;
+        if let (Some(u_start), Some(_u_end)) = (upper_start, upper_end) {
+            if lower_end > u_start {
+                thumbs_touch = true;
+                let midpoint = (lower_coord + upper_coord.unwrap()) * 0.5;
+                lower_end = midpoint + 0.5;
+                upper_start = Some(midpoint - 0.5);
+            }
+        }
+
+        let lower_thumb_rect = spec.style.lower_thumb_style.map(|style| {
+            cross_axis_rect(
+                track_rect,
+                is_vert,
+                lower_start,
+                (lower_end - lower_start).max(0.0),
+                style.cross_axis,
+            )
+        });
         let upper_thumb_rect = spec
             .style
             .upper_thumb_style
-            .zip(upper_coord)
-            .map(|(style, coord)| thumb_rect(track_rect, is_vert, coord, style));
+            .zip(upper_start)
+            .zip(upper_end)
+            .map(|((style, u_start), u_end)| {
+                cross_axis_rect(
+                    track_rect,
+                    is_vert,
+                    u_start,
+                    (u_end - u_start).max(0.0),
+                    style.cross_axis,
+                )
+            });
         let segment_rect = spec
             .style
             .segment_style
@@ -635,6 +665,20 @@ pub mod raw {
             }
         }
 
+        let (lower_style, upper_style) = if thumbs_touch {
+            let mut l_style = spec.style.lower_thumb_style;
+            if let Some(ref mut s) = l_style {
+                s.border = None;
+            }
+            let mut u_style = spec.style.upper_thumb_style;
+            if let Some(ref mut s) = u_style {
+                s.border = None;
+            }
+            (l_style, u_style)
+        } else {
+            (spec.style.lower_thumb_style, spec.style.upper_thumb_style)
+        };
+
         let lower_hovered = !spec.disabled
             && lower_thumb_rect.is_some_and(is_over_part_zone)
             && is_visible
@@ -644,7 +688,7 @@ pub mod raw {
             cmds,
             spec.layer,
             lower_thumb_rect,
-            spec.style.lower_thumb_style,
+            lower_style,
             state.active_part == Some(SliderPart::LowerThumb),
             spec.disabled,
             lower_hovered,
@@ -660,12 +704,75 @@ pub mod raw {
             cmds,
             spec.layer,
             upper_thumb_rect,
-            spec.style.upper_thumb_style,
+            upper_style,
             state.active_part == Some(SliderPart::UpperThumb),
             spec.disabled,
             upper_hovered,
             &tint,
         );
+
+        if thumbs_touch {
+            if let Some(upper_coord_val) = upper_coord {
+                let combined_rect = cross_axis_rect(
+                    track_rect,
+                    is_vert,
+                    lower_start,
+                    (upper_end.unwrap_or(lower_start) - lower_start).max(0.0),
+                    spec.style.lower_thumb_style.unwrap().cross_axis,
+                );
+
+                if let Some(lower_style) = spec.style.lower_thumb_style {
+                    if let Some(border) = lower_style.border {
+                        let tint_stroke = |st: Stroke| Stroke::new(tint(st.color), st.width);
+                        cmds.push_stroke_rect(
+                            combined_rect,
+                            Some(tint_stroke(Stroke::new(border.color, border.width))),
+                            spec.layer.get_z(),
+                            false,
+                        );
+                    }
+                }
+
+                let mut draw_marker = |coord: f32, style: Option<ThumbStyle>, active: bool| {
+                    if let Some(style) = style {
+                        let marker_color = if !spec.disabled && active {
+                            style.fill.idle
+                        } else {
+                            style.border.map_or(Color::BLACK, |b| b.color)
+                        };
+                        let (p0, p1) = if is_vert {
+                            (
+                                Vec2::new(combined_rect.x, coord),
+                                Vec2::new(combined_rect.right(), coord),
+                            )
+                        } else {
+                            (
+                                Vec2::new(coord, combined_rect.y),
+                                Vec2::new(coord, combined_rect.bottom()),
+                            )
+                        };
+                        cmds.push_stroke_line(
+                            p0,
+                            p1,
+                            Some(Stroke::new(tint(marker_color), 1.0)),
+                            spec.layer.get_z(),
+                            false,
+                        );
+                    }
+                };
+
+                draw_marker(
+                    lower_coord,
+                    spec.style.lower_thumb_style,
+                    state.active_part == Some(SliderPart::LowerThumb),
+                );
+                draw_marker(
+                    upper_coord_val,
+                    spec.style.upper_thumb_style,
+                    state.active_part == Some(SliderPart::UpperThumb),
+                );
+            }
+        }
 
         draw_separator_line(
             cmds,
@@ -759,17 +866,6 @@ fn cross_axis_rect(
             }
         }
     }
-}
-
-fn thumb_rect(track_rect: Rect, is_vert: bool, coord: f32, style: ThumbStyle) -> Rect {
-    let len = main_axis_len(style.cross_axis, track_rect, is_vert);
-    cross_axis_rect(
-        track_rect,
-        is_vert,
-        coord - len * 0.5,
-        len,
-        style.cross_axis,
-    )
 }
 
 fn segment_rect(

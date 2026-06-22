@@ -4413,3 +4413,301 @@ fn test_range_slider_keyboard_preserves_span() {
     assert_eq!(state.value.upper(), Some(100.0));
     focus_system.end_frame();
 }
+
+fn test_range_spec_horizontal(min: f32, max: f32) -> SliderSpec {
+    let theme = crate::theme::Theme::framewise();
+    SliderSpec {
+        orientation: Orientation::Horizontal,
+        rect: Rect::new(0.0, 0.0, 112.0, 20.0),
+        min,
+        max,
+        page_step: 0.1,
+        step: 0.01,
+        min_gap: None,
+        max_gap: None,
+        style: SliderStyle::range_from_theme(&theme),
+        clip_rect: None,
+        scroll_claim: ScrollClaimPolicy::ClaimAllDirections,
+        time: 0.0,
+        disabled: false,
+        keyboard_focusable: true,
+        layer: Layer::default(),
+    }
+}
+
+#[test]
+fn test_range_slider_overlap_partial() {
+    let mut state = SliderState {
+        value: SliderValue::Range {
+            lower: 0.4,
+            upper: 0.5,
+        },
+        ..Default::default()
+    };
+    let spec = test_range_spec_horizontal(0.0, 1.0);
+    let mut focus_system = FocusSystem::new();
+    let mut cmds = DrawCommands::new();
+    let mut input = Input::new();
+
+    raw::post_layout_slider(
+        spec.clone(),
+        raw::SliderPreLayoutResult {
+            size_request: crate::layout::SizeRequest::UNKNOWN,
+        },
+        &mut state,
+        &input,
+        &mut focus_system,
+        &mut cmds,
+    );
+
+    // Verify drawing commands
+    let mut fill_rects = Vec::new();
+    let mut stroke_rects = Vec::new();
+    let mut stroke_lines = Vec::new();
+
+    for cmd in cmds.commands() {
+        match cmd {
+            DrawCmd::FillRect { rect, .. } => fill_rects.push(*rect),
+            DrawCmd::StrokeRect { rect, .. } => stroke_rects.push(*rect),
+            DrawCmd::StrokeLine { p0, p1, .. } => stroke_lines.push((*p0, *p1)),
+            _ => {}
+        }
+    }
+
+    // Filter to only find lower and upper thumb fills (their heights are 12.0)
+    let thumb_fills: Vec<Rect> = fill_rects.into_iter().filter(|r| r.h == 12.0).collect();
+    assert_eq!(thumb_fills.len(), 2);
+    assert_eq!(thumb_fills[0], Rect::new(40.0, 4.0, 11.5, 12.0));
+    assert_eq!(thumb_fills[1], Rect::new(50.5, 4.0, 11.5, 12.0));
+
+    assert_eq!(stroke_rects.len(), 1);
+    assert_eq!(stroke_rects[0], Rect::new(40.0, 4.0, 22.0, 12.0));
+
+    assert_eq!(stroke_lines.len(), 2);
+    assert_eq!(stroke_lines[0].0.x, 46.0);
+    assert_eq!(stroke_lines[1].0.x, 56.0);
+
+    // Verify hit-testing: click left of midpoint (51.0)
+    let mut state = SliderState {
+        value: SliderValue::Range {
+            lower: 0.4,
+            upper: 0.5,
+        },
+        ..Default::default()
+    };
+    let mut focus_system = FocusSystem::new();
+    let mut input = Input::new();
+    input.mouse_pos = Vec2::new(50.0, 10.0);
+
+    // Frame 1: Hover claim
+    focus_system.begin_frame();
+    raw::post_layout_slider(
+        spec.clone(),
+        raw::SliderPreLayoutResult {
+            size_request: crate::layout::SizeRequest::UNKNOWN,
+        },
+        &mut state,
+        &input,
+        &mut focus_system,
+        &mut cmds,
+    );
+    focus_system.end_frame();
+
+    // Frame 2: Click
+    focus_system.begin_frame();
+    input.mouse_pressed = true;
+    input.mouse_down = true;
+    raw::post_layout_slider(
+        spec.clone(),
+        raw::SliderPreLayoutResult {
+            size_request: crate::layout::SizeRequest::UNKNOWN,
+        },
+        &mut state,
+        &input,
+        &mut focus_system,
+        &mut cmds,
+    );
+    assert_eq!(state.active_part, Some(SliderPart::LowerThumb));
+    focus_system.end_frame();
+
+    // Verify hit-testing: click right of midpoint (51.0)
+    let mut state = SliderState {
+        value: SliderValue::Range {
+            lower: 0.4,
+            upper: 0.5,
+        },
+        ..Default::default()
+    };
+    let mut focus_system = FocusSystem::new();
+    let mut input = Input::new();
+    input.mouse_pos = Vec2::new(52.0, 10.0);
+
+    // Frame 1: Hover claim
+    focus_system.begin_frame();
+    raw::post_layout_slider(
+        spec.clone(),
+        raw::SliderPreLayoutResult {
+            size_request: crate::layout::SizeRequest::UNKNOWN,
+        },
+        &mut state,
+        &input,
+        &mut focus_system,
+        &mut cmds,
+    );
+    focus_system.end_frame();
+
+    // Frame 2: Click
+    focus_system.begin_frame();
+    input.mouse_pressed = true;
+    input.mouse_down = true;
+    raw::post_layout_slider(
+        spec.clone(),
+        raw::SliderPreLayoutResult {
+            size_request: crate::layout::SizeRequest::UNKNOWN,
+        },
+        &mut state,
+        &input,
+        &mut focus_system,
+        &mut cmds,
+    );
+    assert_eq!(state.active_part, Some(SliderPart::UpperThumb));
+    focus_system.end_frame();
+}
+
+#[test]
+fn test_range_slider_overlap_full() {
+    let mut state = SliderState {
+        value: SliderValue::Range {
+            lower: 0.5,
+            upper: 0.5,
+        },
+        ..Default::default()
+    };
+    let spec = test_range_spec_horizontal(0.0, 1.0);
+    let mut focus_system = FocusSystem::new();
+    let mut cmds = DrawCommands::new();
+    let mut input = Input::new();
+
+    raw::post_layout_slider(
+        spec.clone(),
+        raw::SliderPreLayoutResult {
+            size_request: crate::layout::SizeRequest::UNKNOWN,
+        },
+        &mut state,
+        &input,
+        &mut focus_system,
+        &mut cmds,
+    );
+
+    // Verify drawing commands
+    let mut fill_rects = Vec::new();
+    let mut stroke_rects = Vec::new();
+    let mut stroke_lines = Vec::new();
+
+    for cmd in cmds.commands() {
+        match cmd {
+            DrawCmd::FillRect { rect, .. } => fill_rects.push(*rect),
+            DrawCmd::StrokeRect { rect, .. } => stroke_rects.push(*rect),
+            DrawCmd::StrokeLine { p0, p1, .. } => stroke_lines.push((*p0, *p1)),
+            _ => {}
+        }
+    }
+
+    let thumb_fills: Vec<Rect> = fill_rects.into_iter().filter(|r| r.h == 12.0).collect();
+    assert_eq!(thumb_fills.len(), 2);
+    assert_eq!(thumb_fills[0], Rect::new(50.0, 4.0, 6.5, 12.0));
+    assert_eq!(thumb_fills[1], Rect::new(55.5, 4.0, 6.5, 12.0));
+
+    assert_eq!(stroke_rects.len(), 1);
+    assert_eq!(stroke_rects[0], Rect::new(50.0, 4.0, 12.0, 12.0));
+
+    assert_eq!(stroke_lines.len(), 2);
+    assert_eq!(stroke_lines[0].0.x, 56.0);
+    assert_eq!(stroke_lines[1].0.x, 56.0);
+
+    // Verify hit-testing: click left of midpoint (56.0)
+    let mut state = SliderState {
+        value: SliderValue::Range {
+            lower: 0.5,
+            upper: 0.5,
+        },
+        ..Default::default()
+    };
+    let mut focus_system = FocusSystem::new();
+    let mut input = Input::new();
+    input.mouse_pos = Vec2::new(55.0, 10.0);
+
+    // Frame 1: Hover claim
+    focus_system.begin_frame();
+    raw::post_layout_slider(
+        spec.clone(),
+        raw::SliderPreLayoutResult {
+            size_request: crate::layout::SizeRequest::UNKNOWN,
+        },
+        &mut state,
+        &input,
+        &mut focus_system,
+        &mut cmds,
+    );
+    focus_system.end_frame();
+
+    // Frame 2: Click
+    focus_system.begin_frame();
+    input.mouse_pressed = true;
+    input.mouse_down = true;
+    raw::post_layout_slider(
+        spec.clone(),
+        raw::SliderPreLayoutResult {
+            size_request: crate::layout::SizeRequest::UNKNOWN,
+        },
+        &mut state,
+        &input,
+        &mut focus_system,
+        &mut cmds,
+    );
+    assert_eq!(state.active_part, Some(SliderPart::LowerThumb));
+    focus_system.end_frame();
+
+    // Verify hit-testing: click right of midpoint (56.0)
+    let mut state = SliderState {
+        value: SliderValue::Range {
+            lower: 0.5,
+            upper: 0.5,
+        },
+        ..Default::default()
+    };
+    let mut focus_system = FocusSystem::new();
+    let mut input = Input::new();
+    input.mouse_pos = Vec2::new(57.0, 10.0);
+
+    // Frame 1: Hover claim
+    focus_system.begin_frame();
+    raw::post_layout_slider(
+        spec.clone(),
+        raw::SliderPreLayoutResult {
+            size_request: crate::layout::SizeRequest::UNKNOWN,
+        },
+        &mut state,
+        &input,
+        &mut focus_system,
+        &mut cmds,
+    );
+    focus_system.end_frame();
+
+    // Frame 2: Click
+    focus_system.begin_frame();
+    input.mouse_pressed = true;
+    input.mouse_down = true;
+    raw::post_layout_slider(
+        spec.clone(),
+        raw::SliderPreLayoutResult {
+            size_request: crate::layout::SizeRequest::UNKNOWN,
+        },
+        &mut state,
+        &input,
+        &mut focus_system,
+        &mut cmds,
+    );
+    assert_eq!(state.active_part, Some(SliderPart::UpperThumb));
+    focus_system.end_frame();
+}

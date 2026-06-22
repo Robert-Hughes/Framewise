@@ -5,7 +5,7 @@ Working notes, TODOs, open questions, and half-baked ideas.
 ## Current Work
 
 - Sliders!
-  - collapsed range slider looks weird (overlap etc.) and behaves weird (hovering, which gets dragged)
+  - thumbs are not odd pixel size, so the centre 'value marker' line (collapsed range slider) is off-centre slightly
   - markers being drawn
   - fixed steps
   - are we using the widget helpers and or test helpers?
@@ -363,6 +363,9 @@ The "App-Managed State" option would require either a trait layer (so the widget
 - Animations (spinners, progress bars, animated scrolling)
 - Radio buttons
   - Some concept of a 'group', such that only one is selected at a time. Bind to a value/int/enum and handle the individual radios automatically?
+- Slider
+  - In 'scrollbar form', if the bar becomes too small it may be impossible to grab! Maybe need to figure out a minimum size somehow
+
 
 - Button group seams
 - HTML removes inner right borders in .fw-btngroup. Rust draws adjacent full buttons, so once groups are switched to secondary/default, internal seams will likely look 2px thick unless the rects overlap by 1px or the button API gains per-side borders.
