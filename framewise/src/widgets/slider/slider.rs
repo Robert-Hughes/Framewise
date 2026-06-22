@@ -153,12 +153,31 @@ pub mod raw {
             .zip(upper_coord)
             .map(|(style, coord)| segment_rect(track_rect, is_vert, lower_coord, coord, style));
 
-        let hit_part = hit_test_parts(
-            input.mouse_pos,
-            lower_thumb_rect,
-            upper_thumb_rect,
-            segment_rect,
-        );
+        let mouse_coord = if is_vert {
+            input.mouse_pos.y
+        } else {
+            input.mouse_pos.x
+        };
+        let pointer_over_track = spec.rect.contains(input.mouse_pos);
+
+        let is_over_part_zone = |rect: Rect| -> bool {
+            let (start, end) = if is_vert {
+                (rect.y, rect.bottom())
+            } else {
+                (rect.x, rect.right())
+            };
+            pointer_over_track && mouse_coord >= start && mouse_coord <= end
+        };
+
+        let hit_part = if lower_thumb_rect.is_some_and(is_over_part_zone) {
+            Some(SliderPart::LowerThumb)
+        } else if upper_thumb_rect.is_some_and(is_over_part_zone) {
+            Some(SliderPart::UpperThumb)
+        } else if segment_rect.is_some_and(is_over_part_zone) {
+            Some(SliderPart::Segment)
+        } else {
+            None
+        };
 
         let pointer_over_slider = track_rect.contains(input.mouse_pos) || hit_part.is_some();
         let pointer_over_wheel_area = spec.rect.contains(input.mouse_pos);
@@ -586,7 +605,8 @@ pub mod raw {
         }
 
         if let Some((style, rect)) = spec.style.segment_style.zip(segment_rect) {
-            let segment_is_hovered = !spec.disabled && rect.contains(input.mouse_pos) && is_visible;
+            let segment_is_hovered =
+                !spec.disabled && is_over_part_zone(rect) && is_visible && is_hover_active;
             let fill = effective_fill(
                 style.fill,
                 spec.disabled,
@@ -616,6 +636,11 @@ pub mod raw {
             }
         }
 
+        let lower_hovered = !spec.disabled
+            && lower_thumb_rect.is_some_and(is_over_part_zone)
+            && is_visible
+            && is_hover_active;
+
         draw_thumb(
             cmds,
             spec.layer,
@@ -623,10 +648,15 @@ pub mod raw {
             spec.style.lower_thumb_style,
             state.active_part == Some(SliderPart::LowerThumb),
             spec.disabled,
-            is_visible,
-            input.mouse_pos,
+            lower_hovered,
             &tint,
         );
+
+        let upper_hovered = !spec.disabled
+            && upper_thumb_rect.is_some_and(is_over_part_zone)
+            && is_visible
+            && is_hover_active;
+
         draw_thumb(
             cmds,
             spec.layer,
@@ -634,8 +664,7 @@ pub mod raw {
             spec.style.upper_thumb_style,
             state.active_part == Some(SliderPart::UpperThumb),
             spec.disabled,
-            is_visible,
-            input.mouse_pos,
+            upper_hovered,
             &tint,
         );
 
@@ -947,23 +976,6 @@ fn first_interactable_part(style: &SliderStyle, has_upper: bool) -> Option<Slide
     }
 }
 
-fn hit_test_parts(
-    pos: Vec2,
-    lower_thumb_rect: Option<Rect>,
-    upper_thumb_rect: Option<Rect>,
-    segment_rect: Option<Rect>,
-) -> Option<SliderPart> {
-    if lower_thumb_rect.is_some_and(|rect| rect.contains(pos)) {
-        Some(SliderPart::LowerThumb)
-    } else if upper_thumb_rect.is_some_and(|rect| rect.contains(pos)) {
-        Some(SliderPart::UpperThumb)
-    } else if segment_rect.is_some_and(|rect| rect.contains(pos)) {
-        Some(SliderPart::Segment)
-    } else {
-        None
-    }
-}
-
 fn effective_fill(fill: InteractiveColor, disabled: bool, active: bool, hovered: bool) -> Color {
     if disabled {
         fill.idle
@@ -1046,8 +1058,7 @@ fn draw_thumb(
     style: Option<ThumbStyle>,
     active: bool,
     disabled: bool,
-    is_visible: bool,
-    mouse_pos: Vec2,
+    hovered: bool,
     tint: &impl Fn(Color) -> Color,
 ) {
     let Some(rect) = rect else {
@@ -1056,7 +1067,6 @@ fn draw_thumb(
     let Some(style) = style else {
         return;
     };
-    let hovered = !disabled && rect.contains(mouse_pos) && is_visible;
     let fill = effective_fill(style.fill, disabled, active, hovered);
     cmds.push(DrawCmd::FillRect {
         anti_alias: false,
@@ -1251,7 +1261,7 @@ impl SliderStyle {
                 cross_axis: ThumbCrossAxis::FixedCentered(1.5),
                 fill: InteractiveColor {
                     idle: theme.ink,
-                    hovered: theme.hover,
+                    hovered: Color::BLACK,
                     dragged: theme.rust,
                 },
                 border: None,

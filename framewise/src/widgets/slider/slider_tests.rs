@@ -3254,7 +3254,7 @@ fn test_range_slider_visual_hover_segment() {
             DrawCmd::FillRect {
                 anti_alias: false,
                 rect: Rect::new(28.0, 9.25, 44.0, 1.5),
-                color: theme.hover,
+                color: Color::BLACK,
                 z: 0,
             },
             DrawCmd::FillRect {

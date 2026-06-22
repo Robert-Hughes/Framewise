@@ -6,7 +6,11 @@ Working notes, TODOs, open questions, and half-baked ideas.
 
 - Sliders!
   - hover highlighting makes thumbs see-through!
+  - click and drag on the segment behaviour is weird for a range slider
   - collapsed range slider looks weird and behaves weird
+  - click and hold to repeated page stops if you move outside the widget - should be captured?
+  - check keyboard behaviour for different kinds
+  - check mouse wheel behaviour for different kinds
   - review & merge branch
 
   - markers being drawn
