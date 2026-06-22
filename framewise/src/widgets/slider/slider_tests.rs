@@ -716,6 +716,76 @@ fn test_slider_mouse_wheel() {
     assert_eq!(state.value.lower(), 40.0);
 }
 
+#[test]
+fn test_slider_wheel_over_overhanging_thumb() {
+    let mut state = SliderState {
+        value: SliderValue::Single(0.0),
+        ..Default::default()
+    };
+    let mut style = SliderStyle::from_theme(&crate::theme::Theme::framewise());
+    style.lower_thumb_style.as_mut().unwrap().cross_axis = ThumbCrossAxis::FixedCentered(20.0);
+    let spec = SliderSpec {
+        min_gap: None,
+        max_gap: None,
+        style,
+        ..test_spec(0.0, 100.0, true) // rect is Rect::new(0.0, 0.0, 20.0, 100.0)
+    };
+
+    let mut input = Input::new();
+    let mut focus_system = FocusSystem::new();
+    let parent_id = FocusId::new();
+
+    // Mouse position at Vec2::new(10.0, 5.0), which is:
+    // - outside the padded track_rect (y = 10..90)
+    // - inside the overhanging thumb (y = 0..20)
+    input.mouse_pos = crate::types::Vec2::new(10.0, 5.0);
+
+    // Frame 1: Register hover
+    focus_system.begin_frame();
+    let mut cmds = DrawCommands::new();
+    raw::post_layout_slider(
+        spec.clone(),
+        raw::SliderPreLayoutResult {
+            size_request: crate::layout::SizeRequest::UNKNOWN,
+        },
+        &mut state,
+        &input,
+        &mut focus_system,
+        &mut cmds,
+    );
+    // Simulate a parent container registration to test claim/blocking
+    focus_system.claim_scroll_down(parent_id);
+    focus_system.end_frame();
+
+    assert_eq!(state.value.lower(), 0.0); // Hasn't scrolled yet
+
+    // Frame 2: Mouse wheel spun down (negative delta, scroll_delta.y < 0) -> value should increase
+    input.scroll_delta.y = -1.0;
+    focus_system.begin_frame();
+    raw::post_layout_slider(
+        spec.clone(),
+        raw::SliderPreLayoutResult {
+            size_request: crate::layout::SizeRequest::UNKNOWN,
+        },
+        &mut state,
+        &input,
+        &mut focus_system,
+        &mut cmds,
+    );
+    focus_system.claim_scroll_down(parent_id);
+    focus_system.end_frame();
+
+    // Assert that the slider processed the wheel while the pointer was on the overhanging thumb.
+    // value = 0.0 - (-1.0) * 5.0 = 5.0
+    assert_eq!(state.value.lower(), 5.0);
+
+    // Assert that the parent did not win the scroll down direction
+    assert!(
+        !focus_system.is_active_scroll_down(parent_id),
+        "parent should not win scroll-down; slider should have claimed it"
+    );
+}
+
 /// Track: y=0..100, thumb main-axis length=20, value=0 → thumb at y=0..20.
 /// Click empty track at y=50 → page step to 20.0, is_track_clicking.
 /// Move mouse by 5px (> 4px threshold) to y=55 → snaps:
@@ -771,7 +841,7 @@ fn test_track_click_snaps_and_drags() {
         state.is_track_clicking,
         "should be track-clicking after initial track click"
     );
-    assert!(!state.active_part.is_some(), "should not yet be dragging");
+    assert!(state.active_part.is_none(), "should not yet be dragging");
     assert_eq!(state.value.lower(), 20.0, "page step should fire on click");
 
     // Frame 2: move mouse 5px (> 4px threshold) while holding → transitions to drag+snap
@@ -828,7 +898,7 @@ fn test_track_click_snaps_and_drags() {
 // Frame 1 (initial click): page to 60 → thumb at y=48..68.
 // Frame 2 (repeat at t=0.5): cursor y=70 > thumb_end=68, fires.
 //   Buggy: 60+60=120 → clamped to 100 → thumb at 80..100 → cursor < thumb_start → flicker.
-//   Fixed: clamp to cursor position (87.5) so thumb stops at cursor.
+//   Fixed: clamp to cursor position (75.0) so thumb stops at cursor.
 // Frame 3 (repeat at t=0.6): cursor inside thumb → paging stops.
 #[test]
 fn test_track_click_repeat_does_not_overshoot_cursor() {
@@ -901,8 +971,12 @@ fn test_track_click_repeat_does_not_overshoot_cursor() {
     assert_eq!(state.value.lower(), 60.0);
 
     // Frame 3: repeat fires (t=0.5). Thumb at y=48..68, cursor at y=70 > 68 → fires.
-    // Expected: value clamps to cursor position (87.5), NOT 100.
-    // cursor_val = (70/80) * 100 = 87.5
+    // Expected: value clamps to cursor position (75.0), NOT 100.
+    // spec.rect is 0..100
+    // thumb length is 20
+    // visible/value track is padded to 10..90
+    // range is 0..100
+    // therefore y=70 maps to (70 - 10) / 80 * 100 = 75.0
     focus_system.begin_frame();
     raw::post_layout_slider(
         SliderSpec {
@@ -950,7 +1024,7 @@ fn test_track_click_repeat_does_not_overshoot_cursor() {
         state.is_track_clicking,
         "is_track_clicking must stay true so drag is still possible"
     );
-    assert!(!state.active_part.is_some());
+    assert!(state.active_part.is_none());
 
     // Frame 5: still holding, move mouse 5px (past 4px threshold from initial click at y=70).
     // Drag transition should fire: thumb snaps to cursor, enters drag mode.
@@ -1050,7 +1124,7 @@ fn run_slider_once(spec: SliderSpec, state: &mut SliderState) {
 }
 
 #[test]
-fn test_point_slider_upper_none_ignores_gap_constraints() {
+fn test_single_slider_ignores_gap_constraints() {
     let mut state = SliderState {
         value: SliderValue::Single(150.0),
         ..Default::default()
@@ -1511,7 +1585,7 @@ fn test_disabled_slider_ignores_all_input() {
         "disabled slider must not change value"
     );
     assert!(
-        !state.active_part.is_some(),
+        state.active_part.is_none(),
         "disabled slider must not start a drag"
     );
     assert!(!state.is_track_clicking);

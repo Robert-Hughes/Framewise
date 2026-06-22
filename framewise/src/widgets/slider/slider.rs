@@ -18,13 +18,13 @@ pub mod raw {
         pub max: f32,
         /// Minimum allowed distance between `lower` and `upper`.
         ///
-        /// Ignored when `upper` is `None`.
+        /// Ignored when `state.value` is `SliderValue::Single`.
         /// If both `min_gap` and `max_gap` are set to the same value, the slider
         /// represents a fixed-size span that can be offset but not resized.
         pub min_gap: Option<f32>,
         /// Maximum allowed distance between `lower` and `upper`.
         ///
-        /// Ignored when `upper` is `None`.
+        /// Ignored when `state.value` is `SliderValue::Single`.
         /// If both `min_gap` and `max_gap` are set to the same value, the slider
         /// represents a fixed-size span that can be offset but not resized.
         pub max_gap: Option<f32>,
@@ -257,7 +257,7 @@ pub mod raw {
             // Mouse wheel scrolling — suppressed during an active drag so that drag
             // motion is authoritative (otherwise wheel ticks would stack on top of
             // the drag-projected value).
-            if is_visible && state.active_part.is_none() && track_rect.contains(input.mouse_pos) {
+            if is_visible && state.active_part.is_none() && pointer_over_slider {
                 let at_min = active_min_value(state) <= min;
                 let at_max = active_max_value(state) >= max;
 
@@ -1108,13 +1108,13 @@ pub enum ScrollClaimPolicy {
 /// With no upper endpoint:
 ///
 /// ```text
-/// min ---- before_style ---- lower ---- after_style ---- max
+/// min ---- before_stroke ---- value ---- after_stroke ---- max
 /// ```
 ///
 /// With an upper endpoint:
 ///
 /// ```text
-/// min -- before_style -- lower == segment == upper -- after_style -- max
+/// min -- before_stroke -- lower == segment == upper -- after_stroke -- max
 /// ```
 ///
 /// `background_fill`, when present, is drawn behind the whole slider rect.
@@ -1149,7 +1149,7 @@ pub struct SliderStyle {
 
     /// Optional bar drawn between lower and upper.
     ///
-    /// Only drawn when `state.upper.is_some()`.
+    /// Only drawn when `state.value` is `SliderValue::Range`.
     pub segment_style: Option<SegmentStyle>,
 
     /// Optional thumb drawn at lower.
@@ -1157,7 +1157,7 @@ pub struct SliderStyle {
 
     /// Optional thumb drawn at upper.
     ///
-    /// Only drawn when `state.upper.is_some()`.
+    /// Only drawn when `state.value` is `SliderValue::Range`.
     pub upper_thumb_style: Option<ThumbStyle>,
 
     /// Orientation-aware separator line for scrollbar-like sliders.
@@ -1403,7 +1403,7 @@ pub struct SliderResult {
 /// Slider configuration.
 ///
 /// Values are interpreted over a 1D domain from `min` to `max`. A state with
-/// `upper == None` is a point slider; a state with `upper == Some(_)` is an
+/// `state.value` is `SliderValue::Single` for a point slider; `SliderValue::Range` is an
 /// interval slider and may be constrained by `min_gap` and `max_gap`.
 #[derive(Debug, Clone, PartialEq)]
 pub struct SliderSpec {
@@ -1413,13 +1413,13 @@ pub struct SliderSpec {
     pub max: f32,
     /// Minimum allowed distance between `lower` and `upper`.
     ///
-    /// Ignored when `upper` is `None`.
+    /// Ignored when `state.value` is `SliderValue::Single`.
     /// If both `min_gap` and `max_gap` are set to the same value, the slider
     /// represents a fixed-size span that can be offset but not resized.
     pub min_gap: Option<f32>,
     /// Maximum allowed distance between `lower` and `upper`.
     ///
-    /// Ignored when `upper` is `None`.
+    /// Ignored when `state.value` is `SliderValue::Single`.
     /// If both `min_gap` and `max_gap` are set to the same value, the slider
     /// represents a fixed-size span that can be offset but not resized.
     pub max_gap: Option<f32>,

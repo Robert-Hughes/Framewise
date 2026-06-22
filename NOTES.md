@@ -5,9 +5,11 @@ Working notes, TODOs, open questions, and half-baked ideas.
 ## Current Work
 
 - Sliders!
-  - Use value enum rather than upper/lower
-  - Focus rect for scrollbars seems bigger than before
+  - Focus rect for scrollbars seems bigger than before?
+  - mouse wheel on overhanging thumb works for the first detent, but then stops working cos the thumb moved!
+  - hover highlighting?
   - check test coverage for all the things!
+  - review & merge branch
 
 - Go through the spec_page, check/implement/test each widget/aspect to make better match the mock-up and add interactivity as we go (https://claude.ai/design/p/1aab4e86-cbf2-497e-b379-44cf41de2b12?file=Framewise+Widgets.html)
   - Done 01-03
