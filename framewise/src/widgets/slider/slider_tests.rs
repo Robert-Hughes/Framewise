@@ -777,12 +777,40 @@ fn test_slider_wheel_over_overhanging_thumb() {
 
     // Assert that the slider processed the wheel while the pointer was on the overhanging thumb.
     // value = 0.0 - (-1.0) * 5.0 = 5.0
-    assert_eq!(state.value.lower(), 5.0);
+    let after_first = state.value.lower();
+    assert_eq!(after_first, 5.0);
 
     // Assert that the parent did not win the scroll down direction
     assert!(
         !focus_system.is_active_scroll_down(parent_id),
         "parent should not win scroll-down; slider should have claimed it"
+    );
+
+    // Frame 3: Mouse wheel spun down again, mouse remains stationary at Vec2::new(10.0, 5.0)
+    // Value has moved away from 0.0, meaning thumb is no longer under pointer.
+    input.scroll_delta.y = -1.0;
+    focus_system.begin_frame();
+    raw::post_layout_slider(
+        spec.clone(),
+        raw::SliderPreLayoutResult {
+            size_request: crate::layout::SizeRequest::UNKNOWN,
+        },
+        &mut state,
+        &input,
+        &mut focus_system,
+        &mut cmds,
+    );
+    focus_system.claim_scroll_down(parent_id);
+    focus_system.end_frame();
+
+    let after_second = state.value.lower();
+    assert!(after_second > after_first);
+    assert_eq!(after_second, 10.0);
+
+    // Assert that the parent did not win the scroll down direction on the second detent either
+    assert!(
+        !focus_system.is_active_scroll_down(parent_id),
+        "parent should not win scroll-down on second detent; slider should have claimed it"
     );
 }
 
@@ -1759,6 +1787,22 @@ fn test_slider_visual_hovered() {
         ..Default::default()
     };
 
+    // Warmup frame to establish hover claim
+    focus_system.begin_frame();
+    let mut cmds = DrawCommands::new();
+    raw::post_layout_slider(
+        spec.clone(),
+        raw::SliderPreLayoutResult {
+            size_request: crate::layout::SizeRequest::UNKNOWN,
+        },
+        &mut state,
+        &input,
+        &mut focus_system,
+        &mut cmds,
+    );
+    focus_system.end_frame();
+
+    // Second frame: hover is active, should resolve to theme.hover
     focus_system.begin_frame();
     let mut cmds = DrawCommands::new();
     let _result = raw::post_layout_slider(
@@ -1792,7 +1836,7 @@ fn test_slider_visual_hovered() {
             DrawCmd::FillRect {
                 anti_alias: false,
                 rect: Rect::new(4.0, 44.0, 12.0, 12.0),
-                color: theme.paper_elev,
+                color: theme.hover,
                 z: 0,
             },
             DrawCmd::StrokeRect {
@@ -2523,4 +2567,15 @@ fn test_away_drags_respect_max_gap() {
         assert_eq!(state.value.lower(), 30.0);
         assert_eq!(state.value.upper(), Some(60.0));
     }
+}
+
+#[test]
+fn test_slider_style_range_from_theme() {
+    let theme = crate::theme::Theme::framewise();
+    let style = SliderStyle::range_from_theme(&theme);
+    assert!(style.segment_style.is_some());
+    assert!(style.lower_thumb_style.is_some());
+    assert!(style.upper_thumb_style.is_some());
+    assert!(style.background_fill.is_none());
+    assert!(style.separator_line.is_none());
 }

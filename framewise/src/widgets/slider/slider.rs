@@ -161,6 +161,7 @@ pub mod raw {
         );
 
         let pointer_over_slider = track_rect.contains(input.mouse_pos) || hit_part.is_some();
+        let pointer_over_wheel_area = spec.rect.contains(input.mouse_pos);
 
         let focused = if spec.disabled || !spec.keyboard_focusable {
             false
@@ -168,7 +169,7 @@ pub mod raw {
             focus_system.register_keyboard(state.focus_id, spec.rect, spec.clip_rect)
         };
 
-        if !spec.disabled && pointer_over_slider && is_visible {
+        if !spec.disabled && (pointer_over_slider || pointer_over_wheel_area) && is_visible {
             focus_system.claim_hover(state.focus_id);
         }
         let is_hover_active = !spec.disabled && focus_system.is_hover_active(state.focus_id);
@@ -257,7 +258,7 @@ pub mod raw {
             // Mouse wheel scrolling — suppressed during an active drag so that drag
             // motion is authoritative (otherwise wheel ticks would stack on top of
             // the drag-projected value).
-            if is_visible && state.active_part.is_none() && pointer_over_slider {
+            if is_visible && state.active_part.is_none() && pointer_over_wheel_area {
                 let at_min = active_min_value(state) <= min;
                 let at_max = active_max_value(state) >= max;
 
@@ -1208,7 +1209,7 @@ impl SliderStyle {
             cross_axis: ThumbCrossAxis::FixedCentered(12.0),
             fill: InteractiveColor {
                 idle: theme.paper_elev,
-                hovered: theme.paper_elev,
+                hovered: theme.hover,
                 dragged: theme.rust,
             },
             border: Some(Stroke::new(theme.ink, 1.0)),
@@ -1221,6 +1222,42 @@ impl SliderStyle {
             segment_style: None,
             lower_thumb_style: Some(default_thumb),
             upper_thumb_style: None,
+            separator_line: None,
+            focus: Some(Outline::new(
+                theme.rust,
+                theme.focus_width,
+                theme.focus_offset,
+            )),
+            disabled_alpha: 0.32,
+        }
+    }
+
+    pub fn range_from_theme(theme: &crate::theme::Theme) -> Self {
+        let default_thumb = ThumbStyle {
+            cross_axis: ThumbCrossAxis::FixedCentered(12.0),
+            fill: InteractiveColor {
+                idle: theme.paper_elev,
+                hovered: theme.hover,
+                dragged: theme.rust,
+            },
+            border: Some(Stroke::new(theme.ink, 1.0)),
+        };
+
+        Self {
+            background_fill: None,
+            before_stroke: Some(Stroke::new(theme.line, 1.5)),
+            after_stroke: Some(Stroke::new(theme.line, 1.5)),
+            segment_style: Some(SegmentStyle {
+                cross_axis: ThumbCrossAxis::FixedCentered(1.5),
+                fill: InteractiveColor {
+                    idle: theme.ink,
+                    hovered: theme.ink,
+                    dragged: theme.rust,
+                },
+                border: None,
+            }),
+            lower_thumb_style: Some(default_thumb),
+            upper_thumb_style: Some(default_thumb),
             separator_line: None,
             focus: Some(Outline::new(
                 theme.rust,

@@ -629,6 +629,8 @@ pub struct SpecWidgetsState {
     #[cfg(all(feature = "slider", feature = "drag_number", feature = "color_swatch"))]
     pub slider4_state: SliderState, // stepped 0–9
     #[cfg(all(feature = "slider", feature = "drag_number", feature = "color_swatch"))]
+    pub slider_range_state: SliderState,
+    #[cfg(all(feature = "slider", feature = "drag_number", feature = "color_swatch"))]
     pub dn_showcase: Vec<DragNumberState>, // X(320), Y(144), H(400) — W stays fake
 
     // 05 Selection
@@ -900,6 +902,14 @@ impl Default for SpecWidgetsState {
             #[cfg(all(feature = "slider", feature = "drag_number", feature = "color_swatch"))]
             slider4_state: SliderState {
                 value: SliderValue::Single(3.0),
+                ..Default::default()
+            },
+            #[cfg(all(feature = "slider", feature = "drag_number", feature = "color_swatch"))]
+            slider_range_state: SliderState {
+                value: SliderValue::Range {
+                    lower: 0.24,
+                    upper: 0.76,
+                },
                 ..Default::default()
             },
             #[cfg(all(feature = "checkbox", feature = "radio", feature = "switch"))]
@@ -2627,56 +2637,26 @@ fn section_04_sliders<CF>(
     {
         let mut b = b.child_with_layout(ColumnLayoutParams::fixed(content_w, 18.0), ManualLayout);
         let track_w = 260.0_f32;
-        let mid_y = 18.0 * 0.5;
-        let t1 = 0.24_f32;
-        let t2 = 0.76_f32;
-        let fill_x1 = track_w * t1;
-        let fill_x2 = track_w * t2;
-        let ts = 12.0_f32;
-        let half_ts = ts * 0.5;
-        let origin = b.layout(Rect::new(0.0, 0.0, 0.0, 0.0), SizeRequest::UNKNOWN);
-        let rect = |x: f32, y: f32, w: f32, h: f32| Rect::new(origin.x + x, origin.y + y, w, h);
-        b.append_cmds(DrawCommands::from_vec(vec![
-            DrawCmd::FillRect {
-                anti_alias: false,
-                rect: rect(0.0, mid_y - 0.75, track_w, 1.5),
-                color: b.theme.line,
-                z: 0,
-            },
-            DrawCmd::FillRect {
-                anti_alias: false,
-                rect: rect(fill_x1, mid_y - 0.75, fill_x2 - fill_x1, 1.5),
-                color: b.theme.ink,
-                z: 0,
-            },
-            DrawCmd::FillRect {
-                anti_alias: false,
-                rect: rect(fill_x1 - half_ts, mid_y - half_ts, ts, ts),
-                color: b.theme.paper_elev,
-                z: 0,
-            },
-            DrawCmd::StrokeRect {
-                anti_alias: false,
-                rect: rect(fill_x1 - half_ts, mid_y - half_ts, ts, ts),
-                color: b.theme.ink,
-                width: 1.0,
-                z: 0,
-            },
-            DrawCmd::FillRect {
-                anti_alias: false,
-                rect: rect(fill_x2 - half_ts, mid_y - half_ts, ts, ts),
-                color: b.theme.paper_elev,
-                z: 0,
-            },
-            DrawCmd::StrokeRect {
-                anti_alias: false,
-                rect: rect(fill_x2 - half_ts, mid_y - half_ts, ts, ts),
-                color: b.theme.ink,
-                width: 1.0,
-                z: 0,
-            },
-        ]));
-        let spec = LabelSpecBuilder::new().text(".24-.76").style(LabelStyle {
+        let spec_builder = SliderSpecBuilder::new()
+            .max(1.0)
+            .page_step(0.1)
+            .step(0.01)
+            .style(SliderStyle::range_from_theme(&b.theme));
+
+        slider(
+            &mut b,
+            spec_builder,
+            Rect::new(0.0, 0.0, track_w, 18.0),
+            &mut state.slider_range_state,
+        );
+
+        let text = if let SliderValue::Range { lower, upper } = state.slider_range_state.value {
+            format!("{:.2}–{:.2}", lower, upper)
+        } else {
+            String::new()
+        };
+
+        let spec = LabelSpecBuilder::new().text(&text).style(LabelStyle {
             text_style: framewise::TextStyle {
                 font: b.theme.mono_font,
                 size: b.theme.text_mono,
