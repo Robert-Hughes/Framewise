@@ -1737,6 +1737,10 @@ impl TextEditStyle {
     pub fn from_theme(theme: &crate::theme::Theme) -> Self {
         let mut scroll_area_style = ScrollAreaStyle::from_theme(theme);
         scroll_area_style.scrollbar_width = TEXT_EDIT_SCROLLBAR_WIDTH;
+        scroll_area_style.scrollbar_style.background_fill =
+            Some(theme.scrollbar_track_on_paper_elev);
+        scroll_area_style.scrollbar_style.separator_line =
+            Some(Stroke::new(theme.line_soft_on_paper_elev, 1.0));
         if let Some(segment_style) = &mut scroll_area_style.scrollbar_style.segment_style {
             segment_style.cross_axis =
                 crate::widgets::slider::ThumbCrossAxis::FillTrack { margin: 0.0 };
@@ -1745,7 +1749,7 @@ impl TextEditStyle {
         Self {
             background: theme.paper_elev,
             background_hovered: Color::WHITE,
-            error_background: theme.rust_soft,
+            error_background: theme.rust_soft_on_paper_elev,
             border: Some(Stroke::new(theme.ink, theme.border)),
             focus_border: Some(Stroke::new(theme.rust, theme.focus_width)),
             error_border: Some(Stroke::new(theme.rust, theme.border)),
@@ -1763,7 +1767,7 @@ impl TextEditStyle {
             placeholder_color: theme.muted,
             caret_color: theme.rust,
             caret_width: 2.0,
-            select_color: theme.rust_soft,
+            select_color: theme.rust_soft_on_paper_elev,
             scroll_area_style,
             disabled_alpha: 0.55,
         }

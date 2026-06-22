@@ -5,16 +5,15 @@ Working notes, TODOs, open questions, and half-baked ideas.
 ## Current Work
 
 - Sliders!
-  - hover highlighting makes thumbs see-through!
-  - click and drag on the segment behaviour is weird for a range slider
-  - collapsed range slider looks weird and behaves weird
-  - click and hold to repeated page stops if you move outside the widget - should be captured?
-  - check keyboard behaviour for different kinds
-  - check mouse wheel behaviour for different kinds
   - review & merge branch
 
+  - check keyboard behaviour for different kinds
+  - check mouse wheel behaviour for different kinds
+  - click and hold to repeated page stops if you move outside the widget - should be captured?
+  - collapsed range slider looks weird (overlap etc.) and behaves weird (hovering, which gets dragged)
   - markers being drawn
   - fixed steps
+  - are we using the widget helpers and or test helpers?
 
 
 - Go through the spec_page, check/implement/test each widget/aspect to make better match the mock-up and add interactivity as we go (https://claude.ai/design/p/1aab4e86-cbf2-497e-b379-44cf41de2b12?file=Framewise+Widgets.html)

@@ -341,7 +341,7 @@ impl MenuStyle {
             ),
             background: theme.paper_elev,
             border: Some(Stroke::new(theme.ink, theme.border)),
-            separator: Some(Stroke::new(theme.line, theme.border)),
+            separator: Some(Stroke::new(theme.line_on_paper_elev, theme.border)),
             selected_bg: theme.ink,
             selected_text: theme.paper,
             text: theme.ink,

@@ -261,8 +261,8 @@ impl ButtonStyle {
     pub fn secondary_from_theme(theme: &crate::theme::Theme) -> Self {
         Self {
             background: Color::TRANSPARENT,
-            hovered: theme.hover,
-            pressed: theme.press,
+            hovered: theme.paper_hover,
+            pressed: theme.paper_press,
             border: Some(Stroke::new(theme.ink, theme.border)),
             focus: Some(Outline::new(
                 theme.rust,
@@ -339,8 +339,8 @@ impl ButtonStyle {
     pub fn ghost_from_theme(theme: &crate::theme::Theme) -> Self {
         Self {
             background: Color::TRANSPARENT,
-            hovered: theme.hover,
-            pressed: theme.press,
+            hovered: theme.paper_hover,
+            pressed: theme.paper_press,
             border: None,
             focus: Some(Outline::new(
                 theme.rust,

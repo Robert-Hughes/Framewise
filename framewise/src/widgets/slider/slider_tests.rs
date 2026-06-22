@@ -1692,8 +1692,8 @@ fn test_disabled_slider_draws_tinted() {
     let a = spec.style.disabled_alpha;
     let tint = |c: Color| Color::linear_rgba(c.r, c.g, c.b, c.a * a);
     let theme = crate::theme::Theme::framewise();
-    let track_color = Color::linear_rgba(theme.ink.r, theme.ink.g, theme.ink.b, 0.04);
-    let border_color = theme.line_soft;
+    let track_color = theme.scrollbar_track_on_paper;
+    let border_color = theme.line_soft_on_paper;
     let thumb_color = theme.ink;
 
     assert!(cmds.iter().any(|cmd| matches!(
@@ -1753,7 +1753,7 @@ fn test_slider_visual_normal() {
             DrawCmd::FillRect {
                 anti_alias: false,
                 rect: Rect::new(9.25, 50.0, 1.5, 44.0),
-                color: theme.line,
+                color: theme.line_on_paper,
                 z: 0,
             },
             DrawCmd::FillRect {
@@ -1830,13 +1830,13 @@ fn test_slider_visual_hovered() {
             DrawCmd::FillRect {
                 anti_alias: false,
                 rect: Rect::new(9.25, 50.0, 1.5, 44.0),
-                color: theme.line,
+                color: theme.line_on_paper,
                 z: 0,
             },
             DrawCmd::FillRect {
                 anti_alias: false,
                 rect: Rect::new(4.0, 44.0, 12.0, 12.0),
-                color: theme.hover,
+                color: theme.paper_elev_hover,
                 z: 0,
             },
             DrawCmd::StrokeRect {
@@ -1891,7 +1891,7 @@ fn test_slider_visual_drag() {
             DrawCmd::FillRect {
                 anti_alias: false,
                 rect: Rect::new(9.25, 50.0, 1.5, 44.0),
-                color: theme.line,
+                color: theme.line_on_paper,
                 z: 0,
             },
             DrawCmd::FillRect {
@@ -1950,7 +1950,7 @@ fn test_slider_visual_focused() {
             DrawCmd::FillRect {
                 anti_alias: false,
                 rect: Rect::new(9.25, 50.0, 1.5, 44.0),
-                color: theme.line,
+                color: theme.line_on_paper,
                 z: 0,
             },
             DrawCmd::FillRect {
@@ -2248,8 +2248,8 @@ fn test_segment_only_slider_visual_normal() {
     );
     focus_system.end_frame();
 
-    let track_color = Color::linear_rgba(theme.ink.r, theme.ink.g, theme.ink.b, 0.04);
-    let border_color = theme.line_soft;
+    let track_color = theme.scrollbar_track_on_paper;
+    let border_color = theme.line_soft_on_paper;
     let thumb_color = theme.ink;
 
     // Scrollbar-style: background_fill, segment, and separator line. No visible track strokes.
@@ -2345,10 +2345,10 @@ fn test_segment_only_slider_visual_hover() {
     );
     focus_system.end_frame();
 
-    let track_color = Color::linear_rgba(theme.ink.r, theme.ink.g, theme.ink.b, 0.04);
-    let border_color = theme.line_soft;
-    // Scrollbar fill uses theme.rust for hovered segment
-    let thumb_color = theme.rust;
+    let track_color = theme.scrollbar_track_on_paper;
+    let border_color = theme.line_soft_on_paper;
+    // Scrollbar fill uses Color::BLACK for hovered segment
+    let thumb_color = Color::BLACK;
 
     assert_eq!(
         &cmds[..],
@@ -2427,8 +2427,8 @@ fn test_segment_only_slider_visual_drag() {
     );
     focus_system.end_frame();
 
-    let track_color = Color::linear_rgba(theme.ink.r, theme.ink.g, theme.ink.b, 0.04);
-    let border_color = theme.line_soft;
+    let track_color = theme.scrollbar_track_on_paper;
+    let border_color = theme.line_soft_on_paper;
     // Scrollbar fill uses theme.rust for dragged segment
     let thumb_color = theme.rust;
 
@@ -2506,8 +2506,8 @@ fn test_segment_only_slider_visual_focused() {
     );
     focus_system.end_frame();
 
-    let track_color = Color::linear_rgba(theme.ink.r, theme.ink.g, theme.ink.b, 0.04);
-    let border_color = theme.line_soft;
+    let track_color = theme.scrollbar_track_on_paper;
+    let border_color = theme.line_soft_on_paper;
     let thumb_color = theme.ink;
 
     assert_eq!(
@@ -2885,14 +2885,14 @@ fn test_range_slider_visual_normal() {
             DrawCmd::FillRect {
                 anti_alias: false,
                 rect: Rect::new(6.0, 9.25, 22.0, 1.5),
-                color: theme.line,
+                color: theme.line_on_paper,
                 z: 0,
             },
             // After track
             DrawCmd::FillRect {
                 anti_alias: false,
                 rect: Rect::new(72.0, 9.25, 22.0, 1.5),
-                color: theme.line,
+                color: theme.line_on_paper,
                 z: 0,
             },
             // Segment
@@ -3007,13 +3007,13 @@ fn test_range_slider_visual_hover_lower_thumb() {
             DrawCmd::FillRect {
                 anti_alias: false,
                 rect: Rect::new(6.0, 9.25, 22.0, 1.5),
-                color: theme.line,
+                color: theme.line_on_paper,
                 z: 0,
             },
             DrawCmd::FillRect {
                 anti_alias: false,
                 rect: Rect::new(72.0, 9.25, 22.0, 1.5),
-                color: theme.line,
+                color: theme.line_on_paper,
                 z: 0,
             },
             DrawCmd::FillRect {
@@ -3026,7 +3026,7 @@ fn test_range_slider_visual_hover_lower_thumb() {
             DrawCmd::FillRect {
                 anti_alias: false,
                 rect: Rect::new(22.0, 4.0, 12.0, 12.0),
-                color: theme.hover,
+                color: theme.paper_elev_hover,
                 z: 0,
             },
             DrawCmd::StrokeRect {
@@ -3124,13 +3124,13 @@ fn test_range_slider_visual_hover_upper_thumb() {
             DrawCmd::FillRect {
                 anti_alias: false,
                 rect: Rect::new(6.0, 9.25, 22.0, 1.5),
-                color: theme.line,
+                color: theme.line_on_paper,
                 z: 0,
             },
             DrawCmd::FillRect {
                 anti_alias: false,
                 rect: Rect::new(72.0, 9.25, 22.0, 1.5),
-                color: theme.line,
+                color: theme.line_on_paper,
                 z: 0,
             },
             DrawCmd::FillRect {
@@ -3156,7 +3156,7 @@ fn test_range_slider_visual_hover_upper_thumb() {
             DrawCmd::FillRect {
                 anti_alias: false,
                 rect: Rect::new(66.0, 4.0, 12.0, 12.0),
-                color: theme.hover,
+                color: theme.paper_elev_hover,
                 z: 0,
             },
             DrawCmd::StrokeRect {
@@ -3241,13 +3241,13 @@ fn test_range_slider_visual_hover_segment() {
             DrawCmd::FillRect {
                 anti_alias: false,
                 rect: Rect::new(6.0, 9.25, 22.0, 1.5),
-                color: theme.line,
+                color: theme.line_on_paper,
                 z: 0,
             },
             DrawCmd::FillRect {
                 anti_alias: false,
                 rect: Rect::new(72.0, 9.25, 22.0, 1.5),
-                color: theme.line,
+                color: theme.line_on_paper,
                 z: 0,
             },
             // Segment is hovered
@@ -3342,13 +3342,13 @@ fn test_range_slider_visual_drag_lower_thumb() {
             DrawCmd::FillRect {
                 anti_alias: false,
                 rect: Rect::new(6.0, 9.25, 22.0, 1.5),
-                color: theme.line,
+                color: theme.line_on_paper,
                 z: 0,
             },
             DrawCmd::FillRect {
                 anti_alias: false,
                 rect: Rect::new(72.0, 9.25, 22.0, 1.5),
-                color: theme.line,
+                color: theme.line_on_paper,
                 z: 0,
             },
             DrawCmd::FillRect {
@@ -3443,13 +3443,13 @@ fn test_range_slider_visual_drag_upper_thumb() {
             DrawCmd::FillRect {
                 anti_alias: false,
                 rect: Rect::new(6.0, 9.25, 22.0, 1.5),
-                color: theme.line,
+                color: theme.line_on_paper,
                 z: 0,
             },
             DrawCmd::FillRect {
                 anti_alias: false,
                 rect: Rect::new(72.0, 9.25, 22.0, 1.5),
-                color: theme.line,
+                color: theme.line_on_paper,
                 z: 0,
             },
             DrawCmd::FillRect {
@@ -3544,13 +3544,13 @@ fn test_range_slider_visual_drag_segment() {
             DrawCmd::FillRect {
                 anti_alias: false,
                 rect: Rect::new(6.0, 9.25, 22.0, 1.5),
-                color: theme.line,
+                color: theme.line_on_paper,
                 z: 0,
             },
             DrawCmd::FillRect {
                 anti_alias: false,
                 rect: Rect::new(72.0, 9.25, 22.0, 1.5),
-                color: theme.line,
+                color: theme.line_on_paper,
                 z: 0,
             },
             // Segment is dragged
@@ -3643,13 +3643,13 @@ fn test_range_slider_visual_focused() {
             DrawCmd::FillRect {
                 anti_alias: false,
                 rect: Rect::new(6.0, 9.25, 22.0, 1.5),
-                color: theme.line,
+                color: theme.line_on_paper,
                 z: 0,
             },
             DrawCmd::FillRect {
                 anti_alias: false,
                 rect: Rect::new(72.0, 9.25, 22.0, 1.5),
-                color: theme.line,
+                color: theme.line_on_paper,
                 z: 0,
             },
             DrawCmd::FillRect {

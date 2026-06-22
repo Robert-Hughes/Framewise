@@ -429,7 +429,7 @@ impl SelectStyle {
             text: theme.ink,
             selected_bg: theme.ink,
             selected_text: theme.paper,
-            hover: theme.hover,
+            hover: theme.paper_elev_hover,
             muted: theme.muted,
             accent: theme.rust,
             focus: Some(Outline::new(

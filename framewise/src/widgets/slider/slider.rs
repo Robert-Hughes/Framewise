@@ -1219,7 +1219,7 @@ impl SliderStyle {
             cross_axis: ThumbCrossAxis::FixedCentered(12.0),
             fill: InteractiveColor {
                 idle: theme.paper_elev,
-                hovered: theme.hover,
+                hovered: theme.paper_elev_hover,
                 dragged: theme.rust,
             },
             border: Some(Stroke::new(theme.ink, 1.0)),
@@ -1228,7 +1228,7 @@ impl SliderStyle {
         Self {
             background_fill: None,
             before_stroke: Some(Stroke::new(theme.ink, 1.5)),
-            after_stroke: Some(Stroke::new(theme.line, 1.5)),
+            after_stroke: Some(Stroke::new(theme.line_on_paper, 1.5)),
             segment_style: None,
             lower_thumb_style: Some(default_thumb),
             upper_thumb_style: None,
@@ -1247,7 +1247,7 @@ impl SliderStyle {
             cross_axis: ThumbCrossAxis::FixedCentered(12.0),
             fill: InteractiveColor {
                 idle: theme.paper_elev,
-                hovered: theme.hover,
+                hovered: theme.paper_elev_hover,
                 dragged: theme.rust,
             },
             border: Some(Stroke::new(theme.ink, 1.0)),
@@ -1255,8 +1255,8 @@ impl SliderStyle {
 
         Self {
             background_fill: None,
-            before_stroke: Some(Stroke::new(theme.line, 1.5)),
-            after_stroke: Some(Stroke::new(theme.line, 1.5)),
+            before_stroke: Some(Stroke::new(theme.line_on_paper, 1.5)),
+            after_stroke: Some(Stroke::new(theme.line_on_paper, 1.5)),
             segment_style: Some(SegmentStyle {
                 cross_axis: ThumbCrossAxis::FixedCentered(1.5),
                 fill: InteractiveColor {
@@ -1280,26 +1280,21 @@ impl SliderStyle {
 
     pub fn scrollbar_from_theme(theme: &crate::theme::Theme) -> Self {
         Self {
-            background_fill: Some(Color::linear_rgba(
-                theme.ink.r,
-                theme.ink.g,
-                theme.ink.b,
-                0.04,
-            )),
+            background_fill: Some(theme.scrollbar_track_on_paper),
             before_stroke: None,
             after_stroke: None,
             segment_style: Some(SegmentStyle {
                 cross_axis: ThumbCrossAxis::FillTrack { margin: 1.0 },
                 fill: InteractiveColor {
                     idle: theme.ink,
-                    hovered: theme.rust,
+                    hovered: Color::BLACK,
                     dragged: theme.rust,
                 },
                 border: None,
             }),
             lower_thumb_style: None,
             upper_thumb_style: None,
-            separator_line: Some(Stroke::new(theme.line_soft, 1.0)),
+            separator_line: Some(Stroke::new(theme.line_soft_on_paper, 1.0)),
             focus: Some(Outline::new(
                 theme.rust,
                 theme.focus_width,

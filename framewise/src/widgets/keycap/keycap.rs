@@ -142,10 +142,10 @@ impl KeycapStyle {
     pub fn from_theme(theme: &crate::theme::Theme) -> Self {
         Self {
             background: theme.paper_elev,
-            shadow: theme.line,
+            shadow: theme.line_on_paper,
             shadow_offset: 1.0,
             shadow_height: 2.0,
-            border: Some(Stroke::new(theme.line, theme.border)),
+            border: Some(Stroke::new(theme.line_on_paper, theme.border)),
             text_color: theme.ink,
             text_style: crate::text::TextStyle::new(
                 theme.mono_font,

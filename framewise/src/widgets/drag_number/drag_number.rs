@@ -317,7 +317,7 @@ impl DragNumberStyle {
             active_text_bg: theme.rust,
             text_text: theme.paper,
             value_text: theme.ink,
-            value_fill: theme.rust_soft,
+            value_fill: theme.rust_soft_on_paper_elev,
             disabled_alpha: 0.35,
         }
     }

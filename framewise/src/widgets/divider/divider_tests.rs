@@ -38,7 +38,7 @@ fn test_builder_defaults_from_theme_fills_unset_color() {
     let spec = DividerSpecBuilder::new()
         .defaults_from_theme(&theme)
         .build();
-    assert_eq!(spec.stroke.color, theme.line);
+    assert_eq!(spec.stroke.color, theme.line_on_paper);
 }
 
 #[test]

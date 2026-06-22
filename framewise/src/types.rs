@@ -235,6 +235,18 @@ impl Color {
         }
     }
 
+    /// Composite a foreground color over an opaque background and return an opaque result.
+    /// Since Color stores linear RGB values, composite in linear space.
+    pub fn with_alpha_over(self, bg: Color, alpha: f32) -> Color {
+        let a = alpha.clamp(0.0, 1.0);
+        Color::linear_rgba(
+            self.r * a + bg.r * (1.0 - a),
+            self.g * a + bg.g * (1.0 - a),
+            self.b * a + bg.b * (1.0 - a),
+            1.0,
+        )
+    }
+
     /// Multiply RGB by `factor` (brightness adjustment, clamped to [0, 1]). Linear space.
     pub fn darken(&self, factor: f32) -> Self {
         Self {

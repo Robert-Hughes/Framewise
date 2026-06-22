@@ -219,8 +219,8 @@ impl CheckboxStyle {
         Self {
             size: 14.0,
             background: theme.paper_elev,
-            hovered: theme.hover,
-            pressed: theme.press,
+            hovered: theme.paper_elev_hover,
+            pressed: theme.paper_elev_press,
             selected_fill: theme.ink,
             selected_hovered: Color::BLACK,
             selected_pressed: Color::from_srgb_u8(42, 37, 32, 255),

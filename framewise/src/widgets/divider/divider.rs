@@ -115,7 +115,7 @@ impl DividerSpecBuilder {
     /// context functions.
     pub fn defaults_from_theme(mut self, theme: &crate::theme::Theme) -> Self {
         if self.stroke.is_none() {
-            let color = self.color.unwrap_or(theme.line);
+            let color = self.color.unwrap_or(theme.line_on_paper);
             let width = self.width.unwrap_or(1.0);
             self.stroke = Some(Stroke::new(color, width));
         } else {

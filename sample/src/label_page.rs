@@ -105,7 +105,7 @@ pub(crate) fn draw_label_page_content<'a, 'b, CF>(
             ),
             content_placement: framewise::TextContentPlacement::TOP_LEFT,
             text_color: theme.ink,
-            rule: Some(Stroke::new(theme.line, 1.0)),
+            rule: Some(Stroke::new(theme.line_on_paper, 1.0)),
         };
         label(
             ctx,
@@ -233,7 +233,7 @@ pub(crate) fn draw_label_page_content<'a, 'b, CF>(
             ),
             content_placement: framewise::TextContentPlacement::TOP_LEFT,
             text_color: theme.ink,
-            rule: Some(Stroke::new(theme.line, 1.0)),
+            rule: Some(Stroke::new(theme.line_on_paper, 1.0)),
         };
         label(
             ctx,
@@ -288,7 +288,7 @@ pub(crate) fn draw_label_page_content<'a, 'b, CF>(
             let mut col = row.child_with_layout(RowLayoutParams::auto(), ColumnLayout);
 
             let rule_styles = [
-                ("Underlined Heading", theme.ink, theme.line),
+                ("Underlined Heading", theme.ink, theme.line_on_paper),
                 ("Accent Underline Heading", theme.ink, theme.rust),
                 ("Colored Heading & Colored Rule", theme.rust, theme.rust),
                 (
@@ -334,7 +334,7 @@ pub(crate) fn draw_label_page_content<'a, 'b, CF>(
             ),
             content_placement: framewise::TextContentPlacement::TOP_LEFT,
             text_color: theme.ink,
-            rule: Some(Stroke::new(theme.line, 1.0)),
+            rule: Some(Stroke::new(theme.line_on_paper, 1.0)),
         };
         label(
             ctx,
@@ -856,7 +856,7 @@ pub(crate) fn draw_label_page_content<'a, 'b, CF>(
             ),
             content_placement: framewise::TextContentPlacement::TOP_LEFT,
             text_color: theme.ink,
-            rule: Some(Stroke::new(theme.line, 1.0)),
+            rule: Some(Stroke::new(theme.line_on_paper, 1.0)),
         };
         label(
             ctx,
@@ -1461,7 +1461,7 @@ pub(crate) fn draw_label_page_content<'a, 'b, CF>(
             ),
             content_placement: framewise::TextContentPlacement::TOP_LEFT,
             text_color: theme.ink,
-            rule: Some(Stroke::new(theme.line, 1.0)),
+            rule: Some(Stroke::new(theme.line_on_paper, 1.0)),
         };
         label(
             ctx,
@@ -1546,7 +1546,7 @@ pub(crate) fn draw_label_page_content<'a, 'b, CF>(
             ),
             content_placement: framewise::TextContentPlacement::TOP_LEFT,
             text_color: theme.ink,
-            rule: Some(Stroke::new(theme.line, 1.0)),
+            rule: Some(Stroke::new(theme.line_on_paper, 1.0)),
         };
         label(
             ctx,
@@ -1576,7 +1576,7 @@ pub(crate) fn draw_label_page_content<'a, 'b, CF>(
                     &mut row,
                     FrameSpecBuilder::new().style(FrameStyle {
                         background: Color::from_srgb_u8(255, 255, 255, 255),
-                        border: Some(Stroke::new(theme.line, 1.0)),
+                        border: Some(Stroke::new(theme.line_on_paper, 1.0)),
                         padding: 0.0,
                     }),
                     RowLayoutParams::fixed(150.0, 72.0),
@@ -1622,7 +1622,7 @@ pub(crate) fn draw_label_page_content<'a, 'b, CF>(
         };
         let icon_frame = FrameStyle {
             background: Color::from_srgb_u8(255, 255, 255, 255),
-            border: Some(Stroke::new(theme.line, 1.0)),
+            border: Some(Stroke::new(theme.line_on_paper, 1.0)),
             padding: 0.0,
         };
 

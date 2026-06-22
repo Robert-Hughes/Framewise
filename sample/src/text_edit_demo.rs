@@ -203,7 +203,7 @@ pub(crate) fn draw_text_edit_demo_content<'a, 'b, CF>(
         ),
         content_placement: framewise::TextContentPlacement::TOP_LEFT,
         text_color: theme.ink,
-        rule: Some(Stroke::new(theme.line, 1.0)),
+        rule: Some(Stroke::new(theme.line_on_paper, 1.0)),
     };
 
     let desc_style = LabelStyle {

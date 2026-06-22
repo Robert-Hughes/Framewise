@@ -2143,7 +2143,7 @@ fn section_02_text_inputs<CF>(
                 DrawCmd::StrokeRect {
                     anti_alias: false,
                     rect,
-                    color: b.theme.line,
+                    color: b.theme.line_on_paper,
                     width: 1.0,
                     z: 0,
                 },
@@ -2621,7 +2621,7 @@ fn section_04_sliders<CF>(
                     b.cmds.push(DrawCmd::FillRect {
                         anti_alias: false,
                         rect,
-                        color: b.theme.line,
+                        color: b.theme.line_on_paper,
                         z: 0,
                     });
                 }
@@ -2717,13 +2717,13 @@ fn section_04_sliders<CF>(
             DrawCmd::FillRect {
                 anti_alias: false,
                 rect: rect(stepper_x, 0.0, 64.0, b.theme.h_md),
-                color: b.theme.hover,
+                color: b.theme.paper_hover,
                 z: 0,
             },
             DrawCmd::StrokeRect {
                 anti_alias: false,
                 rect: rect(stepper_x, 0.0, 64.0, b.theme.h_md),
-                color: b.theme.line,
+                color: b.theme.line_on_paper,
                 width: 1.0,
                 z: 0,
             },
@@ -2736,7 +2736,7 @@ fn section_04_sliders<CF>(
             DrawCmd::StrokeRect {
                 anti_alias: false,
                 rect: rect(stepper_x + 64.0, 0.0, 40.0, b.theme.h_md),
-                color: b.theme.line,
+                color: b.theme.line_on_paper,
                 width: 1.0,
                 z: 0,
             },
@@ -2749,7 +2749,7 @@ fn section_04_sliders<CF>(
             DrawCmd::StrokeRect {
                 anti_alias: false,
                 rect: rect(120.0, 0.0, 22.0, b.theme.h_sm),
-                color: b.theme.line,
+                color: b.theme.line_on_paper,
                 width: 1.0,
                 z: 0,
             },
@@ -2762,7 +2762,7 @@ fn section_04_sliders<CF>(
             DrawCmd::StrokeRect {
                 anti_alias: false,
                 rect: rect(142.0, 0.0, 40.0, b.theme.h_sm),
-                color: b.theme.line,
+                color: b.theme.line_on_paper,
                 width: 1.0,
                 z: 0,
             },
@@ -2775,7 +2775,7 @@ fn section_04_sliders<CF>(
             DrawCmd::StrokeRect {
                 anti_alias: false,
                 rect: rect(182.0, 0.0, 22.0, b.theme.h_sm),
-                color: b.theme.line,
+                color: b.theme.line_on_paper,
                 width: 1.0,
                 z: 0,
             },
@@ -2803,7 +2803,7 @@ fn section_04_sliders<CF>(
         for (color, hex) in swatches {
             let spec = ColorSwatchSpecBuilder::new()
                 .color(*color)
-                .border(Some(Stroke::new(b.theme.line, 1.0)));
+                .border(Some(Stroke::new(b.theme.line_on_paper, 1.0)));
             let rect = Rect::new(x, 0.0, 18.0, b.theme.h_md);
             color_swatch(&mut b, spec, rect);
             let spec = LabelSpecBuilder::new().text(hex).style(LabelStyle {
@@ -3048,7 +3048,7 @@ fn section_06_scrollbars<CF>(
             let cmds = DrawCommands::from_vec(vec![DrawCmd::StrokeRect {
                 anti_alias: false,
                 rect,
-                color: b.theme.line,
+                color: b.theme.line_on_paper,
                 width: 1.0,
                 z: 0,
             }]);
@@ -3127,7 +3127,7 @@ fn section_06_scrollbars<CF>(
             let cmds = DrawCommands::from_vec(vec![DrawCmd::StrokeRect {
                 anti_alias: false,
                 rect,
-                color: b.theme.line,
+                color: b.theme.line_on_paper,
                 width: 1.0,
                 z: 0,
             }]);
@@ -3192,7 +3192,7 @@ fn section_06_scrollbars<CF>(
             let cmds = DrawCommands::from_vec(vec![DrawCmd::StrokeRect {
                 anti_alias: false,
                 rect,
-                color: b.theme.line,
+                color: b.theme.line_on_paper,
                 width: 1.0,
                 z: 0,
             }]);
@@ -3254,7 +3254,7 @@ fn section_06_scrollbars<CF>(
             let cmds = DrawCommands::from_vec(vec![DrawCmd::StrokeRect {
                 anti_alias: false,
                 rect,
-                color: b.theme.line,
+                color: b.theme.line_on_paper,
                 width: 1.0,
                 z: 0,
             }]);
@@ -4322,7 +4322,7 @@ fn section_12_in_use<CF>(
         };
         let spec = ColorSwatchSpecBuilder::new()
             .color(win.theme.rust)
-            .border(Some(Stroke::new(win.theme.line, 1.0)));
+            .border(Some(Stroke::new(win.theme.line_on_paper, 1.0)));
         color_swatch(&mut win, spec, Rect::new(widget_x, fy + 4.0, 18.0, 20.0));
         {
             let layout_params = Rect::new(widget_x + 22.0, fy + 7.0, 60.0, 14.0);

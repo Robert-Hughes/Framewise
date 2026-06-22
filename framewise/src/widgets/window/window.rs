@@ -260,7 +260,7 @@ impl WindowStyle {
             title_bg: theme.ink,
             title_text: theme.paper,
             status_text: theme.muted,
-            status_border: Some(Stroke::new(theme.line, theme.border)),
+            status_border: Some(Stroke::new(theme.line_on_paper_elev, theme.border)),
         }
     }
 }

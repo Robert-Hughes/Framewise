@@ -126,7 +126,7 @@ pub struct ProgressBarStyle {
 impl ProgressBarStyle {
     pub fn from_theme(theme: &crate::theme::Theme) -> Self {
         Self {
-            track_color: theme.line_soft,
+            track_color: theme.line_soft_on_paper,
             fill_color: theme.ink,
             active_fill_color: theme.rust,
             track_height: 3.0,
