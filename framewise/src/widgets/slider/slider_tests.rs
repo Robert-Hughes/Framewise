@@ -2204,7 +2204,7 @@ fn test_non_keyboard_focusable_slider() {
 }
 
 #[test]
-fn test_scrollbar_visual_normal() {
+fn test_segment_only_slider_visual_normal() {
     let mut state = SliderState {
         value: SliderValue::Range {
             lower: 38.0,
@@ -2275,6 +2275,270 @@ fn test_scrollbar_visual_normal() {
                 color: border_color,
                 width: 1.0,
                 z: 0,
+            },
+        ]
+    );
+}
+
+#[test]
+fn test_segment_only_slider_visual_hover() {
+    let mut state = SliderState {
+        value: SliderValue::Range {
+            lower: 38.0,
+            upper: 62.0,
+        },
+        ..Default::default()
+    };
+    let mut focus_system = FocusSystem::new();
+    let theme = crate::theme::Theme::framewise();
+    let style = SliderStyle::scrollbar_from_theme(&theme);
+    let spec = SliderSpec {
+        orientation: Orientation::Vertical,
+        rect: Rect::new(0.0, 0.0, 20.0, 100.0),
+        min: 0.0,
+        max: 100.0,
+        page_step: 20.0,
+        step: 5.0,
+        min_gap: None,
+        max_gap: None,
+        style,
+        clip_rect: None,
+        scroll_claim: ScrollClaimPolicy::YieldSameAxisAtEnds,
+        time: 0.0,
+        disabled: false,
+        keyboard_focusable: true,
+        layer: Layer::default(),
+    };
+
+    let input = Input {
+        mouse_pos: Vec2::new(10.0, 50.0), // over segment rect [1..19, 38..62]
+        ..Default::default()
+    };
+
+    // Warmup frame
+    focus_system.begin_frame();
+    let mut cmds = DrawCommands::new();
+    raw::post_layout_slider(
+        spec.clone(),
+        raw::SliderPreLayoutResult {
+            size_request: crate::layout::SizeRequest::UNKNOWN,
+        },
+        &mut state,
+        &input,
+        &mut focus_system,
+        &mut cmds,
+    );
+    focus_system.end_frame();
+
+    // Second frame
+    focus_system.begin_frame();
+    let mut cmds = DrawCommands::new();
+    raw::post_layout_slider(
+        spec,
+        raw::SliderPreLayoutResult {
+            size_request: crate::layout::SizeRequest::UNKNOWN,
+        },
+        &mut state,
+        &input,
+        &mut focus_system,
+        &mut cmds,
+    );
+    focus_system.end_frame();
+
+    let track_color = Color::linear_rgba(theme.ink.r, theme.ink.g, theme.ink.b, 0.04);
+    let border_color = theme.line_soft;
+    // Scrollbar fill uses theme.rust for hovered segment
+    let thumb_color = theme.rust;
+
+    assert_eq!(
+        &cmds[..],
+        &[
+            DrawCmd::FillRect {
+                anti_alias: false,
+                rect: Rect::new(0.0, 0.0, 20.0, 100.0),
+                color: track_color,
+                z: 0,
+            },
+            DrawCmd::FillRect {
+                anti_alias: false,
+                rect: Rect::new(1.0, 38.0, 18.0, 24.0),
+                color: thumb_color,
+                z: 0,
+            },
+            DrawCmd::StrokeLine {
+                anti_alias: false,
+                p0: Vec2::new(0.0, 0.0),
+                p1: Vec2::new(0.0, 100.0),
+                color: border_color,
+                width: 1.0,
+                z: 0,
+            },
+        ]
+    );
+}
+
+#[test]
+fn test_segment_only_slider_visual_drag() {
+    let mut state = SliderState {
+        value: SliderValue::Range {
+            lower: 38.0,
+            upper: 62.0,
+        },
+        active_part: Some(SliderPart::Segment),
+        ..Default::default()
+    };
+    let mut focus_system = FocusSystem::new();
+    let theme = crate::theme::Theme::framewise();
+    let style = SliderStyle::scrollbar_from_theme(&theme);
+    let spec = SliderSpec {
+        orientation: Orientation::Vertical,
+        rect: Rect::new(0.0, 0.0, 20.0, 100.0),
+        min: 0.0,
+        max: 100.0,
+        page_step: 20.0,
+        step: 5.0,
+        min_gap: None,
+        max_gap: None,
+        style,
+        clip_rect: None,
+        scroll_claim: ScrollClaimPolicy::YieldSameAxisAtEnds,
+        time: 0.0,
+        disabled: false,
+        keyboard_focusable: true,
+        layer: Layer::default(),
+    };
+
+    let input = Input {
+        mouse_down: true,
+        ..Default::default()
+    };
+
+    focus_system.begin_frame();
+    let mut cmds = DrawCommands::new();
+    raw::post_layout_slider(
+        spec,
+        raw::SliderPreLayoutResult {
+            size_request: crate::layout::SizeRequest::UNKNOWN,
+        },
+        &mut state,
+        &input,
+        &mut focus_system,
+        &mut cmds,
+    );
+    focus_system.end_frame();
+
+    let track_color = Color::linear_rgba(theme.ink.r, theme.ink.g, theme.ink.b, 0.04);
+    let border_color = theme.line_soft;
+    // Scrollbar fill uses theme.rust for dragged segment
+    let thumb_color = theme.rust;
+
+    assert_eq!(
+        &cmds[..],
+        &[
+            DrawCmd::FillRect {
+                anti_alias: false,
+                rect: Rect::new(0.0, 0.0, 20.0, 100.0),
+                color: track_color,
+                z: 0,
+            },
+            DrawCmd::FillRect {
+                anti_alias: false,
+                rect: Rect::new(1.0, 38.0, 18.0, 24.0),
+                color: thumb_color,
+                z: 0,
+            },
+            DrawCmd::StrokeLine {
+                anti_alias: false,
+                p0: Vec2::new(0.0, 0.0),
+                p1: Vec2::new(0.0, 100.0),
+                color: border_color,
+                width: 1.0,
+                z: 0,
+            },
+        ]
+    );
+}
+
+#[test]
+fn test_segment_only_slider_visual_focused() {
+    let mut state = SliderState {
+        value: SliderValue::Range {
+            lower: 38.0,
+            upper: 62.0,
+        },
+        ..Default::default()
+    };
+    let mut focus_system = FocusSystem::new();
+    let theme = crate::theme::Theme::framewise();
+    let style = SliderStyle::scrollbar_from_theme(&theme);
+    let spec = SliderSpec {
+        orientation: Orientation::Vertical,
+        rect: Rect::new(0.0, 0.0, 20.0, 100.0),
+        min: 0.0,
+        max: 100.0,
+        page_step: 20.0,
+        step: 5.0,
+        min_gap: None,
+        max_gap: None,
+        style,
+        clip_rect: None,
+        scroll_claim: ScrollClaimPolicy::YieldSameAxisAtEnds,
+        time: 0.0,
+        disabled: false,
+        keyboard_focusable: true,
+        layer: Layer::default(),
+    };
+
+    focus_system.take_keyboard_focus(state.focus_id);
+
+    let input = Input::new();
+    focus_system.begin_frame();
+    let mut cmds = DrawCommands::new();
+    raw::post_layout_slider(
+        spec,
+        raw::SliderPreLayoutResult {
+            size_request: crate::layout::SizeRequest::UNKNOWN,
+        },
+        &mut state,
+        &input,
+        &mut focus_system,
+        &mut cmds,
+    );
+    focus_system.end_frame();
+
+    let track_color = Color::linear_rgba(theme.ink.r, theme.ink.g, theme.ink.b, 0.04);
+    let border_color = theme.line_soft;
+    let thumb_color = theme.ink;
+
+    assert_eq!(
+        &cmds[..],
+        &[
+            DrawCmd::FillRect {
+                anti_alias: false,
+                rect: Rect::new(0.0, 0.0, 20.0, 100.0),
+                color: track_color,
+                z: 0,
+            },
+            DrawCmd::FillRect {
+                anti_alias: false,
+                rect: Rect::new(1.0, 38.0, 18.0, 24.0),
+                color: thumb_color,
+                z: 0,
+            },
+            DrawCmd::StrokeLine {
+                anti_alias: false,
+                p0: Vec2::new(0.0, 0.0),
+                p1: Vec2::new(0.0, 100.0),
+                color: border_color,
+                width: 1.0,
+                z: 0,
+            },
+            DrawCmd::StrokeRect {
+                anti_alias: false,
+                rect: Rect::new(-4.0, -4.0, 28.0, 108.0),
+                color: theme.rust,
+                width: 2.0,
+                z: 1,
             },
         ]
     );
@@ -2570,12 +2834,1388 @@ fn test_away_drags_respect_max_gap() {
 }
 
 #[test]
-fn test_slider_style_range_from_theme() {
+fn test_range_slider_visual_normal() {
     let theme = crate::theme::Theme::framewise();
-    let style = SliderStyle::range_from_theme(&theme);
-    assert!(style.segment_style.is_some());
-    assert!(style.lower_thumb_style.is_some());
-    assert!(style.upper_thumb_style.is_some());
-    assert!(style.background_fill.is_none());
-    assert!(style.separator_line.is_none());
+    let mut state = SliderState {
+        value: SliderValue::Range {
+            lower: 25.0,
+            upper: 75.0,
+        },
+        ..Default::default()
+    };
+
+    let spec = SliderSpec {
+        orientation: Orientation::Horizontal,
+        rect: Rect::new(0.0, 0.0, 100.0, 20.0),
+        min: 0.0,
+        max: 100.0,
+        page_step: 20.0,
+        step: 5.0,
+        min_gap: None,
+        max_gap: None,
+        style: SliderStyle::range_from_theme(&theme),
+        clip_rect: None,
+        scroll_claim: ScrollClaimPolicy::ClaimAllDirections,
+        time: 0.0,
+        disabled: false,
+        keyboard_focusable: true,
+        layer: Layer::default(),
+    };
+
+    let input = Input::new();
+    let mut focus_system = FocusSystem::new();
+    focus_system.begin_frame();
+    let mut cmds = DrawCommands::new();
+    raw::post_layout_slider(
+        spec,
+        raw::SliderPreLayoutResult {
+            size_request: crate::layout::SizeRequest::UNKNOWN,
+        },
+        &mut state,
+        &input,
+        &mut focus_system,
+        &mut cmds,
+    );
+    focus_system.end_frame();
+
+    assert_eq!(
+        &cmds[..],
+        &[
+            // Before track
+            DrawCmd::FillRect {
+                anti_alias: false,
+                rect: Rect::new(6.0, 9.25, 22.0, 1.5),
+                color: theme.line,
+                z: 0,
+            },
+            // After track
+            DrawCmd::FillRect {
+                anti_alias: false,
+                rect: Rect::new(72.0, 9.25, 22.0, 1.5),
+                color: theme.line,
+                z: 0,
+            },
+            // Segment
+            DrawCmd::FillRect {
+                anti_alias: false,
+                rect: Rect::new(28.0, 9.25, 44.0, 1.5),
+                color: theme.ink,
+                z: 0,
+            },
+            // Lower thumb fill
+            DrawCmd::FillRect {
+                anti_alias: false,
+                rect: Rect::new(22.0, 4.0, 12.0, 12.0),
+                color: theme.paper_elev,
+                z: 0,
+            },
+            // Lower thumb border
+            DrawCmd::StrokeRect {
+                anti_alias: false,
+                rect: Rect::new(22.0, 4.0, 12.0, 12.0),
+                color: theme.ink,
+                width: 1.0,
+                z: 0,
+            },
+            // Upper thumb fill
+            DrawCmd::FillRect {
+                anti_alias: false,
+                rect: Rect::new(6.0 + 60.0, 4.0, 12.0, 12.0),
+                color: theme.paper_elev,
+                z: 0,
+            },
+            // Upper thumb border
+            DrawCmd::StrokeRect {
+                anti_alias: false,
+                rect: Rect::new(6.0 + 60.0, 4.0, 12.0, 12.0),
+                color: theme.ink,
+                width: 1.0,
+                z: 0,
+            },
+        ]
+    );
+}
+
+#[test]
+fn test_range_slider_visual_hover_lower_thumb() {
+    let theme = crate::theme::Theme::framewise();
+    let mut state = SliderState {
+        value: SliderValue::Range {
+            lower: 25.0,
+            upper: 75.0,
+        },
+        ..Default::default()
+    };
+
+    let spec = SliderSpec {
+        orientation: Orientation::Horizontal,
+        rect: Rect::new(0.0, 0.0, 100.0, 20.0),
+        min: 0.0,
+        max: 100.0,
+        page_step: 20.0,
+        step: 5.0,
+        min_gap: None,
+        max_gap: None,
+        style: SliderStyle::range_from_theme(&theme),
+        clip_rect: None,
+        scroll_claim: ScrollClaimPolicy::ClaimAllDirections,
+        time: 0.0,
+        disabled: false,
+        keyboard_focusable: true,
+        layer: Layer::default(),
+    };
+
+    let input = Input {
+        mouse_pos: Vec2::new(25.0, 10.0), // over lower thumb rect [22..34, 4..16]
+        ..Default::default()
+    };
+    let mut focus_system = FocusSystem::new();
+
+    // Warmup frame
+    focus_system.begin_frame();
+    let mut cmds = DrawCommands::new();
+    raw::post_layout_slider(
+        spec.clone(),
+        raw::SliderPreLayoutResult {
+            size_request: crate::layout::SizeRequest::UNKNOWN,
+        },
+        &mut state,
+        &input,
+        &mut focus_system,
+        &mut cmds,
+    );
+    focus_system.end_frame();
+
+    // Second frame
+    focus_system.begin_frame();
+    let mut cmds = DrawCommands::new();
+    raw::post_layout_slider(
+        spec,
+        raw::SliderPreLayoutResult {
+            size_request: crate::layout::SizeRequest::UNKNOWN,
+        },
+        &mut state,
+        &input,
+        &mut focus_system,
+        &mut cmds,
+    );
+    focus_system.end_frame();
+
+    assert_eq!(
+        &cmds[..],
+        &[
+            DrawCmd::FillRect {
+                anti_alias: false,
+                rect: Rect::new(6.0, 9.25, 22.0, 1.5),
+                color: theme.line,
+                z: 0,
+            },
+            DrawCmd::FillRect {
+                anti_alias: false,
+                rect: Rect::new(72.0, 9.25, 22.0, 1.5),
+                color: theme.line,
+                z: 0,
+            },
+            DrawCmd::FillRect {
+                anti_alias: false,
+                rect: Rect::new(28.0, 9.25, 44.0, 1.5),
+                color: theme.ink,
+                z: 0,
+            },
+            // Lower thumb fill is now hovered
+            DrawCmd::FillRect {
+                anti_alias: false,
+                rect: Rect::new(22.0, 4.0, 12.0, 12.0),
+                color: theme.hover,
+                z: 0,
+            },
+            DrawCmd::StrokeRect {
+                anti_alias: false,
+                rect: Rect::new(22.0, 4.0, 12.0, 12.0),
+                color: theme.ink,
+                width: 1.0,
+                z: 0,
+            },
+            DrawCmd::FillRect {
+                anti_alias: false,
+                rect: Rect::new(66.0, 4.0, 12.0, 12.0),
+                color: theme.paper_elev,
+                z: 0,
+            },
+            DrawCmd::StrokeRect {
+                anti_alias: false,
+                rect: Rect::new(66.0, 4.0, 12.0, 12.0),
+                color: theme.ink,
+                width: 1.0,
+                z: 0,
+            },
+        ]
+    );
+}
+
+#[test]
+fn test_range_slider_visual_hover_upper_thumb() {
+    let theme = crate::theme::Theme::framewise();
+    let mut state = SliderState {
+        value: SliderValue::Range {
+            lower: 25.0,
+            upper: 75.0,
+        },
+        ..Default::default()
+    };
+
+    let spec = SliderSpec {
+        orientation: Orientation::Horizontal,
+        rect: Rect::new(0.0, 0.0, 100.0, 20.0),
+        min: 0.0,
+        max: 100.0,
+        page_step: 20.0,
+        step: 5.0,
+        min_gap: None,
+        max_gap: None,
+        style: SliderStyle::range_from_theme(&theme),
+        clip_rect: None,
+        scroll_claim: ScrollClaimPolicy::ClaimAllDirections,
+        time: 0.0,
+        disabled: false,
+        keyboard_focusable: true,
+        layer: Layer::default(),
+    };
+
+    let input = Input {
+        mouse_pos: Vec2::new(75.0, 10.0), // over upper thumb rect [66..78, 4..16]
+        ..Default::default()
+    };
+    let mut focus_system = FocusSystem::new();
+
+    // Warmup frame
+    focus_system.begin_frame();
+    let mut cmds = DrawCommands::new();
+    raw::post_layout_slider(
+        spec.clone(),
+        raw::SliderPreLayoutResult {
+            size_request: crate::layout::SizeRequest::UNKNOWN,
+        },
+        &mut state,
+        &input,
+        &mut focus_system,
+        &mut cmds,
+    );
+    focus_system.end_frame();
+
+    // Second frame
+    focus_system.begin_frame();
+    let mut cmds = DrawCommands::new();
+    raw::post_layout_slider(
+        spec,
+        raw::SliderPreLayoutResult {
+            size_request: crate::layout::SizeRequest::UNKNOWN,
+        },
+        &mut state,
+        &input,
+        &mut focus_system,
+        &mut cmds,
+    );
+    focus_system.end_frame();
+
+    assert_eq!(
+        &cmds[..],
+        &[
+            DrawCmd::FillRect {
+                anti_alias: false,
+                rect: Rect::new(6.0, 9.25, 22.0, 1.5),
+                color: theme.line,
+                z: 0,
+            },
+            DrawCmd::FillRect {
+                anti_alias: false,
+                rect: Rect::new(72.0, 9.25, 22.0, 1.5),
+                color: theme.line,
+                z: 0,
+            },
+            DrawCmd::FillRect {
+                anti_alias: false,
+                rect: Rect::new(28.0, 9.25, 44.0, 1.5),
+                color: theme.ink,
+                z: 0,
+            },
+            DrawCmd::FillRect {
+                anti_alias: false,
+                rect: Rect::new(22.0, 4.0, 12.0, 12.0),
+                color: theme.paper_elev,
+                z: 0,
+            },
+            DrawCmd::StrokeRect {
+                anti_alias: false,
+                rect: Rect::new(22.0, 4.0, 12.0, 12.0),
+                color: theme.ink,
+                width: 1.0,
+                z: 0,
+            },
+            // Upper thumb fill is hovered
+            DrawCmd::FillRect {
+                anti_alias: false,
+                rect: Rect::new(66.0, 4.0, 12.0, 12.0),
+                color: theme.hover,
+                z: 0,
+            },
+            DrawCmd::StrokeRect {
+                anti_alias: false,
+                rect: Rect::new(66.0, 4.0, 12.0, 12.0),
+                color: theme.ink,
+                width: 1.0,
+                z: 0,
+            },
+        ]
+    );
+}
+
+#[test]
+fn test_range_slider_visual_hover_segment() {
+    let theme = crate::theme::Theme::framewise();
+    let mut state = SliderState {
+        value: SliderValue::Range {
+            lower: 25.0,
+            upper: 75.0,
+        },
+        ..Default::default()
+    };
+
+    let spec = SliderSpec {
+        orientation: Orientation::Horizontal,
+        rect: Rect::new(0.0, 0.0, 100.0, 20.0),
+        min: 0.0,
+        max: 100.0,
+        page_step: 20.0,
+        step: 5.0,
+        min_gap: None,
+        max_gap: None,
+        style: SliderStyle::range_from_theme(&theme),
+        clip_rect: None,
+        scroll_claim: ScrollClaimPolicy::ClaimAllDirections,
+        time: 0.0,
+        disabled: false,
+        keyboard_focusable: true,
+        layer: Layer::default(),
+    };
+
+    let input = Input {
+        mouse_pos: Vec2::new(50.0, 10.0), // over segment rect [28..72, 9.25..10.75]
+        ..Default::default()
+    };
+    let mut focus_system = FocusSystem::new();
+
+    // Warmup frame
+    focus_system.begin_frame();
+    let mut cmds = DrawCommands::new();
+    raw::post_layout_slider(
+        spec.clone(),
+        raw::SliderPreLayoutResult {
+            size_request: crate::layout::SizeRequest::UNKNOWN,
+        },
+        &mut state,
+        &input,
+        &mut focus_system,
+        &mut cmds,
+    );
+    focus_system.end_frame();
+
+    // Second frame
+    focus_system.begin_frame();
+    let mut cmds = DrawCommands::new();
+    raw::post_layout_slider(
+        spec,
+        raw::SliderPreLayoutResult {
+            size_request: crate::layout::SizeRequest::UNKNOWN,
+        },
+        &mut state,
+        &input,
+        &mut focus_system,
+        &mut cmds,
+    );
+    focus_system.end_frame();
+
+    assert_eq!(
+        &cmds[..],
+        &[
+            DrawCmd::FillRect {
+                anti_alias: false,
+                rect: Rect::new(6.0, 9.25, 22.0, 1.5),
+                color: theme.line,
+                z: 0,
+            },
+            DrawCmd::FillRect {
+                anti_alias: false,
+                rect: Rect::new(72.0, 9.25, 22.0, 1.5),
+                color: theme.line,
+                z: 0,
+            },
+            // Segment is hovered
+            DrawCmd::FillRect {
+                anti_alias: false,
+                rect: Rect::new(28.0, 9.25, 44.0, 1.5),
+                color: theme.hover,
+                z: 0,
+            },
+            DrawCmd::FillRect {
+                anti_alias: false,
+                rect: Rect::new(22.0, 4.0, 12.0, 12.0),
+                color: theme.paper_elev,
+                z: 0,
+            },
+            DrawCmd::StrokeRect {
+                anti_alias: false,
+                rect: Rect::new(22.0, 4.0, 12.0, 12.0),
+                color: theme.ink,
+                width: 1.0,
+                z: 0,
+            },
+            DrawCmd::FillRect {
+                anti_alias: false,
+                rect: Rect::new(66.0, 4.0, 12.0, 12.0),
+                color: theme.paper_elev,
+                z: 0,
+            },
+            DrawCmd::StrokeRect {
+                anti_alias: false,
+                rect: Rect::new(66.0, 4.0, 12.0, 12.0),
+                color: theme.ink,
+                width: 1.0,
+                z: 0,
+            },
+        ]
+    );
+}
+
+#[test]
+fn test_range_slider_visual_drag_lower_thumb() {
+    let theme = crate::theme::Theme::framewise();
+    let mut state = SliderState {
+        value: SliderValue::Range {
+            lower: 25.0,
+            upper: 75.0,
+        },
+        active_part: Some(SliderPart::LowerThumb),
+        ..Default::default()
+    };
+
+    let spec = SliderSpec {
+        orientation: Orientation::Horizontal,
+        rect: Rect::new(0.0, 0.0, 100.0, 20.0),
+        min: 0.0,
+        max: 100.0,
+        page_step: 20.0,
+        step: 5.0,
+        min_gap: None,
+        max_gap: None,
+        style: SliderStyle::range_from_theme(&theme),
+        clip_rect: None,
+        scroll_claim: ScrollClaimPolicy::ClaimAllDirections,
+        time: 0.0,
+        disabled: false,
+        keyboard_focusable: true,
+        layer: Layer::default(),
+    };
+
+    let input = Input {
+        mouse_down: true,
+        ..Default::default()
+    };
+    let mut focus_system = FocusSystem::new();
+    focus_system.begin_frame();
+    let mut cmds = DrawCommands::new();
+    raw::post_layout_slider(
+        spec,
+        raw::SliderPreLayoutResult {
+            size_request: crate::layout::SizeRequest::UNKNOWN,
+        },
+        &mut state,
+        &input,
+        &mut focus_system,
+        &mut cmds,
+    );
+    focus_system.end_frame();
+
+    assert_eq!(
+        &cmds[..],
+        &[
+            DrawCmd::FillRect {
+                anti_alias: false,
+                rect: Rect::new(6.0, 9.25, 22.0, 1.5),
+                color: theme.line,
+                z: 0,
+            },
+            DrawCmd::FillRect {
+                anti_alias: false,
+                rect: Rect::new(72.0, 9.25, 22.0, 1.5),
+                color: theme.line,
+                z: 0,
+            },
+            DrawCmd::FillRect {
+                anti_alias: false,
+                rect: Rect::new(28.0, 9.25, 44.0, 1.5),
+                color: theme.ink,
+                z: 0,
+            },
+            // Lower thumb fill is now dragged, and border is active/dragged
+            DrawCmd::FillRect {
+                anti_alias: false,
+                rect: Rect::new(22.0, 4.0, 12.0, 12.0),
+                color: theme.rust,
+                z: 0,
+            },
+            DrawCmd::StrokeRect {
+                anti_alias: false,
+                rect: Rect::new(22.0, 4.0, 12.0, 12.0),
+                color: theme.rust,
+                width: 1.0,
+                z: 0,
+            },
+            DrawCmd::FillRect {
+                anti_alias: false,
+                rect: Rect::new(66.0, 4.0, 12.0, 12.0),
+                color: theme.paper_elev,
+                z: 0,
+            },
+            DrawCmd::StrokeRect {
+                anti_alias: false,
+                rect: Rect::new(66.0, 4.0, 12.0, 12.0),
+                color: theme.ink,
+                width: 1.0,
+                z: 0,
+            },
+        ]
+    );
+}
+
+#[test]
+fn test_range_slider_visual_drag_upper_thumb() {
+    let theme = crate::theme::Theme::framewise();
+    let mut state = SliderState {
+        value: SliderValue::Range {
+            lower: 25.0,
+            upper: 75.0,
+        },
+        active_part: Some(SliderPart::UpperThumb),
+        ..Default::default()
+    };
+
+    let spec = SliderSpec {
+        orientation: Orientation::Horizontal,
+        rect: Rect::new(0.0, 0.0, 100.0, 20.0),
+        min: 0.0,
+        max: 100.0,
+        page_step: 20.0,
+        step: 5.0,
+        min_gap: None,
+        max_gap: None,
+        style: SliderStyle::range_from_theme(&theme),
+        clip_rect: None,
+        scroll_claim: ScrollClaimPolicy::ClaimAllDirections,
+        time: 0.0,
+        disabled: false,
+        keyboard_focusable: true,
+        layer: Layer::default(),
+    };
+
+    let input = Input {
+        mouse_down: true,
+        ..Default::default()
+    };
+    let mut focus_system = FocusSystem::new();
+    focus_system.begin_frame();
+    let mut cmds = DrawCommands::new();
+    raw::post_layout_slider(
+        spec,
+        raw::SliderPreLayoutResult {
+            size_request: crate::layout::SizeRequest::UNKNOWN,
+        },
+        &mut state,
+        &input,
+        &mut focus_system,
+        &mut cmds,
+    );
+    focus_system.end_frame();
+
+    assert_eq!(
+        &cmds[..],
+        &[
+            DrawCmd::FillRect {
+                anti_alias: false,
+                rect: Rect::new(6.0, 9.25, 22.0, 1.5),
+                color: theme.line,
+                z: 0,
+            },
+            DrawCmd::FillRect {
+                anti_alias: false,
+                rect: Rect::new(72.0, 9.25, 22.0, 1.5),
+                color: theme.line,
+                z: 0,
+            },
+            DrawCmd::FillRect {
+                anti_alias: false,
+                rect: Rect::new(28.0, 9.25, 44.0, 1.5),
+                color: theme.ink,
+                z: 0,
+            },
+            DrawCmd::FillRect {
+                anti_alias: false,
+                rect: Rect::new(22.0, 4.0, 12.0, 12.0),
+                color: theme.paper_elev,
+                z: 0,
+            },
+            DrawCmd::StrokeRect {
+                anti_alias: false,
+                rect: Rect::new(22.0, 4.0, 12.0, 12.0),
+                color: theme.ink,
+                width: 1.0,
+                z: 0,
+            },
+            // Upper thumb fill is now dragged, and border is active/dragged
+            DrawCmd::FillRect {
+                anti_alias: false,
+                rect: Rect::new(66.0, 4.0, 12.0, 12.0),
+                color: theme.rust,
+                z: 0,
+            },
+            DrawCmd::StrokeRect {
+                anti_alias: false,
+                rect: Rect::new(66.0, 4.0, 12.0, 12.0),
+                color: theme.rust,
+                width: 1.0,
+                z: 0,
+            },
+        ]
+    );
+}
+
+#[test]
+fn test_range_slider_visual_drag_segment() {
+    let theme = crate::theme::Theme::framewise();
+    let mut state = SliderState {
+        value: SliderValue::Range {
+            lower: 25.0,
+            upper: 75.0,
+        },
+        active_part: Some(SliderPart::Segment),
+        ..Default::default()
+    };
+
+    let spec = SliderSpec {
+        orientation: Orientation::Horizontal,
+        rect: Rect::new(0.0, 0.0, 100.0, 20.0),
+        min: 0.0,
+        max: 100.0,
+        page_step: 20.0,
+        step: 5.0,
+        min_gap: None,
+        max_gap: None,
+        style: SliderStyle::range_from_theme(&theme),
+        clip_rect: None,
+        scroll_claim: ScrollClaimPolicy::ClaimAllDirections,
+        time: 0.0,
+        disabled: false,
+        keyboard_focusable: true,
+        layer: Layer::default(),
+    };
+
+    let input = Input {
+        mouse_down: true,
+        ..Default::default()
+    };
+    let mut focus_system = FocusSystem::new();
+    focus_system.begin_frame();
+    let mut cmds = DrawCommands::new();
+    raw::post_layout_slider(
+        spec,
+        raw::SliderPreLayoutResult {
+            size_request: crate::layout::SizeRequest::UNKNOWN,
+        },
+        &mut state,
+        &input,
+        &mut focus_system,
+        &mut cmds,
+    );
+    focus_system.end_frame();
+
+    assert_eq!(
+        &cmds[..],
+        &[
+            DrawCmd::FillRect {
+                anti_alias: false,
+                rect: Rect::new(6.0, 9.25, 22.0, 1.5),
+                color: theme.line,
+                z: 0,
+            },
+            DrawCmd::FillRect {
+                anti_alias: false,
+                rect: Rect::new(72.0, 9.25, 22.0, 1.5),
+                color: theme.line,
+                z: 0,
+            },
+            // Segment is dragged
+            DrawCmd::FillRect {
+                anti_alias: false,
+                rect: Rect::new(28.0, 9.25, 44.0, 1.5),
+                color: theme.rust,
+                z: 0,
+            },
+            DrawCmd::FillRect {
+                anti_alias: false,
+                rect: Rect::new(22.0, 4.0, 12.0, 12.0),
+                color: theme.paper_elev,
+                z: 0,
+            },
+            DrawCmd::StrokeRect {
+                anti_alias: false,
+                rect: Rect::new(22.0, 4.0, 12.0, 12.0),
+                color: theme.ink,
+                width: 1.0,
+                z: 0,
+            },
+            DrawCmd::FillRect {
+                anti_alias: false,
+                rect: Rect::new(66.0, 4.0, 12.0, 12.0),
+                color: theme.paper_elev,
+                z: 0,
+            },
+            DrawCmd::StrokeRect {
+                anti_alias: false,
+                rect: Rect::new(66.0, 4.0, 12.0, 12.0),
+                color: theme.ink,
+                width: 1.0,
+                z: 0,
+            },
+        ]
+    );
+}
+
+#[test]
+fn test_range_slider_visual_focused() {
+    let theme = crate::theme::Theme::framewise();
+    let mut state = SliderState {
+        value: SliderValue::Range {
+            lower: 25.0,
+            upper: 75.0,
+        },
+        ..Default::default()
+    };
+
+    let spec = SliderSpec {
+        orientation: Orientation::Horizontal,
+        rect: Rect::new(0.0, 0.0, 100.0, 20.0),
+        min: 0.0,
+        max: 100.0,
+        page_step: 20.0,
+        step: 5.0,
+        min_gap: None,
+        max_gap: None,
+        style: SliderStyle::range_from_theme(&theme),
+        clip_rect: None,
+        scroll_claim: ScrollClaimPolicy::ClaimAllDirections,
+        time: 0.0,
+        disabled: false,
+        keyboard_focusable: true,
+        layer: Layer::default(),
+    };
+
+    let mut focus_system = FocusSystem::new();
+    focus_system.take_keyboard_focus(state.focus_id);
+
+    let input = Input::new();
+    focus_system.begin_frame();
+    let mut cmds = DrawCommands::new();
+    raw::post_layout_slider(
+        spec,
+        raw::SliderPreLayoutResult {
+            size_request: crate::layout::SizeRequest::UNKNOWN,
+        },
+        &mut state,
+        &input,
+        &mut focus_system,
+        &mut cmds,
+    );
+    focus_system.end_frame();
+
+    assert_eq!(
+        &cmds[..],
+        &[
+            DrawCmd::FillRect {
+                anti_alias: false,
+                rect: Rect::new(6.0, 9.25, 22.0, 1.5),
+                color: theme.line,
+                z: 0,
+            },
+            DrawCmd::FillRect {
+                anti_alias: false,
+                rect: Rect::new(72.0, 9.25, 22.0, 1.5),
+                color: theme.line,
+                z: 0,
+            },
+            DrawCmd::FillRect {
+                anti_alias: false,
+                rect: Rect::new(28.0, 9.25, 44.0, 1.5),
+                color: theme.ink,
+                z: 0,
+            },
+            DrawCmd::FillRect {
+                anti_alias: false,
+                rect: Rect::new(22.0, 4.0, 12.0, 12.0),
+                color: theme.paper_elev,
+                z: 0,
+            },
+            DrawCmd::StrokeRect {
+                anti_alias: false,
+                rect: Rect::new(22.0, 4.0, 12.0, 12.0),
+                color: theme.ink,
+                width: 1.0,
+                z: 0,
+            },
+            DrawCmd::FillRect {
+                anti_alias: false,
+                rect: Rect::new(66.0, 4.0, 12.0, 12.0),
+                color: theme.paper_elev,
+                z: 0,
+            },
+            DrawCmd::StrokeRect {
+                anti_alias: false,
+                rect: Rect::new(66.0, 4.0, 12.0, 12.0),
+                color: theme.ink,
+                width: 1.0,
+                z: 0,
+            },
+            // Focus outline around spec.rect
+            DrawCmd::StrokeRect {
+                anti_alias: false,
+                rect: Rect::new(-4.0, -4.0, 108.0, 28.0),
+                color: theme.rust,
+                width: 2.0,
+                z: 1,
+            },
+        ]
+    );
+}
+
+#[test]
+fn test_range_slider_segment_drag() {
+    let theme = crate::theme::Theme::framewise();
+    let spec = SliderSpec {
+        orientation: Orientation::Horizontal,
+        rect: Rect::new(0.0, 0.0, 100.0, 20.0),
+        min: 0.0,
+        max: 100.0,
+        page_step: 20.0,
+        step: 5.0,
+        min_gap: None,
+        max_gap: None,
+        style: SliderStyle::range_from_theme(&theme),
+        clip_rect: None,
+        scroll_claim: ScrollClaimPolicy::ClaimAllDirections,
+        time: 0.0,
+        disabled: false,
+        keyboard_focusable: true,
+        layer: Layer::default(),
+    };
+
+    // Subcase A: Lower thumb wins over segment
+    {
+        let mut state = SliderState {
+            value: SliderValue::Range {
+                lower: 20.0,
+                upper: 60.0,
+            },
+            ..Default::default()
+        };
+        let mut focus_system = FocusSystem::new();
+        let mut cmds = DrawCommands::new();
+
+        // Put mouse inside lower thumb rect (lower thumb center x = 23.6, thumb is 12px wide, so x: 17.6..29.6)
+        // Click at x = 25.0 (which overlaps with segment [23.6..58.8])
+        let input_hover = Input {
+            mouse_pos: Vec2::new(25.0, 10.0),
+            ..Default::default()
+        };
+        focus_system.begin_frame();
+        raw::post_layout_slider(
+            spec.clone(),
+            raw::SliderPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
+            &mut state,
+            &input_hover,
+            &mut focus_system,
+            &mut cmds,
+        );
+        focus_system.end_frame();
+
+        let input_click = Input {
+            mouse_pos: Vec2::new(25.0, 10.0),
+            mouse_down: true,
+            mouse_pressed: true,
+            ..Default::default()
+        };
+        focus_system.begin_frame();
+        raw::post_layout_slider(
+            spec.clone(),
+            raw::SliderPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
+            &mut state,
+            &input_click,
+            &mut focus_system,
+            &mut cmds,
+        );
+        focus_system.end_frame();
+
+        assert_eq!(state.active_part, Some(SliderPart::LowerThumb));
+    }
+
+    // Subcase B: Upper thumb wins over segment
+    {
+        let mut state = SliderState {
+            value: SliderValue::Range {
+                lower: 20.0,
+                upper: 60.0,
+            },
+            ..Default::default()
+        };
+        let mut focus_system = FocusSystem::new();
+        let mut cmds = DrawCommands::new();
+
+        // Put mouse inside upper thumb rect (upper thumb center x = 58.8, thumb is 12px wide, so x: 52.8..64.8)
+        // Click at x = 55.0 (which overlaps with segment [23.6..58.8])
+        let input_hover = Input {
+            mouse_pos: Vec2::new(55.0, 10.0),
+            ..Default::default()
+        };
+        focus_system.begin_frame();
+        raw::post_layout_slider(
+            spec.clone(),
+            raw::SliderPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
+            &mut state,
+            &input_hover,
+            &mut focus_system,
+            &mut cmds,
+        );
+        focus_system.end_frame();
+
+        let input_click = Input {
+            mouse_pos: Vec2::new(55.0, 10.0),
+            mouse_down: true,
+            mouse_pressed: true,
+            ..Default::default()
+        };
+        focus_system.begin_frame();
+        raw::post_layout_slider(
+            spec.clone(),
+            raw::SliderPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
+            &mut state,
+            &input_click,
+            &mut focus_system,
+            &mut cmds,
+        );
+        focus_system.end_frame();
+
+        assert_eq!(state.active_part, Some(SliderPart::UpperThumb));
+    }
+
+    // Subcase C: Segment area away from thumbs starts segment drag
+    {
+        let mut state = SliderState {
+            value: SliderValue::Range {
+                lower: 20.0,
+                upper: 60.0,
+            },
+            ..Default::default()
+        };
+        let mut focus_system = FocusSystem::new();
+        let mut cmds = DrawCommands::new();
+
+        // Put mouse clearly inside segment but away from either thumb, e.g. at x = 40.0
+        let input_hover = Input {
+            mouse_pos: Vec2::new(40.0, 10.0),
+            ..Default::default()
+        };
+        focus_system.begin_frame();
+        raw::post_layout_slider(
+            spec.clone(),
+            raw::SliderPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
+            &mut state,
+            &input_hover,
+            &mut focus_system,
+            &mut cmds,
+        );
+        focus_system.end_frame();
+
+        let input_click = Input {
+            mouse_pos: Vec2::new(40.0, 10.0),
+            mouse_down: true,
+            mouse_pressed: true,
+            ..Default::default()
+        };
+        focus_system.begin_frame();
+        raw::post_layout_slider(
+            spec.clone(),
+            raw::SliderPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
+            &mut state,
+            &input_click,
+            &mut focus_system,
+            &mut cmds,
+        );
+        focus_system.end_frame();
+
+        assert_eq!(state.active_part, Some(SliderPart::Segment));
+
+        // Move the mouse right by 10 value units.
+        // track_len is 88px for range 100.
+        // So 10 value units is 8.8 pixels.
+        // Let's move the mouse by 8.8 pixels: x = 48.8.
+        let input_drag = Input {
+            mouse_pos: Vec2::new(48.8, 10.0),
+            mouse_down: true,
+            mouse_pressed: false,
+            ..Default::default()
+        };
+        focus_system.begin_frame();
+        raw::post_layout_slider(
+            spec.clone(),
+            raw::SliderPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
+            &mut state,
+            &input_drag,
+            &mut focus_system,
+            &mut cmds,
+        );
+        focus_system.end_frame();
+
+        // 20..60 -> drag right by 10 value units -> 30..70
+        assert!((state.value.lower() - 30.0).abs() < 1e-3);
+        assert!((state.value.upper().unwrap() - 70.0).abs() < 1e-3);
+    }
+}
+
+#[test]
+fn test_range_slider_track_click_pages_whole_range() {
+    let theme = crate::theme::Theme::framewise();
+    let mut state = SliderState {
+        value: SliderValue::Range {
+            lower: 20.0,
+            upper: 40.0,
+        },
+        ..Default::default()
+    };
+
+    let spec = SliderSpec {
+        orientation: Orientation::Horizontal,
+        rect: Rect::new(0.0, 0.0, 100.0, 20.0),
+        min: 0.0,
+        max: 100.0,
+        page_step: 20.0,
+        step: 5.0,
+        min_gap: None,
+        max_gap: None,
+        style: SliderStyle::range_from_theme(&theme),
+        clip_rect: None,
+        scroll_claim: ScrollClaimPolicy::ClaimAllDirections,
+        time: 0.0,
+        disabled: false,
+        keyboard_focusable: true,
+        layer: Layer::default(),
+    };
+
+    let mut focus_system = FocusSystem::new();
+    let mut cmds = DrawCommands::new();
+
+    // Click at x=80.0, which is after the range (20..40 maps to coords 23.6..41.2)
+    let input_hover = Input {
+        mouse_pos: Vec2::new(80.0, 10.0),
+        ..Default::default()
+    };
+    focus_system.begin_frame();
+    raw::post_layout_slider(
+        spec.clone(),
+        raw::SliderPreLayoutResult {
+            size_request: crate::layout::SizeRequest::UNKNOWN,
+        },
+        &mut state,
+        &input_hover,
+        &mut focus_system,
+        &mut cmds,
+    );
+    focus_system.end_frame();
+
+    let input_click = Input {
+        mouse_pos: Vec2::new(80.0, 10.0),
+        mouse_down: true,
+        mouse_pressed: true,
+        ..Default::default()
+    };
+    focus_system.begin_frame();
+    raw::post_layout_slider(
+        spec,
+        raw::SliderPreLayoutResult {
+            size_request: crate::layout::SizeRequest::UNKNOWN,
+        },
+        &mut state,
+        &input_click,
+        &mut focus_system,
+        &mut cmds,
+    );
+    focus_system.end_frame();
+
+    assert_eq!(state.value.lower(), 40.0);
+    assert_eq!(state.value.upper(), Some(60.0));
+    assert!(state.is_track_clicking);
+}
+
+#[test]
+fn test_segment_only_slider_track_click_pages_segment() {
+    let theme = crate::theme::Theme::framewise();
+    let mut state = SliderState {
+        value: SliderValue::Range {
+            lower: 20.0,
+            upper: 40.0,
+        },
+        ..Default::default()
+    };
+
+    let spec = SliderSpec {
+        orientation: Orientation::Horizontal,
+        rect: Rect::new(0.0, 0.0, 100.0, 20.0),
+        min: 0.0,
+        max: 100.0,
+        page_step: 20.0,
+        step: 5.0,
+        min_gap: Some(20.0),
+        max_gap: Some(20.0),
+        style: SliderStyle::scrollbar_from_theme(&theme),
+        clip_rect: None,
+        scroll_claim: ScrollClaimPolicy::ClaimAllDirections,
+        time: 0.0,
+        disabled: false,
+        keyboard_focusable: true,
+        layer: Layer::default(),
+    };
+
+    let mut focus_system = FocusSystem::new();
+    let mut cmds = DrawCommands::new();
+
+    // Click at x=80.0, which is after the segment (20..40 maps to coords 20.0..40.0)
+    let input_hover = Input {
+        mouse_pos: Vec2::new(80.0, 10.0),
+        ..Default::default()
+    };
+    focus_system.begin_frame();
+    raw::post_layout_slider(
+        spec.clone(),
+        raw::SliderPreLayoutResult {
+            size_request: crate::layout::SizeRequest::UNKNOWN,
+        },
+        &mut state,
+        &input_hover,
+        &mut focus_system,
+        &mut cmds,
+    );
+    focus_system.end_frame();
+
+    let input_click = Input {
+        mouse_pos: Vec2::new(80.0, 10.0),
+        mouse_down: true,
+        mouse_pressed: true,
+        ..Default::default()
+    };
+    focus_system.begin_frame();
+    raw::post_layout_slider(
+        spec,
+        raw::SliderPreLayoutResult {
+            size_request: crate::layout::SizeRequest::UNKNOWN,
+        },
+        &mut state,
+        &input_click,
+        &mut focus_system,
+        &mut cmds,
+    );
+    focus_system.end_frame();
+
+    assert_eq!(state.value.lower(), 40.0);
+    assert_eq!(state.value.upper(), Some(60.0));
+    assert!(state.is_track_clicking);
+}
+
+#[test]
+fn test_range_slider_keyboard_preserves_span() {
+    let theme = crate::theme::Theme::framewise();
+    let mut state = SliderState {
+        value: SliderValue::Range {
+            lower: 30.0,
+            upper: 50.0,
+        },
+        ..Default::default()
+    };
+    let spec = SliderSpec {
+        orientation: Orientation::Horizontal,
+        rect: Rect::new(0.0, 0.0, 100.0, 20.0),
+        min: 0.0,
+        max: 100.0,
+        page_step: 20.0,
+        step: 5.0,
+        min_gap: None,
+        max_gap: None,
+        style: SliderStyle::range_from_theme(&theme),
+        clip_rect: None,
+        scroll_claim: ScrollClaimPolicy::ClaimAllDirections,
+        time: 0.0,
+        disabled: false,
+        keyboard_focusable: true,
+        layer: Layer::default(),
+    };
+
+    let mut input = Input::new();
+    let mut focus_system = FocusSystem::new();
+
+    // Must be focused to receive keyboard events
+    focus_system.take_keyboard_focus(state.focus_id);
+
+    // Frame 1: register keyboard focus
+    focus_system.begin_frame();
+    let mut cmds = DrawCommands::new();
+    raw::post_layout_slider(
+        spec.clone(),
+        raw::SliderPreLayoutResult {
+            size_request: crate::layout::SizeRequest::UNKNOWN,
+        },
+        &mut state,
+        &input,
+        &mut focus_system,
+        &mut cmds,
+    );
+    focus_system.end_frame();
+
+    // Subcase: Right or Down should move both endpoints by step, preserving span
+    // 30..50 -> 35..55
+    focus_system.begin_frame();
+    input.key_pressed_right = true;
+    raw::post_layout_slider(
+        spec.clone(),
+        raw::SliderPreLayoutResult {
+            size_request: crate::layout::SizeRequest::UNKNOWN,
+        },
+        &mut state,
+        &input,
+        &mut focus_system,
+        &mut cmds,
+    );
+    assert_eq!(state.value.lower(), 35.0);
+    assert_eq!(state.value.upper(), Some(55.0));
+    focus_system.end_frame();
+
+    // Left or Up should move both endpoints back
+    // 35..55 -> 30..50
+    focus_system.begin_frame();
+    input.key_pressed_right = false;
+    input.key_pressed_left = true;
+    raw::post_layout_slider(
+        spec.clone(),
+        raw::SliderPreLayoutResult {
+            size_request: crate::layout::SizeRequest::UNKNOWN,
+        },
+        &mut state,
+        &input,
+        &mut focus_system,
+        &mut cmds,
+    );
+    assert_eq!(state.value.lower(), 30.0);
+    assert_eq!(state.value.upper(), Some(50.0));
+    focus_system.end_frame();
+
+    // PageDown should move both endpoints by page_step
+    // 30..50 -> 50..70
+    focus_system.begin_frame();
+    input.key_pressed_left = false;
+    input.key_pressed_page_down = true;
+    raw::post_layout_slider(
+        spec.clone(),
+        raw::SliderPreLayoutResult {
+            size_request: crate::layout::SizeRequest::UNKNOWN,
+        },
+        &mut state,
+        &input,
+        &mut focus_system,
+        &mut cmds,
+    );
+    assert_eq!(state.value.lower(), 50.0);
+    assert_eq!(state.value.upper(), Some(70.0));
+    focus_system.end_frame();
+
+    // PageUp should move both endpoints back
+    // 50..70 -> 30..50
+    focus_system.begin_frame();
+    input.key_pressed_page_down = false;
+    input.key_pressed_page_up = true;
+    raw::post_layout_slider(
+        spec.clone(),
+        raw::SliderPreLayoutResult {
+            size_request: crate::layout::SizeRequest::UNKNOWN,
+        },
+        &mut state,
+        &input,
+        &mut focus_system,
+        &mut cmds,
+    );
+    assert_eq!(state.value.lower(), 30.0);
+    assert_eq!(state.value.upper(), Some(50.0));
+    focus_system.end_frame();
+
+    // Home should move the range to the minimum while preserving span
+    // 30..50 -> 0..20
+    focus_system.begin_frame();
+    input.key_pressed_page_up = false;
+    input.key_pressed_home = true;
+    raw::post_layout_slider(
+        spec.clone(),
+        raw::SliderPreLayoutResult {
+            size_request: crate::layout::SizeRequest::UNKNOWN,
+        },
+        &mut state,
+        &input,
+        &mut focus_system,
+        &mut cmds,
+    );
+    assert_eq!(state.value.lower(), 0.0);
+    assert_eq!(state.value.upper(), Some(20.0));
+    focus_system.end_frame();
+
+    // Reset value for end test
+    state.value = SliderValue::Range {
+        lower: 30.0,
+        upper: 50.0,
+    };
+
+    // End should move the range to the maximum while preserving span
+    // 30..50 -> 80..100
+    focus_system.begin_frame();
+    input.key_pressed_home = false;
+    input.key_pressed_end = true;
+    raw::post_layout_slider(
+        spec.clone(),
+        raw::SliderPreLayoutResult {
+            size_request: crate::layout::SizeRequest::UNKNOWN,
+        },
+        &mut state,
+        &input,
+        &mut focus_system,
+        &mut cmds,
+    );
+    assert_eq!(state.value.lower(), 80.0);
+    assert_eq!(state.value.upper(), Some(100.0));
+    focus_system.end_frame();
 }

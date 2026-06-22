@@ -1251,7 +1251,7 @@ impl SliderStyle {
                 cross_axis: ThumbCrossAxis::FixedCentered(1.5),
                 fill: InteractiveColor {
                     idle: theme.ink,
-                    hovered: theme.ink,
+                    hovered: theme.hover,
                     dragged: theme.rust,
                 },
                 border: None,

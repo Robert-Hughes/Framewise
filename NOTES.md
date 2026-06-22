@@ -6,12 +6,12 @@ Working notes, TODOs, open questions, and half-baked ideas.
 
 - Sliders!
   - hover highlighting makes thumbs see-through!
-  - check test coverage for all the things!
-    - visual appearance for all three 'kinds'
-    - visual appearance for hover and focussed/dragging states
-    - drag behaviour for both thumbs and the segment
-    - paging behaviour for range sliders and segment-only slider and single-thumb slider
+  - collapsed range slider looks weird and behaves weird
   - review & merge branch
+
+  - markers being drawn
+  - fixed steps
+
 
 - Go through the spec_page, check/implement/test each widget/aspect to make better match the mock-up and add interactivity as we go (https://claude.ai/design/p/1aab4e86-cbf2-497e-b379-44cf41de2b12?file=Framewise+Widgets.html)
   - Done 01-03
