@@ -533,11 +533,11 @@ fn test_button_visual_normal() {
                 color: background,
                 z: 0,
             },
-            DrawCmd::StrokeRect {
-                anti_alias: false,
+            DrawCmd::BorderRect {
                 rect: Rect::new(10.0, 10.0, 100.0, 30.0),
                 color: border,
                 width: border_width,
+                placement: crate::BorderPlacement::Inside,
                 z: 0,
             },
             DrawCmd::GlyphRun {
@@ -625,11 +625,11 @@ fn test_button_visual_hovered() {
                 color: hovered,
                 z: 0,
             },
-            DrawCmd::StrokeRect {
-                anti_alias: false,
+            DrawCmd::BorderRect {
                 rect: Rect::new(10.0, 10.0, 100.0, 30.0),
                 color: border.unwrap().color,
                 width: border.unwrap().width,
+                placement: crate::BorderPlacement::Inside,
                 z: 0,
             },
             DrawCmd::GlyphRun {
@@ -719,11 +719,11 @@ fn test_button_visual_pressed() {
                 color: pressed,
                 z: 0,
             },
-            DrawCmd::StrokeRect {
-                anti_alias: false,
+            DrawCmd::BorderRect {
                 rect: Rect::new(10.0, 10.0, 100.0, 30.0),
                 color: border.unwrap().color,
                 width: border.unwrap().width,
+                placement: crate::BorderPlacement::Inside,
                 z: 0,
             },
             DrawCmd::GlyphRun {
@@ -786,17 +786,16 @@ fn test_button_visual_focused() {
     let focus_offset = style.focus.unwrap().offset;
     let focus_width = style.focus.unwrap().stroke.width;
 
-    let expected_focus_rect =
-        Rect::new(10.0, 10.0, 100.0, 30.0).inset(-(focus_offset + focus_width));
+    let expected_focus_rect = Rect::new(10.0, 10.0, 100.0, 30.0).inset(-focus_offset);
 
     assert_eq!(
         cmds.commands(),
         vec![
-            DrawCmd::StrokeRect {
-                anti_alias: false,
+            DrawCmd::BorderRect {
                 rect: expected_focus_rect,
                 color: focus,
                 width: focus_width,
+                placement: crate::BorderPlacement::Outside,
                 z: 1,
             },
             DrawCmd::FillRect {
@@ -805,11 +804,11 @@ fn test_button_visual_focused() {
                 color: background,
                 z: 0,
             },
-            DrawCmd::StrokeRect {
-                anti_alias: false,
+            DrawCmd::BorderRect {
                 rect: Rect::new(10.0, 10.0, 100.0, 30.0),
                 color: border,
                 width: border_width,
+                placement: crate::BorderPlacement::Inside,
                 z: 0,
             },
             DrawCmd::GlyphRun {
@@ -883,11 +882,11 @@ fn test_button_visual_disabled() {
                 color: expected_bg,
                 z: 0,
             },
-            DrawCmd::StrokeRect {
-                anti_alias: false,
+            DrawCmd::BorderRect {
                 rect: Rect::new(10.0, 10.0, 100.0, 30.0),
                 color: expected_border,
                 width: border_width,
+                placement: crate::BorderPlacement::Inside,
                 z: 0,
             },
             DrawCmd::GlyphRun {
@@ -1058,11 +1057,11 @@ fn test_regression_custom_style_no_theme_lookup() {
                 color: custom_style.background,
                 z: 0,
             },
-            DrawCmd::StrokeRect {
-                anti_alias: false,
+            DrawCmd::BorderRect {
                 rect: Rect::new(5.0, 15.0, 120.0, 45.0),
                 color: custom_style.border.unwrap().color,
                 width: custom_style.border.unwrap().width,
+                placement: crate::BorderPlacement::Inside,
                 z: 0,
             },
             DrawCmd::GlyphRun {

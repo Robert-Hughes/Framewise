@@ -67,11 +67,11 @@ fn test_frame_layout_and_draw() {
                 rect: final_content
             },
             DrawCmd::PopClip,
-            DrawCmd::StrokeRect {
-                anti_alias: false,
+            DrawCmd::BorderRect {
                 rect: final_rect,
                 color: Color::linear_rgb(0.5, 0.5, 0.5),
                 width: 2.0,
+                placement: crate::BorderPlacement::Inside,
                 z: 0,
             },
         ]

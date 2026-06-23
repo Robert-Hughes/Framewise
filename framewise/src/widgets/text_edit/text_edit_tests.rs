@@ -1813,11 +1813,11 @@ fn test_text_edit_visual_normal() {
                 color: spec().style.background,
                 z: 0,
             },
-            DrawCmd::StrokeRect {
-                anti_alias: false,
+            DrawCmd::BorderRect {
                 rect: Rect::new(0.0, 0.0, 200.0, 30.0),
                 color: spec().style.border.unwrap().color,
                 width: spec().style.border.map_or(0.0, |b| b.width),
+                placement: crate::BorderPlacement::Inside,
                 z: 0,
             },
             DrawCmd::PushClip {
@@ -1983,11 +1983,11 @@ fn test_text_edit_visual_focused_caret() {
                 color: spec().style.background,
                 z: 0,
             },
-            DrawCmd::StrokeRect {
-                anti_alias: false,
+            DrawCmd::BorderRect {
                 rect: Rect::new(0.0, 0.0, 200.0, 30.0),
                 color: spec().style.focus_border.unwrap().color,
                 width: spec().style.focus_border.unwrap().width,
+                placement: crate::BorderPlacement::Inside,
                 z: 0,
             },
             DrawCmd::PushClip {
@@ -2053,11 +2053,11 @@ fn test_text_edit_visual_focused_selection() {
                 color: spec().style.background,
                 z: 0,
             },
-            DrawCmd::StrokeRect {
-                anti_alias: false,
+            DrawCmd::BorderRect {
                 rect: Rect::new(0.0, 0.0, 200.0, 30.0),
                 color: spec().style.focus_border.unwrap().color,
                 width: spec().style.focus_border.unwrap().width,
+                placement: crate::BorderPlacement::Inside,
                 z: 0,
             },
             DrawCmd::PushClip {
@@ -2258,11 +2258,11 @@ fn test_text_edit_visual_error() {
                 color: sp.style.error_border.unwrap().color,
                 z: 0,
             },
-            DrawCmd::StrokeRect {
-                anti_alias: false,
+            DrawCmd::BorderRect {
                 rect: Rect::new(0.0, 0.0, 200.0, 30.0),
                 color: sp.style.error_border.unwrap().color,
                 width: spec().style.border.map_or(0.0, |b| b.width),
+                placement: crate::BorderPlacement::Inside,
                 z: 0,
             },
             DrawCmd::PushClip {
@@ -4711,11 +4711,11 @@ fn test_text_edit_visual_multiline_selection() {
                 color: spec().style.background,
                 z: 0,
             },
-            DrawCmd::StrokeRect {
-                anti_alias: false,
+            DrawCmd::BorderRect {
                 rect: Rect::new(0.0, 0.0, 200.0, 100.0),
                 color: spec().style.focus_border.unwrap().color,
                 width: spec().style.focus_border.unwrap().width,
+                placement: crate::BorderPlacement::Inside,
                 z: 0,
             },
             DrawCmd::PushClip {
@@ -4853,11 +4853,11 @@ fn test_text_edit_visual_multiline_selection_three_lines() {
                 color: spec().style.background,
                 z: 0,
             },
-            DrawCmd::StrokeRect {
-                anti_alias: false,
+            DrawCmd::BorderRect {
                 rect: Rect::new(0.0, 0.0, 200.0, 100.0),
                 color: spec().style.focus_border.unwrap().color,
                 width: spec().style.focus_border.unwrap().width,
+                placement: crate::BorderPlacement::Inside,
                 z: 0,
             },
             DrawCmd::PushClip {

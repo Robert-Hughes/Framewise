@@ -63,11 +63,11 @@ fn test_select_visual_normal() {
                 color: s.background,
                 z: 0,
             },
-            DrawCmd::StrokeRect {
-                anti_alias: false,
+            DrawCmd::BorderRect {
                 rect: Rect::new(0.0, 0.0, 180.0, 28.0),
                 color: s.border.unwrap().color,
                 width: s.border.unwrap().width,
+                placement: crate::BorderPlacement::Inside,
                 z: 0,
             },
             DrawCmd::GlyphRun {
@@ -162,11 +162,11 @@ fn test_select_visual_open() {
     assert_eq!(
         cmds.commands(),
         vec![
-            DrawCmd::StrokeRect {
-                anti_alias: false,
-                rect: r.inset(-(s.focus.unwrap().offset + s.focus.unwrap().stroke.width)),
+            DrawCmd::BorderRect {
+                rect: r.inset(-s.focus.unwrap().offset),
                 color: s.focus.unwrap().stroke.color,
                 width: s.focus.unwrap().stroke.width,
+                placement: crate::BorderPlacement::Outside,
                 z: 1,
             },
             DrawCmd::FillRect {
@@ -175,11 +175,11 @@ fn test_select_visual_open() {
                 color: s.background,
                 z: 0,
             },
-            DrawCmd::StrokeRect {
-                anti_alias: false,
+            DrawCmd::BorderRect {
                 rect: r,
                 color: s.border.unwrap().color,
                 width: s.border.unwrap().width,
+                placement: crate::BorderPlacement::Inside,
                 z: 0,
             },
             DrawCmd::GlyphRun {
@@ -198,11 +198,11 @@ fn test_select_visual_open() {
                 color: s.background,
                 z: 0,
             },
-            DrawCmd::StrokeRect {
-                anti_alias: false,
+            DrawCmd::BorderRect {
                 rect: popup,
                 color: s.border.unwrap().color,
                 width: s.border.unwrap().width,
+                placement: crate::BorderPlacement::Inside,
                 z: 0,
             },
             DrawCmd::FillRect {

@@ -158,12 +158,12 @@ mod analytical_aa_golden {
                 z: 1,
                 anti_alias: false,
             });
-            cmds.push(DrawCmd::StrokeRect {
+            cmds.push(DrawCmd::BorderRect {
                 rect: Rect::new(100.5, 280.5, 60.0, 40.0),
                 color: Color::from_srgb_u8(150, 150, 50, 255),
                 width: 3.0,
+                placement: framewise::BorderPlacement::Inside,
                 z: 1,
-                anti_alias: false,
             });
 
             // AA Rects
@@ -173,12 +173,12 @@ mod analytical_aa_golden {
                 z: 1,
                 anti_alias: true,
             });
-            cmds.push(DrawCmd::StrokeRect {
+            cmds.push(DrawCmd::BorderRect {
                 rect: Rect::new(300.5, 280.5, 60.0, 40.0),
                 color: Color::from_srgb_u8(150, 150, 50, 255),
                 width: 3.0,
+                placement: framewise::BorderPlacement::Inside,
                 z: 1,
-                anti_alias: true,
             });
 
             let Some(actual) = render_commands_to_rgba(width, height, cmds, text_backend).await

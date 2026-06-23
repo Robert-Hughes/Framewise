@@ -49,11 +49,11 @@ fn test_segmented_visual_normal() {
                 color: style.background,
                 z: 0,
             },
-            DrawCmd::StrokeRect {
-                anti_alias: false,
+            DrawCmd::BorderRect {
                 rect: Rect::new(0.0, 0.0, 72.0, 28.0),
                 color: style.border.unwrap().color,
                 width: style.border.unwrap().width,
+                placement: crate::BorderPlacement::Inside,
                 z: 0,
             },
             DrawCmd::FillRect {
@@ -140,11 +140,11 @@ fn test_segmented_visual_focused() {
                 color: style.background,
                 z: 0,
             },
-            DrawCmd::StrokeRect {
-                anti_alias: false,
+            DrawCmd::BorderRect {
                 rect: Rect::new(0.0, 0.0, 72.0, 28.0),
                 color: style.border.unwrap().color,
                 width: style.border.unwrap().width,
+                placement: crate::BorderPlacement::Inside,
                 z: 0,
             },
             DrawCmd::StrokeLine {
@@ -166,11 +166,11 @@ fn test_segmented_visual_focused() {
                 color: style.active_bg,
                 z: 0,
             },
-            DrawCmd::StrokeRect {
-                anti_alias: false,
-                rect: Rect::new(38.0, 2.0, 32.0, 24.0),
+            DrawCmd::BorderRect {
+                rect: Rect::new(40.0, 4.0, 28.0, 20.0),
                 color: style.focus.unwrap().stroke.color,
                 width: style.focus.unwrap().stroke.width,
+                placement: crate::BorderPlacement::Outside,
                 z: 1,
             },
             DrawCmd::GlyphRun {

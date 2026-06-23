@@ -1,5 +1,5 @@
 use crate::{
-    draw::{DrawCmd, DrawCommands},
+    draw::{BorderPlacement, DrawCmd, DrawCommands},
     layout::{LayoutState, SizeOffer},
     text::TextBackend,
     types::{Color, Layer, Rect, Stroke},
@@ -68,7 +68,12 @@ pub mod raw {
             color: spec.color,
             z: spec.layer.get_z(),
         });
-        cmds.push_stroke_rect(spec.rect, spec.border, spec.layer.get_z(), false);
+        cmds.push_border_rect(
+            spec.rect,
+            spec.border,
+            BorderPlacement::Inside,
+            spec.layer.get_z(),
+        );
         ColorSwatchResult {
             content_bounds: spec.rect.inset(spec.border.map_or(0.0, |b| b.width)),
         }

@@ -1,5 +1,5 @@
 use crate::{
-    draw::{DrawCmd, DrawCommands},
+    draw::{BorderPlacement, DrawCmd, DrawCommands},
     focus::{FocusId, FocusSystem},
     input::Input,
     layout::{LayoutState, SizeOffer, SizeRequest},
@@ -129,11 +129,11 @@ pub mod raw {
         if focused {
             if let Some(outline) = s.focus {
                 let tint_stroke = |st: Stroke| Stroke::new(tint(st.color), st.width);
-                cmds.push_stroke_rect(
-                    r.inset(-(outline.offset + outline.stroke.width)),
+                cmds.push_border_rect(
+                    r.inset(-outline.offset),
                     Some(tint_stroke(outline.stroke)),
+                    BorderPlacement::Outside,
                     spec.layer.get_focus_z(),
-                    false,
                 );
             }
         }
@@ -164,7 +164,12 @@ pub mod raw {
 
         // Box border.
         let tint_stroke = |st: Stroke| Stroke::new(tint(st.color), st.width);
-        cmds.push_stroke_rect(r, s.border.map(tint_stroke), spec.layer.get_z(), false);
+        cmds.push_border_rect(
+            r,
+            s.border.map(tint_stroke),
+            BorderPlacement::Inside,
+            spec.layer.get_z(),
+        );
 
         // Inner mark.
         match state.checked {

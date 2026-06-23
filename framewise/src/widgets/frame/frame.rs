@@ -1,5 +1,5 @@
 use crate::{
-    draw::{DrawCmd, DrawCommands},
+    draw::{BorderPlacement, DrawCmd, DrawCommands},
     focus::FocusSystem,
     layout::{Layout, LayoutState, SizeOffer},
     text::TextBackend,
@@ -138,7 +138,12 @@ pub mod raw {
 
         cmds.push(DrawCmd::PopClip);
 
-        cmds.push_stroke_rect(rect, style.border, spec.layer.get_z(), false);
+        cmds.push_border_rect(
+            rect,
+            style.border,
+            BorderPlacement::Inside,
+            spec.layer.get_z(),
+        );
     }
 }
 

@@ -1,5 +1,5 @@
 use crate::{
-    draw::{DrawCmd, DrawCommands},
+    draw::{BorderPlacement, DrawCmd, DrawCommands},
     focus::{FocusId, FocusSystem},
     input::Input,
     layout::{LayoutState, SizeOffer},
@@ -233,11 +233,11 @@ pub mod raw {
         // Focus / open ring.
         if focused || state.open {
             if let Some(outline) = s.focus {
-                cmds.push_stroke_rect(
-                    r.inset(-(outline.offset + outline.stroke.width)),
+                cmds.push_border_rect(
+                    r.inset(-outline.offset),
                     Some(tint_stroke(outline.stroke)),
+                    BorderPlacement::Outside,
                     spec.layer.get_focus_z(),
-                    false,
                 );
             }
         }
@@ -248,7 +248,12 @@ pub mod raw {
             color: tint(s.background),
             z: spec.layer.get_z(),
         });
-        cmds.push_stroke_rect(r, s.border.map(tint_stroke), spec.layer.get_z(), false);
+        cmds.push_border_rect(
+            r,
+            s.border.map(tint_stroke),
+            BorderPlacement::Inside,
+            spec.layer.get_z(),
+        );
 
         // Selected value text.
         let display_text = if !spec.items.is_empty() && state.selected_index < spec.items.len() {
@@ -315,7 +320,12 @@ pub mod raw {
                 color: tint(s.background),
                 z: spec.layer.get_z(),
             });
-            cmds.push_stroke_rect(popup, s.border.map(tint_stroke), spec.layer.get_z(), false);
+            cmds.push_border_rect(
+                popup,
+                s.border.map(tint_stroke),
+                BorderPlacement::Inside,
+                spec.layer.get_z(),
+            );
 
             for (i, opt) in spec.items.iter().enumerate() {
                 let is_selected = i == state.selected_index;

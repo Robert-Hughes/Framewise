@@ -35,11 +35,11 @@ fn test_color_swatch_visual_normal() {
                 color: default_color,
                 z: 0,
             },
-            DrawCmd::StrokeRect {
-                anti_alias: false,
+            DrawCmd::BorderRect {
                 rect: Rect::new(0.0, 0.0, 16.0, 16.0),
                 color: default_border,
                 width: 1.0,
+                placement: crate::BorderPlacement::Inside,
                 z: 0,
             },
         ])
@@ -78,11 +78,11 @@ fn test_color_swatch_visual_custom() {
                 color: custom_color,
                 z: 0,
             },
-            DrawCmd::StrokeRect {
-                anti_alias: false,
+            DrawCmd::BorderRect {
                 rect: Rect::new(0.0, 0.0, 20.0, 20.0),
                 color: custom_border,
                 width: 1.0,
+                placement: crate::BorderPlacement::Inside,
                 z: 0,
             },
         ])

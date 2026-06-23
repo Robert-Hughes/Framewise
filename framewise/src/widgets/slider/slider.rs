@@ -1,5 +1,5 @@
 use crate::{
-    draw::{DrawCmd, DrawCommands},
+    draw::{BorderPlacement, DrawCmd, DrawCommands},
     focus::{FocusId, FocusSystem},
     input::Input,
     layout::{LayoutState, SizeOffer},
@@ -656,11 +656,11 @@ pub mod raw {
                         border.color
                     };
                 let tint_stroke = |st: Stroke| Stroke::new(tint(st.color), st.width);
-                cmds.push_stroke_rect(
+                cmds.push_border_rect(
                     rect,
                     Some(tint_stroke(Stroke::new(border_color, border.width))),
+                    BorderPlacement::Inside,
                     spec.layer.get_z(),
-                    false,
                 );
             }
         }
@@ -724,11 +724,11 @@ pub mod raw {
                 if let Some(lower_style) = spec.style.lower_thumb_style {
                     if let Some(border) = lower_style.border {
                         let tint_stroke = |st: Stroke| Stroke::new(tint(st.color), st.width);
-                        cmds.push_stroke_rect(
+                        cmds.push_border_rect(
                             combined_rect,
                             Some(tint_stroke(Stroke::new(border.color, border.width))),
+                            BorderPlacement::Inside,
                             spec.layer.get_z(),
-                            false,
                         );
                     }
                 }
@@ -787,11 +787,11 @@ pub mod raw {
         if focused {
             if let Some(outline) = spec.style.focus {
                 let tint_stroke = |st: Stroke| Stroke::new(tint(st.color), st.width);
-                cmds.push_stroke_rect(
-                    spec.rect.inset(-(outline.offset + outline.stroke.width)),
+                cmds.push_border_rect(
+                    spec.rect.inset(-outline.offset),
                     Some(tint_stroke(outline.stroke)),
+                    BorderPlacement::Outside,
                     spec.layer.get_focus_z(),
-                    false,
                 );
             }
         }
@@ -1176,11 +1176,11 @@ fn draw_thumb(
             border.color
         };
         let tint_stroke = |st: Stroke| Stroke::new(tint(st.color), st.width);
-        cmds.push_stroke_rect(
+        cmds.push_border_rect(
             rect,
             Some(tint_stroke(Stroke::new(border_color, border.width))),
+            BorderPlacement::Inside,
             layer.get_z(),
-            false,
         );
     }
 }

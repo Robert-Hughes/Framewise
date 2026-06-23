@@ -1,5 +1,5 @@
 use crate::{
-    draw::{DrawCmd, DrawCommands},
+    draw::{BorderPlacement, DrawCmd, DrawCommands},
     focus::{FocusId, FocusSystem},
     input::Input,
     layout::{LayoutState, SizeOffer},
@@ -182,11 +182,11 @@ pub mod raw {
         if visually_active && !spec.disabled {
             if let Some(outline) = s.focus {
                 let focus_stroke = Stroke::new(tint(outline.stroke.color), outline.stroke.width);
-                cmds.push_stroke_rect(
-                    spec.rect.inset(-(outline.offset + outline.stroke.width)),
+                cmds.push_border_rect(
+                    spec.rect.inset(-outline.offset),
                     Some(focus_stroke),
+                    BorderPlacement::Outside,
                     spec.layer.get_z(),
-                    false,
                 );
             }
         }
@@ -198,7 +198,12 @@ pub mod raw {
             z: spec.layer.get_z(),
         });
         let tinted_border = s.border.map(|b| Stroke::new(tint(b.color), b.width));
-        cmds.push_stroke_rect(spec.rect, tinted_border, spec.layer.get_z(), false);
+        cmds.push_border_rect(
+            spec.rect,
+            tinted_border,
+            BorderPlacement::Inside,
+            spec.layer.get_z(),
+        );
 
         // text section (ink/rust bg, paper text).
         let text_rect = Rect::new(spec.rect.x, spec.rect.y, text_w, spec.rect.h);

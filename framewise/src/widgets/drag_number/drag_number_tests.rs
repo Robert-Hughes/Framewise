@@ -49,11 +49,11 @@ fn test_drag_number_visual_normal() {
                 color: style.background,
                 z: 0,
             },
-            DrawCmd::StrokeRect {
-                anti_alias: false,
+            DrawCmd::BorderRect {
                 rect: Rect::new(10.0, 10.0, 100.0, 28.0),
                 color: style.border.unwrap().color,
                 width: style.border.unwrap().width,
+                placement: crate::BorderPlacement::Inside,
                 z: 0,
             },
             DrawCmd::FillRect {
@@ -152,11 +152,11 @@ fn test_drag_number_visual_active() {
     assert_eq!(
         cmds.commands(),
         vec![
-            DrawCmd::StrokeRect {
-                anti_alias: false,
-                rect: Rect::new(9.0, 9.0, 102.0, 30.0),
+            DrawCmd::BorderRect {
+                rect: Rect::new(11.0, 11.0, 98.0, 26.0),
                 color: style.focus.unwrap().stroke.color,
                 width: style.focus.unwrap().stroke.width,
+                placement: crate::BorderPlacement::Outside,
                 z: 0,
             },
             DrawCmd::FillRect {
@@ -165,11 +165,11 @@ fn test_drag_number_visual_active() {
                 color: style.background,
                 z: 0,
             },
-            DrawCmd::StrokeRect {
-                anti_alias: false,
+            DrawCmd::BorderRect {
                 rect: Rect::new(10.0, 10.0, 100.0, 28.0),
                 color: style.border.unwrap().color,
                 width: style.border.unwrap().width,
+                placement: crate::BorderPlacement::Inside,
                 z: 0,
             },
             DrawCmd::FillRect {
@@ -264,11 +264,11 @@ fn test_drag_number_visual_min_value() {
                 color: style.background,
                 z: 0,
             },
-            DrawCmd::StrokeRect {
-                anti_alias: false,
+            DrawCmd::BorderRect {
                 rect: Rect::new(10.0, 10.0, 100.0, 28.0),
                 color: style.border.unwrap().color,
                 width: style.border.unwrap().width,
+                placement: crate::BorderPlacement::Inside,
                 z: 0,
             },
             DrawCmd::FillRect {

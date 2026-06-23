@@ -1,5 +1,5 @@
 use crate::{
-    draw::{DrawCmd, DrawCommands},
+    draw::{BorderPlacement, DrawCmd, DrawCommands},
     focus::FocusSystem,
     layout::{Layout, LayoutState, SizeOffer},
     text::{layout_text, TextBackend},
@@ -93,7 +93,12 @@ pub mod raw {
             color: s.background,
             z: spec.layer.get_z(),
         });
-        cmds.push_stroke_rect(spec.rect, s.border, spec.layer.get_z(), false);
+        cmds.push_border_rect(
+            spec.rect,
+            s.border,
+            BorderPlacement::Inside,
+            spec.layer.get_z(),
+        );
 
         // Title bar.
         let title_rect = Rect::new(spec.rect.x, spec.rect.y, spec.rect.w, title_h);

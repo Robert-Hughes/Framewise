@@ -1956,11 +1956,11 @@ fn test_slider_visual_normal() {
                 color: theme.paper_elev,
                 z: 0,
             },
-            DrawCmd::StrokeRect {
-                anti_alias: false,
+            DrawCmd::BorderRect {
                 rect: Rect::new(4.0, 44.0, 12.0, 12.0),
                 color: theme.ink,
                 width: 1.0,
+                placement: crate::BorderPlacement::Inside,
                 z: 0,
             },
         ]
@@ -2033,11 +2033,11 @@ fn test_slider_visual_hovered() {
                 color: theme.paper_elev_hover,
                 z: 0,
             },
-            DrawCmd::StrokeRect {
-                anti_alias: false,
+            DrawCmd::BorderRect {
                 rect: Rect::new(4.0, 44.0, 12.0, 12.0),
                 color: theme.ink,
                 width: 1.0,
+                placement: crate::BorderPlacement::Inside,
                 z: 0,
             },
         ]
@@ -2094,11 +2094,11 @@ fn test_slider_visual_drag() {
                 color: theme.rust,
                 z: 0,
             },
-            DrawCmd::StrokeRect {
-                anti_alias: false,
+            DrawCmd::BorderRect {
                 rect: Rect::new(4.0, 44.0, 12.0, 12.0),
                 color: theme.rust,
                 width: 1.0,
+                placement: crate::BorderPlacement::Inside,
                 z: 0,
             },
         ]
@@ -2153,18 +2153,18 @@ fn test_slider_visual_focused() {
                 color: theme.paper_elev,
                 z: 0,
             },
-            DrawCmd::StrokeRect {
-                anti_alias: false,
+            DrawCmd::BorderRect {
                 rect: Rect::new(4.0, 44.0, 12.0, 12.0),
                 color: theme.ink,
                 width: 1.0,
+                placement: crate::BorderPlacement::Inside,
                 z: 0,
             },
-            DrawCmd::StrokeRect {
-                anti_alias: false,
-                rect: Rect::new(-4.0, -4.0, 28.0, 108.0),
+            DrawCmd::BorderRect {
+                rect: Rect::new(-2.0, -2.0, 24.0, 104.0),
                 color: theme.rust,
                 width: 2.0,
+                placement: crate::BorderPlacement::Outside,
                 z: 1,
             },
         ]
@@ -2727,11 +2727,11 @@ fn test_segment_only_slider_visual_focused() {
                 width: 1.0,
                 z: 0,
             },
-            DrawCmd::StrokeRect {
-                anti_alias: false,
-                rect: Rect::new(-4.0, -4.0, 28.0, 108.0),
+            DrawCmd::BorderRect {
+                rect: Rect::new(-2.0, -2.0, 24.0, 104.0),
                 color: theme.rust,
                 width: 2.0,
+                placement: crate::BorderPlacement::Outside,
                 z: 1,
             },
         ]
@@ -3104,11 +3104,11 @@ fn test_range_slider_visual_normal() {
                 z: 0,
             },
             // Lower thumb border
-            DrawCmd::StrokeRect {
-                anti_alias: false,
+            DrawCmd::BorderRect {
                 rect: Rect::new(22.0, 4.0, 12.0, 12.0),
                 color: theme.ink,
                 width: 1.0,
+                placement: crate::BorderPlacement::Inside,
                 z: 0,
             },
             // Upper thumb fill
@@ -3119,11 +3119,11 @@ fn test_range_slider_visual_normal() {
                 z: 0,
             },
             // Upper thumb border
-            DrawCmd::StrokeRect {
-                anti_alias: false,
+            DrawCmd::BorderRect {
                 rect: Rect::new(6.0 + 60.0, 4.0, 12.0, 12.0),
                 color: theme.ink,
                 width: 1.0,
+                placement: crate::BorderPlacement::Inside,
                 z: 0,
             },
         ]
@@ -3223,11 +3223,11 @@ fn test_range_slider_visual_hover_lower_thumb() {
                 color: theme.paper_elev_hover,
                 z: 0,
             },
-            DrawCmd::StrokeRect {
-                anti_alias: false,
+            DrawCmd::BorderRect {
                 rect: Rect::new(22.0, 4.0, 12.0, 12.0),
                 color: theme.ink,
                 width: 1.0,
+                placement: crate::BorderPlacement::Inside,
                 z: 0,
             },
             DrawCmd::FillRect {
@@ -3236,11 +3236,11 @@ fn test_range_slider_visual_hover_lower_thumb() {
                 color: theme.paper_elev,
                 z: 0,
             },
-            DrawCmd::StrokeRect {
-                anti_alias: false,
+            DrawCmd::BorderRect {
                 rect: Rect::new(66.0, 4.0, 12.0, 12.0),
                 color: theme.ink,
                 width: 1.0,
+                placement: crate::BorderPlacement::Inside,
                 z: 0,
             },
         ]
@@ -3339,11 +3339,11 @@ fn test_range_slider_visual_hover_upper_thumb() {
                 color: theme.paper_elev,
                 z: 0,
             },
-            DrawCmd::StrokeRect {
-                anti_alias: false,
+            DrawCmd::BorderRect {
                 rect: Rect::new(22.0, 4.0, 12.0, 12.0),
                 color: theme.ink,
                 width: 1.0,
+                placement: crate::BorderPlacement::Inside,
                 z: 0,
             },
             // Upper thumb fill is hovered
@@ -3353,11 +3353,11 @@ fn test_range_slider_visual_hover_upper_thumb() {
                 color: theme.paper_elev_hover,
                 z: 0,
             },
-            DrawCmd::StrokeRect {
-                anti_alias: false,
+            DrawCmd::BorderRect {
                 rect: Rect::new(66.0, 4.0, 12.0, 12.0),
                 color: theme.ink,
                 width: 1.0,
+                placement: crate::BorderPlacement::Inside,
                 z: 0,
             },
         ]
@@ -3457,11 +3457,11 @@ fn test_range_slider_visual_hover_segment() {
                 color: theme.paper_elev,
                 z: 0,
             },
-            DrawCmd::StrokeRect {
-                anti_alias: false,
+            DrawCmd::BorderRect {
                 rect: Rect::new(22.0, 4.0, 12.0, 12.0),
                 color: theme.ink,
                 width: 1.0,
+                placement: crate::BorderPlacement::Inside,
                 z: 0,
             },
             DrawCmd::FillRect {
@@ -3470,11 +3470,11 @@ fn test_range_slider_visual_hover_segment() {
                 color: theme.paper_elev,
                 z: 0,
             },
-            DrawCmd::StrokeRect {
-                anti_alias: false,
+            DrawCmd::BorderRect {
                 rect: Rect::new(66.0, 4.0, 12.0, 12.0),
                 color: theme.ink,
                 width: 1.0,
+                placement: crate::BorderPlacement::Inside,
                 z: 0,
             },
         ]
@@ -3558,11 +3558,11 @@ fn test_range_slider_visual_drag_lower_thumb() {
                 color: theme.rust,
                 z: 0,
             },
-            DrawCmd::StrokeRect {
-                anti_alias: false,
+            DrawCmd::BorderRect {
                 rect: Rect::new(22.0, 4.0, 12.0, 12.0),
                 color: theme.rust,
                 width: 1.0,
+                placement: crate::BorderPlacement::Inside,
                 z: 0,
             },
             DrawCmd::FillRect {
@@ -3571,11 +3571,11 @@ fn test_range_slider_visual_drag_lower_thumb() {
                 color: theme.paper_elev,
                 z: 0,
             },
-            DrawCmd::StrokeRect {
-                anti_alias: false,
+            DrawCmd::BorderRect {
                 rect: Rect::new(66.0, 4.0, 12.0, 12.0),
                 color: theme.ink,
                 width: 1.0,
+                placement: crate::BorderPlacement::Inside,
                 z: 0,
             },
         ]
@@ -3658,11 +3658,11 @@ fn test_range_slider_visual_drag_upper_thumb() {
                 color: theme.paper_elev,
                 z: 0,
             },
-            DrawCmd::StrokeRect {
-                anti_alias: false,
+            DrawCmd::BorderRect {
                 rect: Rect::new(22.0, 4.0, 12.0, 12.0),
                 color: theme.ink,
                 width: 1.0,
+                placement: crate::BorderPlacement::Inside,
                 z: 0,
             },
             // Upper thumb fill is now dragged, and border is active/dragged
@@ -3672,11 +3672,11 @@ fn test_range_slider_visual_drag_upper_thumb() {
                 color: theme.rust,
                 z: 0,
             },
-            DrawCmd::StrokeRect {
-                anti_alias: false,
+            DrawCmd::BorderRect {
                 rect: Rect::new(66.0, 4.0, 12.0, 12.0),
                 color: theme.rust,
                 width: 1.0,
+                placement: crate::BorderPlacement::Inside,
                 z: 0,
             },
         ]
@@ -3760,11 +3760,11 @@ fn test_range_slider_visual_drag_segment() {
                 color: theme.paper_elev,
                 z: 0,
             },
-            DrawCmd::StrokeRect {
-                anti_alias: false,
+            DrawCmd::BorderRect {
                 rect: Rect::new(22.0, 4.0, 12.0, 12.0),
                 color: theme.ink,
                 width: 1.0,
+                placement: crate::BorderPlacement::Inside,
                 z: 0,
             },
             DrawCmd::FillRect {
@@ -3773,11 +3773,11 @@ fn test_range_slider_visual_drag_segment() {
                 color: theme.paper_elev,
                 z: 0,
             },
-            DrawCmd::StrokeRect {
-                anti_alias: false,
+            DrawCmd::BorderRect {
                 rect: Rect::new(66.0, 4.0, 12.0, 12.0),
                 color: theme.ink,
                 width: 1.0,
+                placement: crate::BorderPlacement::Inside,
                 z: 0,
             },
         ]
@@ -3858,11 +3858,11 @@ fn test_range_slider_visual_focused() {
                 color: theme.paper_elev,
                 z: 0,
             },
-            DrawCmd::StrokeRect {
-                anti_alias: false,
+            DrawCmd::BorderRect {
                 rect: Rect::new(22.0, 4.0, 12.0, 12.0),
                 color: theme.ink,
                 width: 1.0,
+                placement: crate::BorderPlacement::Inside,
                 z: 0,
             },
             DrawCmd::FillRect {
@@ -3871,19 +3871,19 @@ fn test_range_slider_visual_focused() {
                 color: theme.paper_elev,
                 z: 0,
             },
-            DrawCmd::StrokeRect {
-                anti_alias: false,
+            DrawCmd::BorderRect {
                 rect: Rect::new(66.0, 4.0, 12.0, 12.0),
                 color: theme.ink,
                 width: 1.0,
+                placement: crate::BorderPlacement::Inside,
                 z: 0,
             },
             // Focus outline around spec.rect
-            DrawCmd::StrokeRect {
-                anti_alias: false,
-                rect: Rect::new(-4.0, -4.0, 108.0, 28.0),
+            DrawCmd::BorderRect {
+                rect: Rect::new(-2.0, -2.0, 104.0, 24.0),
                 color: theme.rust,
                 width: 2.0,
+                placement: crate::BorderPlacement::Outside,
                 z: 1,
             },
         ]
@@ -4447,7 +4447,7 @@ fn test_range_slider_overlap_partial() {
     let spec = test_range_spec_horizontal(0.0, 1.0);
     let mut focus_system = FocusSystem::new();
     let mut cmds = DrawCommands::new();
-    let mut input = Input::new();
+    let input = Input::new();
 
     raw::post_layout_slider(
         spec.clone(),
@@ -4468,7 +4468,7 @@ fn test_range_slider_overlap_partial() {
     for cmd in cmds.commands() {
         match cmd {
             DrawCmd::FillRect { rect, .. } => fill_rects.push(*rect),
-            DrawCmd::StrokeRect { rect, .. } => stroke_rects.push(*rect),
+            DrawCmd::BorderRect { rect, .. } => stroke_rects.push(*rect),
             DrawCmd::StrokeLine { p0, p1, .. } => stroke_lines.push((*p0, *p1)),
             _ => {}
         }
@@ -4586,7 +4586,7 @@ fn test_range_slider_overlap_full() {
     let spec = test_range_spec_horizontal(0.0, 1.0);
     let mut focus_system = FocusSystem::new();
     let mut cmds = DrawCommands::new();
-    let mut input = Input::new();
+    let input = Input::new();
 
     raw::post_layout_slider(
         spec.clone(),
@@ -4607,7 +4607,7 @@ fn test_range_slider_overlap_full() {
     for cmd in cmds.commands() {
         match cmd {
             DrawCmd::FillRect { rect, .. } => fill_rects.push(*rect),
-            DrawCmd::StrokeRect { rect, .. } => stroke_rects.push(*rect),
+            DrawCmd::BorderRect { rect, .. } => stroke_rects.push(*rect),
             DrawCmd::StrokeLine { p0, p1, .. } => stroke_lines.push((*p0, *p1)),
             _ => {}
         }

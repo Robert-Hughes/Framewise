@@ -78,7 +78,6 @@ pub const SHAPE_TYPE_LINE: u32 = 1;
 pub const SHAPE_TYPE_FILL_CIRCLE: u32 = 2;
 pub const SHAPE_TYPE_STROKE_CIRCLE: u32 = 3;
 pub const SHAPE_TYPE_FILL_RECT: u32 = 4;
-pub const SHAPE_TYPE_STROKE_RECT: u32 = 5;
 
 #[repr(C)]
 #[derive(Copy, Clone, Pod, Zeroable)]
@@ -450,9 +449,6 @@ impl Renderer {
                 DrawCmd::FillRect {
                     anti_alias: false, ..
                 } => 6,
-                DrawCmd::StrokeRect {
-                    anti_alias: false, ..
-                } => 24,
                 DrawCmd::BorderRect { .. } => 24,
                 DrawCmd::StrokeLine {
                     anti_alias: false, ..
@@ -551,43 +547,6 @@ impl Renderer {
                         push_filled_rect(quad_verts, *rect, *color, *z, window_size);
                     }
                 }
-                DrawCmd::StrokeRect {
-                    rect,
-                    color,
-                    width,
-                    z,
-                    anti_alias,
-                } => {
-                    if *anti_alias {
-                        flush_quads(
-                            quad_verts.len() as u32,
-                            &mut current_quad_start,
-                            render_cmds,
-                        );
-                        flush_text(
-                            text_instances.len() as u32,
-                            &mut current_text_start,
-                            render_cmds,
-                        );
-                        aa_shapes.push(ShapeData {
-                            p0: [rect.x, rect.y],
-                            p1: [rect.x + rect.w, rect.y + rect.h],
-                            color: color_arr(*color),
-                            width: *width,
-                            radius: 0.0,
-                            shape_type: SHAPE_TYPE_STROKE_RECT,
-                            z: *z as f32,
-                        });
-                    } else {
-                        flush_text(
-                            text_instances.len() as u32,
-                            &mut current_text_start,
-                            render_cmds,
-                        );
-                        flush_aa(aa_shapes.len() as u32, &mut current_aa_start, render_cmds);
-                        push_stroked_rect(quad_verts, *rect, *color, *width, *z, window_size);
-                    }
-                }
                 DrawCmd::BorderRect {
                     rect,
                     color,
@@ -601,29 +560,15 @@ impl Renderer {
                         render_cmds,
                     );
                     flush_aa(aa_shapes.len() as u32, &mut current_aa_start, render_cmds);
-
-                    let bw = *width;
-                    let (x, y, w, h) = (rect.x, rect.y, rect.w, rect.h);
-
-                    let (r_top, r_bottom, r_left, r_right) = match placement {
-                        BorderPlacement::Inside => (
-                            Rect::new(x, y, w, bw),
-                            Rect::new(x, y + h - bw, w, bw),
-                            Rect::new(x, y, bw, h),
-                            Rect::new(x + w - bw, y, bw, h),
-                        ),
-                        BorderPlacement::Outside => (
-                            Rect::new(x - bw, y - bw, w + bw * 2.0, bw),
-                            Rect::new(x - bw, y + h, w + bw * 2.0, bw),
-                            Rect::new(x - bw, y, bw, h),
-                            Rect::new(x + w, y, bw, h),
-                        ),
-                    };
-
-                    push_filled_rect(quad_verts, r_top, *color, *z, window_size);
-                    push_filled_rect(quad_verts, r_bottom, *color, *z, window_size);
-                    push_filled_rect(quad_verts, r_left, *color, *z, window_size);
-                    push_filled_rect(quad_verts, r_right, *color, *z, window_size);
+                    push_border_rect(
+                        quad_verts,
+                        *rect,
+                        *color,
+                        *width,
+                        *placement,
+                        *z,
+                        window_size,
+                    );
                 }
                 DrawCmd::StrokeLine {
                     p0,
@@ -1198,30 +1143,38 @@ fn push_filled_rect(
 }
 
 /// Push eight thin filled rects (one per side) to approximate a stroked rect.
-fn push_stroked_rect(
+/// Push four filled rects (one per side) to represent a border rect.
+fn push_border_rect(
     verts: &mut Vec<Vertex>,
     rect: Rect,
     color: Color,
     width: f32,
+    placement: BorderPlacement,
     z: u32,
     win_size: (u32, u32),
 ) {
-    let x = rect.x;
-    let y = rect.y;
-    let w = rect.w;
-    let h = rect.h;
-    let lw = width;
+    let bw = width;
+    let (x, y, w, h) = (rect.x, rect.y, rect.w, rect.h);
 
-    // Top, bottom, left, right strips.
-    let strips = [
-        Rect::new(x, y, w, lw),          // top
-        Rect::new(x, y + h - lw, w, lw), // bottom
-        Rect::new(x, y, lw, h),          // left
-        Rect::new(x + w - lw, y, lw, h), // right
-    ];
-    for s in &strips {
-        push_filled_rect(verts, *s, color, z, win_size);
-    }
+    let (r_top, r_bottom, r_left, r_right) = match placement {
+        BorderPlacement::Inside => (
+            Rect::new(x, y, w, bw),
+            Rect::new(x, y + h - bw, w, bw),
+            Rect::new(x, y, bw, h),
+            Rect::new(x + w - bw, y, bw, h),
+        ),
+        BorderPlacement::Outside => (
+            Rect::new(x - bw, y - bw, w + bw * 2.0, bw),
+            Rect::new(x - bw, y + h, w + bw * 2.0, bw),
+            Rect::new(x - bw, y, bw, h),
+            Rect::new(x + w, y, bw, h),
+        ),
+    };
+
+    push_filled_rect(verts, r_top, color, z, win_size);
+    push_filled_rect(verts, r_bottom, color, z, win_size);
+    push_filled_rect(verts, r_left, color, z, win_size);
+    push_filled_rect(verts, r_right, color, z, win_size);
 }
 
 /// Push two triangles for a line segment of a given width (screen-aligned cap).

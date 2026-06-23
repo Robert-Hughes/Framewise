@@ -1,6 +1,6 @@
 use crate::output::CursorIcon;
 use crate::{
-    draw::{DrawCmd, DrawCommands},
+    draw::{BorderPlacement, DrawCmd, DrawCommands},
     focus::{FocusId, FocusSystem},
     input::{Input, TextEvent},
     layout::{Align, AxisBound, LayoutState, SizeOffer, SizeRequest},
@@ -569,11 +569,11 @@ pub mod raw {
             let tint =
                 |c: Color| Color::linear_rgba(c.r, c.g, c.b, c.a * spec.style.disabled_alpha);
             let tint_stroke = |s: Stroke| Stroke::new(tint(s.color), s.width);
-            cmds.push_stroke_rect(
+            cmds.push_border_rect(
                 spec.rect,
                 spec.style.border.map(tint_stroke),
+                BorderPlacement::Inside,
                 spec.layer.get_z(),
-                false,
             );
             let border_width = spec.style.border.map_or(0.0, |s| s.width);
             let inset_x = border_width + spec.style.padding_x;
@@ -864,7 +864,12 @@ pub mod raw {
         } else {
             spec.style.border
         };
-        cmds.push_stroke_rect(spec.rect, border, spec.layer.get_z(), false);
+        cmds.push_border_rect(
+            spec.rect,
+            border,
+            BorderPlacement::Inside,
+            spec.layer.get_z(),
+        );
 
         let scroll_spec = raw::ScrollAreaSpec {
             rect: scroll_outer_rect,

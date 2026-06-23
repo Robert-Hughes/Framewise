@@ -55,11 +55,11 @@ fn test_keycap_visual() {
                 color: custom_bg,
                 z: 0,
             },
-            DrawCmd::StrokeRect {
-                anti_alias: false,
+            DrawCmd::BorderRect {
                 rect: Rect::new(0.0, 0.0, 30.0, 30.0),
                 color: custom_border,
                 width: 1.0,
+                placement: crate::BorderPlacement::Inside,
                 z: 0,
             },
             DrawCmd::FillRect {

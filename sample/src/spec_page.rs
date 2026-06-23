@@ -2140,11 +2140,11 @@ fn section_02_text_inputs<CF>(
                     color: b.theme.ink,
                     z: 0,
                 },
-                DrawCmd::StrokeRect {
-                    anti_alias: false,
+                DrawCmd::BorderRect {
                     rect,
                     color: b.theme.line_on_paper,
                     width: 1.0,
+                    placement: framewise::BorderPlacement::Inside,
                     z: 0,
                 },
             ]);
@@ -2720,11 +2720,11 @@ fn section_04_sliders<CF>(
                 color: b.theme.paper_hover,
                 z: 0,
             },
-            DrawCmd::StrokeRect {
-                anti_alias: false,
+            DrawCmd::BorderRect {
                 rect: rect(stepper_x, 0.0, 64.0, b.theme.h_md),
                 color: b.theme.line_on_paper,
                 width: 1.0,
+                placement: framewise::BorderPlacement::Inside,
                 z: 0,
             },
             DrawCmd::FillRect {
@@ -2733,11 +2733,11 @@ fn section_04_sliders<CF>(
                 color: b.theme.paper_elev,
                 z: 0,
             },
-            DrawCmd::StrokeRect {
-                anti_alias: false,
+            DrawCmd::BorderRect {
                 rect: rect(stepper_x + 64.0, 0.0, 40.0, b.theme.h_md),
                 color: b.theme.line_on_paper,
                 width: 1.0,
+                placement: framewise::BorderPlacement::Inside,
                 z: 0,
             },
             DrawCmd::FillRect {
@@ -2746,11 +2746,11 @@ fn section_04_sliders<CF>(
                 color: b.theme.paper_elev,
                 z: 0,
             },
-            DrawCmd::StrokeRect {
-                anti_alias: false,
+            DrawCmd::BorderRect {
                 rect: rect(120.0, 0.0, 22.0, b.theme.h_sm),
                 color: b.theme.line_on_paper,
                 width: 1.0,
+                placement: framewise::BorderPlacement::Inside,
                 z: 0,
             },
             DrawCmd::FillRect {
@@ -2759,11 +2759,11 @@ fn section_04_sliders<CF>(
                 color: b.theme.paper_elev,
                 z: 0,
             },
-            DrawCmd::StrokeRect {
-                anti_alias: false,
+            DrawCmd::BorderRect {
                 rect: rect(142.0, 0.0, 40.0, b.theme.h_sm),
                 color: b.theme.line_on_paper,
                 width: 1.0,
+                placement: framewise::BorderPlacement::Inside,
                 z: 0,
             },
             DrawCmd::FillRect {
@@ -2772,11 +2772,11 @@ fn section_04_sliders<CF>(
                 color: b.theme.paper_elev,
                 z: 0,
             },
-            DrawCmd::StrokeRect {
-                anti_alias: false,
+            DrawCmd::BorderRect {
                 rect: rect(182.0, 0.0, 22.0, b.theme.h_sm),
                 color: b.theme.line_on_paper,
                 width: 1.0,
+                placement: framewise::BorderPlacement::Inside,
                 z: 0,
             },
         ]));
@@ -3045,11 +3045,11 @@ fn section_06_scrollbars<CF>(
         let b1_content = Vec2::new(180.0, 320.0);
         {
             let rect = b.layout(b1, SizeRequest::UNKNOWN);
-            let cmds = DrawCommands::from_vec(vec![DrawCmd::StrokeRect {
-                anti_alias: false,
+            let cmds = DrawCommands::from_vec(vec![DrawCmd::BorderRect {
                 rect,
                 color: b.theme.line_on_paper,
                 width: 1.0,
+                placement: framewise::BorderPlacement::Inside,
                 z: 0,
             }]);
 
@@ -3124,11 +3124,11 @@ fn section_06_scrollbars<CF>(
         let b2_content = Vec2::new(180.0, 300.0);
         {
             let rect = b.layout(b2, SizeRequest::UNKNOWN);
-            let cmds = DrawCommands::from_vec(vec![DrawCmd::StrokeRect {
-                anti_alias: false,
+            let cmds = DrawCommands::from_vec(vec![DrawCmd::BorderRect {
                 rect,
                 color: b.theme.line_on_paper,
                 width: 1.0,
+                placement: framewise::BorderPlacement::Inside,
                 z: 0,
             }]);
             b.append_cmds(cmds);
@@ -3189,11 +3189,11 @@ fn section_06_scrollbars<CF>(
         let b3_content = Vec2::new(700.0, 100.0);
         {
             let rect = b.layout(b3, SizeRequest::UNKNOWN);
-            let cmds = DrawCommands::from_vec(vec![DrawCmd::StrokeRect {
-                anti_alias: false,
+            let cmds = DrawCommands::from_vec(vec![DrawCmd::BorderRect {
                 rect,
                 color: b.theme.line_on_paper,
                 width: 1.0,
+                placement: framewise::BorderPlacement::Inside,
                 z: 0,
             }]);
             b.append_cmds(cmds);
@@ -3251,11 +3251,11 @@ fn section_06_scrollbars<CF>(
         let b4_content = Vec2::new(320.0, 240.0);
         {
             let rect = b.layout(b4, SizeRequest::UNKNOWN);
-            let cmds = DrawCommands::from_vec(vec![DrawCmd::StrokeRect {
-                anti_alias: false,
+            let cmds = DrawCommands::from_vec(vec![DrawCmd::BorderRect {
                 rect,
                 color: b.theme.line_on_paper,
                 width: 1.0,
+                placement: framewise::BorderPlacement::Inside,
                 z: 0,
             }]);
             b.append_cmds(cmds);
@@ -3848,11 +3848,11 @@ fn section_11_window<CF>(
                     color: dark_bg,
                     z: 0,
                 },
-                DrawCmd::StrokeRect {
-                    anti_alias: false,
+                DrawCmd::BorderRect {
                     rect,
                     color: dark_bdr,
                     width: 1.0,
+                    placement: framewise::BorderPlacement::Inside,
                     z: 0,
                 },
                 DrawCmd::FillRect {
@@ -3905,11 +3905,11 @@ fn section_11_window<CF>(
                     color: Color::from_srgb_u8(42, 37, 32, 255),
                     z: 0,
                 },
-                DrawCmd::StrokeRect {
-                    anti_alias: false,
+                DrawCmd::BorderRect {
                     rect: Rect::new(rect.x, rect.y, 24.0, 22.0),
                     color: dark_bdr,
                     width: 1.0,
+                    placement: framewise::BorderPlacement::Inside,
                     z: 0,
                 },
                 DrawCmd::FillRect {
@@ -3918,11 +3918,11 @@ fn section_11_window<CF>(
                     color: Color::from_srgb_u8(42, 37, 32, 255),
                     z: 0,
                 },
-                DrawCmd::StrokeRect {
-                    anti_alias: false,
+                DrawCmd::BorderRect {
                     rect: Rect::new(rect.x + 28.0, rect.y, 22.0, 22.0),
                     color: dark_bdr,
                     width: 1.0,
+                    placement: framewise::BorderPlacement::Inside,
                     z: 0,
                 },
             ]);
@@ -3984,11 +3984,11 @@ fn section_11_window<CF>(
                     color: darker,
                     z: 0,
                 },
-                DrawCmd::StrokeRect {
-                    anti_alias: false,
+                DrawCmd::BorderRect {
                     rect,
                     color: dark_bdr,
                     width: 1.0,
+                    placement: framewise::BorderPlacement::Inside,
                     z: 0,
                 },
             ]);

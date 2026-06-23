@@ -1,5 +1,5 @@
 use crate::{
-    draw::{DrawCmd, DrawCommands},
+    draw::{BorderPlacement, DrawCmd, DrawCommands},
     layout::{LayoutState, SizeOffer},
     text::{layout_text, TextBackend},
     types::{Color, Layer, Rect, Stroke, Vec2},
@@ -137,7 +137,7 @@ pub mod raw {
             z: spec.layer.get_z(),
         });
         let border_width = s.border.map_or(0.0, |stroke| stroke.width);
-        cmds.push_stroke_rect(outer, s.border, spec.layer.get_z(), false);
+        cmds.push_border_rect(outer, s.border, BorderPlacement::Inside, spec.layer.get_z());
 
         let mut y = spec.rect.y + s.pad_y;
 

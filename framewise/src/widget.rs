@@ -83,11 +83,11 @@ pub fn react_layout_violation<T: TextBackend>(
         LayoutViolationPolicy::Panic => panic!("{}", violation),
         LayoutViolationPolicy::Highlight => {
             let color = crate::types::Color::from_srgb_u8(255, 0, 0, 255);
-            cmds.push(crate::draw::DrawCmd::StrokeRect {
-                anti_alias: false,
+            cmds.push(crate::draw::DrawCmd::BorderRect {
                 rect: fallback_rect,
                 color,
                 width: 2.0,
+                placement: crate::draw::BorderPlacement::Inside,
                 z,
             });
             // Label at the top-left corner, in the same red.
@@ -390,11 +390,11 @@ impl<'a, T: TextBackend, LS: LayoutState, CF> WidgetContext<'a, T, LS, CF> {
 
         // Draw the debug outline
         if self.debug_layout {
-            self.cmds.push(crate::draw::DrawCmd::StrokeRect {
-                anti_alias: false,
+            self.cmds.push(crate::draw::DrawCmd::BorderRect {
                 rect,
                 color: crate::types::Color::from_srgb_u8(200, 0, 255, 255),
                 width: 1.0,
+                placement: crate::draw::BorderPlacement::Inside,
                 z,
             });
         }
@@ -475,11 +475,11 @@ impl<
         // Draw the debug outline *after* on_finish so it sits on top of this
         // layout's content (and any retroactive chrome patching, e.g. a frame).
         if debug_layout {
-            self.cmds.push(crate::draw::DrawCmd::StrokeRect {
-                anti_alias: false,
+            self.cmds.push(crate::draw::DrawCmd::BorderRect {
                 rect: resolved_space,
                 color: crate::types::Color::from_srgb_u8(255, 0, 200, 255),
                 width: 1.0,
+                placement: crate::draw::BorderPlacement::Inside,
                 z,
             });
         }
@@ -751,14 +751,14 @@ mod tests {
 
         assert_eq!(rect, Rect::new(0.0, 0.0, 0.0, 100.0)); // fallback width is 0.0
 
-        // The StrokeRect command should have been drawn: red, width 2.0
+        // The BorderRect command should have been drawn: red, width 2.0
         let mut found = false;
         for cmd in ctx.cmds.iter() {
-            if let crate::draw::DrawCmd::StrokeRect {
-                anti_alias: false,
+            if let crate::draw::DrawCmd::BorderRect {
                 rect: r,
                 color,
                 width,
+                placement: crate::draw::BorderPlacement::Inside,
                 ..
             } = cmd
             {
@@ -771,7 +771,7 @@ mod tests {
         }
         assert!(
             found,
-            "Should have found a red StrokeRect highlighting the layout violation"
+            "Should have found a red BorderRect highlighting the layout violation"
         );
     }
 
@@ -816,7 +816,7 @@ mod tests {
             .filter(|cmd| {
                 matches!(
                     cmd,
-                    crate::draw::DrawCmd::StrokeRect { anti_alias: false, color, width, .. }
+                    crate::draw::DrawCmd::BorderRect { color, width, placement: crate::draw::BorderPlacement::Inside, .. }
                         if *color == Color::from_srgb_u8(255, 0, 0, 255) && *width == 2.0
                 )
             })

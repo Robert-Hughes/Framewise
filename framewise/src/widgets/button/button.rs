@@ -1,5 +1,5 @@
 use crate::{
-    draw::{DrawCmd, DrawCommands},
+    draw::{BorderPlacement, DrawCmd, DrawCommands},
     focus::{FocusId, FocusSystem},
     input::Input,
     layout::{LayoutState, SizeOffer},
@@ -139,11 +139,11 @@ pub mod raw {
                 z: spec.layer.get_z(),
             });
             let tint_stroke = |s: Stroke| Stroke::new(tint(s.color), s.width);
-            cmds.push_stroke_rect(
+            cmds.push_border_rect(
                 spec.rect,
                 spec.style.border.map(tint_stroke),
+                BorderPlacement::Inside,
                 spec.layer.get_z(),
-                false,
             );
             emit_placed_text(
                 spec.text,
@@ -194,11 +194,11 @@ pub mod raw {
         // rect, so expand by both the desired gap and the stroke width.
         if focused {
             if let Some(outline) = spec.style.focus {
-                cmds.push_stroke_rect(
-                    spec.rect.inset(-(outline.offset + outline.stroke.width)),
+                cmds.push_border_rect(
+                    spec.rect.inset(-outline.offset),
                     Some(outline.stroke),
+                    BorderPlacement::Outside,
                     spec.layer.get_focus_z(),
-                    false,
                 );
             }
         }
@@ -212,7 +212,12 @@ pub mod raw {
         });
 
         // Border.
-        cmds.push_stroke_rect(spec.rect, spec.style.border, spec.layer.get_z(), false);
+        cmds.push_border_rect(
+            spec.rect,
+            spec.style.border,
+            BorderPlacement::Inside,
+            spec.layer.get_z(),
+        );
 
         // Text centered.
         emit_placed_text(

@@ -164,11 +164,11 @@ fn test_tabs_visual_focused() {
                 color: style.inactive_text,
                 z: 0,
             },
-            DrawCmd::StrokeRect {
-                anti_alias: false,
-                rect: Rect::new(64.0, -4.0, 76.0, 44.0),
+            DrawCmd::BorderRect {
+                rect: Rect::new(66.0, -2.0, 72.0, 40.0),
                 color: style.focus.unwrap().stroke.color,
                 width: style.focus.unwrap().stroke.width,
+                placement: crate::BorderPlacement::Outside,
                 z: 1,
             },
             DrawCmd::GlyphRun {

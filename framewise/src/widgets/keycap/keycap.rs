@@ -1,5 +1,5 @@
 use crate::{
-    draw::{DrawCmd, DrawCommands},
+    draw::{BorderPlacement, DrawCmd, DrawCommands},
     layout::{LayoutState, SizeOffer},
     text::{layout_text, TextBackend},
     types::{Color, Layer, Rect, Stroke, Vec2},
@@ -78,7 +78,12 @@ pub mod raw {
             color: spec.style.background,
             z: spec.layer.get_z(),
         });
-        cmds.push_stroke_rect(spec.rect, spec.style.border, spec.layer.get_z(), false);
+        cmds.push_border_rect(
+            spec.rect,
+            spec.style.border,
+            BorderPlacement::Inside,
+            spec.layer.get_z(),
+        );
         // Bottom shadow line
         let shadow_rect = Rect::new(
             spec.rect.x + spec.style.shadow_offset,

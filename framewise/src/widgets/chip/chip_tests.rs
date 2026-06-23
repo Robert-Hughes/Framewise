@@ -43,11 +43,11 @@ fn test_chip_visual_normal() {
                 color: style.background,
                 z: 0,
             },
-            DrawCmd::StrokeRect {
-                anti_alias: false,
+            DrawCmd::BorderRect {
                 rect: Rect::new(0.0, 0.0, 50.0, 22.0),
                 color: style.border.unwrap().color,
                 width: style.border.unwrap().width,
+                placement: crate::BorderPlacement::Inside,
                 z: 0,
             },
             DrawCmd::GlyphRun {
@@ -114,11 +114,11 @@ fn test_chip_visual_active() {
                 color: style.active_bg,
                 z: 0,
             },
-            DrawCmd::StrokeRect {
-                anti_alias: false,
+            DrawCmd::BorderRect {
                 rect: Rect::new(0.0, 0.0, 50.0, 22.0),
                 color: style.border.unwrap().color,
                 width: style.border.unwrap().width,
+                placement: crate::BorderPlacement::Inside,
                 z: 0,
             },
             DrawCmd::GlyphRun {
@@ -179,16 +179,15 @@ fn test_chip_visual_focused() {
     focus_system.end_frame();
 
     let r = Rect::new(0.0, 0.0, 50.0, 22.0);
-    let expected_focus_rect =
-        r.inset(-(style.focus.unwrap().offset + style.focus.unwrap().stroke.width));
+    let expected_focus_rect = r.inset(-style.focus.unwrap().offset);
     assert_eq!(
         cmds.commands(),
         vec![
-            DrawCmd::StrokeRect {
-                anti_alias: false,
+            DrawCmd::BorderRect {
                 rect: expected_focus_rect,
                 color: style.focus.unwrap().stroke.color,
                 width: style.focus.unwrap().stroke.width,
+                placement: crate::BorderPlacement::Outside,
                 z: 1,
             },
             DrawCmd::FillRect {
@@ -197,11 +196,11 @@ fn test_chip_visual_focused() {
                 color: style.background,
                 z: 0,
             },
-            DrawCmd::StrokeRect {
-                anti_alias: false,
+            DrawCmd::BorderRect {
                 rect: r,
                 color: style.border.unwrap().color,
                 width: style.border.unwrap().width,
+                placement: crate::BorderPlacement::Inside,
                 z: 0,
             },
             DrawCmd::GlyphRun {
