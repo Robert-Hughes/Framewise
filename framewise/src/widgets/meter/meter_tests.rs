@@ -27,7 +27,6 @@ fn test_meter_visual_normal() {
     for i in 0..10 {
         let color = if i < 5 { style.ink } else { style.unlit };
         expected.push(DrawCmd::FillRect {
-            anti_alias: false,
             rect: Rect::new(i as f32 * 8.0, 0.0, 6.0, 14.0),
             color,
             z: 0,
@@ -66,7 +65,6 @@ fn test_meter_visual_peak() {
             style.unlit
         };
         expected.push(DrawCmd::FillRect {
-            anti_alias: false,
             rect: Rect::new(i as f32 * 8.0, 0.0, 6.0, 14.0),
             color,
             z: 0,

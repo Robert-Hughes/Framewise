@@ -156,7 +156,6 @@ pub mod raw {
             ),
         };
         cmds.push(DrawCmd::FillRect {
-            anti_alias: false,
             rect: r,
             color: tint(fill),
             z: spec.layer.get_z(),
@@ -179,13 +178,12 @@ pub mod raw {
                 let p1 = Vec2::new(r.x + 5.5, r.y + 10.5);
                 let p2 = Vec2::new(r.x + 11.5, r.y + 4.0);
                 let mark = tint_stroke(s.mark);
-                cmds.push_stroke_line(p0, p1, Some(mark), spec.layer.get_z(), true);
-                cmds.push_stroke_line(p1, p2, Some(mark), spec.layer.get_z(), true);
+                cmds.push_stroke_line(p0, p1, Some(mark), spec.layer.get_z());
+                cmds.push_stroke_line(p1, p2, Some(mark), spec.layer.get_z());
             }
             CheckedState::Indeterminate => {
                 // Horizontal dash.
                 cmds.push(DrawCmd::FillRect {
-                    anti_alias: false,
                     rect: Rect::new(r.x + 2.0, r.y + 6.0, 10.0, 2.0),
                     color: tint(s.mark.color),
                     z: spec.layer.get_z(),

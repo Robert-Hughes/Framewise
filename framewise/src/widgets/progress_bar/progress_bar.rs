@@ -72,7 +72,6 @@ pub mod raw {
             track_h,
         );
         cmds.push(DrawCmd::FillRect {
-            anti_alias: false,
             rect: track,
             color: spec.style.track_color,
             z: spec.layer.get_z(),
@@ -92,7 +91,6 @@ pub mod raw {
             let visible_w = (seg_w).min(track.x + track.w - x).max(0.0);
             if visible_w > 0.0 {
                 cmds.push(DrawCmd::FillRect {
-                    anti_alias: false,
                     rect: Rect::new(x, track.y, visible_w, track_h),
                     color: fill_color,
                     z: spec.layer.get_z(),
@@ -102,7 +100,6 @@ pub mod raw {
             let fill_w = (spec.rect.w * spec.value.clamp(0.0, 1.0)).max(0.0);
             if fill_w > 0.0 {
                 cmds.push(DrawCmd::FillRect {
-                    anti_alias: false,
                     rect: Rect::new(track.x, track.y, fill_w, track_h),
                     color: fill_color,
                     z: spec.layer.get_z(),

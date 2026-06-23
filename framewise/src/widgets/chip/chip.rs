@@ -155,7 +155,6 @@ pub mod raw {
             s.background
         };
         cmds.push(DrawCmd::FillRect {
-            anti_alias: false,
             rect: r,
             color: tint(bg),
             z: spec.layer.get_z(),

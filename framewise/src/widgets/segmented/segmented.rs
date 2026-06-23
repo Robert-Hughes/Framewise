@@ -174,7 +174,6 @@ pub mod raw {
 
         let border_width = s.border.map_or(0.0, |stroke| stroke.width);
         cmds.push(DrawCmd::FillRect {
-            anti_alias: false,
             rect: outer,
             color: tint(s.background),
             z: spec.layer.get_z(),
@@ -201,7 +200,6 @@ pub mod raw {
 
             if is_active {
                 cmds.push(DrawCmd::FillRect {
-                    anti_alias: false,
                     rect: seg_rect,
                     color: tint(s.active_bg),
                     z: spec.layer.get_z(),
@@ -230,7 +228,6 @@ pub mod raw {
                     Vec2::new(div_x, spec.rect.y + h),
                     s.border.map(tint_stroke),
                     spec.layer.get_z(),
-                    false,
                 );
             }
 

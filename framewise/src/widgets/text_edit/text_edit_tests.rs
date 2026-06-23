@@ -121,12 +121,7 @@ fn set_selection_byte(state: &mut TextEditState, byte: Option<usize>) {
 fn find_caret_rect(cmds: &DrawCommands, caret_color: Color) -> Rect {
     cmds.iter()
         .find_map(|cmd| match cmd {
-            DrawCmd::FillRect {
-                anti_alias: false,
-                rect,
-                color,
-                ..
-            } if *color == caret_color => Some(*rect),
+            DrawCmd::FillRect { rect, color, .. } if *color == caret_color => Some(*rect),
             _ => None,
         })
         .expect("caret rect should be drawn")
@@ -1335,7 +1330,7 @@ fn test_caret_blink_reset_on_move() {
         &mut cmds,
     );
     let has_caret = cmds.iter().any(
-        |cmd| matches!(cmd, DrawCmd::FillRect { anti_alias: false, color, .. } if *color == spec().style.caret_color),
+        |cmd| matches!(cmd, DrawCmd::FillRect {  color, .. } if *color == spec().style.caret_color),
     );
     assert!(has_caret, "Caret should be visible initially");
 
@@ -1353,7 +1348,7 @@ fn test_caret_blink_reset_on_move() {
         &mut cmds,
     );
     let has_caret = cmds.iter().any(
-        |cmd| matches!(cmd, DrawCmd::FillRect { anti_alias: false, color, .. } if *color == spec().style.caret_color),
+        |cmd| matches!(cmd, DrawCmd::FillRect {  color, .. } if *color == spec().style.caret_color),
     );
     assert!(!has_caret, "Caret should be hidden during off phase");
 
@@ -1377,7 +1372,7 @@ fn test_caret_blink_reset_on_move() {
     assert_eq!(state.last_caret_move_time, 0.6);
 
     let has_caret = cmds.iter().any(
-        |cmd| matches!(cmd, DrawCmd::FillRect { anti_alias: false, color, .. } if *color == spec().style.caret_color),
+        |cmd| matches!(cmd, DrawCmd::FillRect {  color, .. } if *color == spec().style.caret_color),
     );
     assert!(
         has_caret,
@@ -1399,7 +1394,7 @@ fn test_caret_blink_reset_on_move() {
         &mut cmds,
     );
     let has_caret = cmds.iter().any(
-        |cmd| matches!(cmd, DrawCmd::FillRect { anti_alias: false, color, .. } if *color == spec().style.caret_color),
+        |cmd| matches!(cmd, DrawCmd::FillRect {  color, .. } if *color == spec().style.caret_color),
     );
     assert!(has_caret, "Caret should stay visible for 0.5s after moving");
 
@@ -1417,7 +1412,7 @@ fn test_caret_blink_reset_on_move() {
         &mut cmds,
     );
     let has_caret = cmds.iter().any(
-        |cmd| matches!(cmd, DrawCmd::FillRect { anti_alias: false, color, .. } if *color == spec().style.caret_color),
+        |cmd| matches!(cmd, DrawCmd::FillRect {  color, .. } if *color == spec().style.caret_color),
     );
     assert!(!has_caret, "Caret should hide after 0.5s of idle");
 }
@@ -1449,7 +1444,7 @@ fn test_caret_blink_reset_on_focus_even_without_caret_move() {
 
     assert_eq!(state.last_caret_move_time, 0.6);
     let has_caret = cmds.iter().any(
-        |cmd| matches!(cmd, DrawCmd::FillRect { anti_alias: false, color, .. } if *color == spec().style.caret_color),
+        |cmd| matches!(cmd, DrawCmd::FillRect {  color, .. } if *color == spec().style.caret_color),
     );
     assert!(
         has_caret,
@@ -1520,7 +1515,7 @@ fn test_caret_blink_reset_on_mouse_focus_even_without_caret_move() {
 
     assert_eq!(state.last_caret_move_time, 0.6);
     let has_caret = cmds.iter().any(
-        |cmd| matches!(cmd, DrawCmd::FillRect { anti_alias: false, color, .. } if *color == spec().style.caret_color),
+        |cmd| matches!(cmd, DrawCmd::FillRect {  color, .. } if *color == spec().style.caret_color),
     );
     assert!(
         has_caret,
@@ -1808,7 +1803,6 @@ fn test_text_edit_visual_normal() {
         cmds.commands(),
         vec![
             DrawCmd::FillRect {
-                anti_alias: false,
                 rect: Rect::new(0.0, 0.0, 200.0, 30.0),
                 color: spec().style.background,
                 z: 0,
@@ -1978,7 +1972,6 @@ fn test_text_edit_visual_focused_caret() {
         cmds.commands(),
         vec![
             DrawCmd::FillRect {
-                anti_alias: false,
                 rect: Rect::new(0.0, 0.0, 200.0, 30.0),
                 color: spec().style.background,
                 z: 0,
@@ -1999,7 +1992,6 @@ fn test_text_edit_visual_focused_caret() {
                 z: 0,
             },
             DrawCmd::FillRect {
-                anti_alias: false,
                 rect: Rect::new(45.0, 7.0, spec().style.caret_width, 16.0),
                 color: spec().style.caret_color,
                 z: 0,
@@ -2048,7 +2040,6 @@ fn test_text_edit_visual_focused_selection() {
         cmds.commands(),
         vec![
             DrawCmd::FillRect {
-                anti_alias: false,
                 rect: Rect::new(0.0, 0.0, 200.0, 30.0),
                 color: spec().style.background,
                 z: 0,
@@ -2064,7 +2055,6 @@ fn test_text_edit_visual_focused_selection() {
                 rect: Rect::new(1.0, 1.0, 198.0, 28.0),
             },
             DrawCmd::FillRect {
-                anti_alias: false,
                 rect: Rect::new(5.0, 7.0, 40.0, 16.0),
                 color: spec().style.select_color,
                 z: 0,
@@ -2075,7 +2065,6 @@ fn test_text_edit_visual_focused_selection() {
                 z: 0,
             },
             DrawCmd::FillRect {
-                anti_alias: false,
                 rect: Rect::new(45.0, 7.0, spec().style.caret_width, 16.0),
                 color: spec().style.caret_color,
                 z: 0,
@@ -2247,13 +2236,11 @@ fn test_text_edit_visual_error() {
         cmds.commands(),
         vec![
             DrawCmd::FillRect {
-                anti_alias: false,
                 rect: Rect::new(0.0, 0.0, 200.0, 30.0),
                 color: sp.style.error_background,
                 z: 0,
             },
             DrawCmd::FillRect {
-                anti_alias: false,
                 rect: Rect::new(0.0, 0.0, 4.0, 30.0),
                 color: sp.style.error_border.unwrap().color,
                 z: 0,
@@ -4706,7 +4693,6 @@ fn test_text_edit_visual_multiline_selection() {
         cmds.commands(),
         vec![
             DrawCmd::FillRect {
-                anti_alias: false,
                 rect: Rect::new(0.0, 0.0, 200.0, 100.0),
                 color: spec().style.background,
                 z: 0,
@@ -4723,14 +4709,12 @@ fn test_text_edit_visual_multiline_selection() {
             },
             // Selection Rect for Line 0: "lo\n"
             DrawCmd::FillRect {
-                anti_alias: false,
                 rect: Rect::new(29.0, 34.0, 24.0, 16.0),
                 color: spec().style.select_color,
                 z: 0,
             },
             // Selection Rect for Line 1: "wo"
             DrawCmd::FillRect {
-                anti_alias: false,
                 rect: Rect::new(5.0, 50.0, 24.0, 16.0),
                 color: spec().style.select_color,
                 z: 0,
@@ -4741,7 +4725,6 @@ fn test_text_edit_visual_multiline_selection() {
                 z: 0,
             },
             DrawCmd::FillRect {
-                anti_alias: false,
                 rect: Rect::new(29.0, 50.0, spec().style.caret_width, 16.0),
                 color: spec().style.caret_color,
                 z: 0,
@@ -4848,7 +4831,6 @@ fn test_text_edit_visual_multiline_selection_three_lines() {
         cmds.commands(),
         vec![
             DrawCmd::FillRect {
-                anti_alias: false,
                 rect: Rect::new(0.0, 0.0, 200.0, 100.0),
                 color: spec().style.background,
                 z: 0,
@@ -4865,21 +4847,18 @@ fn test_text_edit_visual_multiline_selection_three_lines() {
             },
             // Selection Rect for Line 0: "e\n"
             DrawCmd::FillRect {
-                anti_alias: false,
                 rect: Rect::new(21.0, 26.0, 16.0, 16.0),
                 color: spec().style.select_color,
                 z: 0,
             },
             // Selection Rect for Line 1: "two\n"
             DrawCmd::FillRect {
-                anti_alias: false,
                 rect: Rect::new(5.0, 42.0, 32.0, 16.0),
                 color: spec().style.select_color,
                 z: 0,
             },
             // Selection Rect for Line 2: "th"
             DrawCmd::FillRect {
-                anti_alias: false,
                 rect: Rect::new(5.0, 58.0, 16.0, 16.0),
                 color: spec().style.select_color,
                 z: 0,
@@ -4890,7 +4869,6 @@ fn test_text_edit_visual_multiline_selection_three_lines() {
                 z: 0,
             },
             DrawCmd::FillRect {
-                anti_alias: false,
                 rect: Rect::new(21.0, 58.0, spec().style.caret_width, 16.0),
                 color: spec().style.caret_color,
                 z: 0,

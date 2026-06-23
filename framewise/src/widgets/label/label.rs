@@ -103,7 +103,6 @@ pub mod raw {
                 Vec2::new(spec.rect.x + spec.rect.w, y),
                 Some(rule_stroke),
                 spec.layer.get_z(),
-                false,
             );
         }
 

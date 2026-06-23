@@ -66,7 +66,6 @@ pub mod raw {
             Vec2::new(spec.rect.x + spec.rect.w, mid_y),
             Some(spec.stroke),
             spec.layer.get_z(),
-            false,
         );
         DividerResult {}
     }

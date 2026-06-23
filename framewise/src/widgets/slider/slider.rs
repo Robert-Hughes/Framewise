@@ -588,7 +588,6 @@ pub mod raw {
 
         if let Some(background_fill) = spec.style.background_fill {
             cmds.push(DrawCmd::FillRect {
-                anti_alias: false,
                 rect: spec.rect,
                 color: tint(background_fill),
                 z: spec.layer.get_z(),
@@ -643,7 +642,6 @@ pub mod raw {
                 segment_is_hovered,
             );
             cmds.push(DrawCmd::FillRect {
-                anti_alias: false,
                 rect,
                 color: tint(fill),
                 z: spec.layer.get_z(),
@@ -756,7 +754,6 @@ pub mod raw {
                             p1,
                             Some(Stroke::new(tint(marker_color), 1.0)),
                             spec.layer.get_z(),
-                            false,
                         );
                     }
                 };
@@ -1111,7 +1108,6 @@ fn draw_track_region(
         Rect::new(start, cy - half, len, thickness)
     };
     cmds.push(DrawCmd::FillRect {
-        anti_alias: false,
         rect,
         color: tint(stroke.color),
         z: layer.get_z(),
@@ -1142,7 +1138,7 @@ fn draw_separator_line(
         (Vec2::new(rect.x, rect.y), Vec2::new(rect.right(), rect.y))
     };
 
-    cmds.push_stroke_line(p0, p1, Some(tint_stroke(separator)), layer.get_z(), false);
+    cmds.push_stroke_line(p0, p1, Some(tint_stroke(separator)), layer.get_z());
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -1164,7 +1160,6 @@ fn draw_thumb(
     };
     let fill = effective_fill(style.fill, disabled, active, hovered);
     cmds.push(DrawCmd::FillRect {
-        anti_alias: false,
         rect,
         color: tint(fill),
         z: layer.get_z(),

@@ -88,7 +88,6 @@ pub mod raw {
 
         // Body.
         cmds.push(DrawCmd::FillRect {
-            anti_alias: false,
             rect: spec.rect,
             color: s.background,
             z: spec.layer.get_z(),
@@ -103,7 +102,6 @@ pub mod raw {
         // Title bar.
         let title_rect = Rect::new(spec.rect.x, spec.rect.y, spec.rect.w, title_h);
         cmds.push(DrawCmd::FillRect {
-            anti_alias: false,
             rect: title_rect,
             color: s.title_bg,
             z: spec.layer.get_z(),
@@ -166,7 +164,6 @@ pub mod raw {
                 Vec2::new(spec.rect.x + spec.rect.w, bar_y),
                 s.status_border,
                 spec.layer.get_z(),
-                false,
             );
             let status_text = spec.status_text.unwrap_or("");
             let status_layout = layout_text(

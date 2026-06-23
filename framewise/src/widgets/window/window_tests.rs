@@ -47,6 +47,6 @@ fn test_user_rect_not_overridden() {
     );
     child.ctx.finish();
     assert!(cmds.iter().any(
-        |cmd| matches!(cmd, crate::draw::DrawCmd::FillRect { anti_alias: false, rect, .. } if *rect == custom_rect)
+        |cmd| matches!(cmd, crate::draw::DrawCmd::FillRect {  rect, .. } if *rect == custom_rect)
     ));
 }

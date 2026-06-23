@@ -63,7 +63,6 @@ pub mod raw {
         cmds: &mut DrawCommands,
     ) -> ColorSwatchResult {
         cmds.push(DrawCmd::FillRect {
-            anti_alias: false,
             rect: spec.rect,
             color: spec.color,
             z: spec.layer.get_z(),

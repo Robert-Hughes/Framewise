@@ -58,7 +58,6 @@ fn test_select_visual_normal() {
         cmds.commands(),
         vec![
             DrawCmd::FillRect {
-                anti_alias: false,
                 rect: Rect::new(0.0, 0.0, 180.0, 28.0),
                 color: s.background,
                 z: 0,
@@ -170,7 +169,6 @@ fn test_select_visual_open() {
                 z: 1,
             },
             DrawCmd::FillRect {
-                anti_alias: false,
                 rect: r,
                 color: s.background,
                 z: 0,
@@ -193,7 +191,6 @@ fn test_select_visual_open() {
                 z: 0,
             },
             DrawCmd::FillRect {
-                anti_alias: false,
                 rect: popup,
                 color: s.background,
                 z: 0,
@@ -206,7 +203,6 @@ fn test_select_visual_open() {
                 z: 0,
             },
             DrawCmd::FillRect {
-                anti_alias: false,
                 rect: Rect::new(0.0, 34.0, 180.0, 26.0),
                 color: s.selected_bg,
                 z: 0,
@@ -217,7 +213,6 @@ fn test_select_visual_open() {
                 z: 0,
             },
             DrawCmd::FillRect {
-                anti_alias: false,
                 rect: Rect::new(0.0, 60.0, 180.0, 26.0),
                 color: s.hover,
                 z: 0,

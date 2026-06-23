@@ -73,7 +73,6 @@ pub mod raw {
     ) -> KeycapResult {
         // Background + border
         cmds.push(DrawCmd::FillRect {
-            anti_alias: false,
             rect: spec.rect,
             color: spec.style.background,
             z: spec.layer.get_z(),
@@ -92,7 +91,6 @@ pub mod raw {
             spec.style.shadow_height,
         );
         cmds.push(DrawCmd::FillRect {
-            anti_alias: false,
             rect: shadow_rect,
             color: spec.style.shadow,
             z: spec.layer.get_z(),

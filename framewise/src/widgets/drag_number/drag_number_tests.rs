@@ -44,7 +44,6 @@ fn test_drag_number_visual_normal() {
         cmds.commands(),
         vec![
             DrawCmd::FillRect {
-                anti_alias: false,
                 rect: Rect::new(10.0, 10.0, 100.0, 28.0),
                 color: style.background,
                 z: 0,
@@ -57,7 +56,6 @@ fn test_drag_number_visual_normal() {
                 z: 0,
             },
             DrawCmd::FillRect {
-                anti_alias: false,
                 rect: Rect::new(10.0, 10.0, 28.0, 28.0),
                 color: style.text_bg,
                 z: 0,
@@ -68,7 +66,6 @@ fn test_drag_number_visual_normal() {
                 z: 0,
             },
             DrawCmd::FillRect {
-                anti_alias: false,
                 rect: Rect::new(38.0, 10.0, 36.0, 28.0),
                 color: style.value_fill,
                 z: 0,
@@ -160,7 +157,6 @@ fn test_drag_number_visual_active() {
                 z: 0,
             },
             DrawCmd::FillRect {
-                anti_alias: false,
                 rect: Rect::new(10.0, 10.0, 100.0, 28.0),
                 color: style.background,
                 z: 0,
@@ -173,7 +169,6 @@ fn test_drag_number_visual_active() {
                 z: 0,
             },
             DrawCmd::FillRect {
-                anti_alias: false,
                 rect: Rect::new(10.0, 10.0, 28.0, 28.0),
                 color: style.active_text_bg,
                 z: 0,
@@ -184,7 +179,6 @@ fn test_drag_number_visual_active() {
                 z: 0,
             },
             DrawCmd::FillRect {
-                anti_alias: false,
                 rect: Rect::new(38.0, 10.0, 36.0, 28.0),
                 color: style.value_fill,
                 z: 0,
@@ -259,7 +253,6 @@ fn test_drag_number_visual_min_value() {
         cmds.commands(),
         vec![
             DrawCmd::FillRect {
-                anti_alias: false,
                 rect: Rect::new(10.0, 10.0, 100.0, 28.0),
                 color: style.background,
                 z: 0,
@@ -272,7 +265,6 @@ fn test_drag_number_visual_min_value() {
                 z: 0,
             },
             DrawCmd::FillRect {
-                anti_alias: false,
                 rect: Rect::new(10.0, 10.0, 28.0, 28.0),
                 color: style.text_bg,
                 z: 0,

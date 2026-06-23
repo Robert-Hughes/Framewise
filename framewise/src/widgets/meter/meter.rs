@@ -86,7 +86,6 @@ pub mod raw {
                 spec.style.unlit
             };
             cmds.push(DrawCmd::FillRect {
-                anti_alias: false,
                 rect: bar_rect,
                 color,
                 z: spec.layer.get_z(),

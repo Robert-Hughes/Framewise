@@ -214,7 +214,6 @@ fn test_checkbox_visual_off() {
         cmds,
         DrawCommands::from_vec(vec![
             DrawCmd::FillRect {
-                anti_alias: false,
                 rect: Rect::new(10.0, 10.0, 14.0, 14.0),
                 color: s.background,
                 z: 0,
@@ -251,7 +250,6 @@ fn test_checkbox_visual_vertically_centered() {
         cmds,
         DrawCommands::from_vec(vec![
             DrawCmd::FillRect {
-                anti_alias: false,
                 rect: expected_rect,
                 color: s.background,
                 z: 0,
@@ -313,7 +311,6 @@ fn test_checkbox_visual_hovered() {
         cmds,
         DrawCommands::from_vec(vec![
             DrawCmd::FillRect {
-                anti_alias: false,
                 rect: r,
                 color: s.hovered,
                 z: 0,
@@ -377,7 +374,6 @@ fn test_checkbox_visual_pressed() {
         cmds,
         DrawCommands::from_vec(vec![
             DrawCmd::FillRect {
-                anti_alias: false,
                 rect: r,
                 color: s.pressed,
                 z: 0,
@@ -419,7 +415,6 @@ fn test_checkbox_visual_on() {
         cmds,
         DrawCommands::from_vec(vec![
             DrawCmd::FillRect {
-                anti_alias: false,
                 rect: r,
                 color: s.selected_fill,
                 z: 0,
@@ -432,7 +427,6 @@ fn test_checkbox_visual_on() {
                 z: 0,
             },
             DrawCmd::StrokeLine {
-                anti_alias: true,
                 p0,
                 p1,
                 color: s.mark.color,
@@ -440,7 +434,6 @@ fn test_checkbox_visual_on() {
                 z: 0,
             },
             DrawCmd::StrokeLine {
-                anti_alias: true,
                 p0: p1,
                 p1: p2,
                 color: s.mark.color,
@@ -503,7 +496,6 @@ fn test_checkbox_visual_on_hovered() {
         cmds,
         DrawCommands::from_vec(vec![
             DrawCmd::FillRect {
-                anti_alias: false,
                 rect: r,
                 color: s.selected_hovered,
                 z: 0,
@@ -516,7 +508,6 @@ fn test_checkbox_visual_on_hovered() {
                 z: 0,
             },
             DrawCmd::StrokeLine {
-                anti_alias: true,
                 p0,
                 p1,
                 color: s.mark.color,
@@ -524,7 +515,6 @@ fn test_checkbox_visual_on_hovered() {
                 z: 0,
             },
             DrawCmd::StrokeLine {
-                anti_alias: true,
                 p0: p1,
                 p1: p2,
                 color: s.mark.color,
@@ -558,7 +548,6 @@ fn test_checkbox_visual_indeterminate() {
         cmds,
         DrawCommands::from_vec(vec![
             DrawCmd::FillRect {
-                anti_alias: false,
                 rect: r,
                 color: s.selected_fill,
                 z: 0,
@@ -571,7 +560,6 @@ fn test_checkbox_visual_indeterminate() {
                 z: 0,
             },
             DrawCmd::FillRect {
-                anti_alias: false,
                 rect: Rect::new(r.x + 2.0, r.y + 6.0, 10.0, 2.0),
                 color: s.mark.color,
                 z: 0,
@@ -631,7 +619,6 @@ fn test_checkbox_visual_indeterminate_pressed() {
         cmds,
         DrawCommands::from_vec(vec![
             DrawCmd::FillRect {
-                anti_alias: false,
                 rect: r,
                 color: s.selected_pressed,
                 z: 0,
@@ -644,7 +631,6 @@ fn test_checkbox_visual_indeterminate_pressed() {
                 z: 0,
             },
             DrawCmd::FillRect {
-                anti_alias: false,
                 rect: Rect::new(r.x + 2.0, r.y + 6.0, 10.0, 2.0),
                 color: s.mark.color,
                 z: 0,
@@ -796,7 +782,6 @@ fn test_checkbox_visual_focused() {
                 z: 1,
             },
             DrawCmd::FillRect {
-                anti_alias: false,
                 rect: r,
                 color: s.background,
                 z: 0,
@@ -837,7 +822,6 @@ fn test_checkbox_visual_disabled() {
         cmds,
         DrawCommands::from_vec(vec![
             DrawCmd::FillRect {
-                anti_alias: false,
                 rect: r,
                 color: tint(s.background),
                 z: 0,
@@ -1226,7 +1210,7 @@ fn test_high_level_honors_user_style() {
 
     let has_custom_fill = cmds
         .iter()
-        .any(|c| matches!(c, DrawCmd::FillRect { anti_alias: false, color, .. } if *color == custom.background));
+        .any(|c| matches!(c, DrawCmd::FillRect {  color, .. } if *color == custom.background));
     assert!(
         has_custom_fill,
         "high-level checkbox must honor user-set style"

@@ -44,7 +44,6 @@ fn test_segmented_visual_normal() {
         cmds.commands(),
         vec![
             DrawCmd::FillRect {
-                anti_alias: false,
                 rect: Rect::new(0.0, 0.0, 72.0, 28.0),
                 color: style.background,
                 z: 0,
@@ -57,13 +56,11 @@ fn test_segmented_visual_normal() {
                 z: 0,
             },
             DrawCmd::FillRect {
-                anti_alias: false,
                 rect: Rect::new(0.0, 0.0, 36.0, 28.0),
                 color: style.active_bg,
                 z: 0,
             },
             DrawCmd::StrokeLine {
-                anti_alias: false,
                 p0: Vec2::new(36.0, 0.0),
                 p1: Vec2::new(36.0, 28.0),
                 color: style.border.unwrap().color,
@@ -135,7 +132,6 @@ fn test_segmented_visual_focused() {
         cmds.commands(),
         vec![
             DrawCmd::FillRect {
-                anti_alias: false,
                 rect: Rect::new(0.0, 0.0, 72.0, 28.0),
                 color: style.background,
                 z: 0,
@@ -148,7 +144,6 @@ fn test_segmented_visual_focused() {
                 z: 0,
             },
             DrawCmd::StrokeLine {
-                anti_alias: false,
                 p0: Vec2::new(36.0, 0.0),
                 p1: Vec2::new(36.0, 28.0),
                 color: style.border.unwrap().color,
@@ -161,7 +156,6 @@ fn test_segmented_visual_focused() {
                 z: 0,
             },
             DrawCmd::FillRect {
-                anti_alias: false,
                 rect: Rect::new(36.0, 0.0, 36.0, 28.0),
                 color: style.active_bg,
                 z: 0,

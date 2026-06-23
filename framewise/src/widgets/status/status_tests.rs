@@ -28,7 +28,6 @@ fn test_status_visual_ok() {
         cmds.commands(),
         vec![
             DrawCmd::FillRect {
-                anti_alias: false,
                 rect: Rect::new(0.0, 0.0, 6.0, 6.0),
                 color: style.ok,
                 z: 0,
@@ -96,7 +95,6 @@ fn test_status_visual_warn() {
         cmds.commands(),
         vec![
             DrawCmd::FillRect {
-                anti_alias: false,
                 rect: Rect::new(0.0, 0.0, 6.0, 6.0),
                 color: style.warn,
                 z: 0,

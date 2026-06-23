@@ -116,7 +116,6 @@ fn test_label_rule() {
                 z: 0,
             },
             DrawCmd::StrokeLine {
-                anti_alias: false,
                 p0: Vec2::new(0.0, 20.0),
                 p1: Vec2::new(100.0, 20.0),
                 color: Color::WHITE,

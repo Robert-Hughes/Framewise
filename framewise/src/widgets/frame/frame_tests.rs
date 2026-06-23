@@ -32,13 +32,7 @@ fn test_frame_layout_and_draw() {
 
     // FillRect and PushClip placeholders are pushed before children
     assert_eq!(cmds.len(), 2);
-    assert!(matches!(
-        cmds[0],
-        DrawCmd::FillRect {
-            anti_alias: false,
-            ..
-        }
-    ));
+    assert!(matches!(cmds[0], DrawCmd::FillRect { .. }));
     assert!(matches!(cmds[1], DrawCmd::PushClip { .. }));
 
     // end_frame patches both placeholders, then appends PopClip and StrokeRect
@@ -58,7 +52,6 @@ fn test_frame_layout_and_draw() {
         &cmds[..],
         &[
             DrawCmd::FillRect {
-                anti_alias: false,
                 rect: final_rect,
                 color: Color::WHITE,
                 z: 0,

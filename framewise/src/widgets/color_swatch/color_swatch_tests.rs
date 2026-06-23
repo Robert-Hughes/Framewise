@@ -30,7 +30,6 @@ fn test_color_swatch_visual_normal() {
         cmds,
         DrawCommands::from_vec(vec![
             DrawCmd::FillRect {
-                anti_alias: false,
                 rect: Rect::new(0.0, 0.0, 16.0, 16.0),
                 color: default_color,
                 z: 0,
@@ -73,7 +72,6 @@ fn test_color_swatch_visual_custom() {
         cmds,
         DrawCommands::from_vec(vec![
             DrawCmd::FillRect {
-                anti_alias: false,
                 rect: Rect::new(0.0, 0.0, 20.0, 20.0),
                 color: custom_color,
                 z: 0,

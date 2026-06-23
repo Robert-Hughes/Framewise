@@ -22,7 +22,6 @@ fn test_divider_visual() {
     assert_eq!(
         cmds,
         DrawCommands::from_vec(vec![DrawCmd::StrokeLine {
-            anti_alias: false,
             p0: Vec2::new(0.0, 5.0),
             p1: Vec2::new(100.0, 5.0),
             color: Color::WHITE,

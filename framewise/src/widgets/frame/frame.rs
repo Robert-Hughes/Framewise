@@ -67,7 +67,7 @@ pub mod raw {
     ///
     /// Pushes placeholder `FillRect` and `PushClip` commands (so the background draws behind
     /// children and children are clipped to the content area). Both are patched with the final
-    /// resolved bounds in `end_frame`. The border `StrokeRect`, if any, is pushed in `end_frame`
+    /// resolved bounds in `end_frame`. The border `BorderRect`, if any, is pushed in `end_frame`
     /// after `PopClip` so it draws on top of and outside the clip.
     ///
     /// `spec.rect` may be provisional at call time (e.g. zeroed or a placeholder) when the
@@ -86,7 +86,6 @@ pub mod raw {
 
         let fill_index = cmds.len();
         cmds.push(DrawCmd::FillRect {
-            anti_alias: false,
             rect,
             color: style.background,
             z: spec.layer.get_z(),
@@ -108,7 +107,7 @@ pub mod raw {
     ///
     /// Takes the same `FrameSpec` as `begin_frame` with `.rect` updated to the final resolved
     /// bounds. Patches the `FillRect` and `PushClip` placeholders, then appends `PopClip` and
-    /// (if the frame has a border) `StrokeRect` — both after the clip, so they draw on top of
+    /// (if the frame has a border) `BorderRect` — both after the clip, so they draw on top of
     /// and outside the content clip.
     ///
     /// # Panics
@@ -122,7 +121,7 @@ pub mod raw {
         let content = rect.inset(inset);
 
         match cmds.get_mut(token.fill_index) {
-            Some(DrawCmd::FillRect { anti_alias: false, rect: r, .. }) => *r = rect,
+            Some(DrawCmd::FillRect {  rect: r, .. }) => *r = rect,
             _ => panic!(
                 "DrawCommands corruption detected: placeholder FillRect at index {} was missing or modified!",
                 token.fill_index
@@ -263,7 +262,7 @@ pub fn begin_frame<'a, 'b, T: TextBackend, S: LayoutState, L: Layout, CF>(
         inner_layout,
         // Between begin_deferred_layout and child construction: stamp the provisional rect and push
         // the placeholder background/clip (so they draw beneath the children). The border
-        // StrokeRect is pushed later in end_frame so it draws on top. The inner layout is
+        // BorderRect is pushed later in end_frame so it draws on top. The inner layout is
         // begun in the space inset by padding + border_width. Carry (token, spec) to finish.
         move |cmds, outer| {
             let spec = raw::FrameSpec {

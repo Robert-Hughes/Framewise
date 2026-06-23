@@ -50,7 +50,6 @@ fn test_keycap_visual() {
         cmds.commands(),
         vec![
             DrawCmd::FillRect {
-                anti_alias: false,
                 rect: Rect::new(0.0, 0.0, 30.0, 30.0),
                 color: custom_bg,
                 z: 0,
@@ -63,7 +62,6 @@ fn test_keycap_visual() {
                 z: 0,
             },
             DrawCmd::FillRect {
-                anti_alias: false,
                 rect: Rect::new(1.0, 30.0, 29.0, 2.0),
                 color: custom_shadow,
                 z: 0,

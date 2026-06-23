@@ -129,6 +129,43 @@ struct DepthTarget {
     size: (u32, u32),
 }
 
+const PIXEL_EPSILON: f32 = 0.001;
+
+fn is_pixel_aligned(v: f32) -> bool {
+    (v - v.round()).abs() <= PIXEL_EPSILON
+}
+
+fn rect_edges_pixel_aligned(rect: Rect) -> bool {
+    is_pixel_aligned(rect.x)
+        && is_pixel_aligned(rect.y)
+        && is_pixel_aligned(rect.x + rect.w)
+        && is_pixel_aligned(rect.y + rect.h)
+}
+
+fn border_rect_strips(
+    rect: Rect,
+    width: f32,
+    placement: BorderPlacement,
+) -> (Rect, Rect, Rect, Rect) {
+    let bw = width;
+    let (x, y, w, h) = (rect.x, rect.y, rect.w, rect.h);
+
+    match placement {
+        BorderPlacement::Inside => (
+            Rect::new(x, y, w, bw),
+            Rect::new(x, y + h - bw, w, bw),
+            Rect::new(x, y, bw, h),
+            Rect::new(x + w - bw, y, bw, h),
+        ),
+        BorderPlacement::Outside => (
+            Rect::new(x - bw, y - bw, w + bw * 2.0, bw),
+            Rect::new(x - bw, y + h, w + bw * 2.0, bw),
+            Rect::new(x - bw, y, bw, h),
+            Rect::new(x + w, y, bw, h),
+        ),
+    }
+}
+
 impl Renderer {
     pub fn new(device: &wgpu::Device, surface_fmt: wgpu::TextureFormat) -> Self {
         let t_total = std::time::Instant::now();
@@ -446,19 +483,36 @@ impl Renderer {
         let estimated_quad_vertices = cmds
             .iter()
             .map(|cmd| match cmd {
-                DrawCmd::FillRect {
-                    anti_alias: false, ..
-                } => 6,
-                DrawCmd::BorderRect { .. } => 24,
-                DrawCmd::StrokeLine {
-                    anti_alias: false, ..
-                } => 6,
-                DrawCmd::FillCircle {
-                    anti_alias: false, ..
-                } => CIRCLE_SEGS * 3,
-                DrawCmd::StrokeCircle {
-                    anti_alias: false, ..
-                } => CIRCLE_SEGS * 6,
+                DrawCmd::FillRect { rect, .. } => {
+                    if rect_edges_pixel_aligned(*rect) {
+                        6
+                    } else {
+                        0
+                    }
+                }
+                DrawCmd::BorderRect {
+                    rect,
+                    width,
+                    placement,
+                    ..
+                } => {
+                    let (r_top, r_bottom, r_left, r_right) =
+                        border_rect_strips(*rect, *width, *placement);
+                    let mut count = 0;
+                    if rect_edges_pixel_aligned(r_top) {
+                        count += 6;
+                    }
+                    if rect_edges_pixel_aligned(r_bottom) {
+                        count += 6;
+                    }
+                    if rect_edges_pixel_aligned(r_left) {
+                        count += 6;
+                    }
+                    if rect_edges_pixel_aligned(r_right) {
+                        count += 6;
+                    }
+                    count
+                }
                 _ => 0,
             })
             .sum();
@@ -509,43 +563,51 @@ impl Renderer {
             }
         };
 
+        let push_auto_fill_rect =
+            |rect: Rect,
+             color: Color,
+             z: u32,
+             quad_verts: &mut Vec<Vertex>,
+             aa_shapes: &mut Vec<ShapeData>,
+             text_instances: &mut Vec<TextGlyphInstance>,
+             current_quad_start: &mut u32,
+             current_text_start: &mut u32,
+             current_aa_start: &mut u32,
+             render_cmds: &mut Vec<RenderCommand>| {
+                if rect_edges_pixel_aligned(rect) {
+                    flush_text(text_instances.len() as u32, current_text_start, render_cmds);
+                    flush_aa(aa_shapes.len() as u32, current_aa_start, render_cmds);
+                    push_filled_rect(quad_verts, rect, color, z, window_size);
+                } else {
+                    flush_quads(quad_verts.len() as u32, current_quad_start, render_cmds);
+                    flush_text(text_instances.len() as u32, current_text_start, render_cmds);
+                    aa_shapes.push(ShapeData {
+                        p0: [rect.x, rect.y],
+                        p1: [rect.x + rect.w, rect.y + rect.h],
+                        color: color_arr(color),
+                        width: 0.0,
+                        radius: 0.0,
+                        shape_type: SHAPE_TYPE_FILL_RECT,
+                        z: z as f32,
+                    });
+                }
+            };
+
         for cmd in cmds {
             match cmd {
-                DrawCmd::FillRect {
-                    rect,
-                    color,
-                    z,
-                    anti_alias,
-                } => {
-                    if *anti_alias {
-                        flush_quads(
-                            quad_verts.len() as u32,
-                            &mut current_quad_start,
-                            render_cmds,
-                        );
-                        flush_text(
-                            text_instances.len() as u32,
-                            &mut current_text_start,
-                            render_cmds,
-                        );
-                        aa_shapes.push(ShapeData {
-                            p0: [rect.x, rect.y],
-                            p1: [rect.x + rect.w, rect.y + rect.h],
-                            color: color_arr(*color),
-                            width: 0.0,
-                            radius: 0.0,
-                            shape_type: SHAPE_TYPE_FILL_RECT,
-                            z: *z as f32,
-                        });
-                    } else {
-                        flush_text(
-                            text_instances.len() as u32,
-                            &mut current_text_start,
-                            render_cmds,
-                        );
-                        flush_aa(aa_shapes.len() as u32, &mut current_aa_start, render_cmds);
-                        push_filled_rect(quad_verts, *rect, *color, *z, window_size);
-                    }
+                DrawCmd::FillRect { rect, color, z } => {
+                    push_auto_fill_rect(
+                        *rect,
+                        *color,
+                        *z,
+                        quad_verts,
+                        aa_shapes,
+                        text_instances,
+                        &mut current_quad_start,
+                        &mut current_text_start,
+                        &mut current_aa_start,
+                        render_cmds,
+                    );
                 }
                 DrawCmd::BorderRect {
                     rect,
@@ -554,21 +616,22 @@ impl Renderer {
                     placement,
                     z,
                 } => {
-                    flush_text(
-                        text_instances.len() as u32,
-                        &mut current_text_start,
-                        render_cmds,
-                    );
-                    flush_aa(aa_shapes.len() as u32, &mut current_aa_start, render_cmds);
-                    push_border_rect(
-                        quad_verts,
-                        *rect,
-                        *color,
-                        *width,
-                        *placement,
-                        *z,
-                        window_size,
-                    );
+                    let (r_top, r_bottom, r_left, r_right) =
+                        border_rect_strips(*rect, *width, *placement);
+                    for strip in [r_top, r_bottom, r_left, r_right] {
+                        push_auto_fill_rect(
+                            strip,
+                            *color,
+                            *z,
+                            quad_verts,
+                            aa_shapes,
+                            text_instances,
+                            &mut current_quad_start,
+                            &mut current_text_start,
+                            &mut current_aa_start,
+                            render_cmds,
+                        );
+                    }
                 }
                 DrawCmd::StrokeLine {
                     p0,
@@ -576,74 +639,52 @@ impl Renderer {
                     color,
                     width,
                     z,
-                    anti_alias,
                 } => {
-                    if *anti_alias {
-                        flush_quads(
-                            quad_verts.len() as u32,
-                            &mut current_quad_start,
-                            render_cmds,
-                        );
-                        flush_text(
-                            text_instances.len() as u32,
-                            &mut current_text_start,
-                            render_cmds,
-                        );
-                        aa_shapes.push(ShapeData {
-                            p0: [p0.x, p0.y],
-                            p1: [p1.x, p1.y],
-                            color: color_arr(*color),
-                            width: *width,
-                            radius: 0.0,
-                            shape_type: SHAPE_TYPE_LINE,
-                            z: *z as f32,
-                        });
-                    } else {
-                        flush_text(
-                            text_instances.len() as u32,
-                            &mut current_text_start,
-                            render_cmds,
-                        );
-                        flush_aa(aa_shapes.len() as u32, &mut current_aa_start, render_cmds);
-                        push_stroke_line(quad_verts, *p0, *p1, *color, *width, *z, window_size);
-                    }
+                    flush_quads(
+                        quad_verts.len() as u32,
+                        &mut current_quad_start,
+                        render_cmds,
+                    );
+                    flush_text(
+                        text_instances.len() as u32,
+                        &mut current_text_start,
+                        render_cmds,
+                    );
+                    aa_shapes.push(ShapeData {
+                        p0: [p0.x, p0.y],
+                        p1: [p1.x, p1.y],
+                        color: color_arr(*color),
+                        width: *width,
+                        radius: 0.0,
+                        shape_type: SHAPE_TYPE_LINE,
+                        z: *z as f32,
+                    });
                 }
                 DrawCmd::FillCircle {
                     center,
                     radius,
                     color,
                     z,
-                    anti_alias,
                 } => {
-                    if *anti_alias {
-                        flush_quads(
-                            quad_verts.len() as u32,
-                            &mut current_quad_start,
-                            render_cmds,
-                        );
-                        flush_text(
-                            text_instances.len() as u32,
-                            &mut current_text_start,
-                            render_cmds,
-                        );
-                        aa_shapes.push(ShapeData {
-                            p0: [center.x, center.y],
-                            p1: [0.0, 0.0],
-                            color: color_arr(*color),
-                            width: 0.0,
-                            radius: *radius,
-                            shape_type: SHAPE_TYPE_FILL_CIRCLE,
-                            z: *z as f32,
-                        });
-                    } else {
-                        flush_text(
-                            text_instances.len() as u32,
-                            &mut current_text_start,
-                            render_cmds,
-                        );
-                        flush_aa(aa_shapes.len() as u32, &mut current_aa_start, render_cmds);
-                        push_filled_circle(quad_verts, *center, *radius, *color, *z, window_size);
-                    }
+                    flush_quads(
+                        quad_verts.len() as u32,
+                        &mut current_quad_start,
+                        render_cmds,
+                    );
+                    flush_text(
+                        text_instances.len() as u32,
+                        &mut current_text_start,
+                        render_cmds,
+                    );
+                    aa_shapes.push(ShapeData {
+                        p0: [center.x, center.y],
+                        p1: [0.0, 0.0],
+                        color: color_arr(*color),
+                        width: 0.0,
+                        radius: *radius,
+                        shape_type: SHAPE_TYPE_FILL_CIRCLE,
+                        z: *z as f32,
+                    });
                 }
                 DrawCmd::StrokeCircle {
                     center,
@@ -651,45 +692,26 @@ impl Renderer {
                     color,
                     width,
                     z,
-                    anti_alias,
                 } => {
-                    if *anti_alias {
-                        flush_quads(
-                            quad_verts.len() as u32,
-                            &mut current_quad_start,
-                            render_cmds,
-                        );
-                        flush_text(
-                            text_instances.len() as u32,
-                            &mut current_text_start,
-                            render_cmds,
-                        );
-                        aa_shapes.push(ShapeData {
-                            p0: [center.x, center.y],
-                            p1: [0.0, 0.0],
-                            color: color_arr(*color),
-                            width: *width,
-                            radius: *radius,
-                            shape_type: SHAPE_TYPE_STROKE_CIRCLE,
-                            z: *z as f32,
-                        });
-                    } else {
-                        flush_text(
-                            text_instances.len() as u32,
-                            &mut current_text_start,
-                            render_cmds,
-                        );
-                        flush_aa(aa_shapes.len() as u32, &mut current_aa_start, render_cmds);
-                        push_stroked_circle(
-                            quad_verts,
-                            *center,
-                            *radius,
-                            *color,
-                            *width,
-                            *z,
-                            window_size,
-                        );
-                    }
+                    flush_quads(
+                        quad_verts.len() as u32,
+                        &mut current_quad_start,
+                        render_cmds,
+                    );
+                    flush_text(
+                        text_instances.len() as u32,
+                        &mut current_text_start,
+                        render_cmds,
+                    );
+                    aa_shapes.push(ShapeData {
+                        p0: [center.x, center.y],
+                        p1: [0.0, 0.0],
+                        color: color_arr(*color),
+                        width: *width,
+                        radius: *radius,
+                        shape_type: SHAPE_TYPE_STROKE_CIRCLE,
+                        z: *z as f32,
+                    });
                 }
                 DrawCmd::GlyphRun {
                     glyphs: glyph_range,
@@ -1142,221 +1164,6 @@ fn push_filled_rect(
     });
 }
 
-/// Push eight thin filled rects (one per side) to approximate a stroked rect.
-/// Push four filled rects (one per side) to represent a border rect.
-fn push_border_rect(
-    verts: &mut Vec<Vertex>,
-    rect: Rect,
-    color: Color,
-    width: f32,
-    placement: BorderPlacement,
-    z: u32,
-    win_size: (u32, u32),
-) {
-    let bw = width;
-    let (x, y, w, h) = (rect.x, rect.y, rect.w, rect.h);
-
-    let (r_top, r_bottom, r_left, r_right) = match placement {
-        BorderPlacement::Inside => (
-            Rect::new(x, y, w, bw),
-            Rect::new(x, y + h - bw, w, bw),
-            Rect::new(x, y, bw, h),
-            Rect::new(x + w - bw, y, bw, h),
-        ),
-        BorderPlacement::Outside => (
-            Rect::new(x - bw, y - bw, w + bw * 2.0, bw),
-            Rect::new(x - bw, y + h, w + bw * 2.0, bw),
-            Rect::new(x - bw, y, bw, h),
-            Rect::new(x + w, y, bw, h),
-        ),
-    };
-
-    push_filled_rect(verts, r_top, color, z, win_size);
-    push_filled_rect(verts, r_bottom, color, z, win_size);
-    push_filled_rect(verts, r_left, color, z, win_size);
-    push_filled_rect(verts, r_right, color, z, win_size);
-}
-
-/// Push two triangles for a line segment of a given width (screen-aligned cap).
-fn push_stroke_line(
-    verts: &mut Vec<Vertex>,
-    p0: framewise::Vec2,
-    p1: framewise::Vec2,
-    color: Color,
-    width: f32,
-    z: u32,
-    win_size: (u32, u32),
-) {
-    let dx = p1.x - p0.x;
-    let dy = p1.y - p0.y;
-    let len = (dx * dx + dy * dy).sqrt();
-    if len < 0.001 {
-        return;
-    }
-    let hw = width * 0.5;
-    let nx = (-dy / len) * hw;
-    let ny = (dx / len) * hw;
-
-    let a = to_clip(p0.x + nx, p0.y + ny, win_size.0, win_size.1);
-    let b = to_clip(p0.x - nx, p0.y - ny, win_size.0, win_size.1);
-    let c2 = to_clip(p1.x - nx, p1.y - ny, win_size.0, win_size.1);
-    let d = to_clip(p1.x + nx, p1.y + ny, win_size.0, win_size.1);
-    let c = color_arr(color);
-    let z = z_to_depth(z);
-
-    verts.push(Vertex {
-        pos: a,
-        color: c,
-        z,
-    });
-    verts.push(Vertex {
-        pos: b,
-        color: c,
-        z,
-    });
-    verts.push(Vertex {
-        pos: c2,
-        color: c,
-        z,
-    });
-    verts.push(Vertex {
-        pos: a,
-        color: c,
-        z,
-    });
-    verts.push(Vertex {
-        pos: c2,
-        color: c,
-        z,
-    });
-    verts.push(Vertex {
-        pos: d,
-        color: c,
-        z,
-    });
-}
-
-const CIRCLE_SEGS: usize = 32;
-
-/// Push a triangle fan for a filled circle.
-fn push_filled_circle(
-    verts: &mut Vec<Vertex>,
-    center: framewise::Vec2,
-    radius: f32,
-    color: Color,
-    z: u32,
-    win_size: (u32, u32),
-) {
-    let c = color_arr(color);
-    let z = z_to_depth(z);
-    let cx = to_clip(center.x, center.y, win_size.0, win_size.1);
-    for i in 0..CIRCLE_SEGS {
-        let a0 = (i as f32 / CIRCLE_SEGS as f32) * std::f32::consts::TAU;
-        let a1 = ((i + 1) as f32 / CIRCLE_SEGS as f32) * std::f32::consts::TAU;
-        let p0 = to_clip(
-            center.x + a0.cos() * radius,
-            center.y + a0.sin() * radius,
-            win_size.0,
-            win_size.1,
-        );
-        let p1 = to_clip(
-            center.x + a1.cos() * radius,
-            center.y + a1.sin() * radius,
-            win_size.0,
-            win_size.1,
-        );
-        verts.push(Vertex {
-            pos: cx,
-            color: c,
-            z,
-        });
-        verts.push(Vertex {
-            pos: p0,
-            color: c,
-            z,
-        });
-        verts.push(Vertex {
-            pos: p1,
-            color: c,
-            z,
-        });
-    }
-}
-
-/// Push a ring of quads for a stroked circle.
-fn push_stroked_circle(
-    verts: &mut Vec<Vertex>,
-    center: framewise::Vec2,
-    radius: f32,
-    color: Color,
-    width: f32,
-    z: u32,
-    win_size: (u32, u32),
-) {
-    let c = color_arr(color);
-    let z = z_to_depth(z);
-    let r_in = (radius - width * 0.5).max(0.0);
-    let r_out = radius + width * 0.5;
-    for i in 0..CIRCLE_SEGS {
-        let a0 = (i as f32 / CIRCLE_SEGS as f32) * std::f32::consts::TAU;
-        let a1 = ((i + 1) as f32 / CIRCLE_SEGS as f32) * std::f32::consts::TAU;
-        let i0 = to_clip(
-            center.x + a0.cos() * r_in,
-            center.y + a0.sin() * r_in,
-            win_size.0,
-            win_size.1,
-        );
-        let i1 = to_clip(
-            center.x + a1.cos() * r_in,
-            center.y + a1.sin() * r_in,
-            win_size.0,
-            win_size.1,
-        );
-        let o0 = to_clip(
-            center.x + a0.cos() * r_out,
-            center.y + a0.sin() * r_out,
-            win_size.0,
-            win_size.1,
-        );
-        let o1 = to_clip(
-            center.x + a1.cos() * r_out,
-            center.y + a1.sin() * r_out,
-            win_size.0,
-            win_size.1,
-        );
-        verts.push(Vertex {
-            pos: i0,
-            color: c,
-            z,
-        });
-        verts.push(Vertex {
-            pos: o0,
-            color: c,
-            z,
-        });
-        verts.push(Vertex {
-            pos: o1,
-            color: c,
-            z,
-        });
-        verts.push(Vertex {
-            pos: i0,
-            color: c,
-            z,
-        });
-        verts.push(Vertex {
-            pos: o1,
-            color: c,
-            z,
-        });
-        verts.push(Vertex {
-            pos: i1,
-            color: c,
-            z,
-        });
-    }
-}
-
 /// Generate instances for a range of prepared glyph arena entries.
 fn push_glyph_run(
     instances: &mut Vec<TextGlyphInstance>,
@@ -1474,13 +1281,11 @@ mod tests {
                 rect: Rect::new(10.0, 10.0, 100.0, 100.0),
                 color: Color::from_srgb_u8(255, 0, 0, 255),
                 z: 0,
-                anti_alias: false,
             },
             DrawCmd::FillRect {
                 rect: Rect::new(20.0, 20.0, 50.0, 50.0),
                 color: Color::from_srgb_u8(0, 255, 0, 255),
                 z: 1,
-                anti_alias: false,
             },
             // 2. AA shape
             DrawCmd::StrokeLine {
@@ -1489,7 +1294,6 @@ mod tests {
                 color: Color::from_srgb_u8(0, 0, 0, 255),
                 width: 2.0,
                 z: 2,
-                anti_alias: true,
             },
             // 3. Clip push
             DrawCmd::PushClip {
@@ -1501,14 +1305,12 @@ mod tests {
                 radius: 10.0,
                 color: Color::from_srgb_u8(0, 0, 255, 255),
                 z: 3,
-                anti_alias: true,
             },
             // 5. Opaque quad inside clip
             DrawCmd::FillRect {
                 rect: Rect::new(5.0, 5.0, 10.0, 10.0),
                 color: Color::from_srgb_u8(255, 255, 0, 255),
                 z: 4,
-                anti_alias: false,
             },
             // 6. Clip pop
             DrawCmd::PopClip,

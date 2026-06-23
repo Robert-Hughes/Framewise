@@ -75,7 +75,6 @@ mod analytical_aa_golden {
                 rect: Rect::new(0.0, 0.0, width as f32, height as f32),
                 color: Color::from_srgb_u8(240, 240, 240, 255),
                 z: 0,
-                anti_alias: false,
             });
 
             // 1. Lines with and without AA
@@ -86,7 +85,6 @@ mod analytical_aa_golden {
                 color: Color::from_srgb_u8(0, 0, 0, 255),
                 width: 1.0,
                 z: 1,
-                anti_alias: false,
             });
             cmds.push(DrawCmd::StrokeLine {
                 p0: Vec2::new(20.0, 40.0),
@@ -94,7 +92,6 @@ mod analytical_aa_golden {
                 color: Color::from_srgb_u8(0, 0, 0, 255),
                 width: 3.0,
                 z: 1,
-                anti_alias: false,
             });
 
             // AA lines
@@ -104,7 +101,6 @@ mod analytical_aa_golden {
                 color: Color::from_srgb_u8(0, 0, 0, 255),
                 width: 1.0,
                 z: 1,
-                anti_alias: true,
             });
             cmds.push(DrawCmd::StrokeLine {
                 p0: Vec2::new(220.0, 40.0),
@@ -112,7 +108,6 @@ mod analytical_aa_golden {
                 color: Color::from_srgb_u8(0, 0, 0, 255),
                 width: 3.0,
                 z: 1,
-                anti_alias: true,
             });
 
             // 2. Circles with and without AA
@@ -122,7 +117,6 @@ mod analytical_aa_golden {
                 radius: 30.0,
                 color: Color::from_srgb_u8(200, 50, 50, 255),
                 z: 1,
-                anti_alias: false,
             });
             cmds.push(DrawCmd::StrokeCircle {
                 center: Vec2::new(140.0, 200.0),
@@ -130,7 +124,6 @@ mod analytical_aa_golden {
                 color: Color::from_srgb_u8(50, 50, 200, 255),
                 width: 4.0,
                 z: 1,
-                anti_alias: false,
             });
 
             // AA circles (filled and stroked)
@@ -139,7 +132,6 @@ mod analytical_aa_golden {
                 radius: 30.0,
                 color: Color::from_srgb_u8(200, 50, 50, 255),
                 z: 1,
-                anti_alias: true,
             });
             cmds.push(DrawCmd::StrokeCircle {
                 center: Vec2::new(340.0, 200.0),
@@ -147,7 +139,6 @@ mod analytical_aa_golden {
                 color: Color::from_srgb_u8(50, 50, 200, 255),
                 width: 4.0,
                 z: 1,
-                anti_alias: true,
             });
 
             // 3. Rectangles with and without AA
@@ -156,7 +147,6 @@ mod analytical_aa_golden {
                 rect: Rect::new(20.5, 280.5, 60.0, 40.0),
                 color: Color::from_srgb_u8(50, 150, 50, 255),
                 z: 1,
-                anti_alias: false,
             });
             cmds.push(DrawCmd::BorderRect {
                 rect: Rect::new(100.5, 280.5, 60.0, 40.0),
@@ -171,7 +161,6 @@ mod analytical_aa_golden {
                 rect: Rect::new(220.5, 280.5, 60.0, 40.0),
                 color: Color::from_srgb_u8(50, 150, 50, 255),
                 z: 1,
-                anti_alias: true,
             });
             cmds.push(DrawCmd::BorderRect {
                 rect: Rect::new(300.5, 280.5, 60.0, 40.0),

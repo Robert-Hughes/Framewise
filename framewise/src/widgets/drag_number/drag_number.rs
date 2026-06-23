@@ -192,7 +192,6 @@ pub mod raw {
         }
 
         cmds.push(DrawCmd::FillRect {
-            anti_alias: false,
             rect: spec.rect,
             color: tint(s.background),
             z: spec.layer.get_z(),
@@ -213,7 +212,6 @@ pub mod raw {
             s.text_bg
         };
         cmds.push(DrawCmd::FillRect {
-            anti_alias: false,
             rect: text_rect,
             color: tint(text_bg),
             z: spec.layer.get_z(),
@@ -238,7 +236,6 @@ pub mod raw {
         let frac = ((state.value - spec.min) / (spec.max - spec.min)).clamp(0.0, 1.0);
         if frac > 0.0 {
             cmds.push(DrawCmd::FillRect {
-                anti_alias: false,
                 rect: Rect::new(value_x, spec.rect.y, value_w * frac, spec.rect.h),
                 color: tint(s.value_fill),
                 z: spec.layer.get_z(),

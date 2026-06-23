@@ -204,7 +204,6 @@ fn test_switch_visual_off() {
         cmds,
         DrawCommands::from_vec(vec![
             DrawCmd::FillRect {
-                anti_alias: false,
                 rect: r,
                 color: s.off_fill,
                 z: 0,
@@ -217,7 +216,6 @@ fn test_switch_visual_off() {
                 z: 0,
             },
             DrawCmd::FillRect {
-                anti_alias: false,
                 rect: Rect::new(12.0, 13.0, 10.0, 10.0),
                 color: s.off_thumb,
                 z: 0,
@@ -272,7 +270,6 @@ fn test_switch_visual_hovered() {
         cmds,
         DrawCommands::from_vec(vec![
             DrawCmd::FillRect {
-                anti_alias: false,
                 rect: r,
                 color: s.hovered,
                 z: 0,
@@ -285,7 +282,6 @@ fn test_switch_visual_hovered() {
                 z: 0,
             },
             DrawCmd::FillRect {
-                anti_alias: false,
                 rect: Rect::new(12.0, 13.0, 10.0, 10.0),
                 color: s.off_thumb,
                 z: 0,
@@ -342,7 +338,6 @@ fn test_switch_visual_pressed() {
         cmds,
         DrawCommands::from_vec(vec![
             DrawCmd::FillRect {
-                anti_alias: false,
                 rect: r,
                 color: s.pressed,
                 z: 0,
@@ -355,7 +350,6 @@ fn test_switch_visual_pressed() {
                 z: 0,
             },
             DrawCmd::FillRect {
-                anti_alias: false,
                 rect: Rect::new(12.0, 13.0, 10.0, 10.0),
                 color: s.off_thumb,
                 z: 0,
@@ -387,7 +381,6 @@ fn test_switch_visual_on() {
         cmds,
         DrawCommands::from_vec(vec![
             DrawCmd::FillRect {
-                anti_alias: false,
                 rect: r,
                 color: s.on_fill,
                 z: 0,
@@ -400,7 +393,6 @@ fn test_switch_visual_on() {
                 z: 0,
             },
             DrawCmd::FillRect {
-                anti_alias: false,
                 rect: Rect::new(28.0, 13.0, 10.0, 10.0),
                 color: s.on_thumb,
                 z: 0,
@@ -458,7 +450,6 @@ fn test_switch_visual_on_hovered() {
         cmds,
         DrawCommands::from_vec(vec![
             DrawCmd::FillRect {
-                anti_alias: false,
                 rect: r,
                 color: s.selected_hovered,
                 z: 0,
@@ -471,7 +462,6 @@ fn test_switch_visual_on_hovered() {
                 z: 0,
             },
             DrawCmd::FillRect {
-                anti_alias: false,
                 rect: Rect::new(28.0, 13.0, 10.0, 10.0),
                 color: s.on_thumb,
                 z: 0,
@@ -513,7 +503,6 @@ fn test_switch_visual_focused() {
                 z: 1,
             },
             DrawCmd::FillRect {
-                anti_alias: false,
                 rect: r,
                 color: s.off_fill,
                 z: 0,
@@ -526,7 +515,6 @@ fn test_switch_visual_focused() {
                 z: 0,
             },
             DrawCmd::FillRect {
-                anti_alias: false,
                 rect: Rect::new(12.0, 13.0, 10.0, 10.0),
                 color: s.off_thumb,
                 z: 0,
@@ -560,7 +548,6 @@ fn test_switch_visual_disabled() {
         cmds,
         DrawCommands::from_vec(vec![
             DrawCmd::FillRect {
-                anti_alias: false,
                 rect: r,
                 color: tint(s.off_fill),
                 z: 0,
@@ -573,7 +560,6 @@ fn test_switch_visual_disabled() {
                 z: 0,
             },
             DrawCmd::FillRect {
-                anti_alias: false,
                 rect: Rect::new(12.0, 13.0, 10.0, 10.0),
                 color: tint(s.off_thumb),
                 z: 0,
@@ -928,7 +914,7 @@ fn test_high_level_honors_user_style() {
 
     let has_custom_fill = cmds
         .iter()
-        .any(|c| matches!(c, DrawCmd::FillRect { anti_alias: false, color, .. } if *color == custom.off_fill));
+        .any(|c| matches!(c, DrawCmd::FillRect {  color, .. } if *color == custom.off_fill));
     assert!(
         has_custom_fill,
         "high-level switch must honor user-set style"
@@ -965,7 +951,6 @@ fn test_switch_visual_vertically_centered() {
         cmds,
         DrawCommands::from_vec(vec![
             DrawCmd::FillRect {
-                anti_alias: false,
                 rect: expected_rect,
                 color: s.off_fill,
                 z: 0,
@@ -978,7 +963,6 @@ fn test_switch_visual_vertically_centered() {
                 z: 0,
             },
             DrawCmd::FillRect {
-                anti_alias: false,
                 rect: Rect::new(12.0, 15.0, 10.0, 10.0), // 12.0 + (16.0 - 10.0) * 0.5 = 15.0
                 color: s.off_thumb,
                 z: 0,

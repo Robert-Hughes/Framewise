@@ -332,7 +332,6 @@ pub mod raw {
                     token.style.scrollbar_width,
                 );
                 cmds.push(DrawCmd::FillRect {
-                    anti_alias: false,
                     rect: corner_rect,
                     color: corner_color,
                     z: token.layer.get_z(),
@@ -345,7 +344,6 @@ pub mod raw {
                         Vec2::new(corner_rect.x, corner_rect.y + corner_rect.h),
                         Some(border),
                         token.layer.get_z(),
-                        false,
                     );
                     // Top border of the corner
                     cmds.push_stroke_line(
@@ -353,7 +351,6 @@ pub mod raw {
                         Vec2::new(corner_rect.x + corner_rect.w, corner_rect.y),
                         Some(border),
                         token.layer.get_z(),
-                        false,
                     );
                 }
             }

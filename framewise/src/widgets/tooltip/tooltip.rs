@@ -102,7 +102,6 @@ pub mod raw {
 
         let r = Rect::new(spec.rect.x, spec.rect.y, box_w, box_h);
         cmds.push(DrawCmd::FillRect {
-            anti_alias: false,
             rect: r,
             color: bg,
             z: spec.layer.get_z(),
@@ -126,7 +125,6 @@ pub mod raw {
         let arrow_x = r.x + s.arrow_x;
         let arrow_y = r.y + box_h;
         cmds.push(DrawCmd::StrokeLine {
-            anti_alias: false,
             p0: Vec2::new(arrow_x, arrow_y),
             p1: Vec2::new(arrow_x + arrow_w * 0.5, arrow_y + arrow_h),
             color: bg,
@@ -134,7 +132,6 @@ pub mod raw {
             z: spec.layer.get_z(),
         });
         cmds.push(DrawCmd::StrokeLine {
-            anti_alias: false,
             p0: Vec2::new(arrow_x + arrow_w, arrow_y),
             p1: Vec2::new(arrow_x + arrow_w * 0.5, arrow_y + arrow_h),
             color: bg,

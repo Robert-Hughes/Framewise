@@ -46,16 +46,21 @@ pub enum BorderPlacement {
 #[derive(Debug, Clone, PartialEq)]
 pub enum DrawCmd {
     /// Fill a rectangle with a solid colour.
+    ///
+    /// `FillRect` is box/UI geometry that describes an occupied rectangular area.
+    /// The renderer automatically applies antialiasing: non-AA quads are used when
+    /// edges are pixel-aligned, and AA rect rendering otherwise.
     FillRect {
         rect: Rect,
         color: Color,
         z: u32,
-        anti_alias: bool,
     },
 
     /// Draw a box border around a rectangle.
     ///
     /// `BorderRect` is box/UI border geometry, not a vector stroke around a rectangle path.
+    /// The renderer lowers it to four rectangular border strips and applies the same
+    /// automatic antialiasing policy as `FillRect`.
     ///
     /// - `Inside` draws the border inside the rectangle.
     /// - `Outside` draws the border immediately outside the rectangle.
@@ -70,6 +75,9 @@ pub enum DrawCmd {
 
     /// Draw a straight line segment.
     ///
+    /// `StrokeLine` is an antialiased vector line segment (always uses analytical AA).
+    /// Use `FillRect` for crisp horizontal/vertical UI rules.
+    ///
     /// The line is drawn using "butt end caps", meaning the stroke terminates flat and
     /// stops immediately at `p0` and `p1` without projecting past them. For connected
     /// line segments to meet cleanly at corners, their endpoints should be manually
@@ -80,26 +88,27 @@ pub enum DrawCmd {
         color: Color,
         width: f32,
         z: u32,
-        anti_alias: bool,
     },
 
     /// Fill a circle with a solid colour.
+    ///
+    /// `FillCircle` is antialiased vector geometry (always uses analytical AA).
     FillCircle {
         center: Vec2,
         radius: f32,
         color: Color,
         z: u32,
-        anti_alias: bool,
     },
 
     /// Draw the outline of a circle.
+    ///
+    /// `StrokeCircle` is antialiased vector geometry (always uses analytical AA).
     StrokeCircle {
         center: Vec2,
         radius: f32,
         color: Color,
         width: f32,
         z: u32,
-        anti_alias: bool,
     },
 
     /// Draw a contiguous range of prepared glyphs from the `DrawCommands` glyph arena.
@@ -281,7 +290,6 @@ impl DrawCommands {
         p1: Vec2,
         stroke: Option<Stroke>,
         z: u32,
-        anti_alias: bool,
     ) -> Option<usize> {
         let s = stroke?;
         if !s.is_visible() {
@@ -294,7 +302,6 @@ impl DrawCommands {
             color: s.color,
             width: s.width,
             z,
-            anti_alias,
         }))
     }
 
@@ -304,7 +311,6 @@ impl DrawCommands {
         radius: f32,
         stroke: Option<Stroke>,
         z: u32,
-        anti_alias: bool,
     ) -> Option<usize> {
         let s = stroke?;
         if !s.is_visible() {
@@ -317,7 +323,6 @@ impl DrawCommands {
             color: s.color,
             width: s.width,
             z,
-            anti_alias,
         }))
     }
 }
@@ -426,19 +431,13 @@ mod tests {
         let s_valid = Stroke::new(color(), 2.0);
 
         // Smoke test for push_stroke_line
-        let index_line = cmds.push_stroke_line(
-            Vec2::new(0.0, 0.0),
-            Vec2::new(1.0, 1.0),
-            Some(s_valid),
-            1,
-            true,
-        );
+        let index_line =
+            cmds.push_stroke_line(Vec2::new(0.0, 0.0), Vec2::new(1.0, 1.0), Some(s_valid), 1);
         assert_eq!(index_line, Some(0));
         assert_eq!(cmds.len(), 1);
 
         // Smoke test for push_stroke_circle
-        let index_circle =
-            cmds.push_stroke_circle(Vec2::new(0.0, 0.0), 5.0, Some(s_valid), 1, true);
+        let index_circle = cmds.push_stroke_circle(Vec2::new(0.0, 0.0), 5.0, Some(s_valid), 1);
         assert_eq!(index_circle, Some(1));
         assert_eq!(cmds.len(), 2);
     }

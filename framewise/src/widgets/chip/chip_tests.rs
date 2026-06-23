@@ -38,7 +38,6 @@ fn test_chip_visual_normal() {
         cmds.commands(),
         vec![
             DrawCmd::FillRect {
-                anti_alias: false,
                 rect: Rect::new(0.0, 0.0, 50.0, 22.0),
                 color: style.background,
                 z: 0,
@@ -109,7 +108,6 @@ fn test_chip_visual_active() {
         cmds.commands(),
         vec![
             DrawCmd::FillRect {
-                anti_alias: false,
                 rect: Rect::new(0.0, 0.0, 50.0, 22.0),
                 color: style.active_bg,
                 z: 0,
@@ -191,7 +189,6 @@ fn test_chip_visual_focused() {
                 z: 1,
             },
             DrawCmd::FillRect {
-                anti_alias: false,
                 rect: r,
                 color: style.background,
                 z: 0,

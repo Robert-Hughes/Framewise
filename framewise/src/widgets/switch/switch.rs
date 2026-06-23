@@ -130,7 +130,6 @@ pub mod raw {
             )
         };
         cmds.push(DrawCmd::FillRect {
-            anti_alias: false,
             rect: r,
             color: tint(track_fill),
             z: spec.layer.get_z(),
@@ -159,7 +158,6 @@ pub mod raw {
             s.off_thumb
         };
         cmds.push(DrawCmd::FillRect {
-            anti_alias: false,
             rect: Rect::new(dot_x, dot_y, s.thumb_size, s.thumb_size),
             color: tint(dot_color),
             z: spec.layer.get_z(),

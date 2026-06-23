@@ -206,14 +206,12 @@ fn test_radio_visual_unselected() {
         cmds,
         DrawCommands::from_vec(vec![
             DrawCmd::FillCircle {
-                anti_alias: true,
                 center,
                 radius: s.radius,
                 color: s.background,
                 z: 0,
             },
             DrawCmd::StrokeCircle {
-                anti_alias: true,
                 center,
                 radius: s.radius,
                 color: s.border.unwrap().color,
@@ -273,14 +271,12 @@ fn test_radio_visual_hovered() {
         cmds,
         DrawCommands::from_vec(vec![
             DrawCmd::FillCircle {
-                anti_alias: true,
                 center,
                 radius: s.radius,
                 color: s.hovered,
                 z: 0,
             },
             DrawCmd::StrokeCircle {
-                anti_alias: true,
                 center,
                 radius: s.radius,
                 color: s.border.unwrap().color,
@@ -342,14 +338,12 @@ fn test_radio_visual_pressed() {
         cmds,
         DrawCommands::from_vec(vec![
             DrawCmd::FillCircle {
-                anti_alias: true,
                 center,
                 radius: s.radius,
                 color: s.pressed,
                 z: 0,
             },
             DrawCmd::StrokeCircle {
-                anti_alias: true,
                 center,
                 radius: s.radius,
                 color: s.border.unwrap().color,
@@ -383,14 +377,12 @@ fn test_radio_visual_selected() {
         cmds,
         DrawCommands::from_vec(vec![
             DrawCmd::FillCircle {
-                anti_alias: true,
                 center,
                 radius: s.radius,
                 color: s.background,
                 z: 0,
             },
             DrawCmd::StrokeCircle {
-                anti_alias: true,
                 center,
                 radius: s.radius,
                 color: s.border.unwrap().color,
@@ -398,7 +390,6 @@ fn test_radio_visual_selected() {
                 z: 0,
             },
             DrawCmd::FillCircle {
-                anti_alias: true,
                 center,
                 radius: s.dot_radius,
                 color: s.dot,
@@ -457,14 +448,12 @@ fn test_radio_visual_selected_hovered() {
         cmds,
         DrawCommands::from_vec(vec![
             DrawCmd::FillCircle {
-                anti_alias: true,
                 center,
                 radius: s.radius,
                 color: s.selected_hovered,
                 z: 0,
             },
             DrawCmd::StrokeCircle {
-                anti_alias: true,
                 center,
                 radius: s.radius,
                 color: s.border.unwrap().color,
@@ -472,7 +461,6 @@ fn test_radio_visual_selected_hovered() {
                 z: 0,
             },
             DrawCmd::FillCircle {
-                anti_alias: true,
                 center,
                 radius: s.dot_radius,
                 color: s.dot,
@@ -508,7 +496,6 @@ fn test_radio_visual_focused() {
         cmds,
         DrawCommands::from_vec(vec![
             DrawCmd::StrokeCircle {
-                anti_alias: true,
                 center,
                 radius: s.radius + s.focus.unwrap().offset + s.focus.unwrap().stroke.width * 0.5,
                 color: s.focus.unwrap().stroke.color,
@@ -516,14 +503,12 @@ fn test_radio_visual_focused() {
                 z: 1,
             },
             DrawCmd::FillCircle {
-                anti_alias: true,
                 center,
                 radius: s.radius,
                 color: s.background,
                 z: 0,
             },
             DrawCmd::StrokeCircle {
-                anti_alias: true,
                 center,
                 radius: s.radius,
                 color: s.border.unwrap().color,
@@ -559,14 +544,12 @@ fn test_radio_visual_disabled() {
         cmds,
         DrawCommands::from_vec(vec![
             DrawCmd::FillCircle {
-                anti_alias: true,
                 center,
                 radius: s.radius,
                 color: tint(s.background),
                 z: 0,
             },
             DrawCmd::StrokeCircle {
-                anti_alias: true,
                 center,
                 radius: s.radius,
                 color: tint(s.border.unwrap().color),
@@ -925,7 +908,7 @@ fn test_high_level_honors_user_style() {
 
     let has_custom_fill = cmds
         .iter()
-        .any(|c| matches!(c, DrawCmd::FillCircle { anti_alias: true, color, .. } if *color == custom.background));
+        .any(|c| matches!(c, DrawCmd::FillCircle {  color, .. } if *color == custom.background));
     assert!(
         has_custom_fill,
         "high-level radio must honor user-set style"
@@ -963,14 +946,12 @@ fn test_radio_visual_vertically_centered() {
         cmds,
         DrawCommands::from_vec(vec![
             DrawCmd::FillCircle {
-                anti_alias: true,
                 center,
                 radius: s.radius,
                 color: s.background,
                 z: 0,
             },
             DrawCmd::StrokeCircle {
-                anti_alias: true,
                 center,
                 radius: s.radius,
                 color: s.border.unwrap().color,

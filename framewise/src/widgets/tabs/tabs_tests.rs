@@ -45,7 +45,6 @@ fn test_tabs_visual_normal() {
         cmds.commands(),
         vec![
             DrawCmd::StrokeLine {
-                anti_alias: false,
                 p0: Vec2::new(0.0, 36.0),
                 p1: Vec2::new(300.0, 36.0),
                 color: style.border.unwrap().color,
@@ -58,19 +57,16 @@ fn test_tabs_visual_normal() {
                 z: 0,
             },
             DrawCmd::FillRect {
-                anti_alias: false,
                 rect: Rect::new(0.0, 34.5, 68.0, 3.0),
                 color: style.accent,
                 z: 0,
             },
             DrawCmd::FillRect {
-                anti_alias: false,
                 rect: Rect::new(0.0, 28.5, 3.0, 9.0),
                 color: style.accent,
                 z: 0,
             },
             DrawCmd::FillRect {
-                anti_alias: false,
                 rect: Rect::new(65.0, 28.5, 3.0, 9.0),
                 color: style.accent,
                 z: 0,
@@ -152,7 +148,6 @@ fn test_tabs_visual_focused() {
         cmds.commands(),
         vec![
             DrawCmd::StrokeLine {
-                anti_alias: false,
                 p0: Vec2::new(0.0, 36.0),
                 p1: Vec2::new(300.0, 36.0),
                 color: style.border.unwrap().color,
@@ -177,19 +172,16 @@ fn test_tabs_visual_focused() {
                 z: 0,
             },
             DrawCmd::FillRect {
-                anti_alias: false,
                 rect: Rect::new(68.0, 34.5, 68.0, 3.0),
                 color: style.accent,
                 z: 0,
             },
             DrawCmd::FillRect {
-                anti_alias: false,
                 rect: Rect::new(68.0, 28.5, 3.0, 9.0),
                 color: style.accent,
                 z: 0,
             },
             DrawCmd::FillRect {
-                anti_alias: false,
                 rect: Rect::new(133.0, 28.5, 3.0, 9.0),
                 color: style.accent,
                 z: 0,

@@ -831,7 +831,6 @@ pub mod raw {
             spec.style.background
         };
         cmds.push(DrawCmd::FillRect {
-            anti_alias: false,
             rect: spec.rect,
             color: bg_color,
             z: spec.layer.get_z(),
@@ -846,7 +845,6 @@ pub mod raw {
                 spec.rect.h,
             );
             cmds.push(DrawCmd::FillRect {
-                anti_alias: false,
                 rect: stripe,
                 color: spec
                     .style
@@ -1153,7 +1151,6 @@ pub mod raw {
                             );
 
                             cmds.push(DrawCmd::FillRect {
-                                anti_alias: false,
                                 rect: sel_rect,
                                 color: spec.style.select_color,
                                 z: spec.layer.get_z(),
@@ -1221,7 +1218,6 @@ pub mod raw {
                     caret.height,
                 );
                 cmds.push(DrawCmd::FillRect {
-                    anti_alias: false,
                     rect: caret_rect,
                     color: spec.style.caret_color,
                     z: spec.layer.get_z(),

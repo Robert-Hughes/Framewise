@@ -28,7 +28,6 @@ fn test_tooltip_visual_dark() {
         cmds.commands(),
         vec![
             DrawCmd::FillRect {
-                anti_alias: false,
                 rect: Rect::new(0.0, 0.0, 72.0, 27.0),
                 color: style.dark_bg,
                 z: 0,
@@ -39,7 +38,6 @@ fn test_tooltip_visual_dark() {
                 z: 0,
             },
             DrawCmd::StrokeLine {
-                anti_alias: false,
                 p0: Vec2::new(14.0, 27.0),
                 p1: Vec2::new(18.0, 31.0),
                 color: style.dark_bg,
@@ -47,7 +45,6 @@ fn test_tooltip_visual_dark() {
                 z: 0,
             },
             DrawCmd::StrokeLine {
-                anti_alias: false,
                 p0: Vec2::new(22.0, 27.0),
                 p1: Vec2::new(18.0, 31.0),
                 color: style.dark_bg,
@@ -117,7 +114,6 @@ fn test_tooltip_visual_rust() {
         cmds.commands(),
         vec![
             DrawCmd::FillRect {
-                anti_alias: false,
                 rect: Rect::new(0.0, 0.0, 72.0, 27.0),
                 color: style.rust_bg,
                 z: 0,
@@ -128,7 +124,6 @@ fn test_tooltip_visual_rust() {
                 z: 0,
             },
             DrawCmd::StrokeLine {
-                anti_alias: false,
                 p0: Vec2::new(14.0, 27.0),
                 p1: Vec2::new(18.0, 31.0),
                 color: style.rust_bg,
@@ -136,7 +131,6 @@ fn test_tooltip_visual_rust() {
                 z: 0,
             },
             DrawCmd::StrokeLine {
-                anti_alias: false,
                 p0: Vec2::new(22.0, 27.0),
                 p1: Vec2::new(18.0, 31.0),
                 color: style.rust_bg,

@@ -6093,7 +6093,7 @@ mod nested_bubbling_tests {
         child_ctx.finish();
         drop(ctx);
         // The vertical scrollbar track (a scrollbar_mode FillRect) has rect.y == placement.y.
-        assert!(cmds.iter().any(|cmd| matches!(cmd, crate::draw::DrawCmd::FillRect { anti_alias: false, rect, .. } if rect.y == placement.y)));
+        assert!(cmds.iter().any(|cmd| matches!(cmd, crate::draw::DrawCmd::FillRect {  rect, .. } if rect.y == placement.y)));
     }
 
     #[test]

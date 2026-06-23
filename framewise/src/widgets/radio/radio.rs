@@ -108,7 +108,6 @@ pub mod raw {
                     s.radius + outline.offset + outline.stroke.width * 0.5,
                     Some(tint_stroke(outline.stroke)),
                     spec.layer.get_focus_z(),
-                    true,
                 );
             }
         }
@@ -132,7 +131,6 @@ pub mod raw {
             )
         };
         cmds.push(DrawCmd::FillCircle {
-            anti_alias: true,
             center,
             radius: s.radius,
             color: tint(fill),
@@ -146,13 +144,11 @@ pub mod raw {
             s.radius,
             s.border.map(tint_stroke),
             spec.layer.get_z(),
-            true,
         );
 
         // Inner dot when selected.
         if state.checked {
             cmds.push(DrawCmd::FillCircle {
-                anti_alias: true,
                 center,
                 radius: s.dot_radius,
                 color: tint(s.dot),

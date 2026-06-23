@@ -155,7 +155,6 @@ pub mod raw {
             Vec2::new(spec.rect.x + spec.rect.w, border_y),
             s.border.map(tint_stroke),
             spec.layer.get_z(),
-            false,
         );
 
         let mut x = spec.rect.x;
@@ -198,21 +197,18 @@ pub mod raw {
             // Active underbar: 3px rust rect sitting on the bottom border + upticks at the ends.
             if is_active {
                 cmds.push(DrawCmd::FillRect {
-                    anti_alias: false,
                     rect: Rect::new(x, border_y - underbar_h * 0.5, tab_w, underbar_h),
                     color: tint(s.accent),
                     z: spec.layer.get_z(),
                 });
                 // Left uptick (3px wide, 9px tall)
                 cmds.push(DrawCmd::FillRect {
-                    anti_alias: false,
                     rect: Rect::new(x, border_y - 7.5, 3.0, 9.0),
                     color: tint(s.accent),
                     z: spec.layer.get_z(),
                 });
                 // Right uptick (3px wide, 9px tall)
                 cmds.push(DrawCmd::FillRect {
-                    anti_alias: false,
                     rect: Rect::new(x + tab_w - 3.0, border_y - 7.5, 3.0, 9.0),
                     color: tint(s.accent),
                     z: spec.layer.get_z(),

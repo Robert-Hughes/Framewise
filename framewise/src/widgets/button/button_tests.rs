@@ -528,7 +528,6 @@ fn test_button_visual_normal() {
         cmds.commands(),
         vec![
             DrawCmd::FillRect {
-                anti_alias: false,
                 rect: Rect::new(10.0, 10.0, 100.0, 30.0),
                 color: background,
                 z: 0,
@@ -620,7 +619,6 @@ fn test_button_visual_hovered() {
         cmds.commands(),
         vec![
             DrawCmd::FillRect {
-                anti_alias: false,
                 rect: Rect::new(10.0, 10.0, 100.0, 30.0),
                 color: hovered,
                 z: 0,
@@ -714,7 +712,6 @@ fn test_button_visual_pressed() {
         cmds.commands(),
         vec![
             DrawCmd::FillRect {
-                anti_alias: false,
                 rect: Rect::new(10.0, 10.0, 100.0, 30.0),
                 color: pressed,
                 z: 0,
@@ -799,7 +796,6 @@ fn test_button_visual_focused() {
                 z: 1,
             },
             DrawCmd::FillRect {
-                anti_alias: false,
                 rect: Rect::new(10.0, 10.0, 100.0, 30.0),
                 color: background,
                 z: 0,
@@ -877,7 +873,6 @@ fn test_button_visual_disabled() {
         cmds.commands(),
         vec![
             DrawCmd::FillRect {
-                anti_alias: false,
                 rect: Rect::new(10.0, 10.0, 100.0, 30.0),
                 color: expected_bg,
                 z: 0,
@@ -1052,7 +1047,6 @@ fn test_regression_custom_style_no_theme_lookup() {
         cmds.commands(),
         vec![
             DrawCmd::FillRect {
-                anti_alias: false,
                 rect: Rect::new(5.0, 15.0, 120.0, 45.0),
                 color: custom_style.background,
                 z: 0,
@@ -1217,7 +1211,7 @@ fn test_high_level_honors_user_style() {
     );
     let has_custom_fill = cmds
         .iter()
-        .any(|c| matches!(c, DrawCmd::FillRect { anti_alias: false, color, .. } if *color == custom.background));
+        .any(|c| matches!(c, DrawCmd::FillRect {  color, .. } if *color == custom.background));
     assert!(
         has_custom_fill,
         "high-level button must honor user-set style"

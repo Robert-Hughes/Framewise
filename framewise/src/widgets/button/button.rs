@@ -133,7 +133,6 @@ pub mod raw {
             let tint =
                 |c: Color| Color::linear_rgba(c.r, c.g, c.b, c.a * spec.style.disabled_alpha);
             cmds.push(DrawCmd::FillRect {
-                anti_alias: false,
                 rect: spec.rect,
                 color: tint(spec.style.background),
                 z: spec.layer.get_z(),
@@ -205,7 +204,6 @@ pub mod raw {
 
         // Background fill.
         cmds.push(DrawCmd::FillRect {
-            anti_alias: false,
             rect: spec.rect,
             color: fill,
             z: spec.layer.get_z(),

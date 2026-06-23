@@ -89,7 +89,6 @@ pub mod raw {
         };
 
         cmds.push(DrawCmd::FillRect {
-            anti_alias: false,
             rect: Rect::new(spec.rect.x, spec.rect.y, dot_size, dot_size),
             color: dot_color,
             z: spec.layer.get_z(),

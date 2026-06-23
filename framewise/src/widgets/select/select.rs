@@ -243,7 +243,6 @@ pub mod raw {
         }
 
         cmds.push(DrawCmd::FillRect {
-            anti_alias: false,
             rect: r,
             color: tint(s.background),
             z: spec.layer.get_z(),
@@ -315,7 +314,6 @@ pub mod raw {
             let popup = Rect::new(r.x, r.y + s.height + s.popup_gap, r.w, popup_h);
 
             cmds.push(DrawCmd::FillRect {
-                anti_alias: false,
                 rect: popup,
                 color: tint(s.background),
                 z: spec.layer.get_z(),
@@ -335,14 +333,12 @@ pub mod raw {
 
                 if is_selected {
                     cmds.push(DrawCmd::FillRect {
-                        anti_alias: false,
                         rect: row_rect,
                         color: tint(s.selected_bg),
                         z: spec.layer.get_z(),
                     });
                 } else if is_hovered {
                     cmds.push(DrawCmd::FillRect {
-                        anti_alias: false,
                         rect: row_rect,
                         color: tint(s.hover),
                         z: spec.layer.get_z(),
