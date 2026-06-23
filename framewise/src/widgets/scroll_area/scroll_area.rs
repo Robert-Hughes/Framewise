@@ -339,16 +339,18 @@ pub mod raw {
                 let border = token.style.scrollbar_style.separator_line;
                 if let Some(border) = border {
                     // Left border of the corner
-                    cmds.push_stroke_line(
-                        Vec2::new(corner_rect.x, corner_rect.y),
-                        Vec2::new(corner_rect.x, corner_rect.y + corner_rect.h),
+                    cmds.push_v_rule(
+                        corner_rect.x,
+                        corner_rect.y,
+                        corner_rect.h,
                         Some(border),
                         token.layer.get_z(),
                     );
                     // Top border of the corner
-                    cmds.push_stroke_line(
-                        Vec2::new(corner_rect.x, corner_rect.y),
-                        Vec2::new(corner_rect.x + corner_rect.w, corner_rect.y),
+                    cmds.push_h_rule(
+                        corner_rect.x,
+                        corner_rect.y,
+                        corner_rect.w,
                         Some(border),
                         token.layer.get_z(),
                     );

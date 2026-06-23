@@ -144,12 +144,7 @@ pub mod raw {
             match item {
                 MenuItem::Separator => {
                     let sep_y = y + s.separator_y;
-                    cmds.push_stroke_line(
-                        Vec2::new(outer.x, sep_y),
-                        Vec2::new(outer.x + w, sep_y),
-                        s.separator,
-                        spec.layer.get_z(),
-                    );
+                    cmds.push_h_rule(outer.x, sep_y, w, s.separator, spec.layer.get_z());
                     y += sep_h;
                 }
                 MenuItem::Group(label) => {

@@ -150,9 +150,10 @@ pub mod raw {
         let border_width = s.border.map_or(0.0, |stroke| stroke.width);
         let border_y = spec.rect.y + tab_h;
         let tint_stroke = |st: Stroke| Stroke::new(tint(st.color), st.width);
-        cmds.push_stroke_line(
-            Vec2::new(spec.rect.x, border_y),
-            Vec2::new(spec.rect.x + spec.rect.w, border_y),
+        cmds.push_h_rule(
+            spec.rect.x,
+            border_y,
+            spec.rect.w,
             s.border.map(tint_stroke),
             spec.layer.get_z(),
         );

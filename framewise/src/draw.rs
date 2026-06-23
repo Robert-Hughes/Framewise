@@ -305,6 +305,46 @@ impl DrawCommands {
         }))
     }
 
+    pub fn push_h_rule(
+        &mut self,
+        x: f32,
+        y_center: f32,
+        width: f32,
+        stroke: Option<Stroke>,
+        z: u32,
+    ) -> Option<usize> {
+        let s = stroke?;
+        if !s.is_visible() || width <= 0.0 {
+            return None;
+        }
+
+        Some(self.push(DrawCmd::FillRect {
+            rect: Rect::new(x, y_center - s.width * 0.5, width, s.width),
+            color: s.color,
+            z,
+        }))
+    }
+
+    pub fn push_v_rule(
+        &mut self,
+        x_center: f32,
+        y: f32,
+        height: f32,
+        stroke: Option<Stroke>,
+        z: u32,
+    ) -> Option<usize> {
+        let s = stroke?;
+        if !s.is_visible() || height <= 0.0 {
+            return None;
+        }
+
+        Some(self.push(DrawCmd::FillRect {
+            rect: Rect::new(x_center - s.width * 0.5, y, s.width, height),
+            color: s.color,
+            z,
+        }))
+    }
+
     pub fn push_stroke_circle(
         &mut self,
         center: Vec2,
@@ -496,6 +536,62 @@ mod tests {
         let index_transparent =
             cmds.push_border_rect(r, Some(s_transparent), BorderPlacement::Inside, 1);
         assert_eq!(index_transparent, None);
+        assert_eq!(cmds.len(), 2);
+    }
+
+    #[test]
+    fn test_push_rule_helpers() {
+        let mut cmds = DrawCommands::new();
+        let s_valid = Stroke::new(color(), 2.0);
+
+        // 1. push_h_rule visible horizontal rule emits FillRect
+        let index_h = cmds.push_h_rule(10.0, 20.0, 50.0, Some(s_valid), 1);
+        assert_eq!(index_h, Some(0));
+        assert_eq!(cmds.len(), 1);
+        assert_eq!(
+            cmds.commands()[0],
+            DrawCmd::FillRect {
+                rect: Rect::new(10.0, 20.0 - 2.0 * 0.5, 50.0, 2.0),
+                color: color(),
+                z: 1,
+            }
+        );
+
+        // 2. push_v_rule visible vertical rule emits FillRect
+        let index_v = cmds.push_v_rule(10.0, 20.0, 50.0, Some(s_valid), 2);
+        assert_eq!(index_v, Some(1));
+        assert_eq!(cmds.len(), 2);
+        assert_eq!(
+            cmds.commands()[1],
+            DrawCmd::FillRect {
+                rect: Rect::new(10.0 - 2.0 * 0.5, 20.0, 2.0, 50.0),
+                color: color(),
+                z: 2,
+            }
+        );
+
+        // 3. None stroke returns None and does not push
+        assert_eq!(cmds.push_h_rule(10.0, 20.0, 50.0, None, 1), None);
+        assert_eq!(cmds.push_v_rule(10.0, 20.0, 50.0, None, 2), None);
+        assert_eq!(cmds.len(), 2);
+
+        // 4. Invisible stroke (zero width or transparent color) returns None and does not push
+        let s_zero_width = Stroke::new(color(), 0.0);
+        assert_eq!(
+            cmds.push_h_rule(10.0, 20.0, 50.0, Some(s_zero_width), 1),
+            None
+        );
+        assert_eq!(
+            cmds.push_v_rule(10.0, 20.0, 50.0, Some(s_zero_width), 2),
+            None
+        );
+        assert_eq!(cmds.len(), 2);
+
+        // 5. Non-positive length (<= 0.0) returns None and does not push
+        assert_eq!(cmds.push_h_rule(10.0, 20.0, 0.0, Some(s_valid), 1), None);
+        assert_eq!(cmds.push_h_rule(10.0, 20.0, -10.0, Some(s_valid), 1), None);
+        assert_eq!(cmds.push_v_rule(10.0, 20.0, 0.0, Some(s_valid), 2), None);
+        assert_eq!(cmds.push_v_rule(10.0, 20.0, -10.0, Some(s_valid), 2), None);
         assert_eq!(cmds.len(), 2);
     }
 }

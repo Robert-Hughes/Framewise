@@ -60,11 +60,14 @@ fn test_segmented_visual_normal() {
                 color: style.active_bg,
                 z: 0,
             },
-            DrawCmd::StrokeLine {
-                p0: Vec2::new(36.0, 0.0),
-                p1: Vec2::new(36.0, 28.0),
+            DrawCmd::FillRect {
+                rect: Rect::new(
+                    36.0 - style.border.unwrap().width * 0.5,
+                    0.0,
+                    style.border.unwrap().width,
+                    28.0
+                ),
                 color: style.border.unwrap().color,
-                width: style.border.unwrap().width,
                 z: 0,
             },
             DrawCmd::GlyphRun {
@@ -143,11 +146,14 @@ fn test_segmented_visual_focused() {
                 placement: crate::BorderPlacement::Inside,
                 z: 0,
             },
-            DrawCmd::StrokeLine {
-                p0: Vec2::new(36.0, 0.0),
-                p1: Vec2::new(36.0, 28.0),
+            DrawCmd::FillRect {
+                rect: Rect::new(
+                    36.0 - style.border.unwrap().width * 0.5,
+                    0.0,
+                    style.border.unwrap().width,
+                    28.0
+                ),
                 color: style.border.unwrap().color,
-                width: style.border.unwrap().width,
                 z: 0,
             },
             DrawCmd::GlyphRun {

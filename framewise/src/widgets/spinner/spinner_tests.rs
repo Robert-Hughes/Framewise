@@ -25,71 +25,53 @@ fn test_spinner_visual_normal() {
         cmds,
         DrawCommands::from_vec(vec![
             // Top-left
-            DrawCmd::StrokeLine {
-                p0: Vec2::new(0.0, 5.0),
-                p1: Vec2::new(0.0, 0.0),
+            DrawCmd::FillRect {
+                rect: Rect::new(-0.75, 0.0, 1.5, 5.0),
                 color: style.stroke.color,
-                width: style.stroke.width,
                 z: 0,
             },
-            DrawCmd::StrokeLine {
-                p0: Vec2::new(0.0, 0.0),
-                p1: Vec2::new(5.0, 0.0),
+            DrawCmd::FillRect {
+                rect: Rect::new(0.0, -0.75, 5.0, 1.5),
                 color: style.stroke.color,
-                width: style.stroke.width,
                 z: 0,
             },
             // Top-right
-            DrawCmd::StrokeLine {
-                p0: Vec2::new(11.0, 0.0),
-                p1: Vec2::new(16.0, 0.0),
+            DrawCmd::FillRect {
+                rect: Rect::new(11.0, -0.75, 5.0, 1.5),
                 color: style.stroke.color,
-                width: style.stroke.width,
                 z: 0,
             },
-            DrawCmd::StrokeLine {
-                p0: Vec2::new(16.0, 0.0),
-                p1: Vec2::new(16.0, 5.0),
+            DrawCmd::FillRect {
+                rect: Rect::new(15.25, 0.0, 1.5, 5.0),
                 color: style.stroke.color,
-                width: style.stroke.width,
                 z: 0,
             },
             // Bottom-right
-            DrawCmd::StrokeLine {
-                p0: Vec2::new(16.0, 11.0),
-                p1: Vec2::new(16.0, 16.0),
+            DrawCmd::FillRect {
+                rect: Rect::new(15.25, 11.0, 1.5, 5.0),
                 color: style.stroke.color,
-                width: style.stroke.width,
                 z: 0,
             },
-            DrawCmd::StrokeLine {
-                p0: Vec2::new(16.0, 16.0),
-                p1: Vec2::new(11.0, 16.0),
+            DrawCmd::FillRect {
+                rect: Rect::new(11.0, 15.25, 5.0, 1.5),
                 color: style.stroke.color,
-                width: style.stroke.width,
                 z: 0,
             },
             // Bottom-left
-            DrawCmd::StrokeLine {
-                p0: Vec2::new(5.0, 16.0),
-                p1: Vec2::new(0.0, 16.0),
+            DrawCmd::FillRect {
+                rect: Rect::new(0.0, 15.25, 5.0, 1.5),
                 color: style.stroke.color,
-                width: style.stroke.width,
                 z: 0,
             },
-            DrawCmd::StrokeLine {
-                p0: Vec2::new(0.0, 16.0),
-                p1: Vec2::new(0.0, 11.0),
+            DrawCmd::FillRect {
+                rect: Rect::new(-0.75, 11.0, 1.5, 5.0),
                 color: style.stroke.color,
-                width: style.stroke.width,
                 z: 0,
             },
             // Highlight
-            DrawCmd::StrokeLine {
-                p0: Vec2::new(1.6, 0.0),
-                p1: Vec2::new(8.0, 0.0),
+            DrawCmd::FillRect {
+                rect: Rect::new(1.6, -0.75, 6.4, 1.5),
                 color: style.highlight_stroke.color,
-                width: style.stroke.width,
                 z: 0,
             },
         ])
@@ -118,71 +100,53 @@ fn test_spinner_visual_large() {
         cmds,
         DrawCommands::from_vec(vec![
             // Top-left
-            DrawCmd::StrokeLine {
-                p0: Vec2::new(0.0, 7.0),
-                p1: Vec2::new(0.0, 0.0),
+            DrawCmd::FillRect {
+                rect: Rect::new(-0.75, 0.0, 1.5, 7.0),
                 color: style.stroke.color,
-                width: style.stroke.width,
                 z: 0,
             },
-            DrawCmd::StrokeLine {
-                p0: Vec2::new(0.0, 0.0),
-                p1: Vec2::new(7.0, 0.0),
+            DrawCmd::FillRect {
+                rect: Rect::new(0.0, -0.75, 7.0, 1.5),
                 color: style.stroke.color,
-                width: style.stroke.width,
                 z: 0,
             },
             // Top-right
-            DrawCmd::StrokeLine {
-                p0: Vec2::new(17.0, 0.0),
-                p1: Vec2::new(24.0, 0.0),
+            DrawCmd::FillRect {
+                rect: Rect::new(17.0, -0.75, 7.0, 1.5),
                 color: style.stroke.color,
-                width: style.stroke.width,
                 z: 0,
             },
-            DrawCmd::StrokeLine {
-                p0: Vec2::new(24.0, 0.0),
-                p1: Vec2::new(24.0, 7.0),
+            DrawCmd::FillRect {
+                rect: Rect::new(23.25, 0.0, 1.5, 7.0),
                 color: style.stroke.color,
-                width: style.stroke.width,
                 z: 0,
             },
             // Bottom-right
-            DrawCmd::StrokeLine {
-                p0: Vec2::new(24.0, 17.0),
-                p1: Vec2::new(24.0, 24.0),
+            DrawCmd::FillRect {
+                rect: Rect::new(23.25, 17.0, 1.5, 7.0),
                 color: style.stroke.color,
-                width: style.stroke.width,
                 z: 0,
             },
-            DrawCmd::StrokeLine {
-                p0: Vec2::new(24.0, 24.0),
-                p1: Vec2::new(17.0, 24.0),
+            DrawCmd::FillRect {
+                rect: Rect::new(17.0, 23.25, 7.0, 1.5),
                 color: style.stroke.color,
-                width: style.stroke.width,
                 z: 0,
             },
             // Bottom-left
-            DrawCmd::StrokeLine {
-                p0: Vec2::new(7.0, 24.0),
-                p1: Vec2::new(0.0, 24.0),
+            DrawCmd::FillRect {
+                rect: Rect::new(0.0, 23.25, 7.0, 1.5),
                 color: style.stroke.color,
-                width: style.stroke.width,
                 z: 0,
             },
-            DrawCmd::StrokeLine {
-                p0: Vec2::new(0.0, 24.0),
-                p1: Vec2::new(0.0, 17.0),
+            DrawCmd::FillRect {
+                rect: Rect::new(-0.75, 17.0, 1.5, 7.0),
                 color: style.stroke.color,
-                width: style.stroke.width,
                 z: 0,
             },
             // Highlight
-            DrawCmd::StrokeLine {
-                p0: Vec2::new(2.4, 0.0),
-                p1: Vec2::new(12.0, 0.0),
+            DrawCmd::FillRect {
+                rect: Rect::new(2.4, -0.75, 9.6, 1.5),
                 color: style.highlight_stroke.color,
-                width: style.stroke.width,
                 z: 0,
             },
         ])

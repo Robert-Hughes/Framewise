@@ -115,11 +115,9 @@ fn test_label_rule() {
                 color: Color::WHITE,
                 z: 0,
             },
-            DrawCmd::StrokeLine {
-                p0: Vec2::new(0.0, 20.0),
-                p1: Vec2::new(100.0, 20.0),
+            DrawCmd::FillRect {
+                rect: Rect::new(0.0, 19.5, 100.0, 1.0),
                 color: Color::WHITE,
-                width: 1.0,
                 z: 0,
             }
         ]

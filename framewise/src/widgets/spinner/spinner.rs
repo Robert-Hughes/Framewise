@@ -2,7 +2,7 @@ use crate::{
     draw::DrawCommands,
     layout::{LayoutState, SizeOffer, SizeRequest},
     text::TextBackend,
-    types::{Layer, Rect, Stroke, Vec2},
+    types::{Layer, Rect, Stroke},
     widget::{LayoutInfo, WidgetContext},
 };
 
@@ -73,63 +73,60 @@ pub mod raw {
         };
 
         // Top-left bracket.
-        cmds.push_stroke_line(
-            Vec2::new(x, y + arm),
-            Vec2::new(x, y),
-            Some(spec.style.stroke),
-            spec.layer.get_z(),
-        );
-        cmds.push_stroke_line(
-            Vec2::new(x, y),
-            Vec2::new(x + arm, y),
-            Some(spec.style.stroke),
-            spec.layer.get_z(),
-        );
+        cmds.push_v_rule(x, y, arm, Some(spec.style.stroke), spec.layer.get_z());
+        cmds.push_h_rule(x, y, arm, Some(spec.style.stroke), spec.layer.get_z());
         // Top-right bracket.
-        cmds.push_stroke_line(
-            Vec2::new(x + size - arm, y),
-            Vec2::new(x + size, y),
+        cmds.push_h_rule(
+            x + size - arm,
+            y,
+            arm,
             Some(spec.style.stroke),
             spec.layer.get_z(),
         );
-        cmds.push_stroke_line(
-            Vec2::new(x + size, y),
-            Vec2::new(x + size, y + arm),
+        cmds.push_v_rule(
+            x + size,
+            y,
+            arm,
             Some(spec.style.stroke),
             spec.layer.get_z(),
         );
         // Bottom-right bracket.
-        cmds.push_stroke_line(
-            Vec2::new(x + size, y + size - arm),
-            Vec2::new(x + size, y + size),
+        cmds.push_v_rule(
+            x + size,
+            y + size - arm,
+            arm,
             Some(spec.style.stroke),
             spec.layer.get_z(),
         );
-        cmds.push_stroke_line(
-            Vec2::new(x + size, y + size),
-            Vec2::new(x + size - arm, y + size),
+        cmds.push_h_rule(
+            x + size - arm,
+            y + size,
+            arm,
             Some(spec.style.stroke),
             spec.layer.get_z(),
         );
         // Bottom-left bracket.
-        cmds.push_stroke_line(
-            Vec2::new(x + arm, y + size),
-            Vec2::new(x, y + size),
+        cmds.push_h_rule(
+            x,
+            y + size,
+            arm,
             Some(spec.style.stroke),
             spec.layer.get_z(),
         );
-        cmds.push_stroke_line(
-            Vec2::new(x, y + size),
-            Vec2::new(x, y + size - arm),
+        cmds.push_v_rule(
+            x,
+            y + size - arm,
+            arm,
             Some(spec.style.stroke),
             spec.layer.get_z(),
         );
 
         // Animated segment on the top edge — drawn as a highlight.
         let seg_w = size * spec.style.highlight_fraction;
-        cmds.push_stroke_line(
-            Vec2::new(x + size * 0.1, y),
-            Vec2::new(x + size * 0.1 + seg_w, y),
+        cmds.push_h_rule(
+            x + size * 0.1,
+            y,
+            seg_w,
             Some(spec.style.highlight_stroke),
             spec.layer.get_z(),
         );

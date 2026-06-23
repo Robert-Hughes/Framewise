@@ -3995,11 +3995,9 @@ fn section_11_window<CF>(
         {
             let layout_params = Rect::new(cx, tab_y + 26.0, dw.w - 16.0, 1.0);
             let rect = b.layout(layout_params, SizeRequest::UNKNOWN);
-            let cmds = DrawCommands::from_vec(vec![DrawCmd::StrokeLine {
-                p0: Vec2::new(rect.x, rect.y),
-                p1: Vec2::new(rect.x + rect.w, rect.y),
+            let cmds = DrawCommands::from_vec(vec![DrawCmd::FillRect {
+                rect: Rect::new(rect.x, rect.y - 0.5, rect.w, 1.0),
                 color: dark_bdr,
-                width: 1.0,
                 z: 0,
             }]);
             b.append_cmds(cmds);

@@ -159,9 +159,10 @@ pub mod raw {
         // Status bar.
         if spec.status_bar {
             let bar_y = spec.rect.y + spec.rect.h - status_h;
-            cmds.push_stroke_line(
-                Vec2::new(spec.rect.x, bar_y),
-                Vec2::new(spec.rect.x + spec.rect.w, bar_y),
+            cmds.push_h_rule(
+                spec.rect.x,
+                bar_y,
+                spec.rect.w,
                 s.status_border,
                 spec.layer.get_z(),
             );

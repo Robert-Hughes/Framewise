@@ -4,7 +4,7 @@ struct ShapeData {
     color: vec4<f32>,
     width: f32,
     radius: f32,
-    shape_type: u32, // 1 = Line, 2 = FillCircle, 3 = StrokeCircle, 4 = FillRect, 5 = StrokeRect
+    shape_type: u32, // 1 = Line, 2 = FillCircle, 3 = StrokeCircle, 4 = FillRect
     z: f32,
 }
 
@@ -20,7 +20,6 @@ const SHAPE_TYPE_LINE: u32 = 1u;
 const SHAPE_TYPE_FILL_CIRCLE: u32 = 2u;
 const SHAPE_TYPE_STROKE_CIRCLE: u32 = 3u;
 const SHAPE_TYPE_FILL_RECT: u32 = 4u;
-const SHAPE_TYPE_STROKE_RECT: u32 = 5u;
 
 struct VertexOutput {
     @builtin(position) clip_position: vec4<f32>,
@@ -89,12 +88,9 @@ fn vs_main(
         }
         let expand = r_outer + 1.0;
         q = shape.p0 + uv * expand;
-    } else if (shape.shape_type == SHAPE_TYPE_FILL_RECT || shape.shape_type == SHAPE_TYPE_STROKE_RECT) {
-        // Rect (Fill or Stroke)
-        var expand = 1.0;
-        if (shape.shape_type == SHAPE_TYPE_STROKE_RECT) {
-            expand = shape.width * 0.5 + 1.0;
-        }
+    } else if (shape.shape_type == SHAPE_TYPE_FILL_RECT) {
+        // Fill Rect
+        let expand = 1.0;
         let p0_expanded = shape.p0 - vec2<f32>(expand);
         let p1_expanded = shape.p1 + vec2<f32>(expand);
         let t = (uv + vec2<f32>(1.0)) * 0.5;
@@ -170,18 +166,6 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
         } else {
             coverage = clamp(0.5 - d, 0.0, 1.0);
         }
-    } else if (in.shape_type == SHAPE_TYPE_STROKE_RECT) {
-        // Stroke Rect AA
-        let size = in.p1 - in.p0;
-        let center = (in.p0 + in.p1) * 0.5;
-        // The stroke is centered on the input rectangle bounds
-        let half_size = size * 0.5;
-        let d_solid = sdf_box_signed(in.local_pos, center, half_size);
-        let d = abs(d_solid);
-        
-        let w = in.width;
-        let w_eff = max(w, 1.0);
-        coverage = clamp((w_eff + 1.0) * 0.5 - d, 0.0, 1.0) * (w / w_eff);
     }
 
     if (coverage <= 0.0) {

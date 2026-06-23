@@ -44,11 +44,14 @@ fn test_tabs_visual_normal() {
     assert_eq!(
         cmds.commands(),
         vec![
-            DrawCmd::StrokeLine {
-                p0: Vec2::new(0.0, 36.0),
-                p1: Vec2::new(300.0, 36.0),
+            DrawCmd::FillRect {
+                rect: Rect::new(
+                    0.0,
+                    36.0 - style.border.unwrap().width * 0.5,
+                    300.0,
+                    style.border.unwrap().width
+                ),
                 color: style.border.unwrap().color,
-                width: style.border.unwrap().width,
                 z: 0,
             },
             DrawCmd::GlyphRun {
@@ -147,11 +150,14 @@ fn test_tabs_visual_focused() {
     assert_eq!(
         cmds.commands(),
         vec![
-            DrawCmd::StrokeLine {
-                p0: Vec2::new(0.0, 36.0),
-                p1: Vec2::new(300.0, 36.0),
+            DrawCmd::FillRect {
+                rect: Rect::new(
+                    0.0,
+                    36.0 - style.border.unwrap().width * 0.5,
+                    300.0,
+                    style.border.unwrap().width
+                ),
                 color: style.border.unwrap().color,
-                width: style.border.unwrap().width,
                 z: 0,
             },
             DrawCmd::GlyphRun {

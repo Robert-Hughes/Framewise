@@ -1896,7 +1896,7 @@ fn test_disabled_slider_draws_tinted() {
     )));
     assert!(cmds.iter().any(|cmd| matches!(
         cmd,
-        DrawCmd::StrokeLine { color, .. } if *color == tint(border_color)
+        DrawCmd::FillRect { color, .. } if *color == tint(border_color)
     )));
     assert!(cmds.iter().any(|cmd| matches!(
         cmd,
@@ -2444,11 +2444,9 @@ fn test_segment_only_slider_visual_normal() {
                 color: thumb_color,
                 z: 0,
             },
-            DrawCmd::StrokeLine {
-                p0: Vec2::new(0.0, 0.0),
-                p1: Vec2::new(0.0, 100.0),
+            DrawCmd::FillRect {
+                rect: Rect::new(-0.5, 0.0, 1.0, 100.0),
                 color: border_color,
-                width: 1.0,
                 z: 0,
             },
         ]
@@ -2538,11 +2536,9 @@ fn test_segment_only_slider_visual_hover() {
                 color: thumb_color,
                 z: 0,
             },
-            DrawCmd::StrokeLine {
-                p0: Vec2::new(0.0, 0.0),
-                p1: Vec2::new(0.0, 100.0),
+            DrawCmd::FillRect {
+                rect: Rect::new(-0.5, 0.0, 1.0, 100.0),
                 color: border_color,
-                width: 1.0,
                 z: 0,
             },
         ]
@@ -2617,11 +2613,9 @@ fn test_segment_only_slider_visual_drag() {
                 color: thumb_color,
                 z: 0,
             },
-            DrawCmd::StrokeLine {
-                p0: Vec2::new(0.0, 0.0),
-                p1: Vec2::new(0.0, 100.0),
+            DrawCmd::FillRect {
+                rect: Rect::new(-0.5, 0.0, 1.0, 100.0),
                 color: border_color,
-                width: 1.0,
                 z: 0,
             },
         ]
@@ -2692,11 +2686,9 @@ fn test_segment_only_slider_visual_focused() {
                 color: thumb_color,
                 z: 0,
             },
-            DrawCmd::StrokeLine {
-                p0: Vec2::new(0.0, 0.0),
-                p1: Vec2::new(0.0, 100.0),
+            DrawCmd::FillRect {
+                rect: Rect::new(-0.5, 0.0, 1.0, 100.0),
                 color: border_color,
-                width: 1.0,
                 z: 0,
             },
             DrawCmd::BorderRect {
@@ -4395,13 +4387,18 @@ fn test_range_slider_overlap_partial() {
     // Verify drawing commands
     let mut fill_rects = Vec::new();
     let mut stroke_rects = Vec::new();
-    let mut stroke_lines = Vec::new();
+    let mut marker_rects = Vec::new();
 
     for cmd in cmds.commands() {
         match cmd {
-            DrawCmd::FillRect { rect, .. } => fill_rects.push(*rect),
+            DrawCmd::FillRect { rect, .. } => {
+                if rect.w == 1.0 && rect.h == 12.0 {
+                    marker_rects.push(*rect);
+                } else {
+                    fill_rects.push(*rect);
+                }
+            }
             DrawCmd::BorderRect { rect, .. } => stroke_rects.push(*rect),
-            DrawCmd::StrokeLine { p0, p1, .. } => stroke_lines.push((*p0, *p1)),
             _ => {}
         }
     }
@@ -4415,9 +4412,9 @@ fn test_range_slider_overlap_partial() {
     assert_eq!(stroke_rects.len(), 1);
     assert_eq!(stroke_rects[0], Rect::new(40.0, 4.0, 22.0, 12.0));
 
-    assert_eq!(stroke_lines.len(), 2);
-    assert_eq!(stroke_lines[0].0.x, 46.0);
-    assert_eq!(stroke_lines[1].0.x, 56.0);
+    assert_eq!(marker_rects.len(), 2);
+    assert_eq!(marker_rects[0], Rect::new(45.5, 4.0, 1.0, 12.0));
+    assert_eq!(marker_rects[1], Rect::new(55.5, 4.0, 1.0, 12.0));
 
     // Verify hit-testing: click left of midpoint (51.0)
     let mut state = SliderState {
@@ -4534,13 +4531,18 @@ fn test_range_slider_overlap_full() {
     // Verify drawing commands
     let mut fill_rects = Vec::new();
     let mut stroke_rects = Vec::new();
-    let mut stroke_lines = Vec::new();
+    let mut marker_rects = Vec::new();
 
     for cmd in cmds.commands() {
         match cmd {
-            DrawCmd::FillRect { rect, .. } => fill_rects.push(*rect),
+            DrawCmd::FillRect { rect, .. } => {
+                if rect.w == 1.0 && rect.h == 12.0 {
+                    marker_rects.push(*rect);
+                } else {
+                    fill_rects.push(*rect);
+                }
+            }
             DrawCmd::BorderRect { rect, .. } => stroke_rects.push(*rect),
-            DrawCmd::StrokeLine { p0, p1, .. } => stroke_lines.push((*p0, *p1)),
             _ => {}
         }
     }
@@ -4553,9 +4555,9 @@ fn test_range_slider_overlap_full() {
     assert_eq!(stroke_rects.len(), 1);
     assert_eq!(stroke_rects[0], Rect::new(50.0, 4.0, 12.0, 12.0));
 
-    assert_eq!(stroke_lines.len(), 2);
-    assert_eq!(stroke_lines[0].0.x, 56.0);
-    assert_eq!(stroke_lines[1].0.x, 56.0);
+    assert_eq!(marker_rects.len(), 2);
+    assert_eq!(marker_rects[0], Rect::new(55.5, 4.0, 1.0, 12.0));
+    assert_eq!(marker_rects[1], Rect::new(55.5, 4.0, 1.0, 12.0));
 
     // Verify hit-testing: click left of midpoint (56.0)
     let mut state = SliderState {

@@ -738,23 +738,24 @@ pub mod raw {
                         } else {
                             style.border.map_or(Color::BLACK, |b| b.color)
                         };
-                        let (p0, p1) = if is_vert {
-                            (
-                                Vec2::new(combined_rect.x, coord),
-                                Vec2::new(combined_rect.right(), coord),
-                            )
+                        let stroke = Some(Stroke::new(tint(marker_color), 1.0));
+                        if is_vert {
+                            cmds.push_h_rule(
+                                combined_rect.x,
+                                coord,
+                                combined_rect.w,
+                                stroke,
+                                spec.layer.get_z(),
+                            );
                         } else {
-                            (
-                                Vec2::new(coord, combined_rect.y),
-                                Vec2::new(coord, combined_rect.bottom()),
-                            )
-                        };
-                        cmds.push_stroke_line(
-                            p0,
-                            p1,
-                            Some(Stroke::new(tint(marker_color), 1.0)),
-                            spec.layer.get_z(),
-                        );
+                            cmds.push_v_rule(
+                                coord,
+                                combined_rect.y,
+                                combined_rect.h,
+                                stroke,
+                                spec.layer.get_z(),
+                            );
+                        }
                     }
                 };
 
@@ -1132,13 +1133,12 @@ fn draw_separator_line(
 
     let tint_stroke = |st: Stroke| Stroke::new(tint(st.color), st.width);
 
-    let (p0, p1) = if is_vert {
-        (Vec2::new(rect.x, rect.y), Vec2::new(rect.x, rect.bottom()))
+    let stroke = Some(tint_stroke(separator));
+    if is_vert {
+        cmds.push_v_rule(rect.x, rect.y, rect.h, stroke, layer.get_z());
     } else {
-        (Vec2::new(rect.x, rect.y), Vec2::new(rect.right(), rect.y))
-    };
-
-    cmds.push_stroke_line(p0, p1, Some(tint_stroke(separator)), layer.get_z());
+        cmds.push_h_rule(rect.x, rect.y, rect.w, stroke, layer.get_z());
+    }
 }
 
 #[allow(clippy::too_many_arguments)]

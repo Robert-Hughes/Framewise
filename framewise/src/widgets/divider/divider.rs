@@ -4,7 +4,7 @@ use crate::{
     draw::DrawCommands,
     layout::{LayoutState, SizeOffer},
     text::TextBackend,
-    types::{Color, Layer, Rect, Stroke, Vec2},
+    types::{Color, Layer, Rect, Stroke},
     widget::{LayoutInfo, WidgetContext},
 };
 
@@ -61,9 +61,10 @@ pub mod raw {
         cmds: &mut DrawCommands,
     ) -> DividerResult {
         let mid_y = spec.rect.y + spec.rect.h * 0.5;
-        cmds.push_stroke_line(
-            Vec2::new(spec.rect.x, mid_y),
-            Vec2::new(spec.rect.x + spec.rect.w, mid_y),
+        cmds.push_h_rule(
+            spec.rect.x,
+            mid_y,
+            spec.rect.w,
             Some(spec.stroke),
             spec.layer.get_z(),
         );

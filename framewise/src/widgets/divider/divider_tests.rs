@@ -21,11 +21,9 @@ fn test_divider_visual() {
 
     assert_eq!(
         cmds,
-        DrawCommands::from_vec(vec![DrawCmd::StrokeLine {
-            p0: Vec2::new(0.0, 5.0),
-            p1: Vec2::new(100.0, 5.0),
+        DrawCommands::from_vec(vec![DrawCmd::FillRect {
+            rect: Rect::new(0.0, 4.5, 100.0, 1.0),
             color: Color::WHITE,
-            width: 1.0,
             z: 0,
         }])
     );

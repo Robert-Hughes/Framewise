@@ -98,9 +98,10 @@ pub mod raw {
 
         if let Some(rule_stroke) = spec.style.rule {
             let y = spec.rect.y + spec.rect.h;
-            cmds.push_stroke_line(
-                Vec2::new(spec.rect.x, y),
-                Vec2::new(spec.rect.x + spec.rect.w, y),
+            cmds.push_h_rule(
+                spec.rect.x,
+                y,
+                spec.rect.w,
                 Some(rule_stroke),
                 spec.layer.get_z(),
             );
