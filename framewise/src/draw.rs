@@ -305,6 +305,10 @@ impl DrawCommands {
         }))
     }
 
+    /// Push a horizontal UI rule/line segment drawn as a filled box (`FillRect`).
+    ///
+    /// The rule is centered vertically on `y_center`, starts at `x`, and spans the given `width`.
+    /// Returns the command index if a visible command was pushed.
     pub fn push_h_rule(
         &mut self,
         x: f32,
@@ -325,6 +329,10 @@ impl DrawCommands {
         }))
     }
 
+    /// Push a vertical UI rule/line segment drawn as a filled box (`FillRect`).
+    ///
+    /// The rule is centered horizontally on `x_center`, starts at `y`, and spans the given `height`.
+    /// Returns the command index if a visible command was pushed.
     pub fn push_v_rule(
         &mut self,
         x_center: f32,

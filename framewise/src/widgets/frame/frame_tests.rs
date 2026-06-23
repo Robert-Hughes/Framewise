@@ -35,7 +35,7 @@ fn test_frame_layout_and_draw() {
     assert!(matches!(cmds[0], DrawCmd::FillRect { .. }));
     assert!(matches!(cmds[1], DrawCmd::PushClip { .. }));
 
-    // end_frame patches both placeholders, then appends PopClip and StrokeRect
+    // end_frame patches both placeholders, then appends PopClip and BorderRect
     let final_rect = Rect::new(10.0, 10.0, 120.0, 60.0);
     let final_content = final_rect.inset(5.0); // border_width(2) + padding(3)
     raw::end_frame(

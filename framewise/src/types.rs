@@ -32,6 +32,11 @@ impl Vec2 {
 // ── Rect ─────────────────────────────────────────────────────────────────────
 
 /// An axis-aligned rectangle, stored as origin + size.
+///
+/// Rectangles represent continuous logical pixel coordinates. Origin is top-left,
+/// and `right()` and `bottom()` are exclusive boundaries: `[x, x + w) × [y, y + h)`.
+/// This half-open convention ensures that adjacent rectangles tiled side-by-side
+/// do not overlap and have unambiguous hit-testing coverage.
 #[derive(Debug, Clone, Copy, PartialEq, Default)]
 pub struct Rect {
     pub x: f32,
@@ -108,9 +113,19 @@ impl Rect {
         Vec2::new(self.x + self.w * 0.5, self.y + self.h * 0.5)
     }
 
-    /// Returns true if `pos` falls inside this rect (inclusive of edges).
+    /// Returns true if `pos` falls inside this rect.
+    ///
+    /// Rectangles are treated as half-open regions:
+    /// `[x, x + w) × [y, y + h)`.
+    /// Points on the left/top edges are inside; points on the right/bottom
+    /// edges are outside. Empty or zero-size rects contain no points.
     pub fn contains(&self, pos: Vec2) -> bool {
-        pos.x >= self.x && pos.x <= self.right() && pos.y >= self.y && pos.y <= self.bottom()
+        self.w > 0.0
+            && self.h > 0.0
+            && pos.x >= self.x
+            && pos.x < self.right()
+            && pos.y >= self.y
+            && pos.y < self.bottom()
     }
 
     /// Shrink the rect by `amount` on all sides.
@@ -327,5 +342,48 @@ impl Outline {
     }
     pub const fn from_stroke(stroke: Stroke, offset: f32) -> Self {
         Self { stroke, offset }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_rect_contains() {
+        let rect = Rect::new(10.0, 20.0, 100.0, 50.0);
+
+        // A point inside the rect returns true.
+        assert!(rect.contains(Vec2::new(50.0, 45.0)));
+        assert!(rect.contains(Vec2::new(15.0, 25.0)));
+
+        // Left/top edges are inside.
+        assert!(rect.contains(Vec2::new(10.0, 20.0))); // top-left corner
+        assert!(rect.contains(Vec2::new(10.0, 45.0))); // left edge
+        assert!(rect.contains(Vec2::new(50.0, 20.0))); // top edge
+
+        // Right/bottom edges are outside.
+        assert!(!rect.contains(Vec2::new(110.0, 45.0))); // right edge
+        assert!(!rect.contains(Vec2::new(50.0, 70.0))); // bottom edge
+        assert!(!rect.contains(Vec2::new(110.0, 70.0))); // bottom-right corner
+
+        // Outside points.
+        assert!(!rect.contains(Vec2::new(9.9, 19.9)));
+        assert!(!rect.contains(Vec2::new(110.1, 70.1)));
+
+        // Shared edge between adjacent rects
+        let r1 = Rect::new(0.0, 0.0, 10.0, 10.0);
+        let r2 = Rect::new(10.0, 0.0, 10.0, 10.0);
+        let p = Vec2::new(10.0, 5.0);
+        assert!(!r1.contains(p));
+        assert!(r2.contains(p));
+
+        // Zero-width and zero-height rects contain no points.
+        let r_zero_w = Rect::new(10.0, 20.0, 0.0, 50.0);
+        assert!(!r_zero_w.contains(Vec2::new(10.0, 45.0)));
+        let r_zero_h = Rect::new(10.0, 20.0, 100.0, 0.0);
+        assert!(!r_zero_h.contains(Vec2::new(50.0, 20.0)));
+        let r_zero_both = Rect::new(10.0, 20.0, 0.0, 0.0);
+        assert!(!r_zero_both.contains(Vec2::new(10.0, 20.0)));
     }
 }

@@ -189,8 +189,8 @@ pub mod raw {
             input_info.pressed,
         );
 
-        // CSS outline sits outside the border box. StrokeRect draws inside its
-        // rect, so expand by both the desired gap and the stroke width.
+        // CSS outline sits outside the border box. BorderRect draws outside the
+        // rect (using BorderPlacement::Outside), so expand by the desired gap.
         if focused {
             if let Some(outline) = spec.style.focus {
                 cmds.push_border_rect(

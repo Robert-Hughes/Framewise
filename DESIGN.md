@@ -1284,19 +1284,14 @@ For high-performance rendering of lines, circles, and rectangles without the vis
 
 ### Core Philosophy & Text Handling
 - **Text Backend**: AA for text is handled specially within the backend (e.g., using subpixel or grayscale glyph caching/rasterization), as text rendering is highly specialized and unique.
-- **Other Geometry**: For lines, rectangles, borders, and general widget geometry, we will use a dual solution: **pixel snapping** and **analytical AA**. This hybrid approach provides maximum visual quality with high performance, unlike MSAA (Multi-Sample Anti-Aliasing), which would yield poor visual quality for text/lines and bad performance.
+- **Other Geometry**: For lines, rectangles, borders, and general widget geometry, we use a dual solution: **pixel snapping** and **analytical AA**. This hybrid approach provides maximum visual quality with high performance, unlike MSAA (Multi-Sample Anti-Aliasing), which would yield poor visual quality for text/lines and bad performance.
 
 ### Renderer vs. Widget Responsibilities
 - **Semantic Decisions (Widgets)**: Widgets/emitters (inside Framewise) are responsible for deciding if, when, and how to snap. Snapping should **not** be a hidden, renderer-wide heuristic. The renderer shouldn't automatically coerce layout/geometry, as this weakens semantic boundaries and could corrupt layout calculations.
 - **Mechanical Execution (Renderer)**: The renderer acts as a predictable, mechanical consumer of explicit draw commands. However, the renderer should provide low-level mathematical helpers (utilizing device scale, framebuffer mapping, and snapping math for centerlines or edges) that widgets can invoke when building draw commands.
-- **Proposed API**: Draw commands and primitive styles will explicitly declare their intent:
-  - `snap: PixelSnap` where `PixelSnap` has modes like `{ None, AxisAligned, AxisAlignedIfThin, Centerline }`.
-  - `aa: AaMode` where `AaMode` has modes like `{ None, Analytical }`.
-
-### Semantic Choice (Emitters)
-- Drawing commands (e.g., `DrawCmd::FillRect`, `DrawCmd::StrokeRect`, `DrawCmd::StrokeLine`, `DrawCmd::FillCircle`, `DrawCmd::StrokeCircle`) accept an explicit `anti_alias: bool` flag.
-- Setting `anti_alias: false` routes the geometry to the standard solid-color `quad_pipeline` (rendered via CPU-generated vertex coordinates).
-- Setting `anti_alias: true` routes the primitive parameters to the `aa_pipeline` (rendered via GPU-expanded proxy quads and SDF evaluation).
+- **Renderer-Level AA Policy**: To keep the widget API clean and predictable, explicit `anti_alias` flags have been removed from the draw commands. Instead, antialiasing is handled as a structural renderer policy based on primitive type:
+  - `FillRect` and `BorderRect` use automatic AA: non-AA quads when rect edges are integer pixel-aligned, and AA rect rendering otherwise.
+  - `StrokeLine`, `FillCircle`, and `StrokeCircle` always use analytical AA.
 
 ### CPU-Side Processing & Interleaved Batching
 - **ShapeData Storage**: Analytical AA shapes do not generate geometry on the CPU. Instead, their parameters (coordinates, color, stroke width, radius, shape type, and depth) are pushed to a `ShapeData` staging buffer that is uploaded to a GPU storage buffer.
@@ -1308,6 +1303,45 @@ For high-performance rendering of lines, circles, and rectangles without the vis
 - **Analytical Distance Fields (SDF)**: The fragment shader (`fs_main`) computes the analytical distance to the primitive's boundaries:
   - **Line Segment**: Evaluates the distance to the segment.
   - **Circle (Fill/Stroke)**: Evaluates distance to the radius (or stroke width bounds).
-  - **Rectangle (Fill/Stroke)**: Evaluates a signed box distance function.
+  - **Rectangle (Fill)**: Evaluates a signed box distance function.
 - **Coverage Blending**: Coverage is calculated as a float value from `0.0` (fully outside) to `1.0` (fully inside). Pixels with zero coverage are discarded (`discard`), while others modulate the color's alpha value for smooth hardware-accelerated alpha blending.
 - **Depth Testing**: AA shapes write depth values mapping to a 32-bit depth buffer using the `GreaterEqual` comparison function, ensuring seamless depth-based layering alongside opaque quads and text.
+
+---
+
+## Coordinate & Rendering Model
+
+Framewise operates under a unified geometric coordinate and rendering model.
+
+### 1. Coordinate System & Geometry
+- **Logical Pixels**: All coordinates are continuous `f32` logical pixels.
+- **Origin**: The origin `(0.0, 0.0)` is at the top-left of the window or active clipping region. The coordinate `x` increases to the right, and `y` increases downward.
+- **Integer Coordinates**: Integer values (e.g. `10.0`, `11.0`) represent the *logical boundaries* between pixels.
+- **Pixel Centers**: The centers of pixels lie on half-integer coordinates. For example, the logical pixel column `n` (where `n` is an integer) occupies the half-open interval `[n, n + 1)` and has its center at `n + 0.5`.
+- **Rectangles**: A `Rect { x, y, w, h }` represents a region defined by `[x, x + w) × [y, y + h)`.
+  - `right()` is computed as `x + w`.
+  - `bottom()` is computed as `y + h`.
+  - There is no bottom/right "minus one pixel" convention; borders and edges are reasoned about using standard real-number intervals.
+
+### 2. Half-Open Hit-Testing
+- **Hit-Testing (`Rect::contains`)**: Hit-testing uses the half-open region model:
+  - A point `pos` is inside the rectangle if and only if `pos.x >= x && pos.x < right() && pos.y >= y && pos.y < bottom()`.
+  - Points on the left and top edges are considered inside.
+  - Points on the right and bottom edges are considered outside.
+  - Empty or zero-size rectangles contain no points.
+- **Tiling**: Under this half-open convention, adjacent rectangles tiled side-by-side (e.g. adjacent tabs or segmented control cells) share a boundary coordinate, but any given point on that boundary belongs strictly to one of the rectangles, resolving all hit-testing ambiguity.
+
+### 3. Rendering and Antialiasing (AA) Policy
+- **Box/UI Geometry**:
+  - `FillRect` represents a solid filled box.
+  - `BorderRect` represents a box border, which lowers to four filled rectangular strips.
+  - Both primitives use automatic AA: if the layout aligns their edges exactly to logical integer pixel boundaries, the renderer draws them without AA (crisp, solid rendering). If they fall on fractional coordinates, they are drawn using AA.
+- **Vector Geometry**:
+  - `StrokeLine`, `FillCircle`, and `StrokeCircle` represent vector primitives and are always rendered with analytical AA.
+- **UI Rules & Separators**:
+  - Axis-aligned lines (horizontal/vertical lines, rule markers, separators, widget borders) are UI chrome, not vector shapes. They must be rendered using `FillRect`, `BorderRect`, `push_h_rule`, or `push_v_rule` to ensure crisp pixel-aligned rendering.
+  - `StrokeLine` must not be used for axis-aligned UI rule decoration.
+- **Vector Centering & Odd-Width Strokes**:
+  - A `StrokeLine` centered exactly on an integer coordinate (e.g. a 1px line centered at `x = 5.0`) will straddle two pixel columns (`4.5..5.5`), resulting in partial coverage (blurriness) on both columns under AA.
+  - To achieve a crisp 1px vertical line with vector rendering, the line centerline must lie on a half-pixel coordinate (e.g. `x = 5.5` to fully cover pixel column 5).
+  - GPU rasterization tie-breaking edge rules are never relied upon. Layouts should either align filled boxes (`FillRect`/rules) to integer boundaries, or place vector stroke centerlines at half-pixel offsets.

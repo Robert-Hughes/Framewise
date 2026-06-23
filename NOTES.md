@@ -5,9 +5,7 @@ Working notes, TODOs, open questions, and half-baked ideas.
 ## Current Work
 
 - Pixel coordinates/coordinate system/AA cleanup
-  - use half-open hit-test ranges? (even tho continuous)
-  - Doc updates, make sure we cover use of continuous (f32) logical coordinates, half-open range for hit-testing, pixel boundaries at integer boundaries, half-pixel centers,
-      renderer automatic AA, fillrect vs strokeline for crisp vs. vector, crisp stroke line need to be half pixel centre for odd-width (otherwise will have half coverage on adjacent rows/cols), gpu rasterisation behaviour shouldn't be relied on - either we use analytic AA or everything is perfectly aligned to pixel boxes so no ambiguity.
+  - many lines are now blurred across two pixels, probably need to update the widget logic!
 
 - Sliders!
   - thumbs are not odd pixel size, so the centre 'value marker' line (collapsed range slider) is off-centre slightly. Fix with new renderer semantics?
