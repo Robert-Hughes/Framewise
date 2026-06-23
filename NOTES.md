@@ -13,6 +13,7 @@ Working notes, TODOs, open questions, and half-baked ideas.
   - markers being drawn
   - fixed steps
   - are we using the widget helpers and or test helpers?
+  - logarithmic (or otherwise custom) scales?
 
 - Focus outline for text box with scrollbars isn't quite right (thinner around scrollbar)
 
