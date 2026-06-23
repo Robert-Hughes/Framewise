@@ -1,5 +1,5 @@
 use bytemuck::{Pod, Zeroable};
-use framewise::{Color, DrawCmd, DrawCommands, DrawGlyph, Rect};
+use framewise::{BorderPlacement, Color, DrawCmd, DrawCommands, DrawGlyph, Rect};
 
 // ── Vertex layout ─────────────────────────────────────────────────────────────
 
@@ -453,6 +453,7 @@ impl Renderer {
                 DrawCmd::StrokeRect {
                     anti_alias: false, ..
                 } => 24,
+                DrawCmd::BorderRect { .. } => 24,
                 DrawCmd::StrokeLine {
                     anti_alias: false, ..
                 } => 6,
@@ -586,6 +587,43 @@ impl Renderer {
                         flush_aa(aa_shapes.len() as u32, &mut current_aa_start, render_cmds);
                         push_stroked_rect(quad_verts, *rect, *color, *width, *z, window_size);
                     }
+                }
+                DrawCmd::BorderRect {
+                    rect,
+                    color,
+                    width,
+                    placement,
+                    z,
+                } => {
+                    flush_text(
+                        text_instances.len() as u32,
+                        &mut current_text_start,
+                        render_cmds,
+                    );
+                    flush_aa(aa_shapes.len() as u32, &mut current_aa_start, render_cmds);
+
+                    let bw = *width;
+                    let (x, y, w, h) = (rect.x, rect.y, rect.w, rect.h);
+
+                    let (r_top, r_bottom, r_left, r_right) = match placement {
+                        BorderPlacement::Inside => (
+                            Rect::new(x, y, w, bw),
+                            Rect::new(x, y + h - bw, w, bw),
+                            Rect::new(x, y, bw, h),
+                            Rect::new(x + w - bw, y, bw, h),
+                        ),
+                        BorderPlacement::Outside => (
+                            Rect::new(x - bw, y - bw, w + bw * 2.0, bw),
+                            Rect::new(x - bw, y + h, w + bw * 2.0, bw),
+                            Rect::new(x - bw, y, bw, h),
+                            Rect::new(x + w, y, bw, h),
+                        ),
+                    };
+
+                    push_filled_rect(quad_verts, r_top, *color, *z, window_size);
+                    push_filled_rect(quad_verts, r_bottom, *color, *z, window_size);
+                    push_filled_rect(quad_verts, r_left, *color, *z, window_size);
+                    push_filled_rect(quad_verts, r_right, *color, *z, window_size);
                 }
                 DrawCmd::StrokeLine {
                     p0,

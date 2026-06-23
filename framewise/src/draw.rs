@@ -28,6 +28,15 @@ pub struct DrawGlyph {
     pub top_left: Vec2,
 }
 
+/// Placement of a border relative to a rectangle's boundary.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum BorderPlacement {
+    /// Draw the border inside the rectangle.
+    Inside,
+    /// Draw the border immediately outside the rectangle.
+    Outside,
+}
+
 /// A single drawing instruction produced by a widget.
 ///
 /// Draw commands are backend-agnostic. The renderer in the application crate
@@ -51,6 +60,20 @@ pub enum DrawCmd {
         width: f32,
         z: u32,
         anti_alias: bool,
+    },
+
+    /// Draw a box border around a rectangle.
+    ///
+    /// `BorderRect` is box/UI border geometry, not a vector stroke around a rectangle path.
+    /// Corners may overlap for same-colour borders.
+    ///
+    /// `StrokeRect` is legacy/transitional and will be removed in a later step.
+    BorderRect {
+        rect: Rect,
+        color: Color,
+        width: f32,
+        placement: BorderPlacement,
+        z: u32,
     },
 
     /// Draw a straight line segment.
@@ -260,6 +283,27 @@ impl DrawCommands {
         }))
     }
 
+    pub fn push_border_rect(
+        &mut self,
+        rect: Rect,
+        stroke: Option<Stroke>,
+        placement: BorderPlacement,
+        z: u32,
+    ) -> Option<usize> {
+        let s = stroke?;
+        if !s.is_visible() {
+            return None;
+        }
+
+        Some(self.push(DrawCmd::BorderRect {
+            rect,
+            color: s.color,
+            width: s.width,
+            placement,
+            z,
+        }))
+    }
+
     pub fn push_stroke_line(
         &mut self,
         p0: Vec2,
@@ -450,5 +494,47 @@ mod tests {
             cmds.push_stroke_circle(Vec2::new(0.0, 0.0), 5.0, Some(s_valid), 1, true);
         assert_eq!(index_circle, Some(2));
         assert_eq!(cmds.len(), 3);
+    }
+
+    #[test]
+    fn test_push_border_rect_helpers() {
+        let mut cmds = DrawCommands::new();
+        let r = Rect::new(0.0, 0.0, 10.0, 10.0);
+
+        // 1. push_border_rect returns Some(index) when it pushes.
+        let s_valid = Stroke::new(color(), 2.0);
+        let index = cmds.push_border_rect(r, Some(s_valid), BorderPlacement::Inside, 1);
+        assert_eq!(index, Some(0));
+        assert_eq!(cmds.len(), 1);
+        assert_eq!(
+            cmds.commands()[0],
+            DrawCmd::BorderRect {
+                rect: r,
+                color: color(),
+                width: 2.0,
+                placement: BorderPlacement::Inside,
+                z: 1,
+            }
+        );
+
+        // 2. push_border_rect returns None and does not push for None.
+        let index_none = cmds.push_border_rect(r, None, BorderPlacement::Inside, 1);
+        assert_eq!(index_none, None);
+        assert_eq!(cmds.len(), 1);
+
+        // 3. push_border_rect returns None and does not push for Stroke { width: 0.0, ... }.
+        let s_zero_width = Stroke::new(color(), 0.0);
+        let index_zero_width =
+            cmds.push_border_rect(r, Some(s_zero_width), BorderPlacement::Inside, 1);
+        assert_eq!(index_zero_width, None);
+        assert_eq!(cmds.len(), 1);
+
+        // 4. push_border_rect returns None and does not push for alpha-zero color.
+        let transparent_color = Color::from_srgb_u8(1, 2, 3, 0);
+        let s_transparent = Stroke::new(transparent_color, 2.0);
+        let index_transparent =
+            cmds.push_border_rect(r, Some(s_transparent), BorderPlacement::Inside, 1);
+        assert_eq!(index_transparent, None);
+        assert_eq!(cmds.len(), 1);
     }
 }
