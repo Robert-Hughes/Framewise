@@ -116,7 +116,7 @@ fn test_label_rule() {
                 z: 0,
             },
             DrawCmd::FillRect {
-                rect: Rect::new(0.0, 19.5, 100.0, 1.0),
+                rect: Rect::new(0.0, 19.0, 100.0, 1.0),
                 color: Color::WHITE,
                 z: 0,
             }

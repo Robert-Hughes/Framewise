@@ -152,7 +152,7 @@ pub mod raw {
         let tint_stroke = |st: Stroke| Stroke::new(tint(st.color), st.width);
         cmds.push_h_rule(
             spec.rect.x,
-            border_y,
+            border_y - border_width,
             spec.rect.w,
             s.border.map(tint_stroke),
             spec.layer.get_z(),
@@ -198,19 +198,19 @@ pub mod raw {
             // Active underbar: 3px rust rect sitting on the bottom border + upticks at the ends.
             if is_active {
                 cmds.push(DrawCmd::FillRect {
-                    rect: Rect::new(x, border_y - underbar_h * 0.5, tab_w, underbar_h),
+                    rect: Rect::new(x, border_y - underbar_h, tab_w, underbar_h),
                     color: tint(s.accent),
                     z: spec.layer.get_z(),
                 });
                 // Left uptick (3px wide, 9px tall)
                 cmds.push(DrawCmd::FillRect {
-                    rect: Rect::new(x, border_y - 7.5, 3.0, 9.0),
+                    rect: Rect::new(x, border_y - 9.0, 3.0, 9.0),
                     color: tint(s.accent),
                     z: spec.layer.get_z(),
                 });
                 // Right uptick (3px wide, 9px tall)
                 cmds.push(DrawCmd::FillRect {
-                    rect: Rect::new(x + tab_w - 3.0, border_y - 7.5, 3.0, 9.0),
+                    rect: Rect::new(x + tab_w - 3.0, border_y - 9.0, 3.0, 9.0),
                     color: tint(s.accent),
                     z: spec.layer.get_z(),
                 });

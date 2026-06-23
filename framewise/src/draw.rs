@@ -307,12 +307,14 @@ impl DrawCommands {
 
     /// Push a horizontal UI rule/line segment drawn as a filled box (`FillRect`).
     ///
-    /// The rule is centered vertically on `y_center`, starts at `x`, and spans the given `width`.
+    /// The rule draws an exact occupied horizontal rectangular UI strip starting at `x`, `y`
+    /// with length `width` and height `stroke.width`. It does not center a vector stroke.
+    /// Callers are responsible for choosing pixel-aligned x/y when they want crisp output.
     /// Returns the command index if a visible command was pushed.
     pub fn push_h_rule(
         &mut self,
         x: f32,
-        y_center: f32,
+        y: f32,
         width: f32,
         stroke: Option<Stroke>,
         z: u32,
@@ -323,7 +325,7 @@ impl DrawCommands {
         }
 
         Some(self.push(DrawCmd::FillRect {
-            rect: Rect::new(x, y_center - s.width * 0.5, width, s.width),
+            rect: Rect::new(x, y, width, s.width),
             color: s.color,
             z,
         }))
@@ -331,11 +333,13 @@ impl DrawCommands {
 
     /// Push a vertical UI rule/line segment drawn as a filled box (`FillRect`).
     ///
-    /// The rule is centered horizontally on `x_center`, starts at `y`, and spans the given `height`.
+    /// The rule draws an exact occupied vertical rectangular UI strip starting at `x`, `y`
+    /// with width `stroke.width` and length `height`. It does not center a vector stroke.
+    /// Callers are responsible for choosing pixel-aligned x/y when they want crisp output.
     /// Returns the command index if a visible command was pushed.
     pub fn push_v_rule(
         &mut self,
-        x_center: f32,
+        x: f32,
         y: f32,
         height: f32,
         stroke: Option<Stroke>,
@@ -347,7 +351,7 @@ impl DrawCommands {
         }
 
         Some(self.push(DrawCmd::FillRect {
-            rect: Rect::new(x_center - s.width * 0.5, y, s.width, height),
+            rect: Rect::new(x, y, s.width, height),
             color: s.color,
             z,
         }))
@@ -559,7 +563,7 @@ mod tests {
         assert_eq!(
             cmds.commands()[0],
             DrawCmd::FillRect {
-                rect: Rect::new(10.0, 20.0 - 2.0 * 0.5, 50.0, 2.0),
+                rect: Rect::new(10.0, 20.0, 50.0, 2.0),
                 color: color(),
                 z: 1,
             }
@@ -572,7 +576,7 @@ mod tests {
         assert_eq!(
             cmds.commands()[1],
             DrawCmd::FillRect {
-                rect: Rect::new(10.0 - 2.0 * 0.5, 20.0, 2.0, 50.0),
+                rect: Rect::new(10.0, 20.0, 2.0, 50.0),
                 color: color(),
                 z: 2,
             }

@@ -97,7 +97,7 @@ pub mod raw {
         );
 
         if let Some(rule_stroke) = spec.style.rule {
-            let y = spec.rect.y + spec.rect.h;
+            let y = spec.rect.bottom() - rule_stroke.width;
             cmds.push_h_rule(
                 spec.rect.x,
                 y,

@@ -62,7 +62,7 @@ fn test_segmented_visual_normal() {
             },
             DrawCmd::FillRect {
                 rect: Rect::new(
-                    36.0 - style.border.unwrap().width * 0.5,
+                    36.0 - style.border.unwrap().width,
                     0.0,
                     style.border.unwrap().width,
                     28.0
@@ -148,7 +148,7 @@ fn test_segmented_visual_focused() {
             },
             DrawCmd::FillRect {
                 rect: Rect::new(
-                    36.0 - style.border.unwrap().width * 0.5,
+                    36.0 - style.border.unwrap().width,
                     0.0,
                     style.border.unwrap().width,
                     28.0

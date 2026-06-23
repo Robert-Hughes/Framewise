@@ -47,7 +47,7 @@ fn test_tabs_visual_normal() {
             DrawCmd::FillRect {
                 rect: Rect::new(
                     0.0,
-                    36.0 - style.border.unwrap().width * 0.5,
+                    36.0 - style.border.unwrap().width,
                     300.0,
                     style.border.unwrap().width
                 ),
@@ -60,17 +60,17 @@ fn test_tabs_visual_normal() {
                 z: 0,
             },
             DrawCmd::FillRect {
-                rect: Rect::new(0.0, 34.5, 68.0, 3.0),
+                rect: Rect::new(0.0, 33.0, 68.0, 3.0),
                 color: style.accent,
                 z: 0,
             },
             DrawCmd::FillRect {
-                rect: Rect::new(0.0, 28.5, 3.0, 9.0),
+                rect: Rect::new(0.0, 27.0, 3.0, 9.0),
                 color: style.accent,
                 z: 0,
             },
             DrawCmd::FillRect {
-                rect: Rect::new(65.0, 28.5, 3.0, 9.0),
+                rect: Rect::new(65.0, 27.0, 3.0, 9.0),
                 color: style.accent,
                 z: 0,
             },
@@ -153,7 +153,7 @@ fn test_tabs_visual_focused() {
             DrawCmd::FillRect {
                 rect: Rect::new(
                     0.0,
-                    36.0 - style.border.unwrap().width * 0.5,
+                    36.0 - style.border.unwrap().width,
                     300.0,
                     style.border.unwrap().width
                 ),
@@ -178,17 +178,17 @@ fn test_tabs_visual_focused() {
                 z: 0,
             },
             DrawCmd::FillRect {
-                rect: Rect::new(68.0, 34.5, 68.0, 3.0),
+                rect: Rect::new(68.0, 33.0, 68.0, 3.0),
                 color: style.accent,
                 z: 0,
             },
             DrawCmd::FillRect {
-                rect: Rect::new(68.0, 28.5, 3.0, 9.0),
+                rect: Rect::new(68.0, 27.0, 3.0, 9.0),
                 color: style.accent,
                 z: 0,
             },
             DrawCmd::FillRect {
-                rect: Rect::new(133.0, 28.5, 3.0, 9.0),
+                rect: Rect::new(133.0, 27.0, 3.0, 9.0),
                 color: style.accent,
                 z: 0,
             },

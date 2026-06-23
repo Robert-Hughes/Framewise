@@ -60,10 +60,10 @@ pub mod raw {
         _pre_layout: DividerPreLayoutResult,
         cmds: &mut DrawCommands,
     ) -> DividerResult {
-        let mid_y = spec.rect.y + spec.rect.h * 0.5;
+        let y = (spec.rect.y + (spec.rect.h - spec.stroke.width) * 0.5).round();
         cmds.push_h_rule(
             spec.rect.x,
-            mid_y,
+            y,
             spec.rect.w,
             Some(spec.stroke),
             spec.layer.get_z(),

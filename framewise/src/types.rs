@@ -307,11 +307,17 @@ pub struct Stroke {
 /// Positive offsets move the outline outward / away from the target shape.
 /// Negative offsets move it inward / into the target shape.
 ///
-/// For rectangle focus rings, the current convention is that call sites expand/inset
-/// the target rect by:
+/// - Outline is a focus/highlight style with a gap/offset from a target shape.
+/// - Positive offset moves outward, negative offset moves inward.
+/// - For rectangular focus rings, call sites should usually draw:
 ///
 /// ```text
-/// -(outline.offset + outline.stroke.width)
+/// cmds.push_border_rect(
+///     rect.inset(-outline.offset),
+///     Some(outline.stroke),
+///     BorderPlacement::Outside,
+///     z,
+/// );
 /// ```
 ///
 /// or equivalent geometry-specific logic.

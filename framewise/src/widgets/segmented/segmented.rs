@@ -223,8 +223,9 @@ pub mod raw {
             // Divider between segments (right edge, except last).
             if i + 1 < spec.items.len() {
                 let div_x = x + w;
+                let x = div_x - border_width;
                 cmds.push_v_rule(
-                    div_x,
+                    x,
                     spec.rect.y,
                     h,
                     s.border.map(tint_stroke),

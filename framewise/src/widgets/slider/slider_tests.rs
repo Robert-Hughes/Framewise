@@ -2445,7 +2445,7 @@ fn test_segment_only_slider_visual_normal() {
                 z: 0,
             },
             DrawCmd::FillRect {
-                rect: Rect::new(-0.5, 0.0, 1.0, 100.0),
+                rect: Rect::new(0.0, 0.0, 1.0, 100.0),
                 color: border_color,
                 z: 0,
             },
@@ -2537,7 +2537,7 @@ fn test_segment_only_slider_visual_hover() {
                 z: 0,
             },
             DrawCmd::FillRect {
-                rect: Rect::new(-0.5, 0.0, 1.0, 100.0),
+                rect: Rect::new(0.0, 0.0, 1.0, 100.0),
                 color: border_color,
                 z: 0,
             },
@@ -2614,7 +2614,7 @@ fn test_segment_only_slider_visual_drag() {
                 z: 0,
             },
             DrawCmd::FillRect {
-                rect: Rect::new(-0.5, 0.0, 1.0, 100.0),
+                rect: Rect::new(0.0, 0.0, 1.0, 100.0),
                 color: border_color,
                 z: 0,
             },
@@ -2687,7 +2687,7 @@ fn test_segment_only_slider_visual_focused() {
                 z: 0,
             },
             DrawCmd::FillRect {
-                rect: Rect::new(-0.5, 0.0, 1.0, 100.0),
+                rect: Rect::new(0.0, 0.0, 1.0, 100.0),
                 color: border_color,
                 z: 0,
             },
@@ -4413,8 +4413,8 @@ fn test_range_slider_overlap_partial() {
     assert_eq!(stroke_rects[0], Rect::new(40.0, 4.0, 22.0, 12.0));
 
     assert_eq!(marker_rects.len(), 2);
-    assert_eq!(marker_rects[0], Rect::new(45.5, 4.0, 1.0, 12.0));
-    assert_eq!(marker_rects[1], Rect::new(55.5, 4.0, 1.0, 12.0));
+    assert_eq!(marker_rects[0], Rect::new(46.0, 4.0, 1.0, 12.0));
+    assert_eq!(marker_rects[1], Rect::new(56.0, 4.0, 1.0, 12.0));
 
     // Verify hit-testing: click left of midpoint (51.0)
     let mut state = SliderState {
@@ -4556,8 +4556,8 @@ fn test_range_slider_overlap_full() {
     assert_eq!(stroke_rects[0], Rect::new(50.0, 4.0, 12.0, 12.0));
 
     assert_eq!(marker_rects.len(), 2);
-    assert_eq!(marker_rects[0], Rect::new(55.5, 4.0, 1.0, 12.0));
-    assert_eq!(marker_rects[1], Rect::new(55.5, 4.0, 1.0, 12.0));
+    assert_eq!(marker_rects[0], Rect::new(56.0, 4.0, 1.0, 12.0));
+    assert_eq!(marker_rects[1], Rect::new(56.0, 4.0, 1.0, 12.0));
 
     // Verify hit-testing: click left of midpoint (56.0)
     let mut state = SliderState {

@@ -738,21 +738,22 @@ pub mod raw {
                         } else {
                             style.border.map_or(Color::BLACK, |b| b.color)
                         };
-                        let stroke = Some(Stroke::new(tint(marker_color), 1.0));
+                        let s = Stroke::new(tint(marker_color), 1.0);
+                        let pos = (coord - s.width * 0.5).round();
                         if is_vert {
                             cmds.push_h_rule(
                                 combined_rect.x,
-                                coord,
+                                pos,
                                 combined_rect.w,
-                                stroke,
+                                Some(s),
                                 spec.layer.get_z(),
                             );
                         } else {
                             cmds.push_v_rule(
-                                coord,
+                                pos,
                                 combined_rect.y,
                                 combined_rect.h,
-                                stroke,
+                                Some(s),
                                 spec.layer.get_z(),
                             );
                         }

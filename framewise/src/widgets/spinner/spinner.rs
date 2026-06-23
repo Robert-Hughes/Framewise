@@ -72,6 +72,8 @@ pub mod raw {
             spec.style.small_arm
         };
 
+        let sw = spec.style.stroke.width;
+
         // Top-left bracket.
         cmds.push_v_rule(x, y, arm, Some(spec.style.stroke), spec.layer.get_z());
         cmds.push_h_rule(x, y, arm, Some(spec.style.stroke), spec.layer.get_z());
@@ -84,7 +86,7 @@ pub mod raw {
             spec.layer.get_z(),
         );
         cmds.push_v_rule(
-            x + size,
+            x + size - sw,
             y,
             arm,
             Some(spec.style.stroke),
@@ -92,7 +94,7 @@ pub mod raw {
         );
         // Bottom-right bracket.
         cmds.push_v_rule(
-            x + size,
+            x + size - sw,
             y + size - arm,
             arm,
             Some(spec.style.stroke),
@@ -100,7 +102,7 @@ pub mod raw {
         );
         cmds.push_h_rule(
             x + size - arm,
-            y + size,
+            y + size - sw,
             arm,
             Some(spec.style.stroke),
             spec.layer.get_z(),
@@ -108,7 +110,7 @@ pub mod raw {
         // Bottom-left bracket.
         cmds.push_h_rule(
             x,
-            y + size,
+            y + size - sw,
             arm,
             Some(spec.style.stroke),
             spec.layer.get_z(),
