@@ -299,19 +299,12 @@ pub struct Stroke {
     pub width: f32,
 }
 
-/// An outline specification representing a stroke drawn offset from a target shape.
+/// - `Outline` represents a focus ring or highlight stroke offset from a target shape.
+/// - Positive offsets move the outline outward / away from the target shape.
+/// - Negative offsets move it inward / into the target shape.
+/// - For rectangular focus rings, the current convention is:
 ///
-/// An `Outline` is not just "a border"; it represents a focus ring or highlight
-/// style that has a visual gap/offset from the shape itself.
-///
-/// Positive offsets move the outline outward / away from the target shape.
-/// Negative offsets move it inward / into the target shape.
-///
-/// - Outline is a focus/highlight style with a gap/offset from a target shape.
-/// - Positive offset moves outward, negative offset moves inward.
-/// - For rectangular focus rings, call sites should usually draw:
-///
-/// ```text
+/// ```ignore
 /// cmds.push_border_rect(
 ///     rect.inset(-outline.offset),
 ///     Some(outline.stroke),

@@ -844,16 +844,12 @@ fn cross_axis_rect(
     let track_cross_size = if is_vert { track_rect.w } else { track_rect.h };
     match cross_axis {
         ThumbCrossAxis::FixedCentered(cross_len) => {
-            let half = cross_len * 0.5;
-            let center = if is_vert {
-                track_rect.x + track_rect.w * 0.5
-            } else {
-                track_rect.y + track_rect.h * 0.5
-            };
             if is_vert {
-                Rect::new(center - half, main_start, cross_len, main_len)
+                let x = (track_rect.x + (track_rect.w - cross_len) * 0.5).round();
+                Rect::new(x, main_start, cross_len, main_len)
             } else {
-                Rect::new(main_start, center - half, main_len, cross_len)
+                let y = (track_rect.y + (track_rect.h - cross_len) * 0.5).round();
+                Rect::new(main_start, y, main_len, cross_len)
             }
         }
         ThumbCrossAxis::FillTrack { margin } => {
@@ -1101,13 +1097,12 @@ fn draw_track_region(
         return;
     }
     let thickness = stroke.width;
-    let half = thickness * 0.5;
     let rect = if is_vert {
-        let cx = track_rect.x + track_rect.w * 0.5;
-        Rect::new(cx - half, start, thickness, len)
+        let x = (track_rect.x + (track_rect.w - thickness) * 0.5).round();
+        Rect::new(x, start, thickness, len)
     } else {
-        let cy = track_rect.y + track_rect.h * 0.5;
-        Rect::new(start, cy - half, len, thickness)
+        let y = (track_rect.y + (track_rect.h - thickness) * 0.5).round();
+        Rect::new(start, y, len, thickness)
     };
     cmds.push(DrawCmd::FillRect {
         rect,
