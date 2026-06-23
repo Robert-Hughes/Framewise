@@ -5,6 +5,7 @@ Working notes, TODOs, open questions, and half-baked ideas.
 ## Current Work
 
 - Pixel coordinates/coordinate system/AA cleanup
+  - check latset ChatGPT review
   - many lines are now blurred across two pixels, probably need to update the widget logic!
 
 - Sliders!
