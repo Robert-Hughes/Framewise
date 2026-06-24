@@ -5,13 +5,13 @@ Working notes, TODOs, open questions, and half-baked ideas.
 ## Current Work
 
 - Pixel coordinates/coordinate system/AA cleanup
-  - check latset ChatGPT review
-  - many lines are now blurred across two pixels, probably need to update the widget logic!
+  - address remaining golden differences (fractional layout - check chatgpt message)
+  - pixel display/DPI scaling (see chatgpt chat)
 
 - Sliders!
   - thumbs are not odd pixel size, so the centre 'value marker' line (collapsed range slider) is off-centre slightly. Fix with new renderer semantics?
-  - markers being drawn
-  - fixed steps
+  - markers being drawn (see chatgpt chat)
+  - fixed steps (see chatgpt chat)
   - are we using the widget helpers and or test helpers?
   - logarithmic (or otherwise custom) scales?
 
