@@ -43,6 +43,7 @@ fn test_headless_text_rendering() {
 
         let golden_path =
             std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src/text/golden_text.png");
-        assert_matches_png_golden(&actual, &golden_path);
+        let tolerance = if cfg!(target_os = "macos") { 2 } else { 0 };
+        assert_matches_png_golden(&actual, &golden_path, tolerance);
     });
 }

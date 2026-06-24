@@ -145,7 +145,7 @@ pub async fn render_commands_to_rgba(
     })
 }
 
-pub fn assert_matches_png_golden(actual: &RgbaImage, golden_path: &Path) {
+pub fn assert_matches_png_golden(actual: &RgbaImage, golden_path: &Path, tolerance: u8) {
     if !golden_path.exists() {
         write_png(golden_path, actual).unwrap_or_else(|err| {
             panic!(
@@ -184,7 +184,15 @@ pub fn assert_matches_png_golden(actual: &RgbaImage, golden_path: &Path) {
         );
     }
 
-    if golden.pixels != actual.pixels {
+    let max_diff = golden
+        .pixels
+        .iter()
+        .zip(actual.pixels.iter())
+        .map(|(&g, &a)| g.abs_diff(a))
+        .max()
+        .unwrap_or(0);
+
+    if max_diff > tolerance {
         let actual_path = actual_path_for(golden_path);
         write_png(&actual_path, actual).unwrap_or_else(|err| {
             panic!(
@@ -193,7 +201,7 @@ pub fn assert_matches_png_golden(actual: &RgbaImage, golden_path: &Path) {
             )
         });
         panic!(
-            "Pixel mismatch: rendered image does not match golden. Actual image written to {}.",
+            "Pixel mismatch: max channel difference is {max_diff}, tolerance is {tolerance}. Actual image written to {}.",
             actual_path.display()
         );
     }

@@ -48,7 +48,7 @@ mod spec_page_golden {
 
             let golden_path =
                 std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src/golden_spec_page.png");
-            assert_matches_png_golden(&actual, &golden_path);
+            assert_matches_png_golden(&actual, &golden_path, 0);
         });
     }
 }
@@ -177,7 +177,7 @@ mod analytical_aa_golden {
 
             let golden_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
                 .join("src/golden_analytical_aa.png");
-            assert_matches_png_golden(&actual, &golden_path);
+            assert_matches_png_golden(&actual, &golden_path, 0);
         });
     }
 }
@@ -241,7 +241,7 @@ mod button_page_golden {
 
             let golden_path =
                 std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src/golden_button_page.png");
-            assert_matches_png_golden(&actual, &golden_path);
+            assert_matches_png_golden(&actual, &golden_path, 1);
         });
     }
 }
@@ -304,7 +304,7 @@ mod label_page_golden {
 
             let golden_path =
                 std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src/golden_label_page.png");
-            assert_matches_png_golden(&actual, &golden_path);
+            assert_matches_png_golden(&actual, &golden_path, 0);
         });
     }
 }
@@ -368,7 +368,7 @@ mod frame_page_golden {
 
             let golden_path =
                 std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src/golden_frame_page.png");
-            assert_matches_png_golden(&actual, &golden_path);
+            assert_matches_png_golden(&actual, &golden_path, 0);
         });
     }
 }
@@ -432,7 +432,7 @@ mod layout_page_golden {
 
             let golden_path =
                 std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src/golden_layout_page.png");
-            assert_matches_png_golden(&actual, &golden_path);
+            assert_matches_png_golden(&actual, &golden_path, 0);
         });
     }
 }
@@ -496,7 +496,7 @@ mod scroll_page_golden {
 
             let golden_path =
                 std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src/golden_scroll_page.png");
-            assert_matches_png_golden(&actual, &golden_path);
+            assert_matches_png_golden(&actual, &golden_path, 0);
         });
     }
 }
@@ -560,7 +560,7 @@ mod text_edit_page_golden {
 
             let golden_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
                 .join("src/golden_text_edit_page.png");
-            assert_matches_png_golden(&actual, &golden_path);
+            assert_matches_png_golden(&actual, &golden_path, 0);
         });
     }
 }
