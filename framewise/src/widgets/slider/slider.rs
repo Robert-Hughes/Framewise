@@ -1,5 +1,5 @@
 use crate::{
-    draw::{BorderPlacement, DrawCmd, DrawCommands},
+    draw::{BorderPlacement, DrawCommands},
     focus::{FocusId, FocusSystem},
     input::Input,
     layout::{LayoutState, SizeOffer},
@@ -587,11 +587,7 @@ pub mod raw {
         };
 
         if let Some(background_fill) = spec.style.background_fill {
-            cmds.push(DrawCmd::FillRect {
-                rect: spec.rect,
-                color: tint(background_fill),
-                z: spec.layer.get_z(),
-            });
+            cmds.push_crisp_fill_rect(spec.rect, tint(background_fill), spec.layer.get_z());
         }
 
         let before_stroke = if !state.value.is_range()
@@ -641,11 +637,7 @@ pub mod raw {
                 state.active_part == Some(SliderPart::Segment),
                 segment_is_hovered,
             );
-            cmds.push(DrawCmd::FillRect {
-                rect,
-                color: tint(fill),
-                z: spec.layer.get_z(),
-            });
+            cmds.push_crisp_fill_rect(rect, tint(fill), spec.layer.get_z());
             if let Some(border) = style.border {
                 let border_color =
                     if !spec.disabled && state.active_part == Some(SliderPart::Segment) {
@@ -654,7 +646,7 @@ pub mod raw {
                         border.color
                     };
                 let tint_stroke = |st: Stroke| Stroke::new(tint(st.color), st.width);
-                cmds.push_border_rect(
+                cmds.push_crisp_border_rect(
                     rect,
                     Some(tint_stroke(Stroke::new(border_color, border.width))),
                     BorderPlacement::Inside,
@@ -722,7 +714,7 @@ pub mod raw {
                 if let Some(lower_style) = spec.style.lower_thumb_style {
                     if let Some(border) = lower_style.border {
                         let tint_stroke = |st: Stroke| Stroke::new(tint(st.color), st.width);
-                        cmds.push_border_rect(
+                        cmds.push_crisp_border_rect(
                             combined_rect,
                             Some(tint_stroke(Stroke::new(border.color, border.width))),
                             BorderPlacement::Inside,
@@ -738,22 +730,21 @@ pub mod raw {
                         } else {
                             style.border.map_or(Color::BLACK, |b| b.color)
                         };
-                        let s = Stroke::new(tint(marker_color), 1.0);
-                        let pos = (coord - s.width * 0.5).round();
+                        let color = tint(marker_color);
                         if is_vert {
-                            cmds.push_h_rule(
+                            cmds.push_device_hairline_h(
                                 combined_rect.x,
-                                pos,
+                                coord,
                                 combined_rect.w,
-                                Some(s),
+                                color,
                                 spec.layer.get_z(),
                             );
                         } else {
-                            cmds.push_v_rule(
-                                pos,
+                            cmds.push_device_hairline_v(
+                                coord,
                                 combined_rect.y,
                                 combined_rect.h,
-                                Some(s),
+                                color,
                                 spec.layer.get_z(),
                             );
                         }
@@ -786,7 +777,7 @@ pub mod raw {
         if focused {
             if let Some(outline) = spec.style.focus {
                 let tint_stroke = |st: Stroke| Stroke::new(tint(st.color), st.width);
-                cmds.push_border_rect(
+                cmds.push_crisp_border_rect(
                     spec.rect.inset(-outline.offset),
                     Some(tint_stroke(outline.stroke)),
                     BorderPlacement::Outside,
@@ -1096,19 +1087,26 @@ fn draw_track_region(
     if !stroke.is_visible() {
         return;
     }
+    let should_snap = (cmds.physical_pixels_per_logical_pixel() - 1.0).abs() > 0.001;
     let thickness = stroke.width;
     let rect = if is_vert {
-        let x = (track_rect.x + (track_rect.w - thickness) * 0.5).round();
+        let thickness = if should_snap {
+            cmds.snap_length_to_physical_pixels(thickness)
+        } else {
+            thickness
+        };
+        let x = cmds.snap_to_physical_pixel(track_rect.x + (track_rect.w - thickness) * 0.5);
         Rect::new(x, start, thickness, len)
     } else {
-        let y = (track_rect.y + (track_rect.h - thickness) * 0.5).round();
+        let thickness = if should_snap {
+            cmds.snap_length_to_physical_pixels(thickness)
+        } else {
+            thickness
+        };
+        let y = cmds.snap_to_physical_pixel(track_rect.y + (track_rect.h - thickness) * 0.5);
         Rect::new(start, y, len, thickness)
     };
-    cmds.push(DrawCmd::FillRect {
-        rect,
-        color: tint(stroke.color),
-        z: layer.get_z(),
-    });
+    cmds.push_crisp_fill_rect(rect, tint(stroke.color), layer.get_z());
 }
 
 fn draw_separator_line(
@@ -1127,14 +1125,12 @@ fn draw_separator_line(
         return;
     }
 
-    let tint_stroke = |st: Stroke| Stroke::new(tint(st.color), st.width);
-
-    let stroke = Some(tint_stroke(separator));
-    if is_vert {
-        cmds.push_v_rule(rect.x, rect.y, rect.h, stroke, layer.get_z());
+    let rule = if is_vert {
+        Rect::new(rect.x, rect.y, separator.width, rect.h)
     } else {
-        cmds.push_h_rule(rect.x, rect.y, rect.w, stroke, layer.get_z());
-    }
+        Rect::new(rect.x, rect.y, rect.w, separator.width)
+    };
+    cmds.push_crisp_fill_rect(rule, tint(separator.color), layer.get_z());
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -1155,11 +1151,7 @@ fn draw_thumb(
         return;
     };
     let fill = effective_fill(style.fill, disabled, active, hovered);
-    cmds.push(DrawCmd::FillRect {
-        rect,
-        color: tint(fill),
-        z: layer.get_z(),
-    });
+    cmds.push_crisp_fill_rect(rect, tint(fill), layer.get_z());
     if let Some(border) = style.border {
         let border_color = if !disabled && active {
             style.fill.dragged
@@ -1167,7 +1159,7 @@ fn draw_thumb(
             border.color
         };
         let tint_stroke = |st: Stroke| Stroke::new(tint(st.color), st.width);
-        cmds.push_border_rect(
+        cmds.push_crisp_border_rect(
             rect,
             Some(tint_stroke(Stroke::new(border_color, border.width))),
             BorderPlacement::Inside,

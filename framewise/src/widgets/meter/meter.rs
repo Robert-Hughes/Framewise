@@ -1,5 +1,5 @@
 use crate::{
-    draw::{DrawCmd, DrawCommands},
+    draw::DrawCommands,
     layout::{LayoutState, SizeOffer, SizeRequest},
     text::TextBackend,
     types::{Color, Layer, Rect, Vec2},
@@ -85,11 +85,7 @@ pub mod raw {
             } else {
                 spec.style.unlit
             };
-            cmds.push(DrawCmd::FillRect {
-                rect: bar_rect,
-                color,
-                z: spec.layer.get_z(),
-            });
+            cmds.push_crisp_fill_rect(bar_rect, color, spec.layer.get_z());
         }
     }
 }

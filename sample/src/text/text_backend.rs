@@ -80,6 +80,7 @@ pub struct SampleTextBackend {
     pub glyph_index: HashMap<GlyphBaseKey, SampleShapedGlyphToken>,
     pub atlas_data: Vec<u8>,
     pub atlas_size: u32,
+    pub physical_pixels_per_logical_pixel: f32,
 
     // Simple shelf allocator
     pub current_x: u32,
@@ -189,6 +190,7 @@ impl SampleTextBackend {
             glyph_index: HashMap::new(),
             atlas_data: vec![0; (atlas_size * atlas_size) as usize],
             atlas_size,
+            physical_pixels_per_logical_pixel: 1.0,
             current_x: 0,
             current_y: 0,
             row_height: 0,
@@ -198,6 +200,33 @@ impl SampleTextBackend {
 
     pub fn begin_frame(&mut self) {
         self.atlas_dirty = false;
+    }
+
+    pub fn set_physical_pixels_per_logical_pixel(&mut self, scale: f32) {
+        let scale = if scale.is_finite() {
+            scale.max(0.01)
+        } else {
+            1.0
+        };
+
+        if (self.physical_pixels_per_logical_pixel - scale).abs() <= 0.001 {
+            return;
+        }
+
+        self.physical_pixels_per_logical_pixel = scale;
+        self.clear_raster_cache();
+    }
+
+    fn clear_raster_cache(&mut self) {
+        for glyph in &mut self.glyph_cache {
+            glyph.subpixels = [crate::text::types::GlyphSubpixelSlot::Unloaded; 4];
+        }
+
+        self.atlas_data.fill(0);
+        self.current_x = 0;
+        self.current_y = 0;
+        self.row_height = 0;
+        self.atlas_dirty = true;
     }
 
     fn shape_cache_key(&self, text: &str, style: framewise::TextStyle) -> ShapeCacheKey {
@@ -297,15 +326,16 @@ impl TextBackend for SampleTextBackend {
         &mut self,
         request: PrepareGlyphRequest<Self::ShapedGlyphToken>,
     ) -> Option<DrawGlyph> {
-        let placement = subpixel_placement(request.glyph_origin.x);
+        let scale = self.physical_pixels_per_logical_pixel;
+        let physical_origin_x = request.glyph_origin.x * scale;
+        let placement = subpixel_placement(physical_origin_x);
         let slot = self.prepared_glyph_slot(request.glyph, placement.subpixel_x)?;
+        let physical_left = placement.quantized_x.floor() + slot.left as f32;
+        let physical_top = (request.glyph_origin.y * scale).round() - slot.top as f32;
 
         Some(DrawGlyph {
             token: slot.token,
-            top_left: Vec2::new(
-                placement.quantized_x.floor() + slot.left as f32,
-                request.glyph_origin.y.round() - slot.top as f32,
-            ),
+            top_left: Vec2::new(physical_left / scale, physical_top / scale),
         })
     }
 }

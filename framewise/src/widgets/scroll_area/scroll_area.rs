@@ -331,27 +331,23 @@ pub mod raw {
                     token.style.scrollbar_width,
                     token.style.scrollbar_width,
                 );
-                cmds.push(DrawCmd::FillRect {
-                    rect: corner_rect,
-                    color: corner_color,
-                    z: token.layer.get_z(),
-                });
+                cmds.push_crisp_fill_rect(corner_rect, corner_color, token.layer.get_z());
                 let border = token.style.scrollbar_style.separator_line;
                 if let Some(border) = border {
                     // Left border of the corner
-                    cmds.push_v_rule(
+                    cmds.push_device_hairline_v(
                         corner_rect.x,
                         corner_rect.y,
                         corner_rect.h,
-                        Some(border),
+                        border.color,
                         token.layer.get_z(),
                     );
                     // Top border of the corner
-                    cmds.push_h_rule(
+                    cmds.push_device_hairline_h(
                         corner_rect.x,
                         corner_rect.y,
                         corner_rect.w,
-                        Some(border),
+                        border.color,
                         token.layer.get_z(),
                     );
                 }

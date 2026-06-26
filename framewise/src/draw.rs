@@ -139,17 +139,31 @@ pub enum DrawCmd {
 /// To enforce this index stability invariant, `DrawCommands` does not expose public APIs
 /// that could remove, clear, truncate, or reorder elements (such as `clear`, `remove`,
 /// `truncate`, `swap`, or a `DerefMut` implementation).
-#[derive(Debug, Clone, Default, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct DrawCommands {
     cmds: Vec<DrawCmd>,
     glyphs: Vec<DrawGlyph>,
+    physical_pixels_per_logical_pixel: f32,
+}
+
+impl Default for DrawCommands {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl DrawCommands {
     pub fn new() -> Self {
+        Self::with_physical_pixels_per_logical_pixel(1.0)
+    }
+
+    pub fn with_physical_pixels_per_logical_pixel(physical_pixels_per_logical_pixel: f32) -> Self {
         Self {
             cmds: Vec::new(),
             glyphs: Vec::new(),
+            physical_pixels_per_logical_pixel: sanitise_physical_pixels_per_logical_pixel(
+                physical_pixels_per_logical_pixel,
+            ),
         }
     }
 
@@ -159,10 +173,77 @@ impl DrawCommands {
     /// `GlyphRun` commands should be created with [`push_glyph_run`](Self::push_glyph_run)
     /// so their ranges point at this command list's glyph arena.
     pub fn from_vec(cmds: Vec<DrawCmd>) -> Self {
+        Self::from_vec_with_physical_pixels_per_logical_pixel(cmds, 1.0)
+    }
+
+    pub fn from_vec_with_physical_pixels_per_logical_pixel(
+        cmds: Vec<DrawCmd>,
+        physical_pixels_per_logical_pixel: f32,
+    ) -> Self {
         Self {
             cmds,
             glyphs: Vec::new(),
+            physical_pixels_per_logical_pixel: sanitise_physical_pixels_per_logical_pixel(
+                physical_pixels_per_logical_pixel,
+            ),
         }
+    }
+
+    pub fn physical_pixels_per_logical_pixel(&self) -> f32 {
+        self.physical_pixels_per_logical_pixel
+    }
+
+    pub fn set_physical_pixels_per_logical_pixel(&mut self, scale: f32) {
+        self.physical_pixels_per_logical_pixel = sanitise_physical_pixels_per_logical_pixel(scale);
+    }
+
+    pub fn device_pixel_size(&self) -> f32 {
+        1.0 / self.physical_pixels_per_logical_pixel
+    }
+
+    pub fn snap_to_physical_pixel(&self, logical: f32) -> f32 {
+        let scale = self.physical_pixels_per_logical_pixel;
+        (logical * scale).round() / scale
+    }
+
+    pub fn floor_to_physical_pixel(&self, logical: f32) -> f32 {
+        let scale = self.physical_pixels_per_logical_pixel;
+        (logical * scale).floor() / scale
+    }
+
+    pub fn ceil_to_physical_pixel(&self, logical: f32) -> f32 {
+        let scale = self.physical_pixels_per_logical_pixel;
+        (logical * scale).ceil() / scale
+    }
+
+    pub fn is_physical_pixel_aligned(&self, logical: f32) -> bool {
+        const EPSILON: f32 = 0.001;
+        let physical = logical * self.physical_pixels_per_logical_pixel;
+        (physical - physical.round()).abs() <= EPSILON
+    }
+
+    pub fn snap_rect_edges_to_physical_pixel(&self, rect: Rect) -> Rect {
+        let l = self.snap_to_physical_pixel(rect.x);
+        let t = self.snap_to_physical_pixel(rect.y);
+        let r = self.snap_to_physical_pixel(rect.right());
+        let b = self.snap_to_physical_pixel(rect.bottom());
+
+        Rect::from_ltrb(l, t, r.max(l), b.max(t))
+    }
+
+    pub fn floor_ceil_rect_to_physical_pixel(&self, rect: Rect) -> Rect {
+        let l = self.floor_to_physical_pixel(rect.x);
+        let t = self.floor_to_physical_pixel(rect.y);
+        let r = self.ceil_to_physical_pixel(rect.right());
+        let b = self.ceil_to_physical_pixel(rect.bottom());
+
+        Rect::from_ltrb(l, t, r.max(l), b.max(t))
+    }
+
+    pub fn snap_length_to_physical_pixels(&self, logical_len: f32) -> f32 {
+        let px = self.device_pixel_size();
+        let physical = logical_len * self.physical_pixels_per_logical_pixel;
+        physical.round().max(1.0) * px
     }
 
     pub fn push(&mut self, cmd: DrawCmd) -> usize {
@@ -232,6 +313,15 @@ impl DrawCommands {
     }
 
     pub fn append(&mut self, mut other: DrawCommands) {
+        debug_assert!(
+            (self.physical_pixels_per_logical_pixel - other.physical_pixels_per_logical_pixel)
+                .abs()
+                <= 0.001,
+            "DrawCommands scale mismatch: {} vs {}",
+            self.physical_pixels_per_logical_pixel,
+            other.physical_pixels_per_logical_pixel
+        );
+
         let glyph_offset = self.glyphs.len();
 
         for cmd in &mut other.cmds {
@@ -284,6 +374,97 @@ impl DrawCommands {
         }))
     }
 
+    pub fn push_crisp_fill_rect(&mut self, rect: Rect, color: Color, z: u32) -> usize {
+        let rect = if self.should_snap_crisp_helpers() {
+            self.snap_rect_edges_to_physical_pixel(rect)
+        } else {
+            rect
+        };
+        self.push(DrawCmd::FillRect { rect, color, z })
+    }
+
+    pub fn push_crisp_border_rect(
+        &mut self,
+        rect: Rect,
+        stroke: Option<Stroke>,
+        placement: BorderPlacement,
+        z: u32,
+    ) -> Option<usize> {
+        let s = stroke?;
+        if !s.is_visible() {
+            return None;
+        }
+
+        let (rect, width) = if self.should_snap_crisp_helpers() {
+            (
+                self.snap_rect_edges_to_physical_pixel(rect),
+                self.snap_length_to_physical_pixels(s.width),
+            )
+        } else {
+            (rect, s.width)
+        };
+
+        Some(self.push(DrawCmd::BorderRect {
+            rect,
+            color: s.color,
+            width,
+            placement,
+            z,
+        }))
+    }
+
+    pub fn push_device_hairline_h(
+        &mut self,
+        x: f32,
+        y: f32,
+        width: f32,
+        color: Color,
+        z: u32,
+    ) -> Option<usize> {
+        let px = self.device_pixel_size();
+        let x0 = self.snap_to_physical_pixel(x);
+        let x1 = self.snap_to_physical_pixel(x + width);
+        let y0 = self.snap_to_physical_pixel(y);
+
+        if x1 <= x0 {
+            return None;
+        }
+
+        Some(self.push(DrawCmd::FillRect {
+            rect: Rect::new(x0, y0, x1 - x0, px),
+            color,
+            z,
+        }))
+    }
+
+    fn should_snap_crisp_helpers(&self) -> bool {
+        (self.physical_pixels_per_logical_pixel - 1.0).abs() > 0.001
+    }
+
+    pub fn push_device_hairline_v(
+        &mut self,
+        x: f32,
+        y: f32,
+        height: f32,
+        color: Color,
+        z: u32,
+    ) -> Option<usize> {
+        let px = self.device_pixel_size();
+        let x0 = self.snap_to_physical_pixel(x);
+        let y0 = self.snap_to_physical_pixel(y);
+        let y1 = self.snap_to_physical_pixel(y + height);
+
+        if y1 <= y0 {
+            return None;
+        }
+
+        Some(self.push(DrawCmd::FillRect {
+            rect: Rect::new(x0, y0, px, y1 - y0),
+            color,
+            z,
+        }))
+    }
+
     pub fn push_stroke_line(
         &mut self,
         p0: Vec2,
@@ -309,7 +490,8 @@ impl DrawCommands {
     ///
     /// The rule draws an exact occupied horizontal rectangular UI strip starting at `x`, `y`
     /// with length `width` and height `stroke.width`. It does not center a vector stroke.
-    /// Callers are responsible for choosing pixel-aligned x/y when they want crisp output.
+    /// Callers are responsible for choosing aligned x/y when they want crisp output. Use
+    /// [`push_device_hairline_h`](Self::push_device_hairline_h) for a one-physical-pixel rule.
     /// Returns the command index if a visible command was pushed.
     pub fn push_h_rule(
         &mut self,
@@ -335,7 +517,8 @@ impl DrawCommands {
     ///
     /// The rule draws an exact occupied vertical rectangular UI strip starting at `x`, `y`
     /// with width `stroke.width` and length `height`. It does not center a vector stroke.
-    /// Callers are responsible for choosing pixel-aligned x/y when they want crisp output.
+    /// Callers are responsible for choosing aligned x/y when they want crisp output. Use
+    /// [`push_device_hairline_v`](Self::push_device_hairline_v) for a one-physical-pixel rule.
     /// Returns the command index if a visible command was pushed.
     pub fn push_v_rule(
         &mut self,
@@ -379,6 +562,14 @@ impl DrawCommands {
     }
 }
 
+fn sanitise_physical_pixels_per_logical_pixel(scale: f32) -> f32 {
+    if scale.is_finite() {
+        scale.max(0.01)
+    } else {
+        1.0
+    }
+}
+
 impl std::ops::Deref for DrawCommands {
     type Target = [DrawCmd];
     fn deref(&self) -> &[DrawCmd] {
@@ -399,6 +590,70 @@ mod tests {
             token: PreparedGlyphToken(handle as u64),
             top_left: Vec2::new(x, 2.0),
         }
+    }
+
+    #[test]
+    fn draw_commands_scale_defaults_and_sanitises() {
+        let mut cmds = DrawCommands::new();
+        assert_eq!(cmds.physical_pixels_per_logical_pixel(), 1.0);
+        assert_eq!(
+            DrawCommands::default().physical_pixels_per_logical_pixel(),
+            1.0
+        );
+
+        cmds.set_physical_pixels_per_logical_pixel(2.0);
+        assert_eq!(cmds.physical_pixels_per_logical_pixel(), 2.0);
+        assert_eq!(
+            DrawCommands::with_physical_pixels_per_logical_pixel(0.0)
+                .physical_pixels_per_logical_pixel(),
+            0.01
+        );
+        assert_eq!(
+            DrawCommands::with_physical_pixels_per_logical_pixel(f32::NAN)
+                .physical_pixels_per_logical_pixel(),
+            1.0
+        );
+        assert_eq!(
+            DrawCommands::from_vec_with_physical_pixels_per_logical_pixel(Vec::new(), 1.5)
+                .physical_pixels_per_logical_pixel(),
+            1.5
+        );
+    }
+
+    #[test]
+    fn physical_pixel_grid_helpers_snap_in_logical_units() {
+        let one_x = DrawCommands::new();
+        assert_eq!(one_x.device_pixel_size(), 1.0);
+        assert_eq!(one_x.snap_to_physical_pixel(10.5), 11.0);
+        assert!(!one_x.is_physical_pixel_aligned(10.5));
+
+        let two_x = DrawCommands::with_physical_pixels_per_logical_pixel(2.0);
+        assert_eq!(two_x.device_pixel_size(), 0.5);
+        assert_eq!(two_x.snap_to_physical_pixel(10.5), 10.5);
+        assert!(two_x.is_physical_pixel_aligned(10.5));
+
+        let one_and_quarter = DrawCommands::with_physical_pixels_per_logical_pixel(1.25);
+        assert!((one_and_quarter.device_pixel_size() - 0.8).abs() < 0.0001);
+        assert!((one_and_quarter.snap_to_physical_pixel(1.0) - 0.8).abs() < 0.0001);
+
+        let one_and_half = DrawCommands::with_physical_pixels_per_logical_pixel(1.5);
+        assert!((one_and_half.device_pixel_size() - (2.0 / 3.0)).abs() < 0.0001);
+        assert!((one_and_half.snap_to_physical_pixel(1.0) - (4.0 / 3.0)).abs() < 0.0001);
+    }
+
+    #[test]
+    fn physical_pixel_rect_helpers_snap_edges() {
+        let cmds = DrawCommands::with_physical_pixels_per_logical_pixel(2.0);
+        let rect = Rect::new(0.24, 0.26, 10.49, 5.49);
+
+        assert_eq!(
+            cmds.snap_rect_edges_to_physical_pixel(rect),
+            Rect::from_ltrb(0.0, 0.5, 10.5, 6.0)
+        );
+        assert_eq!(
+            cmds.floor_ceil_rect_to_physical_pixel(rect),
+            Rect::from_ltrb(0.0, 0.0, 11.0, 6.0)
+        );
     }
 
     #[test]

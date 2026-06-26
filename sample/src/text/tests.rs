@@ -23,6 +23,24 @@ fn style(font: FontId, size: f32, weight: u16, flow: TextFlow) -> TextStyle {
     TextStyle::new(font, size, weight, flow)
 }
 
+fn prepare_first_glyph_at(
+    sys: &mut SampleTextBackend,
+    text: &str,
+    style: TextStyle,
+    origin: Vec2,
+) -> DrawGlyph {
+    let shaped = TextBackend::shape_text(sys, text, style);
+    let glyph = shaped.clusters[0].glyphs[0];
+    TextBackend::prepare_glyph(
+        sys,
+        PrepareGlyphRequest {
+            glyph: glyph.token,
+            glyph_origin: origin,
+        },
+    )
+    .expect("glyph should prepare")
+}
+
 #[test]
 fn text_backend_shapes_text_and_prepares_glyphs() {
     let mut sys = sys();
@@ -41,6 +59,67 @@ fn text_backend_shapes_text_and_prepares_glyphs() {
         },
     );
     assert!(prepared.is_some());
+}
+
+#[test]
+fn physical_scale_increases_rasterized_glyph_size_but_keeps_top_left_logical() {
+    let style = style(FontId(1), 16.0, 500, TextFlow::single_line());
+    let origin = Vec2::new(20.25, 40.0);
+
+    let mut one_x = sys();
+    let one_x_glyph = prepare_first_glyph_at(&mut one_x, "A", style, origin);
+    let (_, _, one_x_w, one_x_h) = decode_prepared_glyph_token(one_x_glyph.token);
+
+    let mut two_x = sys();
+    two_x.set_physical_pixels_per_logical_pixel(2.0);
+    let two_x_glyph = prepare_first_glyph_at(&mut two_x, "A", style, origin);
+    let (_, _, two_x_w, two_x_h) = decode_prepared_glyph_token(two_x_glyph.token);
+
+    assert!(two_x_w as f32 >= one_x_w as f32 * 1.7);
+    assert!(two_x_h as f32 >= one_x_h as f32 * 1.7);
+    assert!((two_x_glyph.top_left.x - origin.x).abs() < 8.0);
+    assert!((two_x_glyph.top_left.y - origin.y).abs() < 24.0);
+}
+
+#[test]
+fn changing_physical_scale_invalidates_raster_slots_without_clearing_shape_or_glyph_ids() {
+    let style = style(FontId(1), 16.0, 500, TextFlow::single_line());
+    let mut sys = sys();
+    let shaped = TextBackend::shape_text(&mut sys, "A", style);
+    let glyph = shaped.clusters[0].glyphs[0];
+    let _draw_glyph = TextBackend::prepare_glyph(
+        &mut sys,
+        PrepareGlyphRequest {
+            glyph: glyph.token,
+            glyph_origin: Vec2::new(10.0, 20.0),
+        },
+    )
+    .expect("glyph should prepare");
+
+    let shape_cache_len = sys.shape_cache.len();
+    let glyph_cache_len = sys.glyph_cache.len();
+    let glyph_index_len = sys.glyph_index.len();
+    assert!(sys.atlas_data.iter().any(|alpha| *alpha != 0));
+    assert!(sys.glyph_cache.iter().any(|cached| {
+        cached
+            .subpixels
+            .iter()
+            .any(|slot| matches!(slot, GlyphSubpixelSlot::Loaded(_)))
+    }));
+
+    sys.set_physical_pixels_per_logical_pixel(2.0);
+
+    assert_eq!(sys.shape_cache.len(), shape_cache_len);
+    assert_eq!(sys.glyph_cache.len(), glyph_cache_len);
+    assert_eq!(sys.glyph_index.len(), glyph_index_len);
+    assert!(sys.atlas_data.iter().all(|alpha| *alpha == 0));
+    assert!(sys.atlas_dirty);
+    assert!(sys.glyph_cache.iter().all(|cached| {
+        cached
+            .subpixels
+            .iter()
+            .all(|slot| matches!(slot, GlyphSubpixelSlot::Unloaded))
+    }));
 }
 
 #[test]

@@ -1,5 +1,5 @@
 use crate::{
-    draw::{BorderPlacement, DrawCmd, DrawCommands},
+    draw::{BorderPlacement, DrawCommands},
     focus::{FocusId, FocusSystem},
     input::Input,
     layout::{LayoutState, SizeOffer},
@@ -132,13 +132,9 @@ pub mod raw {
         if spec.disabled {
             let tint =
                 |c: Color| Color::linear_rgba(c.r, c.g, c.b, c.a * spec.style.disabled_alpha);
-            cmds.push(DrawCmd::FillRect {
-                rect: spec.rect,
-                color: tint(spec.style.background),
-                z: spec.layer.get_z(),
-            });
+            cmds.push_crisp_fill_rect(spec.rect, tint(spec.style.background), spec.layer.get_z());
             let tint_stroke = |s: Stroke| Stroke::new(tint(s.color), s.width);
-            cmds.push_border_rect(
+            cmds.push_crisp_border_rect(
                 spec.rect,
                 spec.style.border.map(tint_stroke),
                 BorderPlacement::Inside,
@@ -193,7 +189,7 @@ pub mod raw {
         // rect (using BorderPlacement::Outside), so expand by the desired gap.
         if focused {
             if let Some(outline) = spec.style.focus {
-                cmds.push_border_rect(
+                cmds.push_crisp_border_rect(
                     spec.rect.inset(-outline.offset),
                     Some(outline.stroke),
                     BorderPlacement::Outside,
@@ -203,14 +199,10 @@ pub mod raw {
         }
 
         // Background fill.
-        cmds.push(DrawCmd::FillRect {
-            rect: spec.rect,
-            color: fill,
-            z: spec.layer.get_z(),
-        });
+        cmds.push_crisp_fill_rect(spec.rect, fill, spec.layer.get_z());
 
         // Border.
-        cmds.push_border_rect(
+        cmds.push_crisp_border_rect(
             spec.rect,
             spec.style.border,
             BorderPlacement::Inside,

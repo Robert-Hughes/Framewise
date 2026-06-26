@@ -1,5 +1,5 @@
 use crate::{
-    draw::{DrawCmd, DrawCommands},
+    draw::DrawCommands,
     layout::{LayoutState, SizeOffer, SizeRequest},
     text::TextBackend,
     types::{Color, Layer, Rect},
@@ -71,11 +71,7 @@ pub mod raw {
             spec.rect.w,
             track_h,
         );
-        cmds.push(DrawCmd::FillRect {
-            rect: track,
-            color: spec.style.track_color,
-            z: spec.layer.get_z(),
-        });
+        cmds.push_crisp_fill_rect(track, spec.style.track_color, spec.layer.get_z());
 
         let fill_color = if spec.active {
             spec.style.active_fill_color
@@ -90,20 +86,20 @@ pub mod raw {
             let x = track.x + start;
             let visible_w = (seg_w).min(track.x + track.w - x).max(0.0);
             if visible_w > 0.0 {
-                cmds.push(DrawCmd::FillRect {
-                    rect: Rect::new(x, track.y, visible_w, track_h),
-                    color: fill_color,
-                    z: spec.layer.get_z(),
-                });
+                cmds.push_crisp_fill_rect(
+                    Rect::new(x, track.y, visible_w, track_h),
+                    fill_color,
+                    spec.layer.get_z(),
+                );
             }
         } else {
             let fill_w = (spec.rect.w * spec.value.clamp(0.0, 1.0)).max(0.0);
             if fill_w > 0.0 {
-                cmds.push(DrawCmd::FillRect {
-                    rect: Rect::new(track.x, track.y, fill_w, track_h),
-                    color: fill_color,
-                    z: spec.layer.get_z(),
-                });
+                cmds.push_crisp_fill_rect(
+                    Rect::new(track.x, track.y, fill_w, track_h),
+                    fill_color,
+                    spec.layer.get_z(),
+                );
             }
         }
     }

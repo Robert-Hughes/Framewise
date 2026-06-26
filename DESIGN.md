@@ -28,6 +28,36 @@ In short: if a value changes because the user clicked or typed, it belongs in `*
 
 ---
 
+## Logical Coordinates And DPI
+
+Framewise layout, widget state, input, hit-testing, preferred sizes, text
+layout, and `DrawCmd` geometry use logical `f32` coordinates. The display scale
+is represented as `physical_pixels_per_logical_pixel`, the OS/device scale
+factor. This value describes the physical pixel grid; it does not scale the UI
+or convert Framewise layout to physical pixels.
+
+`DrawCommands` stores the raw `physical_pixels_per_logical_pixel: f32` for the
+draw list. Widgets that need crisp rectangular chrome should snap at the draw
+emission boundary with `DrawCommands` helpers such as
+`snap_to_physical_pixel`, `snap_rect_edges_to_physical_pixel`,
+`push_crisp_fill_rect`, `push_crisp_border_rect`, and the device hairline
+helpers. Alignment is checked with:
+
+```text
+logical_coord * physical_pixels_per_logical_pixel is an integer physical pixel coordinate
+```
+
+The sample app owns the boundary conversions. It queries the window scale,
+converts physical pointer positions and pixel wheel deltas to logical input, and
+passes the scale into each root `DrawCommands`. The sample renderer lowers
+logical draw commands to physical framebuffer coordinates, including clips and
+AA shape data. Text shaping and measurement remain logical; the sample text
+backend rasterises glyph bitmaps at physical scale and reports logical
+`DrawGlyph::top_left` positions for the renderer to convert back to physical
+destinations.
+
+---
+
 ## Text Architecture
 
 Framewise owns text layout policy. The application supplies a `TextBackend`,

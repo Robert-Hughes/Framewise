@@ -28,13 +28,16 @@ pub fn draw_label_page(
     output: &mut framewise::Output,
     _time: f64,
     win_size: (f32, f32),
+    physical_pixels_per_logical_pixel: f32,
     text_backend: &mut SampleTextBackend,
     debug_layout: bool,
 ) -> framewise::DrawCommands {
     let (win_w, win_h) = win_size;
     let is_unbounded = win_h.is_infinite();
 
-    let mut cmds = framewise::DrawCommands::new();
+    let mut cmds = framewise::DrawCommands::with_physical_pixels_per_logical_pixel(
+        physical_pixels_per_logical_pixel,
+    );
     let space = if is_unbounded {
         framewise::LayoutSpace::unbounded_height(0.0, 0.0, win_w)
     } else {

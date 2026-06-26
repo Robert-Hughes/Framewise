@@ -31,7 +31,8 @@ impl SampleTextBackend {
 
     fn rasterize_glyph_slot(&mut self, key: GlyphBaseKey, subpixel_x: u8) -> GlyphSubpixelSlot {
         let font = self.fonts[key.font_id as usize];
-        let size = key.size as f32 / 10.0;
+        let logical_size = key.size as f32 / 10.0;
+        let physical_size = logical_size * self.physical_pixels_per_logical_pixel;
 
         // Build variation settings if applicable
         let mut vars = Vec::new();
@@ -42,7 +43,11 @@ impl SampleTextBackend {
             vars.push(("opsz", key.opsz as f32));
         }
 
-        let mut scaler_builder = self.scale_context.builder(font).size(size).hint(true);
+        let mut scaler_builder = self
+            .scale_context
+            .builder(font)
+            .size(physical_size)
+            .hint(true);
 
         if !vars.is_empty() {
             scaler_builder = scaler_builder.variations(&vars);

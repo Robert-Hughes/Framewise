@@ -29,7 +29,7 @@ use std::sync::Arc;
 use text::SampleTextBackend;
 use winit::{
     application::ApplicationHandler,
-    dpi::PhysicalSize,
+    dpi::{LogicalSize, PhysicalSize},
     event::{ElementState, WindowEvent},
     event_loop::{ActiveEventLoop, ControlFlow, EventLoop},
     window::{Cursor, CursorIcon as WinitCursorIcon, Window, WindowId},
@@ -67,20 +67,36 @@ struct GpuState {
     queue: wgpu::Queue,
     config: wgpu::SurfaceConfiguration,
     renderer: Renderer,
-    size: PhysicalSize<u32>,
+    physical_size: PhysicalSize<u32>,
+    physical_pixels_per_logical_pixel: f32,
     vsync_mode: wgpu::PresentMode,
     no_vsync_mode: wgpu::PresentMode,
 }
 
 impl GpuState {
-    fn resize(&mut self, new_size: PhysicalSize<u32>) {
-        if new_size.width == 0 || new_size.height == 0 {
+    fn logical_size(&self) -> (f32, f32) {
+        (
+            self.physical_size.width as f32 / self.physical_pixels_per_logical_pixel,
+            self.physical_size.height as f32 / self.physical_pixels_per_logical_pixel,
+        )
+    }
+
+    fn resize(&mut self, new_physical_size: PhysicalSize<u32>) {
+        if new_physical_size.width == 0 || new_physical_size.height == 0 {
             return;
         }
-        self.size = new_size;
-        self.config.width = new_size.width;
-        self.config.height = new_size.height;
+        self.physical_size = new_physical_size;
+        self.config.width = new_physical_size.width;
+        self.config.height = new_physical_size.height;
         self.surface.configure(&self.device, &self.config);
+    }
+
+    fn set_physical_pixels_per_logical_pixel(&mut self, scale: f32) {
+        self.physical_pixels_per_logical_pixel = if scale.is_finite() {
+            scale.max(0.01)
+        } else {
+            1.0
+        };
     }
 
     fn set_vsync(&mut self, vsync: bool) {
@@ -181,10 +197,13 @@ impl App {
 
     fn draw_missing_feature_page(
         win_size: (f32, f32),
+        physical_pixels_per_logical_pixel: f32,
         text_backend: &mut SampleTextBackend,
     ) -> framewise::DrawCommands {
         use framewise::{text::layout_text, Color, DrawCmd, FontId, Rect, TextBounds, TextFlow};
-        let mut cmds = framewise::DrawCommands::new();
+        let mut cmds = framewise::DrawCommands::with_physical_pixels_per_logical_pixel(
+            physical_pixels_per_logical_pixel,
+        );
         cmds.push(DrawCmd::FillRect {
             rect: Rect::new(0.0, 0.0, win_size.0, win_size.1),
             color: Color::from_srgb_u8(28, 28, 32, 255),
@@ -213,10 +232,14 @@ impl App {
 
     #[allow(unreachable_code)]
     fn draw_ui(&mut self, text_backend: &mut SampleTextBackend) -> framewise::DrawCommands {
+        let physical_pixels_per_logical_pixel = self
+            .gpu
+            .as_ref()
+            .map_or(1.0, |g| g.physical_pixels_per_logical_pixel);
         let win_size = self
             .gpu
             .as_ref()
-            .map(|g| (g.size.width as f32, g.size.height as f32))
+            .map(|g| g.logical_size())
             .unwrap_or((1600.0, 1200.0));
         let time = self.start_time.elapsed().as_secs_f64();
 
@@ -232,13 +255,18 @@ impl App {
                         &mut self.output,
                         time,
                         win_size,
+                        physical_pixels_per_logical_pixel,
                         text_backend,
                         self.debug_layout,
                     );
                     self.focus_system.end_frame();
                     return cmds;
                 }
-                Self::draw_missing_feature_page(win_size, text_backend)
+                Self::draw_missing_feature_page(
+                    win_size,
+                    physical_pixels_per_logical_pixel,
+                    text_backend,
+                )
             }
             AppPage::WidgetSpec => {
                 #[cfg(feature = "page_spec")]
@@ -253,12 +281,17 @@ impl App {
                         time,
                         win_size.0,
                         win_size.1,
+                        physical_pixels_per_logical_pixel,
                         self.debug_layout,
                     );
                     self.focus_system.end_frame();
                     return cmds;
                 }
-                Self::draw_missing_feature_page(win_size, text_backend)
+                Self::draw_missing_feature_page(
+                    win_size,
+                    physical_pixels_per_logical_pixel,
+                    text_backend,
+                )
             }
             AppPage::ScrollDemo => {
                 #[cfg(feature = "page_scroll_demo")]
@@ -272,13 +305,18 @@ impl App {
                         &mut self.output,
                         time,
                         win_size,
+                        physical_pixels_per_logical_pixel,
                         text_backend,
                         self.debug_layout,
                     );
                     self.focus_system.end_frame();
                     return cmds;
                 }
-                Self::draw_missing_feature_page(win_size, text_backend)
+                Self::draw_missing_feature_page(
+                    win_size,
+                    physical_pixels_per_logical_pixel,
+                    text_backend,
+                )
             }
             AppPage::FrameDemo => {
                 #[cfg(feature = "page_frame_demo")]
@@ -291,13 +329,18 @@ impl App {
                         &mut self.output,
                         time,
                         win_size,
+                        physical_pixels_per_logical_pixel,
                         text_backend,
                         self.debug_layout,
                     );
                     self.focus_system.end_frame();
                     return cmds;
                 }
-                Self::draw_missing_feature_page(win_size, text_backend)
+                Self::draw_missing_feature_page(
+                    win_size,
+                    physical_pixels_per_logical_pixel,
+                    text_backend,
+                )
             }
             AppPage::LayoutDemo => {
                 #[cfg(feature = "page_layout_demo")]
@@ -310,13 +353,18 @@ impl App {
                         &mut self.output,
                         time,
                         win_size,
+                        physical_pixels_per_logical_pixel,
                         text_backend,
                         self.debug_layout,
                     );
                     self.focus_system.end_frame();
                     return cmds;
                 }
-                Self::draw_missing_feature_page(win_size, text_backend)
+                Self::draw_missing_feature_page(
+                    win_size,
+                    physical_pixels_per_logical_pixel,
+                    text_backend,
+                )
             }
             AppPage::LabelDemo => {
                 #[cfg(feature = "page_label_demo")]
@@ -329,13 +377,18 @@ impl App {
                         &mut self.output,
                         time,
                         win_size,
+                        physical_pixels_per_logical_pixel,
                         text_backend,
                         self.debug_layout,
                     );
                     self.focus_system.end_frame();
                     return cmds;
                 }
-                Self::draw_missing_feature_page(win_size, text_backend)
+                Self::draw_missing_feature_page(
+                    win_size,
+                    physical_pixels_per_logical_pixel,
+                    text_backend,
+                )
             }
             AppPage::TextEditDemo => {
                 #[cfg(feature = "page_text_edit")]
@@ -348,13 +401,18 @@ impl App {
                         &mut self.output,
                         time,
                         win_size,
+                        physical_pixels_per_logical_pixel,
                         text_backend,
                         self.debug_layout,
                     );
                     self.focus_system.end_frame();
                     return cmds;
                 }
-                Self::draw_missing_feature_page(win_size, text_backend)
+                Self::draw_missing_feature_page(
+                    win_size,
+                    physical_pixels_per_logical_pixel,
+                    text_backend,
+                )
             }
         }
     }
@@ -371,7 +429,7 @@ impl ApplicationHandler for App {
         let start = std::time::Instant::now();
         let mut attrs = Window::default_attributes()
             .with_title("Framewise Sample")
-            .with_inner_size(PhysicalSize::new(1600u32, 1200u32))
+            .with_inner_size(LogicalSize::new(1200.0, 900.0))
             .with_visible(false);
 
         let svg_start = std::time::Instant::now();
@@ -421,6 +479,13 @@ impl ApplicationHandler for App {
 
         self.window = Some(window.clone());
         self.gpu = Some(gpu);
+        if let Some(text_backend) = &mut self.text_backend {
+            text_backend.set_physical_pixels_per_logical_pixel(
+                self.gpu
+                    .as_ref()
+                    .map_or(1.0, |g| g.physical_pixels_per_logical_pixel),
+            );
+        }
         window.set_visible(true);
         window.request_redraw();
         eprintln!(
@@ -448,7 +513,12 @@ impl ApplicationHandler for App {
             }
 
             WindowEvent::CursorMoved { position, .. } => {
-                self.input.mouse_pos = Vec2::new(position.x as f32, position.y as f32);
+                let scale = self
+                    .gpu
+                    .as_ref()
+                    .map_or(1.0, |g| g.physical_pixels_per_logical_pixel);
+                self.input.mouse_pos =
+                    Vec2::new(position.x as f32 / scale, position.y as f32 / scale);
             }
 
             WindowEvent::MouseWheel { delta, .. } => {
@@ -458,11 +528,35 @@ impl ApplicationHandler for App {
                         y
                     }
                     winit::event::MouseScrollDelta::PixelDelta(pos) => {
-                        let dy = pos.y as f32 / 20.0;
-                        self.input.scroll_delta = Vec2::new(pos.x as f32 / 20.0, dy);
+                        let scale = self
+                            .gpu
+                            .as_ref()
+                            .map_or(1.0, |g| g.physical_pixels_per_logical_pixel);
+                        let dy = pos.y as f32 / scale / 20.0;
+                        self.input.scroll_delta = Vec2::new(pos.x as f32 / scale / 20.0, dy);
                         dy
                     }
                 };
+            }
+
+            WindowEvent::ScaleFactorChanged { scale_factor, .. } => {
+                let scale = scale_factor as f32;
+
+                if let Some(gpu) = &mut self.gpu {
+                    gpu.set_physical_pixels_per_logical_pixel(scale);
+
+                    if let Some(window) = &self.window {
+                        gpu.resize(window.inner_size());
+                    }
+                }
+
+                if let Some(text_backend) = &mut self.text_backend {
+                    text_backend.set_physical_pixels_per_logical_pixel(scale);
+                }
+
+                if let Some(window) = &self.window {
+                    window.request_redraw();
+                }
             }
 
             WindowEvent::MouseInput { state, button, .. } => {
@@ -807,7 +901,8 @@ impl ApplicationHandler for App {
                                 &view,
                                 &mut encoder,
                                 &draw_cmds,
-                                (gpu.size.width, gpu.size.height),
+                                (gpu.physical_size.width, gpu.physical_size.height),
+                                gpu.physical_pixels_per_logical_pixel,
                                 &mut text_backend,
                             );
                             if is_first {
@@ -898,7 +993,9 @@ impl ApplicationHandler for App {
 // ── wgpu init ─────────────────────────────────────────────────────────────────
 
 async fn init_wgpu(window: Arc<Window>) -> GpuState {
-    let size = window.inner_size();
+    let physical_size = window.inner_size();
+    let physical_pixels_per_logical_pixel = window.scale_factor() as f32;
+    dbg!(physical_pixels_per_logical_pixel);
     let t0 = std::time::Instant::now();
 
     let instance = wgpu::Instance::new(&wgpu::InstanceDescriptor {
@@ -966,8 +1063,8 @@ async fn init_wgpu(window: Arc<Window>) -> GpuState {
     let config = wgpu::SurfaceConfiguration {
         usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
         format: surface_fmt,
-        width: size.width,
-        height: size.height,
+        width: physical_size.width,
+        height: physical_size.height,
         present_mode: vsync_mode,
         alpha_mode: surface_caps.alpha_modes[0],
         view_formats: vec![],
@@ -986,7 +1083,12 @@ async fn init_wgpu(window: Arc<Window>) -> GpuState {
         queue,
         config,
         renderer,
-        size,
+        physical_size,
+        physical_pixels_per_logical_pixel: if physical_pixels_per_logical_pixel.is_finite() {
+            physical_pixels_per_logical_pixel.max(0.01)
+        } else {
+            1.0
+        },
         vsync_mode,
         no_vsync_mode,
     }

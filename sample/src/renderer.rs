@@ -131,15 +131,16 @@ struct DepthTarget {
 
 const PIXEL_EPSILON: f32 = 0.001;
 
-fn is_pixel_aligned(v: f32) -> bool {
-    (v - v.round()).abs() <= PIXEL_EPSILON
+fn is_device_pixel_aligned(logical: f32, scale: f32) -> bool {
+    let physical = logical * scale;
+    (physical - physical.round()).abs() <= PIXEL_EPSILON
 }
 
-fn rect_edges_pixel_aligned(rect: Rect) -> bool {
-    is_pixel_aligned(rect.x)
-        && is_pixel_aligned(rect.y)
-        && is_pixel_aligned(rect.x + rect.w)
-        && is_pixel_aligned(rect.y + rect.h)
+fn rect_edges_device_pixel_aligned(rect: Rect, scale: f32) -> bool {
+    is_device_pixel_aligned(rect.x, scale)
+        && is_device_pixel_aligned(rect.y, scale)
+        && is_device_pixel_aligned(rect.right(), scale)
+        && is_device_pixel_aligned(rect.bottom(), scale)
 }
 
 fn border_rect_strips(
@@ -472,7 +473,8 @@ impl Renderer {
     fn process_commands(
         cmds: &[DrawCmd],
         glyphs: &[DrawGlyph],
-        window_size: (u32, u32),
+        physical_size: (u32, u32),
+        physical_pixels_per_logical_pixel: f32,
         text_backend: &mut crate::text::SampleTextBackend,
         quad_verts: &mut Vec<Vertex>,
         text_instances: &mut Vec<TextGlyphInstance>,
@@ -484,7 +486,7 @@ impl Renderer {
             .iter()
             .map(|cmd| match cmd {
                 DrawCmd::FillRect { rect, .. } => {
-                    if rect_edges_pixel_aligned(*rect) {
+                    if rect_edges_device_pixel_aligned(*rect, physical_pixels_per_logical_pixel) {
                         6
                     } else {
                         0
@@ -499,16 +501,17 @@ impl Renderer {
                     let (r_top, r_bottom, r_left, r_right) =
                         border_rect_strips(*rect, *width, *placement);
                     let mut count = 0;
-                    if rect_edges_pixel_aligned(r_top) {
+                    if rect_edges_device_pixel_aligned(r_top, physical_pixels_per_logical_pixel) {
                         count += 6;
                     }
-                    if rect_edges_pixel_aligned(r_bottom) {
+                    if rect_edges_device_pixel_aligned(r_bottom, physical_pixels_per_logical_pixel)
+                    {
                         count += 6;
                     }
-                    if rect_edges_pixel_aligned(r_left) {
+                    if rect_edges_device_pixel_aligned(r_left, physical_pixels_per_logical_pixel) {
                         count += 6;
                     }
-                    if rect_edges_pixel_aligned(r_right) {
+                    if rect_edges_device_pixel_aligned(r_right, physical_pixels_per_logical_pixel) {
                         count += 6;
                     }
                     count
@@ -574,16 +577,29 @@ impl Renderer {
              current_text_start: &mut u32,
              current_aa_start: &mut u32,
              render_cmds: &mut Vec<RenderCommand>| {
-                if rect_edges_pixel_aligned(rect) {
+                if rect_edges_device_pixel_aligned(rect, physical_pixels_per_logical_pixel) {
                     flush_text(text_instances.len() as u32, current_text_start, render_cmds);
                     flush_aa(aa_shapes.len() as u32, current_aa_start, render_cmds);
-                    push_filled_rect(quad_verts, rect, color, z, window_size);
+                    push_filled_rect(
+                        quad_verts,
+                        rect,
+                        color,
+                        z,
+                        physical_size,
+                        physical_pixels_per_logical_pixel,
+                    );
                 } else {
                     flush_quads(quad_verts.len() as u32, current_quad_start, render_cmds);
                     flush_text(text_instances.len() as u32, current_text_start, render_cmds);
                     aa_shapes.push(ShapeData {
-                        p0: [rect.x, rect.y],
-                        p1: [rect.x + rect.w, rect.y + rect.h],
+                        p0: [
+                            rect.x * physical_pixels_per_logical_pixel,
+                            rect.y * physical_pixels_per_logical_pixel,
+                        ],
+                        p1: [
+                            rect.right() * physical_pixels_per_logical_pixel,
+                            rect.bottom() * physical_pixels_per_logical_pixel,
+                        ],
                         color: color_arr(color),
                         width: 0.0,
                         radius: 0.0,
@@ -651,10 +667,16 @@ impl Renderer {
                         render_cmds,
                     );
                     aa_shapes.push(ShapeData {
-                        p0: [p0.x, p0.y],
-                        p1: [p1.x, p1.y],
+                        p0: [
+                            p0.x * physical_pixels_per_logical_pixel,
+                            p0.y * physical_pixels_per_logical_pixel,
+                        ],
+                        p1: [
+                            p1.x * physical_pixels_per_logical_pixel,
+                            p1.y * physical_pixels_per_logical_pixel,
+                        ],
                         color: color_arr(*color),
-                        width: *width,
+                        width: *width * physical_pixels_per_logical_pixel,
                         radius: 0.0,
                         shape_type: SHAPE_TYPE_LINE,
                         z: *z as f32,
@@ -677,11 +699,14 @@ impl Renderer {
                         render_cmds,
                     );
                     aa_shapes.push(ShapeData {
-                        p0: [center.x, center.y],
+                        p0: [
+                            center.x * physical_pixels_per_logical_pixel,
+                            center.y * physical_pixels_per_logical_pixel,
+                        ],
                         p1: [0.0, 0.0],
                         color: color_arr(*color),
                         width: 0.0,
-                        radius: *radius,
+                        radius: *radius * physical_pixels_per_logical_pixel,
                         shape_type: SHAPE_TYPE_FILL_CIRCLE,
                         z: *z as f32,
                     });
@@ -704,11 +729,14 @@ impl Renderer {
                         render_cmds,
                     );
                     aa_shapes.push(ShapeData {
-                        p0: [center.x, center.y],
+                        p0: [
+                            center.x * physical_pixels_per_logical_pixel,
+                            center.y * physical_pixels_per_logical_pixel,
+                        ],
                         p1: [0.0, 0.0],
                         color: color_arr(*color),
-                        width: *width,
-                        radius: *radius,
+                        width: *width * physical_pixels_per_logical_pixel,
+                        radius: *radius * physical_pixels_per_logical_pixel,
                         shape_type: SHAPE_TYPE_STROKE_CIRCLE,
                         z: *z as f32,
                     });
@@ -731,7 +759,7 @@ impl Renderer {
                             *color,
                             *z,
                             text_backend,
-                            window_size,
+                            physical_pixels_per_logical_pixel,
                         );
                     }
                 }
@@ -771,7 +799,12 @@ impl Renderer {
 
                     clip_stack.pop();
                     let new_clip = clip_stack.last().copied().unwrap_or_else(|| {
-                        Rect::new(0.0, 0.0, window_size.0 as f32, window_size.1 as f32)
+                        Rect::new(
+                            0.0,
+                            0.0,
+                            physical_size.0 as f32 / physical_pixels_per_logical_pixel,
+                            physical_size.1 as f32 / physical_pixels_per_logical_pixel,
+                        )
                     });
                     render_cmds.push(RenderCommand::SetScissor(new_clip));
                 }
@@ -800,7 +833,8 @@ impl Renderer {
         view: &wgpu::TextureView,
         encoder: &mut wgpu::CommandEncoder,
         draw_commands: &DrawCommands,
-        window_size: (u32, u32),
+        physical_size: (u32, u32),
+        physical_pixels_per_logical_pixel: f32,
         text_backend: &mut crate::text::SampleTextBackend,
     ) {
         if text_backend.atlas_dirty {
@@ -829,7 +863,8 @@ impl Renderer {
         Self::process_commands(
             draw_commands.commands(),
             draw_commands.glyphs(),
-            window_size,
+            physical_size,
+            physical_pixels_per_logical_pixel,
             text_backend,
             &mut self.quad_verts,
             &mut self.text_instances,
@@ -864,7 +899,7 @@ impl Renderer {
 
         // Write Globals Uniform
         let globals = Globals {
-            window_size: [window_size.0 as f32, window_size.1 as f32],
+            window_size: [physical_size.0 as f32, physical_size.1 as f32],
             atlas_size: text_backend.atlas_size as f32,
             _pad: 0.0,
         };
@@ -902,7 +937,7 @@ impl Renderer {
                 })
             });
 
-        let depth_view = &self.ensure_depth_target(device, window_size).view;
+        let depth_view = &self.ensure_depth_target(device, physical_size).view;
 
         let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
             label: Some("main_pass"),
@@ -968,20 +1003,11 @@ impl Renderer {
                     pass.draw(0..6, range.clone());
                 }
                 RenderCommand::SetScissor(r) => {
-                    let x = r.x.max(0.0) as u32;
-                    let y = r.y.max(0.0) as u32;
-                    let right = (r.x + r.w).min(window_size.0 as f32);
-                    let bottom = (r.y + r.h).min(window_size.1 as f32);
-                    let w = if right > x as f32 {
-                        (right - x as f32) as u32
-                    } else {
-                        0
-                    };
-                    let h = if bottom > y as f32 {
-                        (bottom - y as f32) as u32
-                    } else {
-                        0
-                    };
+                    let (x, y, w, h) = logical_scissor_to_physical(
+                        *r,
+                        physical_size,
+                        physical_pixels_per_logical_pixel,
+                    );
 
                     if w > 0 && h > 0 {
                         pass.set_scissor_rect(x, y, w, h);
@@ -1097,11 +1123,10 @@ fn depth_stencil_state() -> wgpu::DepthStencilState {
 }
 
 /// Convert a logical-pixel rect to clip-space [-1, 1].
-fn to_clip(x: f32, y: f32, w: u32, h: u32) -> [f32; 2] {
-    [
-        (x / w as f32) * 2.0 - 1.0,
-        1.0 - (y / h as f32) * 2.0, // y-flip: window top → clip top
-    ]
+fn to_clip(x_logical: f32, y_logical: f32, w: u32, h: u32, scale: f32) -> [f32; 2] {
+    let x = x_logical * scale;
+    let y = y_logical * scale;
+    [(x / w as f32) * 2.0 - 1.0, 1.0 - (y / h as f32) * 2.0]
 }
 
 fn color_arr(c: Color) -> [f32; 4] {
@@ -1122,11 +1147,12 @@ fn push_filled_rect(
     color: Color,
     z: u32,
     (sw, sh): (u32, u32),
+    scale: f32,
 ) {
-    let tl = to_clip(rect.x, rect.y, sw, sh);
-    let tr = to_clip(rect.x + rect.w, rect.y, sw, sh);
-    let bl = to_clip(rect.x, rect.y + rect.h, sw, sh);
-    let br = to_clip(rect.x + rect.w, rect.y + rect.h, sw, sh);
+    let tl = to_clip(rect.x, rect.y, sw, sh, scale);
+    let tr = to_clip(rect.right(), rect.y, sw, sh, scale);
+    let bl = to_clip(rect.x, rect.bottom(), sw, sh, scale);
+    let br = to_clip(rect.right(), rect.bottom(), sw, sh, scale);
     let c = color_arr(color);
     let z = z_to_depth(z);
 
@@ -1171,7 +1197,7 @@ fn push_glyph_run(
     color: Color,
     z: u32,
     _text_backend: &crate::text::SampleTextBackend,
-    _window_size: (u32, u32),
+    physical_pixels_per_logical_pixel: f32,
 ) {
     let c = color_arr(color);
     let z = z_to_depth(z);
@@ -1182,8 +1208,8 @@ fn push_glyph_run(
             continue;
         }
 
-        let gx = glyph.top_left.x;
-        let gy = glyph.top_left.y;
+        let gx = glyph.top_left.x * physical_pixels_per_logical_pixel;
+        let gy = glyph.top_left.y * physical_pixels_per_logical_pixel;
         let gw = src_w as f32;
         let gh = src_h as f32;
 
@@ -1196,6 +1222,21 @@ fn push_glyph_run(
             z,
         });
     }
+}
+
+fn logical_scissor_to_physical(
+    rect: Rect,
+    physical_size: (u32, u32),
+    physical_pixels_per_logical_pixel: f32,
+) -> (u32, u32, u32, u32) {
+    let scale = physical_pixels_per_logical_pixel;
+    let x = (rect.x * scale).max(0.0).floor() as u32;
+    let y = (rect.y * scale).max(0.0).floor() as u32;
+    let right = (rect.right() * scale).min(physical_size.0 as f32).ceil();
+    let bottom = (rect.bottom() * scale).min(physical_size.1 as f32).ceil();
+    let w = (right as u32).saturating_sub(x);
+    let h = (bottom as u32).saturating_sub(y);
+    (x, y, w, h)
 }
 
 #[cfg(test)]
@@ -1219,11 +1260,11 @@ mod tests {
             Color::from_srgb_u8(10, 20, 30, 255),
             7,
             &text_backend,
-            (200, 100),
+            2.0,
         );
 
         assert_eq!(instances.len(), 1);
-        assert_eq!(instances[0].dst_pos, [25.0, 11.0]);
+        assert_eq!(instances[0].dst_pos, [50.0, 22.0]);
         assert_eq!(instances[0].dst_size, [11.0, 13.0]);
         assert_eq!(instances[0].src_pos, [3.0, 5.0]);
         assert_eq!(instances[0].src_size, [11.0, 13.0]);
@@ -1252,6 +1293,7 @@ mod tests {
             cmds.commands(),
             cmds.glyphs(),
             (100, 100),
+            1.0,
             &mut text_backend,
             &mut quad_verts,
             &mut text_instances,
@@ -1325,6 +1367,7 @@ mod tests {
             &cmds,
             &[],
             (800, 600),
+            1.0,
             &mut text_backend,
             &mut quad_verts,
             &mut text_instances,

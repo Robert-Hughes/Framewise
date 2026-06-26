@@ -145,6 +145,7 @@ pub fn draw_scroll_demo(
     output: &mut framewise::Output,
     time: f64,
     win_size: (f32, f32),
+    physical_pixels_per_logical_pixel: f32,
     text_backend: &mut SampleTextBackend,
     debug_layout: bool,
 ) -> framewise::DrawCommands {
@@ -156,7 +157,9 @@ pub fn draw_scroll_demo(
     let is_unbounded = win_h.is_infinite();
     let pad = 20.0;
 
-    let mut cmds = framewise::DrawCommands::new();
+    let mut cmds = framewise::DrawCommands::with_physical_pixels_per_logical_pixel(
+        physical_pixels_per_logical_pixel,
+    );
     let space = if is_unbounded {
         framewise::LayoutSpace::unbounded_height(pad, pad, win_w - 2.0 * pad)
     } else {

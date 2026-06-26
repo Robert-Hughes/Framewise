@@ -1,5 +1,6 @@
 use super::raw::MeterSpec;
 use super::*;
+use crate::draw::DrawCmd;
 use crate::focus::FocusSystem;
 use crate::test_utils::TestTextBackend;
 

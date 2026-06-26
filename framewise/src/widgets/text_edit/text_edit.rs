@@ -1,6 +1,6 @@
 use crate::output::CursorIcon;
 use crate::{
-    draw::{BorderPlacement, DrawCmd, DrawCommands},
+    draw::{BorderPlacement, DrawCommands},
     focus::{FocusId, FocusSystem},
     input::{Input, TextEvent},
     layout::{Align, AxisBound, LayoutState, SizeOffer, SizeRequest},
@@ -569,7 +569,7 @@ pub mod raw {
             let tint =
                 |c: Color| Color::linear_rgba(c.r, c.g, c.b, c.a * spec.style.disabled_alpha);
             let tint_stroke = |s: Stroke| Stroke::new(tint(s.color), s.width);
-            cmds.push_border_rect(
+            cmds.push_crisp_border_rect(
                 spec.rect,
                 spec.style.border.map(tint_stroke),
                 BorderPlacement::Inside,
@@ -830,11 +830,7 @@ pub mod raw {
         } else {
             spec.style.background
         };
-        cmds.push(DrawCmd::FillRect {
-            rect: spec.rect,
-            color: bg_color,
-            z: spec.layer.get_z(),
-        });
+        cmds.push_crisp_fill_rect(spec.rect, bg_color, spec.layer.get_z());
 
         // Error: 4px rust left stripe
         if spec.error {
@@ -844,14 +840,13 @@ pub mod raw {
                 spec.style.error_stripe_width,
                 spec.rect.h,
             );
-            cmds.push(DrawCmd::FillRect {
-                rect: stripe,
-                color: spec
-                    .style
+            cmds.push_crisp_fill_rect(
+                stripe,
+                spec.style
                     .error_border
                     .map_or(Color::TRANSPARENT, |s| s.color),
-                z: spec.layer.get_z(),
-            });
+                spec.layer.get_z(),
+            );
         }
 
         // Border
@@ -862,7 +857,7 @@ pub mod raw {
         } else {
             spec.style.border
         };
-        cmds.push_border_rect(
+        cmds.push_crisp_border_rect(
             spec.rect,
             border,
             BorderPlacement::Inside,
@@ -1150,11 +1145,11 @@ pub mod raw {
                                 start_caret.height,
                             );
 
-                            cmds.push(DrawCmd::FillRect {
-                                rect: sel_rect,
-                                color: spec.style.select_color,
-                                z: spec.layer.get_z(),
-                            });
+                            cmds.push_crisp_fill_rect(
+                                sel_rect,
+                                spec.style.select_color,
+                                spec.layer.get_z(),
+                            );
                         }
                     }
                 }
@@ -1214,14 +1209,10 @@ pub mod raw {
                 let caret_rect = Rect::new(
                     draw_text_origin.x + caret.x,
                     draw_text_origin.y + caret.y_top,
-                    spec.style.caret_width,
+                    cmds.snap_length_to_physical_pixels(spec.style.caret_width),
                     caret.height,
                 );
-                cmds.push(DrawCmd::FillRect {
-                    rect: caret_rect,
-                    color: spec.style.caret_color,
-                    z: spec.layer.get_z(),
-                });
+                cmds.push_crisp_fill_rect(caret_rect, spec.style.caret_color, spec.layer.get_z());
             }
         }
 

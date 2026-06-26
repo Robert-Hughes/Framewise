@@ -1,5 +1,6 @@
 use super::raw::SliderSpec;
 use super::*;
+use crate::draw::DrawCmd;
 
 #[test]
 fn test_slider_overlapping_hover() {
@@ -4645,4 +4646,3 @@ fn test_range_slider_overlap_full() {
     assert_eq!(state.active_part, Some(SliderPart::UpperThumb));
     focus_system.end_frame();
 }
-

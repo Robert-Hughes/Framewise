@@ -30,6 +30,32 @@ fn test_divider_visual() {
 }
 
 #[test]
+fn test_divider_visual_uses_stroke_width() {
+    let spec = DividerSpec {
+        layer: Layer::default(),
+        rect: Rect::new(0.0, 0.0, 100.0, 10.0),
+        stroke: Stroke::new(Color::WHITE, 3.0),
+    };
+    let mut cmds = DrawCommands::new();
+    let _res = raw::post_layout_divider(
+        spec,
+        raw::DividerPreLayoutResult {
+            size_request: crate::layout::SizeRequest::UNKNOWN,
+        },
+        &mut cmds,
+    );
+
+    assert_eq!(
+        cmds.commands(),
+        &[DrawCmd::FillRect {
+            rect: Rect::new(0.0, 4.0, 100.0, 3.0),
+            color: Color::WHITE,
+            z: 0,
+        }]
+    );
+}
+
+#[test]
 fn test_builder_defaults_from_theme_fills_unset_color() {
     let theme = crate::theme::Theme::framewise();
     let spec = DividerSpecBuilder::new()

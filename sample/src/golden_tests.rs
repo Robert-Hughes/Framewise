@@ -58,125 +58,90 @@ mod analytical_aa_golden {
         render_test_utils::{assert_matches_png_golden, render_commands_to_rgba},
         text::SampleTextBackend,
     };
-    use framewise::{Color, DrawCmd, DrawCommands, Rect, Vec2};
+    use framewise::{BorderPlacement, Color, DrawCmd, DrawCommands, Rect, Vec2};
 
     #[test]
-    fn test_analytical_aa_rendering() {
+    fn test_rendering() {
         pollster::block_on(async {
-            let width = 400;
-            let height = 400;
+            let scale = 2.0;
+            let logical_width = 330.0;
+            let logical_height = 360.0;
+            let width = (logical_width * scale) as u32;
+            let height = (logical_height * scale) as u32;
             let mut text_backend = SampleTextBackend::new();
             text_backend.begin_frame();
 
-            let mut cmds = DrawCommands::new();
+            let mut cmds = DrawCommands::with_physical_pixels_per_logical_pixel(scale);
 
-            // Background fill
             cmds.push(DrawCmd::FillRect {
-                rect: Rect::new(0.0, 0.0, width as f32, height as f32),
+                rect: Rect::new(0.0, 0.0, logical_width, logical_height),
                 color: Color::from_srgb_u8(240, 240, 240, 255),
                 z: 0,
             });
 
-            // 1. Lines with and without AA
-            // Non-AA lines
-            cmds.push(DrawCmd::StrokeLine {
-                p0: Vec2::new(20.0, 20.0),
-                p1: Vec2::new(180.0, 50.0),
-                color: Color::from_srgb_u8(0, 0, 0, 255),
-                width: 1.0,
-                z: 1,
-            });
-            cmds.push(DrawCmd::StrokeLine {
-                p0: Vec2::new(20.0, 40.0),
-                p1: Vec2::new(180.0, 100.0),
-                color: Color::from_srgb_u8(0, 0, 0, 255),
-                width: 3.0,
-                z: 1,
-            });
+            // Columns exercise renderer alignment classes at 2x:
+            // 0: integer logical coordinates, therefore physical-pixel aligned.
+            // 1: half-logical coordinates, not integer-logical but still physical-pixel aligned.
+            // 2: quarter-logical coordinates, not physical-pixel aligned and should use AA where applicable.
+            let cols = [20.0, 125.5, 231.25];
 
-            // AA lines
-            cmds.push(DrawCmd::StrokeLine {
-                p0: Vec2::new(220.0, 20.0),
-                p1: Vec2::new(380.0, 50.0),
-                color: Color::from_srgb_u8(0, 0, 0, 255),
-                width: 1.0,
-                z: 1,
-            });
-            cmds.push(DrawCmd::StrokeLine {
-                p0: Vec2::new(220.0, 40.0),
-                p1: Vec2::new(380.0, 100.0),
-                color: Color::from_srgb_u8(0, 0, 0, 255),
-                width: 3.0,
-                z: 1,
-            });
+            // Rows exercise each primitive lowered by the renderer:
+            // FillRect, BorderRect, StrokeLine, FillCircle, StrokeCircle.
+            let rows = [20.0, 85.0, 150.0, 215.0, 280.0];
+            let colors = [
+                Color::from_srgb_u8(44, 116, 179, 255),
+                Color::from_srgb_u8(193, 86, 42, 255),
+                Color::from_srgb_u8(69, 147, 81, 255),
+                Color::from_srgb_u8(141, 78, 166, 255),
+                Color::from_srgb_u8(31, 31, 35, 255),
+            ];
 
-            // 2. Circles with and without AA
-            // Non-AA circles (filled and stroked)
-            cmds.push(DrawCmd::FillCircle {
-                center: Vec2::new(60.0, 200.0),
-                radius: 30.0,
-                color: Color::from_srgb_u8(200, 50, 50, 255),
-                z: 1,
-            });
-            cmds.push(DrawCmd::StrokeCircle {
-                center: Vec2::new(140.0, 200.0),
-                radius: 25.0,
-                color: Color::from_srgb_u8(50, 50, 200, 255),
-                width: 4.0,
-                z: 1,
-            });
+            for &x in &cols {
+                cmds.push(DrawCmd::FillRect {
+                    rect: Rect::new(x, rows[0], 54.0, 34.0),
+                    color: colors[0],
+                    z: 1,
+                });
 
-            // AA circles (filled and stroked)
-            cmds.push(DrawCmd::FillCircle {
-                center: Vec2::new(260.0, 200.0),
-                radius: 30.0,
-                color: Color::from_srgb_u8(200, 50, 50, 255),
-                z: 1,
-            });
-            cmds.push(DrawCmd::StrokeCircle {
-                center: Vec2::new(340.0, 200.0),
-                radius: 25.0,
-                color: Color::from_srgb_u8(50, 50, 200, 255),
-                width: 4.0,
-                z: 1,
-            });
+                cmds.push(DrawCmd::BorderRect {
+                    rect: Rect::new(x, rows[1], 54.0, 34.0),
+                    color: colors[1],
+                    width: 3.0,
+                    placement: BorderPlacement::Inside,
+                    z: 1,
+                });
 
-            // 3. Rectangles with and without AA
-            // Non-AA Rects
-            cmds.push(DrawCmd::FillRect {
-                rect: Rect::new(20.5, 280.5, 60.0, 40.0),
-                color: Color::from_srgb_u8(50, 150, 50, 255),
-                z: 1,
-            });
-            cmds.push(DrawCmd::BorderRect {
-                rect: Rect::new(100.5, 280.5, 60.0, 40.0),
-                color: Color::from_srgb_u8(150, 150, 50, 255),
-                width: 3.0,
-                placement: framewise::BorderPlacement::Inside,
-                z: 1,
-            });
+                cmds.push(DrawCmd::StrokeLine {
+                    p0: Vec2::new(x, rows[2] + 4.0),
+                    p1: Vec2::new(x + 54.0, rows[2] + 30.0),
+                    color: colors[2],
+                    width: 3.0,
+                    z: 1,
+                });
 
-            // AA Rects
-            cmds.push(DrawCmd::FillRect {
-                rect: Rect::new(220.5, 280.5, 60.0, 40.0),
-                color: Color::from_srgb_u8(50, 150, 50, 255),
-                z: 1,
-            });
-            cmds.push(DrawCmd::BorderRect {
-                rect: Rect::new(300.5, 280.5, 60.0, 40.0),
-                color: Color::from_srgb_u8(150, 150, 50, 255),
-                width: 3.0,
-                placement: framewise::BorderPlacement::Inside,
-                z: 1,
-            });
+                cmds.push(DrawCmd::FillCircle {
+                    center: Vec2::new(x + 27.0, rows[3] + 17.0),
+                    radius: 17.0,
+                    color: colors[3],
+                    z: 1,
+                });
+
+                cmds.push(DrawCmd::StrokeCircle {
+                    center: Vec2::new(x + 27.0, rows[4] + 17.0),
+                    radius: 15.0,
+                    color: colors[4],
+                    width: 3.0,
+                    z: 1,
+                });
+            }
 
             let Some(actual) = render_commands_to_rgba(width, height, cmds, text_backend).await
             else {
                 panic!("Failed to render commands to RGBA");
             };
 
-            let golden_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-                .join("src/golden_analytical_aa.png");
+            let golden_path =
+                std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src/golden_rendering.png");
             assert_matches_png_golden(&actual, &golden_path, 0);
         });
     }

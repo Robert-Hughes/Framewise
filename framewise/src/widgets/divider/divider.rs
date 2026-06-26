@@ -60,14 +60,15 @@ pub mod raw {
         _pre_layout: DividerPreLayoutResult,
         cmds: &mut DrawCommands,
     ) -> DividerResult {
-        let y = (spec.rect.y + (spec.rect.h - spec.stroke.width) * 0.5).round();
-        cmds.push_h_rule(
-            spec.rect.x,
-            y,
-            spec.rect.w,
-            Some(spec.stroke),
-            spec.layer.get_z(),
-        );
+        if spec.stroke.is_visible() {
+            let y =
+                cmds.snap_to_physical_pixel(spec.rect.y + (spec.rect.h - spec.stroke.width) * 0.5);
+            cmds.push_crisp_fill_rect(
+                Rect::new(spec.rect.x, y, spec.rect.w, spec.stroke.width),
+                spec.stroke.color,
+                spec.layer.get_z(),
+            );
+        }
         DividerResult {}
     }
 }

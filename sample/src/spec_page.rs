@@ -1370,12 +1370,14 @@ pub fn draw_spec_page(
     time: f64,
     win_w: f32,
     win_h: f32,
+    physical_pixels_per_logical_pixel: f32,
     debug_layout: bool,
 ) -> DrawCommands {
     let t = Theme::framewise();
 
     let win_rect = Rect::new(0.0, 0.0, win_w, win_h);
-    let mut cmds = DrawCommands::new();
+    let mut cmds =
+        DrawCommands::with_physical_pixels_per_logical_pixel(physical_pixels_per_logical_pixel);
     let mut b = WidgetContext::root(
         t,
         ts,
