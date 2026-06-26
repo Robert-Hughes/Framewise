@@ -15,7 +15,7 @@ fn make_spec<'a>(items: &'a [&'a str]) -> TabsSpec<'a> {
 }
 
 fn tabs_dummy<'a>(spec: TabsSpec<'a>, active_index: usize) -> (DrawCommands, raw::TabsResult) {
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     let mut text_backend = TestTextBackend::default();
     let result = raw::post_layout_tabs(
         spec,
@@ -133,7 +133,7 @@ fn test_tabs_visual_focused() {
     let items = ["Tab1", "Tab2"];
     let spec = make_spec(&items);
     let style = spec.style;
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     let _res = raw::post_layout_tabs(
         spec,
         raw::TabsPreLayoutResult {
@@ -248,7 +248,7 @@ fn test_tabs_click_takes_focus() {
     let spec = make_spec(&items);
 
     focus_system.begin_frame();
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     raw::post_layout_tabs(
         spec,
         raw::TabsPreLayoutResult {
@@ -291,7 +291,7 @@ fn test_tabs_clipped_click_does_not_take_focus() {
     };
 
     focus_system.begin_frame();
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     raw::post_layout_tabs(
         spec,
         raw::TabsPreLayoutResult {
@@ -326,7 +326,7 @@ fn test_tabs_keyboard_navigation() {
     // Frame 1: Press Arrow Right -> changes active index to 1
     input.key_pressed_right = true;
     focus_system.begin_frame();
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     raw::post_layout_tabs(
         make_spec(&items),
         raw::TabsPreLayoutResult {
@@ -346,7 +346,7 @@ fn test_tabs_keyboard_navigation() {
     // Frame 2: Press Arrow Left -> changes active index back to 0
     input.key_pressed_left = true;
     focus_system.begin_frame();
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     raw::post_layout_tabs(
         make_spec(&items),
         raw::TabsPreLayoutResult {
@@ -388,7 +388,7 @@ fn test_explicit_placement_via_manual_layout() {
     let mut text_backend = TestTextBackend::default();
     let mut focus = FocusSystem::new();
     let input = crate::Input::default();
-    let mut cmds = crate::draw::DrawCommands::new();
+    let mut cmds = crate::draw::DrawCommands::new(1.0);
     let placement = Rect::new(10.0, 20.0, 200.0, 36.0);
     let mut output = crate::Output::default();
     let mut ctx = crate::widget::WidgetContext::root(

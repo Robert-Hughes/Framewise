@@ -26,7 +26,7 @@ fn post_layout_select_for_test<'a, T: crate::text::TextBackend>(
 }
 
 fn select_dummy<'a>(spec: SelectSpec<'a>) -> (SelectResult, DrawCommands) {
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     let mut text_backend = TestTextBackend::default();
     let result = post_layout_select_for_test(
         spec,
@@ -145,7 +145,7 @@ fn test_select_visual_open() {
     };
 
     let mut state = state;
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     post_layout_select_for_test(
         spec,
         &mut state,
@@ -376,7 +376,7 @@ fn test_select_click_takes_focus_and_opens() {
 
     let mut state = state;
     focus_system.begin_frame();
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     post_layout_select_for_test(
         spec,
         &mut state,
@@ -419,7 +419,7 @@ fn test_select_clipped_click_does_not_take_focus() {
 
     let mut state = state;
     focus_system.begin_frame();
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     post_layout_select_for_test(
         spec,
         &mut state,
@@ -451,7 +451,7 @@ fn test_select_keyboard_navigation() {
     // Frame 1: Press Arrow Down while closed -> selected index changes to 1
     input.key_pressed_down = true;
     focus_system.begin_frame();
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     post_layout_select_for_test(
         SelectSpec {
             layer: Layer::default(),
@@ -478,7 +478,7 @@ fn test_select_keyboard_navigation() {
     input.key_down_space = true;
     input.key_pressed_space = true;
     focus_system.begin_frame();
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     post_layout_select_for_test(
         SelectSpec {
             layer: Layer::default(),
@@ -501,7 +501,7 @@ fn test_select_keyboard_navigation() {
     input.key_pressed_space = false;
     input.key_released_space = true;
     focus_system.begin_frame();
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     post_layout_select_for_test(
         SelectSpec {
             layer: Layer::default(),
@@ -527,7 +527,7 @@ fn test_select_keyboard_navigation() {
     // Frame 3: Press Arrow Down while open -> hovers index 2
     input.key_pressed_down = true;
     focus_system.begin_frame();
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     post_layout_select_for_test(
         SelectSpec {
             layer: Layer::default(),
@@ -552,7 +552,7 @@ fn test_select_keyboard_navigation() {
     // Frame 4: Press Enter while open -> selects hovered (index 2) and closes dropdown
     input.key_pressed_enter = true;
     focus_system.begin_frame();
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     post_layout_select_for_test(
         SelectSpec {
             layer: Layer::default(),
@@ -600,7 +600,7 @@ fn test_user_rect_not_overridden() {
     let mut text_backend = TestTextBackend::default();
     let mut focus = FocusSystem::new();
     let input = crate::Input::default();
-    let mut cmds = crate::draw::DrawCommands::new();
+    let mut cmds = crate::draw::DrawCommands::new(1.0);
     let custom_rect = Rect::new(10.0, 20.0, 50.0, 30.0);
     let mut output = crate::Output::default();
     let mut ctx = crate::widget::WidgetContext::root(

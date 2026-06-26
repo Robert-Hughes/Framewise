@@ -174,7 +174,7 @@ fn test_high_level_auto_sized_text_edit_sizes_same_frame_text_input() {
     let mut text_backend = TestTextBackend::default();
     let mut focus_system = FocusSystem::new();
     let mut input = Input::default();
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     let mut state = focused_text_edit_state("a", &mut focus_system);
 
     input.text_events.push(TextEvent::Char('b'));
@@ -230,7 +230,7 @@ fn test_high_level_text_edit_pre_layout_select_all_then_char_replaces_selection(
     let mut text_backend = TestTextBackend::default();
     let mut focus_system = FocusSystem::new();
     let mut input = Input::default();
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     let mut state = focused_text_edit_state("abc", &mut focus_system);
 
     input.text_events.push(TextEvent::SelectAll);
@@ -279,7 +279,7 @@ fn test_high_level_text_edit_unsupported_event_stops_pre_layout_prefix() {
     let mut text_backend = TestTextBackend::default();
     let mut focus_system = FocusSystem::new();
     let mut input = Input::default();
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     let mut state = focused_text_edit_state("ab", &mut focus_system);
 
     input.text_events.push(TextEvent::CaretLeft {
@@ -331,7 +331,7 @@ fn idle_wrapped_text_edit_uses_one_prepared_layout() {
         &Input::default(),
         &mut focus_system,
         &mut text_backend,
-        &mut DrawCommands::new(),
+        &mut DrawCommands::new(1.0),
     );
 
     assert_eq!(
@@ -454,7 +454,7 @@ fn test_typing_and_cursor() {
         &input,
         &mut focus_system,
         &mut text_backend,
-        &mut DrawCommands::new(),
+        &mut DrawCommands::new(1.0),
     );
     assert_eq!(state.value, "abc");
     assert_eq!(caret_byte(&state), 3);
@@ -472,7 +472,7 @@ fn test_typing_and_cursor() {
         &input,
         &mut focus_system,
         &mut text_backend,
-        &mut DrawCommands::new(),
+        &mut DrawCommands::new(1.0),
     );
     assert_eq!(caret_byte(&state), 2);
 
@@ -486,7 +486,7 @@ fn test_typing_and_cursor() {
         &input,
         &mut focus_system,
         &mut text_backend,
-        &mut DrawCommands::new(),
+        &mut DrawCommands::new(1.0),
     );
     assert_eq!(state.value, "abxc");
     assert_eq!(caret_byte(&state), 3);
@@ -512,7 +512,7 @@ fn test_backspace_and_delete() {
         &input,
         &mut focus_system,
         &mut text_backend,
-        &mut DrawCommands::new(),
+        &mut DrawCommands::new(1.0),
     );
     assert_eq!(state.value, "helo");
     assert_eq!(caret_byte(&state), 2);
@@ -526,7 +526,7 @@ fn test_backspace_and_delete() {
         &input,
         &mut focus_system,
         &mut text_backend,
-        &mut DrawCommands::new(),
+        &mut DrawCommands::new(1.0),
     );
     assert_eq!(state.value, "heo");
     assert_eq!(caret_byte(&state), 2);
@@ -552,7 +552,7 @@ fn test_ctrl_backspace_and_delete() {
         &input,
         &mut focus_system,
         &mut text_backend,
-        &mut DrawCommands::new(),
+        &mut DrawCommands::new(1.0),
     );
     assert_eq!(state.value, "hello rld");
     assert_eq!(caret_byte(&state), 6); // end of "hello "
@@ -566,7 +566,7 @@ fn test_ctrl_backspace_and_delete() {
         &input,
         &mut focus_system,
         &mut text_backend,
-        &mut DrawCommands::new(),
+        &mut DrawCommands::new(1.0),
     );
     assert_eq!(state.value, "hello ");
     assert_eq!(caret_byte(&state), 6);
@@ -599,7 +599,7 @@ fn test_selection_and_replacement() {
         &input,
         &mut focus_system,
         &mut text_backend,
-        &mut DrawCommands::new(),
+        &mut DrawCommands::new(1.0),
     );
     assert_eq!(selection_byte(&state), Some(1));
     assert_eq!(caret_byte(&state), 3);
@@ -613,7 +613,7 @@ fn test_selection_and_replacement() {
         &input,
         &mut focus_system,
         &mut text_backend,
-        &mut DrawCommands::new(),
+        &mut DrawCommands::new(1.0),
     );
     assert_eq!(state.value, "halo");
     assert_eq!(caret_byte(&state), 2);
@@ -645,7 +645,7 @@ fn test_text_edit_left_right_skip_same_byte_visual_side() {
         &input,
         &mut focus_system,
         &mut text_backend,
-        &mut DrawCommands::new(),
+        &mut DrawCommands::new(1.0),
     );
     assert_eq!(
         state.caret,
@@ -668,7 +668,7 @@ fn test_text_edit_left_right_skip_same_byte_visual_side() {
         &input,
         &mut focus_system,
         &mut text_backend,
-        &mut DrawCommands::new(),
+        &mut DrawCommands::new(1.0),
     );
     assert_eq!(
         state.caret,
@@ -702,7 +702,7 @@ fn test_mouse_release_preserves_visual_side_at_shared_insertion() {
         &input,
         &mut focus_system,
         &mut text_backend,
-        &mut DrawCommands::new(),
+        &mut DrawCommands::new(1.0),
     );
     focus_system.end_frame();
 
@@ -716,7 +716,7 @@ fn test_mouse_release_preserves_visual_side_at_shared_insertion() {
         &input,
         &mut focus_system,
         &mut text_backend,
-        &mut DrawCommands::new(),
+        &mut DrawCommands::new(1.0),
     );
     focus_system.end_frame();
 
@@ -739,7 +739,7 @@ fn test_mouse_release_preserves_visual_side_at_shared_insertion() {
         &input,
         &mut focus_system,
         &mut text_backend,
-        &mut DrawCommands::new(),
+        &mut DrawCommands::new(1.0),
     );
     focus_system.end_frame();
 
@@ -771,7 +771,7 @@ fn test_empty_mouse_click_keeps_empty_caret() {
         &input,
         &mut focus_system,
         &mut text_backend,
-        &mut DrawCommands::new(),
+        &mut DrawCommands::new(1.0),
     );
     focus_system.end_frame();
 
@@ -785,7 +785,7 @@ fn test_empty_mouse_click_keeps_empty_caret() {
         &input,
         &mut focus_system,
         &mut text_backend,
-        &mut DrawCommands::new(),
+        &mut DrawCommands::new(1.0),
     );
 
     assert_eq!(state.caret, CaretPosition::EmptyText);
@@ -815,7 +815,7 @@ fn test_mouse_clicking_and_dragging() {
         &input,
         &mut focus_system,
         &mut text_backend,
-        &mut DrawCommands::new(),
+        &mut DrawCommands::new(1.0),
     );
     focus_system.end_frame();
 
@@ -830,7 +830,7 @@ fn test_mouse_clicking_and_dragging() {
         &input,
         &mut focus_system,
         &mut text_backend,
-        &mut DrawCommands::new(),
+        &mut DrawCommands::new(1.0),
     );
     focus_system.end_frame();
     assert_eq!(caret_byte(&state), 5);
@@ -848,7 +848,7 @@ fn test_mouse_clicking_and_dragging() {
         &input,
         &mut focus_system,
         &mut text_backend,
-        &mut DrawCommands::new(),
+        &mut DrawCommands::new(1.0),
     );
     focus_system.end_frame();
     assert_eq!(selection_byte(&state), Some(5));
@@ -864,7 +864,7 @@ fn test_mouse_clicking_and_dragging() {
         &input,
         &mut focus_system,
         &mut text_backend,
-        &mut DrawCommands::new(),
+        &mut DrawCommands::new(1.0),
     );
     focus_system.end_frame();
     assert!(!state.is_dragging);
@@ -896,7 +896,7 @@ fn test_double_click_selection_and_drag() {
         &input,
         &mut focus_system,
         &mut text_backend,
-        &mut DrawCommands::new(),
+        &mut DrawCommands::new(1.0),
     );
     focus_system.end_frame();
 
@@ -912,7 +912,7 @@ fn test_double_click_selection_and_drag() {
         &input,
         &mut focus_system,
         &mut text_backend,
-        &mut DrawCommands::new(),
+        &mut DrawCommands::new(1.0),
     );
     focus_system.end_frame();
     // Selection should be "rust" (6 to 10)
@@ -933,7 +933,7 @@ fn test_double_click_selection_and_drag() {
         &input,
         &mut focus_system,
         &mut text_backend,
-        &mut DrawCommands::new(),
+        &mut DrawCommands::new(1.0),
     );
     focus_system.end_frame();
     // Should select "rust world", so from 6 to 16
@@ -951,7 +951,7 @@ fn test_double_click_selection_and_drag() {
         &input,
         &mut focus_system,
         &mut text_backend,
-        &mut DrawCommands::new(),
+        &mut DrawCommands::new(1.0),
     );
     focus_system.end_frame();
     // Should select "hello rust", so from 10 to 0
@@ -979,7 +979,7 @@ fn test_double_click_symmetry() {
             &input,
             &mut focus_system,
             &mut text_backend,
-            &mut DrawCommands::new(),
+            &mut DrawCommands::new(1.0),
         );
         focus_system.end_frame();
 
@@ -995,7 +995,7 @@ fn test_double_click_symmetry() {
             &input,
             &mut focus_system,
             &mut text_backend,
-            &mut DrawCommands::new(),
+            &mut DrawCommands::new(1.0),
         );
         focus_system.end_frame();
 
@@ -1048,7 +1048,7 @@ fn test_double_click_after_line_end() {
             &input,
             &mut focus_system,
             &mut text_backend,
-            &mut DrawCommands::new(),
+            &mut DrawCommands::new(1.0),
         );
         focus_system.end_frame();
 
@@ -1064,7 +1064,7 @@ fn test_double_click_after_line_end() {
             &input,
             &mut focus_system,
             &mut text_backend,
-            &mut DrawCommands::new(),
+            &mut DrawCommands::new(1.0),
         );
         focus_system.end_frame();
 
@@ -1112,7 +1112,7 @@ fn test_triple_click_selects_logical_line() {
         &input,
         &mut focus_system,
         &mut text_backend,
-        &mut DrawCommands::new(),
+        &mut DrawCommands::new(1.0),
     );
     focus_system.end_frame();
 
@@ -1127,7 +1127,7 @@ fn test_triple_click_selects_logical_line() {
         &input,
         &mut focus_system,
         &mut text_backend,
-        &mut DrawCommands::new(),
+        &mut DrawCommands::new(1.0),
     );
     focus_system.end_frame();
 
@@ -1159,7 +1159,7 @@ fn test_triple_click_selection_and_drag() {
         &input,
         &mut focus_system,
         &mut text_backend,
-        &mut DrawCommands::new(),
+        &mut DrawCommands::new(1.0),
     );
     focus_system.end_frame();
 
@@ -1174,7 +1174,7 @@ fn test_triple_click_selection_and_drag() {
         &input,
         &mut focus_system,
         &mut text_backend,
-        &mut DrawCommands::new(),
+        &mut DrawCommands::new(1.0),
     );
     focus_system.end_frame();
 
@@ -1192,7 +1192,7 @@ fn test_triple_click_selection_and_drag() {
         &input,
         &mut focus_system,
         &mut text_backend,
-        &mut DrawCommands::new(),
+        &mut DrawCommands::new(1.0),
     );
     focus_system.end_frame();
 
@@ -1208,7 +1208,7 @@ fn test_triple_click_selection_and_drag() {
         &input,
         &mut focus_system,
         &mut text_backend,
-        &mut DrawCommands::new(),
+        &mut DrawCommands::new(1.0),
     );
     focus_system.end_frame();
 
@@ -1239,7 +1239,7 @@ fn test_triple_click_selects_wrapped_logical_line() {
         &input,
         &mut focus_system,
         &mut text_backend,
-        &mut DrawCommands::new(),
+        &mut DrawCommands::new(1.0),
     );
     focus_system.end_frame();
 
@@ -1254,7 +1254,7 @@ fn test_triple_click_selects_wrapped_logical_line() {
         &input,
         &mut focus_system,
         &mut text_backend,
-        &mut DrawCommands::new(),
+        &mut DrawCommands::new(1.0),
     );
     focus_system.end_frame();
 
@@ -1284,7 +1284,7 @@ fn test_quadruple_click_selects_all() {
         &input,
         &mut focus_system,
         &mut text_backend,
-        &mut DrawCommands::new(),
+        &mut DrawCommands::new(1.0),
     );
     focus_system.end_frame();
 
@@ -1299,7 +1299,7 @@ fn test_quadruple_click_selects_all() {
         &input,
         &mut focus_system,
         &mut text_backend,
-        &mut DrawCommands::new(),
+        &mut DrawCommands::new(1.0),
     );
     focus_system.end_frame();
 
@@ -1320,7 +1320,7 @@ fn test_caret_blink_reset_on_move() {
 
     let mut input = Input::default();
 
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     raw::post_layout_text_edit(
         spec(),
         raw::post_layout_only_pre_layout_result(&mut state),
@@ -1335,7 +1335,7 @@ fn test_caret_blink_reset_on_move() {
     );
     assert!(has_caret, "Caret should be visible initially");
 
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     raw::post_layout_text_edit(
         TextEditSpec {
             time: 0.6,
@@ -1357,7 +1357,7 @@ fn test_caret_blink_reset_on_move() {
         shift: false,
         ctrl: false,
     });
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     raw::post_layout_text_edit(
         TextEditSpec {
             time: 0.6,
@@ -1381,7 +1381,7 @@ fn test_caret_blink_reset_on_move() {
     );
 
     input.text_events.clear();
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     raw::post_layout_text_edit(
         TextEditSpec {
             time: 1.0,
@@ -1399,7 +1399,7 @@ fn test_caret_blink_reset_on_move() {
     );
     assert!(has_caret, "Caret should stay visible for 0.5s after moving");
 
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     raw::post_layout_text_edit(
         TextEditSpec {
             time: 1.2,
@@ -1429,7 +1429,7 @@ fn test_caret_blink_reset_on_focus_even_without_caret_move() {
     focus_system.take_keyboard_focus(state.focus_id);
     focus_system.end_frame();
 
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     raw::post_layout_text_edit(
         TextEditSpec {
             time: 0.6,
@@ -1476,7 +1476,7 @@ fn test_caret_blink_reset_on_mouse_focus_even_without_caret_move() {
         &input,
         &mut focus_system,
         &mut text_backend,
-        &mut DrawCommands::new(),
+        &mut DrawCommands::new(1.0),
     );
     focus_system.end_frame();
 
@@ -1493,13 +1493,13 @@ fn test_caret_blink_reset_on_mouse_focus_even_without_caret_move() {
         &input,
         &mut focus_system,
         &mut text_backend,
-        &mut DrawCommands::new(),
+        &mut DrawCommands::new(1.0),
     );
     focus_system.end_frame();
 
     input.mouse_down = false;
     input.mouse_pressed = false;
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     focus_system.begin_frame();
     raw::post_layout_text_edit(
         TextEditSpec {
@@ -1570,7 +1570,7 @@ fn test_focus_select_all() {
         &input,
         &mut focus_system,
         &mut text_backend,
-        &mut DrawCommands::new(),
+        &mut DrawCommands::new(1.0),
     );
     assert!(state.had_keyboard_focus);
     assert_eq!(selection_byte(&state), Some(0));
@@ -1600,7 +1600,7 @@ fn test_mouse_focus_no_select_all() {
         &input,
         &mut focus_system,
         &mut text_backend,
-        &mut DrawCommands::new(),
+        &mut DrawCommands::new(1.0),
     );
     focus_system.end_frame();
 
@@ -1615,7 +1615,7 @@ fn test_mouse_focus_no_select_all() {
         &input,
         &mut focus_system,
         &mut text_backend,
-        &mut DrawCommands::new(),
+        &mut DrawCommands::new(1.0),
     );
     focus_system.end_frame();
 
@@ -1629,7 +1629,7 @@ fn test_mouse_focus_no_select_all() {
         &input,
         &mut focus_system,
         &mut text_backend,
-        &mut DrawCommands::new(),
+        &mut DrawCommands::new(1.0),
     );
     focus_system.end_frame();
 
@@ -1658,7 +1658,7 @@ fn test_text_edit_click_takes_focus() {
         &input,
         &mut focus_system,
         &mut text_backend,
-        &mut DrawCommands::new(),
+        &mut DrawCommands::new(1.0),
     );
     focus_system.end_frame();
 
@@ -1673,7 +1673,7 @@ fn test_text_edit_click_takes_focus() {
         &input,
         &mut focus_system,
         &mut text_backend,
-        &mut DrawCommands::new(),
+        &mut DrawCommands::new(1.0),
     );
     focus_system.end_frame();
 
@@ -1711,7 +1711,7 @@ fn test_text_edit_clipped_click_does_not_take_focus() {
         &input,
         &mut focus_system,
         &mut text_backend,
-        &mut DrawCommands::new(),
+        &mut DrawCommands::new(1.0),
     );
     focus_system.end_frame();
 
@@ -1744,7 +1744,7 @@ fn test_clipboard_actions() {
         &input,
         &mut focus_system,
         &mut text_backend,
-        &mut DrawCommands::new(),
+        &mut DrawCommands::new(1.0),
     );
     assert!(matches!(&res.clipboard_action, Some(ClipboardAction::Copy(s)) if s == "world"));
     assert_eq!(state.value, "hello world");
@@ -1758,7 +1758,7 @@ fn test_clipboard_actions() {
         &input,
         &mut focus_system,
         &mut text_backend,
-        &mut DrawCommands::new(),
+        &mut DrawCommands::new(1.0),
     );
     assert!(matches!(&res.clipboard_action, Some(ClipboardAction::Cut(s)) if s == "world"));
     assert_eq!(state.value, "hello ");
@@ -1774,7 +1774,7 @@ fn test_clipboard_actions() {
         &input,
         &mut focus_system,
         &mut text_backend,
-        &mut DrawCommands::new(),
+        &mut DrawCommands::new(1.0),
     );
     assert!(res.clipboard_action.is_none());
     assert_eq!(state.value, "hello rust");
@@ -1789,7 +1789,7 @@ fn test_text_edit_visual_normal() {
     let mut focus_system = FocusSystem::new();
     let mut state = TextEditState::new("hello");
     let input = Input::default();
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     raw::post_layout_text_edit(
         spec(),
         raw::post_layout_only_pre_layout_result(&mut state),
@@ -1849,7 +1849,7 @@ fn test_text_edit_visual_hover_background() {
             ..Input::default()
         };
         let mut focus_system = FocusSystem::new_mocked(None, Some(state.focus_id));
-        let mut cmds = DrawCommands::new();
+        let mut cmds = DrawCommands::new(1.0);
 
         raw::post_layout_text_edit(
             spec(),
@@ -1876,7 +1876,7 @@ fn test_text_edit_visual_hover_background() {
             ..Input::default()
         };
         let mut focus_system = FocusSystem::new_mocked(None, Some(state.focus_id));
-        let mut cmds = DrawCommands::new();
+        let mut cmds = DrawCommands::new(1.0);
 
         raw::post_layout_text_edit(
             spec(),
@@ -1900,7 +1900,7 @@ fn test_text_edit_visual_placeholder() {
     let mut text_backend = TestTextBackend::default();
     let mut focus_system = FocusSystem::new();
     let mut state = TextEditState::default();
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
 
     raw::post_layout_text_edit(
         TextEditSpec {
@@ -1925,7 +1925,7 @@ fn test_text_edit_visual_placeholder() {
     focus_system.end_frame();
     focus_system.begin_frame();
     state.had_keyboard_focus = true;
-    let mut focused_cmds = DrawCommands::new();
+    let mut focused_cmds = DrawCommands::new(1.0);
 
     raw::post_layout_text_edit(
         TextEditSpec {
@@ -1958,7 +1958,7 @@ fn test_text_edit_visual_focused_caret() {
     state.had_keyboard_focus = true; // ensure state knows
 
     let input = Input::default();
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     raw::post_layout_text_edit(
         spec(),
         raw::post_layout_only_pre_layout_result(&mut state),
@@ -2026,7 +2026,7 @@ fn test_text_edit_visual_focused_selection() {
     set_caret_byte(&mut state, 5);
 
     let input = Input::default();
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     raw::post_layout_text_edit(
         spec(),
         raw::post_layout_only_pre_layout_result(&mut state),
@@ -2100,7 +2100,7 @@ fn test_text_edit_selection_highlight_respects_horizontal_line_alignment() {
         set_caret_byte(&mut state, 5);
 
         let input = Input::default();
-        let mut cmds = DrawCommands::new();
+        let mut cmds = DrawCommands::new(1.0);
         raw::post_layout_text_edit(
             TextEditSpec {
                 line_align,
@@ -2138,7 +2138,7 @@ fn test_text_edit_center_aligns_non_wrapped_hard_lines_independently() {
     let mut focus_system = FocusSystem::new();
     let mut state = TextEditState::new("abcd\nx");
     let input = Input::default();
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
 
     raw::post_layout_text_edit(
         TextEditSpec {
@@ -2189,7 +2189,7 @@ fn test_text_edit_center_aligned_overflow_typing_draws_caret_with_same_frame_scr
         ..spec()
     };
 
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     raw::post_layout_text_edit(
         edit_spec.clone(),
         raw::post_layout_only_pre_layout_result(&mut state),
@@ -2222,7 +2222,7 @@ fn test_text_edit_visual_error() {
     sp.error = true;
 
     let input = Input::default();
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     raw::post_layout_text_edit(
         sp.clone(),
         raw::post_layout_only_pre_layout_result(&mut state),
@@ -2282,7 +2282,7 @@ fn test_user_rect_not_overridden() {
     let mut text_backend = TestTextBackend::default();
     let mut focus = FocusSystem::new();
     let input = crate::Input::default();
-    let mut cmds = crate::draw::DrawCommands::new();
+    let mut cmds = crate::draw::DrawCommands::new(1.0);
     let custom_rect = Rect::new(10.0, 20.0, 50.0, 30.0);
     let mut output = crate::Output::default();
     let mut ctx = crate::widget::WidgetContext::root(
@@ -2319,7 +2319,7 @@ fn test_text_edit_caret_auto_scrolling() {
     focus_system.take_keyboard_focus(state.focus_id);
 
     let mut input = Input::default();
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
 
     // 1. Caret at start (0): scroll should be 0.0
     set_caret_byte(&mut state, 0);
@@ -2360,7 +2360,7 @@ fn test_text_edit_caret_auto_scrolling() {
         shift: false,
         ctrl: false,
     }];
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     raw::post_layout_text_edit(
         spec(),
         raw::post_layout_only_pre_layout_result(&mut state),
@@ -2408,7 +2408,7 @@ fn test_text_edit_caret_auto_scrolling() {
         ..Input::default()
     };
 
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     raw::post_layout_text_edit(
         spec(),
         raw::post_layout_only_pre_layout_result(&mut state),
@@ -2450,7 +2450,7 @@ fn test_text_edit_caret_auto_scrolling() {
         ..Input::default()
     };
 
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     raw::post_layout_text_edit(
         edit_spec.clone(),
         raw::post_layout_only_pre_layout_result(&mut state),
@@ -2489,7 +2489,7 @@ fn test_text_edit_caret_auto_scrolling() {
         ..Input::default()
     };
 
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     raw::post_layout_text_edit(
         edit_spec.clone(),
         raw::post_layout_only_pre_layout_result(&mut state),
@@ -2542,7 +2542,7 @@ fn test_selection_aware_auto_scrolling() {
     focus_system.take_keyboard_focus(state.focus_id);
 
     let mut input = Input::default();
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
 
     // Warmup frame to establish hover
     input.mouse_pos = Vec2::new(10.0, 15.0);
@@ -2644,7 +2644,7 @@ fn test_text_edit_scroll_coordinate_translation() {
     set_caret_byte(&mut state, 5);
 
     let input = Input::default();
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     raw::post_layout_text_edit(
         spec(),
         raw::post_layout_only_pre_layout_result(&mut state),
@@ -2707,7 +2707,7 @@ fn test_text_edit_click_with_scroll_offset() {
         &input,
         &mut focus_system,
         &mut text_backend,
-        &mut DrawCommands::new(),
+        &mut DrawCommands::new(1.0),
     );
     focus_system.end_frame();
 
@@ -2716,7 +2716,7 @@ fn test_text_edit_click_with_scroll_offset() {
     input.mouse_pressed = true;
     input.mouse_down = true;
 
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     raw::post_layout_text_edit(
         spec(),
         raw::post_layout_only_pre_layout_result(&mut state),
@@ -2754,7 +2754,7 @@ fn test_text_edit_vertical_scroll_coordinate_translation() {
     set_caret_byte(&mut state, 5);
 
     let input = Input::default();
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     raw::post_layout_text_edit(
         edit_spec.clone(),
         raw::post_layout_only_pre_layout_result(&mut state),
@@ -2790,7 +2790,7 @@ fn test_text_edit_vertical_scroll_coordinate_translation() {
     // Since text (64px) is taller than the viewport (28px), we expect top-alignment.
     // Expected text_y = outer_rect.y + padding - offset.y = 1.0 + 4.0 - 0.0 = 5.0
     state.scroll.offset.y = 0.0;
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     raw::post_layout_text_edit(
         edit_spec.clone(),
         raw::post_layout_only_pre_layout_result(&mut state),
@@ -2857,7 +2857,7 @@ fn test_text_edit_vertical_click_with_scroll_offset() {
         &input,
         &mut focus_system,
         &mut text_backend,
-        &mut DrawCommands::new(),
+        &mut DrawCommands::new(1.0),
     );
     focus_system.end_frame();
 
@@ -2866,7 +2866,7 @@ fn test_text_edit_vertical_click_with_scroll_offset() {
     input.mouse_pressed = true;
     input.mouse_down = true;
 
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     raw::post_layout_text_edit(
         edit_spec.clone(),
         raw::post_layout_only_pre_layout_result(&mut state),
@@ -2895,7 +2895,7 @@ fn test_text_edit_vertical_caret_auto_scrolling() {
     focus_system.take_keyboard_focus(state.focus_id);
 
     let mut input = Input::default();
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
 
     let edit_spec = TextEditSpec {
         rect: Rect::new(0.0, 0.0, 200.0, 60.0),
@@ -2977,7 +2977,7 @@ fn test_text_edit_vertical_selection_aware_auto_scrolling() {
         mouse_pos: Vec2::new(5.0, 9.0),
         ..Input::default()
     };
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
 
     let edit_spec = TextEditSpec {
         rect: Rect::new(0.0, 0.0, 200.0, 60.0),
@@ -3067,7 +3067,7 @@ fn test_text_edit_vertical_selection_aware_auto_scrolling() {
 fn test_text_edit_caret_movement_with_selection() {
     let mut text_backend = TestTextBackend::default();
     let mut focus_system = FocusSystem::new();
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
 
     // --- GROUP 1: Horizontal Movement (no Shift) - Collapsing Selection ---
 
@@ -3701,7 +3701,7 @@ fn test_text_edit_caret_movement_with_selection() {
 fn test_newline_policies() {
     let mut text_backend = TestTextBackend::default();
     let mut focus_system = FocusSystem::new();
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
 
     // A. NewlinePolicy::process unit tests
     {
@@ -3989,7 +3989,7 @@ fn test_newline_policies() {
 fn test_caret_up_down_navigation() {
     let mut text_backend = TestTextBackend::default();
     let mut focus_system = FocusSystem::new();
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
 
     // Initial text: three lines, each 5 characters (excluding newline) -> 8px * 5 = 40px wide per line
     // "line1\nline2\nline3"
@@ -4094,7 +4094,7 @@ fn test_caret_up_down_navigation() {
 fn test_page_up_down_moves_by_outer_scroll_height_whole_lines() {
     let mut text_backend = TestTextBackend::default();
     let mut focus_system = FocusSystem::new();
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
 
     let mut edit_spec = TextEditSpec {
         newline_policy: NewlinePolicy::Preserve,
@@ -4181,7 +4181,7 @@ fn test_page_up_down_moves_by_outer_scroll_height_whole_lines() {
 fn test_page_up_down_preserves_caret_x_with_short_target_lines() {
     let mut text_backend = TestTextBackend::default();
     let mut focus_system = FocusSystem::new();
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
 
     let mut edit_spec = TextEditSpec {
         newline_policy: NewlinePolicy::Preserve,
@@ -4242,7 +4242,7 @@ fn test_page_up_down_preserves_caret_x_with_short_target_lines() {
 fn test_shift_page_down_extends_selection() {
     let mut text_backend = TestTextBackend::default();
     let mut focus_system = FocusSystem::new();
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
 
     let mut edit_spec = TextEditSpec {
         newline_policy: NewlinePolicy::Preserve,
@@ -4288,7 +4288,7 @@ fn test_shift_page_down_extends_selection() {
 fn test_text_edit_claims_page_keys_inside_outer_scroll_area() {
     let mut text_backend = TestTextBackend::default();
     let mut focus_system = FocusSystem::new();
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     let mut outer_scroll = crate::widgets::scroll_area::ScrollState::default();
     let mut state = TextEditState::new("line0\nline1\nline2\nline3\nline4\nline5");
     set_caret_byte(&mut state, 2);
@@ -4391,7 +4391,7 @@ fn test_text_edit_claims_page_keys_inside_outer_scroll_area() {
 fn test_home_end_multiline() {
     let mut text_backend = TestTextBackend::default();
     let mut focus_system = FocusSystem::new();
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
 
     let mut state = TextEditState::new("line1\nline2\nline3");
     state.had_keyboard_focus = true;
@@ -4675,7 +4675,7 @@ fn test_text_edit_visual_multiline_selection() {
     set_caret_byte(&mut state, 9); // 'r' in "world"
 
     let input = Input::default();
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     raw::post_layout_text_edit(
         TextEditSpec {
             rect: Rect::new(0.0, 0.0, 200.0, 100.0),
@@ -4764,7 +4764,7 @@ fn test_text_edit_selection_highlights_collapsed_trailing_space_affordance() {
     set_caret_byte(&mut state, 2);
 
     let input = Input::default();
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     raw::post_layout_text_edit(
         TextEditSpec {
             rect: Rect::new(0.0, 0.0, 200.0, 100.0),
@@ -4813,7 +4813,7 @@ fn test_text_edit_visual_multiline_selection_three_lines() {
     set_caret_byte(&mut state, 10); // 'r' in "three"
 
     let input = Input::default();
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     raw::post_layout_text_edit(
         TextEditSpec {
             rect: Rect::new(0.0, 0.0, 200.0, 100.0),
@@ -4951,7 +4951,7 @@ fn test_text_edit_caret_up_down_width_mismatch() {
         &input,
         &mut focus_system,
         &mut text_backend,
-        &mut DrawCommands::new(),
+        &mut DrawCommands::new(1.0),
     );
 
     assert_eq!(
@@ -4970,7 +4970,7 @@ fn test_text_edit_alignment_combinations() {
     // 1. Top-Left (Start, Start)
     {
         let mut state = TextEditState::new("hello");
-        let mut cmds = DrawCommands::new();
+        let mut cmds = DrawCommands::new(1.0);
         let edit_spec = TextEditSpec {
             vertical_align: Align::Start,
             line_align: TextLineAlign::Start,
@@ -5002,7 +5002,7 @@ fn test_text_edit_alignment_combinations() {
     // 2. Center-Center (Center, Center)
     {
         let mut state = TextEditState::new("hello");
-        let mut cmds = DrawCommands::new();
+        let mut cmds = DrawCommands::new(1.0);
         let edit_spec = TextEditSpec {
             vertical_align: Align::Center,
             line_align: TextLineAlign::Center,
@@ -5032,7 +5032,7 @@ fn test_text_edit_alignment_combinations() {
     // 3. Bottom-Right (End, End)
     {
         let mut state = TextEditState::new("hello");
-        let mut cmds = DrawCommands::new();
+        let mut cmds = DrawCommands::new(1.0);
         let edit_spec = TextEditSpec {
             vertical_align: Align::End,
             line_align: TextLineAlign::End,
@@ -5065,7 +5065,7 @@ fn test_text_edit_alignment_combinations() {
     // Since Y is 9.0, clicking at Y = 17.0 (middle of the line) should hit-test correctly.
     {
         let mut state = TextEditState::new("hello");
-        let mut cmds = DrawCommands::new();
+        let mut cmds = DrawCommands::new(1.0);
         let edit_spec = TextEditSpec {
             vertical_align: Align::End,
             line_align: TextLineAlign::Start,
@@ -5388,7 +5388,7 @@ fn test_text_edit_error_vertical_scrollbar_layout_and_hit_test() {
     state.scroll.offset.y = 16.0;
 
     let input = Input::default();
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     raw::post_layout_text_edit(
         edit_spec.clone(),
         raw::post_layout_only_pre_layout_result(&mut state),
@@ -5449,7 +5449,7 @@ fn test_text_edit_error_vertical_scrollbar_layout_and_hit_test() {
         &click_input,
         &mut focus_system,
         &mut text_backend,
-        &mut DrawCommands::new(),
+        &mut DrawCommands::new(1.0),
     );
     focus_system.end_frame();
 
@@ -5464,7 +5464,7 @@ fn test_text_edit_error_vertical_scrollbar_layout_and_hit_test() {
         &click_input,
         &mut focus_system,
         &mut text_backend,
-        &mut DrawCommands::new(),
+        &mut DrawCommands::new(1.0),
     );
     focus_system.end_frame();
 
@@ -5481,7 +5481,7 @@ fn test_text_edit_visual_vertical_scrollbar() {
     let mut focus_system = FocusSystem::new();
     let mut state = TextEditState::new("one\ntwo\nthree\nfour\nfive"); // 5 lines, height 80px
     let input = Input::default();
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     let mut edit_spec = spec();
     edit_spec.rect = Rect::new(0.0, 0.0, 200.0, 40.0); // height 40px -> viewport h = 38px
     edit_spec.newline_policy = NewlinePolicy::Preserve;
@@ -5529,7 +5529,7 @@ fn test_text_edit_visual_horizontal_scrollbar() {
     let mut focus_system = FocusSystem::new();
     let mut state = TextEditState::new("abcdefghijklmnopqrstuvwxyz0123"); // 30 chars = 240px wide
     let input = Input::default();
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     let mut edit_spec = spec();
     edit_spec.rect = Rect::new(0.0, 0.0, 200.0, 40.0); // width 200px -> viewport w = 198px
 
@@ -5626,7 +5626,7 @@ fn test_text_edit_wrapping_home_end() {
         &input,
         &mut focus_system,
         &mut text_backend,
-        &mut DrawCommands::new(),
+        &mut DrawCommands::new(1.0),
     );
     focus_system.end_frame();
 
@@ -5647,7 +5647,7 @@ fn test_text_edit_wrapping_home_end() {
         &input,
         &mut focus_system,
         &mut text_backend,
-        &mut DrawCommands::new(),
+        &mut DrawCommands::new(1.0),
     );
     focus_system.end_frame();
 
@@ -5668,7 +5668,7 @@ fn test_text_edit_wrapping_selection_visual() {
     edit_spec.rect = Rect::new(0.0, 0.0, 100.0, 30.0); // wraps after 10 chars under scrollbar
     edit_spec.wrap = true;
 
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     let input = Input::default();
     raw::post_layout_text_edit(
         edit_spec,
@@ -5767,7 +5767,7 @@ fn test_narrow_text_edit_caret_reset() {
         &input,
         &mut focus_system,
         &mut text_backend,
-        &mut DrawCommands::new(),
+        &mut DrawCommands::new(1.0),
     );
 
     assert_eq!(caret_byte(&state), 1);
@@ -5982,7 +5982,7 @@ fn test_high_level_text_edit_copy() {
     input.text_events.push(TextEvent::Copy);
 
     let mut output = crate::Output::default();
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     let mut ctx = WidgetContext::root(
         Theme::framewise(),
         &mut text_backend,
@@ -6023,7 +6023,7 @@ fn test_high_level_text_edit_cut() {
     input.text_events.push(TextEvent::Cut);
 
     let mut output = crate::Output::default();
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     let mut ctx = WidgetContext::root(
         Theme::framewise(),
         &mut text_backend,
@@ -6057,7 +6057,7 @@ fn test_text_edit_high_level_sets_output_cursor() {
         ..Input::default()
     };
     let mut output = crate::Output::default();
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     let mut ctx = WidgetContext::root(
         Theme::framewise(),
         &mut text_backend,

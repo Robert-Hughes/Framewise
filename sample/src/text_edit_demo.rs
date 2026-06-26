@@ -134,9 +134,7 @@ pub fn draw_text_edit_demo(
     let (win_w, win_h) = win_size;
     let is_unbounded = win_h.is_infinite();
 
-    let mut cmds = framewise::DrawCommands::with_physical_pixels_per_logical_pixel(
-        physical_pixels_per_logical_pixel,
-    );
+    let mut cmds = framewise::DrawCommands::new(physical_pixels_per_logical_pixel);
     let space = if is_unbounded {
         framewise::LayoutSpace::unbounded_height(0.0, 0.0, win_w)
     } else {

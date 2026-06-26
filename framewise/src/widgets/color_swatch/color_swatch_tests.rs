@@ -11,7 +11,7 @@ fn test_color_swatch_visual_normal() {
         color: Color::from_srgb_f32(0.5, 0.5, 0.5, 1.0),
         border: Some(Stroke::new(Color::linear_rgba(0.0, 0.0, 0.0, 0.20), 1.0)),
     };
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     let res = raw::post_layout_color_swatch(
         spec,
         raw::ColorSwatchPreLayoutResult {
@@ -55,7 +55,7 @@ fn test_color_swatch_visual_custom() {
         color: custom_color,
         border: Some(Stroke::new(custom_border, 1.0)),
     };
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     let res = raw::post_layout_color_swatch(
         spec,
         raw::ColorSwatchPreLayoutResult {
@@ -93,7 +93,7 @@ fn test_high_level_explicit_placement_via_manual_layout() {
     let mut text_backend = TestTextBackend::default();
     let mut focus = FocusSystem::new();
     let input = crate::Input::default();
-    let mut cmds = crate::draw::DrawCommands::new();
+    let mut cmds = crate::draw::DrawCommands::new(1.0);
     let placement = Rect::new(10.0, 20.0, 50.0, 30.0);
     let mut output = crate::Output::default();
     let mut ctx = crate::widget::WidgetContext::root(
@@ -120,7 +120,7 @@ fn test_color_swatch_bounds_and_content_bounds() {
     let mut text_backend = TestTextBackend::default();
     let mut focus = FocusSystem::new();
     let input = crate::Input::default();
-    let mut cmds = crate::draw::DrawCommands::new();
+    let mut cmds = crate::draw::DrawCommands::new(1.0);
     let layout_rect = Rect::new(0.0, 0.0, 100.0, 40.0);
     let mut output = crate::Output::default();
     let mut ctx = crate::widget::WidgetContext::root(

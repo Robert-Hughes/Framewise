@@ -5,7 +5,7 @@ use crate::types::Vec2;
 use crate::{DrawGlyph, PreparedGlyphToken};
 
 fn drag_num<'a>(spec: DragNumberSpec<'a>, value: f32) -> (raw::DragNumberResult, DrawCommands) {
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     let mut text_backend = TestTextBackend::default();
     let res = raw::post_layout_drag_number(
         spec,
@@ -132,7 +132,7 @@ fn test_drag_number_visual_active() {
         mouse_down: true,
         ..Default::default()
     };
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     let mut text_backend = TestTextBackend::default();
     let _res = raw::post_layout_drag_number(
         spec,
@@ -236,7 +236,7 @@ fn test_drag_number_visual_min_value() {
     };
 
     let style = spec.style;
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     let _res = raw::post_layout_drag_number(
         spec,
         raw::DragNumberPreLayoutResult {
@@ -334,7 +334,7 @@ fn test_drag_number_click_takes_focus() {
     };
 
     let mut state = state;
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     focus_system.begin_frame();
     raw::post_layout_drag_number(
         spec,
@@ -382,7 +382,7 @@ fn test_drag_number_clipped_click_does_not_take_focus() {
     };
 
     let mut state = state;
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     focus_system.begin_frame();
     raw::post_layout_drag_number(
         spec,
@@ -419,7 +419,7 @@ fn test_drag_number_keyboard_navigation() {
 
     // Frame 1: Press Arrow Right -> value increases by 1.0 (step = 100 * 0.01)
     input.key_pressed_right = true;
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     focus_system.begin_frame();
     raw::post_layout_drag_number(
         DragNumberSpec {
@@ -448,7 +448,7 @@ fn test_drag_number_keyboard_navigation() {
 
     // Frame 2: Press Arrow Left -> value decreases back to 50.0
     input.key_pressed_left = true;
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     focus_system.begin_frame();
     raw::post_layout_drag_number(
         DragNumberSpec {
@@ -500,7 +500,7 @@ fn test_high_level_explicit_placement_via_manual_layout() {
     let mut text_backend = TestTextBackend::default();
     let mut focus = FocusSystem::new();
     let input = crate::Input::default();
-    let mut cmds = crate::draw::DrawCommands::new();
+    let mut cmds = crate::draw::DrawCommands::new(1.0);
     let placement = Rect::new(10.0, 20.0, 50.0, 30.0);
     let mut output = crate::Output::default();
     let mut ctx = crate::widget::WidgetContext::root(

@@ -21,7 +21,7 @@ mod spec_page_golden {
 
             focus_system.begin_frame();
 
-            let mut cmds = DrawCommands::new();
+            let mut cmds = DrawCommands::new(1.0);
             let mut output = framewise::Output::default();
             let mut ctx = WidgetContext::root(
                 Theme::framewise(),
@@ -71,7 +71,7 @@ mod analytical_aa_golden {
             let mut text_backend = SampleTextBackend::new();
             text_backend.begin_frame();
 
-            let mut cmds = DrawCommands::with_physical_pixels_per_logical_pixel(scale);
+            let mut cmds = DrawCommands::new(scale);
 
             cmds.push(DrawCmd::FillRect {
                 rect: Rect::new(0.0, 0.0, logical_width, logical_height),
@@ -170,7 +170,7 @@ mod button_page_golden {
 
             focus_system.begin_frame();
 
-            let mut cmds = DrawCommands::new();
+            let mut cmds = DrawCommands::new(1.0);
             let mut output = framewise::Output::default();
             let mut ctx = WidgetContext::root(
                 Theme::default(),
@@ -233,7 +233,7 @@ mod label_page_golden {
 
             focus_system.begin_frame();
 
-            let mut cmds = DrawCommands::new();
+            let mut cmds = DrawCommands::new(1.0);
             let mut output = framewise::Output::default();
             let mut ctx = WidgetContext::root(
                 Theme::default(),
@@ -297,7 +297,7 @@ mod frame_page_golden {
 
             focus_system.begin_frame();
 
-            let mut cmds = DrawCommands::new();
+            let mut cmds = DrawCommands::new(1.0);
             let mut output = framewise::Output::default();
             let mut ctx = WidgetContext::root(
                 Theme::default(),
@@ -361,7 +361,7 @@ mod layout_page_golden {
 
             focus_system.begin_frame();
 
-            let mut cmds = DrawCommands::new();
+            let mut cmds = DrawCommands::new(1.0);
             let mut output = framewise::Output::default();
             let mut ctx = WidgetContext::root(
                 Theme::default(),
@@ -425,7 +425,7 @@ mod scroll_page_golden {
 
             focus_system.begin_frame();
 
-            let mut cmds = DrawCommands::new();
+            let mut cmds = DrawCommands::new(1.0);
             let mut output = framewise::Output::default();
             let mut ctx = WidgetContext::root(
                 Theme::default(),
@@ -489,7 +489,7 @@ mod text_edit_page_golden {
 
             focus_system.begin_frame();
 
-            let mut cmds = DrawCommands::new();
+            let mut cmds = DrawCommands::new(1.0);
             let mut output = framewise::Output::default();
             let mut ctx = WidgetContext::root(
                 Theme::default(),

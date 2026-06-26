@@ -15,7 +15,7 @@ fn test_meter_visual_normal() {
         peak: None,
         bars: 10,
     };
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     raw::post_layout_meter(
         spec,
         raw::MeterPreLayoutResult {
@@ -47,7 +47,7 @@ fn test_meter_visual_peak() {
         peak: Some(0.8), // 0.8 * 9 ≈ 7.2 → 7
         bars: 10,
     };
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     raw::post_layout_meter(
         spec,
         raw::MeterPreLayoutResult {
@@ -80,7 +80,7 @@ fn test_high_level_explicit_placement_via_manual_layout() {
     let mut text_backend = TestTextBackend::default();
     let mut focus = FocusSystem::new();
     let input = crate::Input::default();
-    let mut cmds = crate::draw::DrawCommands::new();
+    let mut cmds = crate::draw::DrawCommands::new(1.0);
     let placement = Rect::new(10.0, 20.0, 50.0, 30.0);
     let mut output = crate::Output::default();
     let mut ctx = crate::widget::WidgetContext::root(

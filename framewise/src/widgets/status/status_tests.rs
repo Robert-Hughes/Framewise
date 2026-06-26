@@ -14,7 +14,7 @@ fn test_status_visual_ok() {
         layer: Layer::default(),
     };
     let style = spec.style;
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     raw::post_layout_status(
         spec,
         raw::StatusPreLayoutResult {
@@ -81,7 +81,7 @@ fn test_status_visual_warn() {
         layer: Layer::default(),
     };
     let style = spec.style;
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     raw::post_layout_status(
         spec,
         raw::StatusPreLayoutResult {
@@ -166,7 +166,7 @@ fn test_high_level_explicit_placement_via_manual_layout() {
     let mut text_backend = TestTextBackend::default();
     let mut focus = FocusSystem::new();
     let input = crate::Input::default();
-    let mut cmds = crate::draw::DrawCommands::new();
+    let mut cmds = crate::draw::DrawCommands::new(1.0);
     let placement = Rect::new(10.0, 20.0, 50.0, 30.0);
     let mut output = crate::Output::default();
     let mut ctx = crate::widget::WidgetContext::root(

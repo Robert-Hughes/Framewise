@@ -201,9 +201,7 @@ impl App {
         text_backend: &mut SampleTextBackend,
     ) -> framewise::DrawCommands {
         use framewise::{text::layout_text, Color, DrawCmd, FontId, Rect, TextBounds, TextFlow};
-        let mut cmds = framewise::DrawCommands::with_physical_pixels_per_logical_pixel(
-            physical_pixels_per_logical_pixel,
-        );
+        let mut cmds = framewise::DrawCommands::new(physical_pixels_per_logical_pixel);
         cmds.push(DrawCmd::FillRect {
             rect: Rect::new(0.0, 0.0, win_size.0, win_size.1),
             color: Color::from_srgb_u8(28, 28, 32, 255),

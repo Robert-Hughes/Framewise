@@ -13,7 +13,7 @@ fn test_tooltip_visual_dark() {
         layer: Layer::default(),
     };
     let style = spec.style;
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     let res = raw::post_layout_tooltip(
         spec,
         raw::TooltipPreLayoutResult {
@@ -99,7 +99,7 @@ fn test_tooltip_visual_rust() {
         layer: Layer::default(),
     };
     let style = spec.style;
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     let res = raw::post_layout_tooltip(
         spec,
         raw::TooltipPreLayoutResult {
@@ -180,7 +180,7 @@ fn test_high_level_explicit_placement_via_manual_layout() {
     let mut text_backend = TestTextBackend::default();
     let mut focus = FocusSystem::new();
     let input = crate::Input::default();
-    let mut cmds = crate::draw::DrawCommands::new();
+    let mut cmds = crate::draw::DrawCommands::new(1.0);
     let placement = Rect::new(10.0, 20.0, 50.0, 30.0);
     let mut output = crate::Output::default();
     let mut ctx = crate::widget::WidgetContext::root(
@@ -211,7 +211,7 @@ fn test_tooltip_bounds_and_content_bounds() {
     let mut text_backend = TestTextBackend::default();
     let mut focus = FocusSystem::new();
     let input = crate::Input::default();
-    let mut cmds = crate::draw::DrawCommands::new();
+    let mut cmds = crate::draw::DrawCommands::new(1.0);
     let layout_rect = Rect::new(0.0, 0.0, 100.0, 40.0);
     let mut output = crate::Output::default();
     let mut ctx = crate::widget::WidgetContext::root(

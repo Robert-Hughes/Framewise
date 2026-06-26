@@ -17,7 +17,7 @@ pub fn assert_hover_and_press_state<State>(
         mouse_pos: outside_pos,
         ..Default::default()
     };
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
 
     let result = run_frame(state, &input, &mut focus_system, &mut cmds, &mut run);
     assert!(!result.hovered, "Widget should not be hovered");
@@ -72,7 +72,7 @@ pub fn assert_drag_off_and_release_does_not_click_other<StateA, StateB>(
         mouse_clicked: false,
         ..Default::default()
     };
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
 
     // Warmup frame to establish the hover claim on source widget
     let _ = run_two_widget_frame(
@@ -163,7 +163,7 @@ pub fn assert_overlapping_hover<StateA, StateB>(
         mouse_pos: overlap_pos,
         ..Default::default()
     };
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
 
     // Warmup frame to establish the hover claim
     let _ = run_two_widget_frame(
@@ -214,7 +214,7 @@ pub fn assert_overlapping_click<StateA, StateB>(
         mouse_clicked: false,
         ..Default::default()
     };
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
 
     // Warmup frame to establish the hover claim
     let _ = run_two_widget_frame(
@@ -350,7 +350,7 @@ pub fn assert_mouse_click_on_release<State>(
         mouse_clicked: false,
         ..Default::default()
     };
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
 
     // Warmup frame to establish the hover claim
     let _ = run_frame(state, &input, &mut focus_system, &mut cmds, &mut run);
@@ -385,7 +385,7 @@ pub fn assert_mouse_press_takes_focus<State>(
         mouse_pressed: false,
         ..Default::default()
     };
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
 
     // Warmup frame to establish the hover claim
     let _ = run_frame(state, &input, &mut focus_system, &mut cmds, &mut run);
@@ -414,7 +414,7 @@ pub fn assert_clipped_mouse_press_does_not_take_focus<State>(
         mouse_pressed: true,
         ..Default::default()
     };
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
 
     let result = run_frame(state, &input, &mut focus_system, &mut cmds, &mut run);
     assert!(!result.hovered, "Clipped widget should not be hovered");
@@ -434,7 +434,7 @@ pub fn assert_disabled_ignores_press_interaction<State>(
     mut run: impl FnMut(&mut State, &Input, &mut FocusSystem, &mut DrawCommands) -> InputInfo,
 ) {
     let mut focus_system = FocusSystem::new();
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
 
     let mouse_press = Input {
         mouse_pos: inside_pos,
@@ -507,7 +507,7 @@ pub fn assert_spacebar_click<State>(
 ) {
     let mut focus_system = FocusSystem::new();
     let mut input = Input::default();
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
 
     focus_system.take_keyboard_focus(focus_id);
     let _ = run_frame(state, &input, &mut focus_system, &mut cmds, &mut run);
@@ -540,7 +540,7 @@ pub fn assert_spacebar_loses_focus_does_not_click<State>(
 ) {
     let mut focus_system = FocusSystem::new();
     let mut input = Input::default();
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
 
     focus_system.take_keyboard_focus(focus_id);
     let _ = run_frame(state, &input, &mut focus_system, &mut cmds, &mut run);
@@ -594,7 +594,7 @@ fn assert_focus_moves<StateA, StateB>(
     let mut focus_system = FocusSystem::new();
     let mut input = Input::default();
     configure_input(&mut input);
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     focus_system.take_keyboard_focus(initial_focus);
 
     run_focus_frame(
@@ -656,7 +656,7 @@ pub fn assert_labelled_widget_click_toggles<State>(
     mut run: impl FnMut(&mut State, &Input, &mut FocusSystem, &mut DrawCommands),
 ) {
     let mut focus_system = FocusSystem::new();
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
 
     // Frame 1: Warmup to establish hover claim
     let input = Input {

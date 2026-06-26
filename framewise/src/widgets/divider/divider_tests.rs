@@ -10,7 +10,7 @@ fn test_divider_visual() {
         rect: Rect::new(0.0, 0.0, 100.0, 10.0),
         stroke: Stroke::new(Color::WHITE, 1.0),
     };
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     let _res = raw::post_layout_divider(
         spec,
         raw::DividerPreLayoutResult {
@@ -36,7 +36,7 @@ fn test_divider_visual_uses_stroke_width() {
         rect: Rect::new(0.0, 0.0, 100.0, 10.0),
         stroke: Stroke::new(Color::WHITE, 3.0),
     };
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     let _res = raw::post_layout_divider(
         spec,
         raw::DividerPreLayoutResult {
@@ -98,7 +98,7 @@ fn test_high_level_explicit_placement_via_manual_layout() {
     let mut text_backend = TestTextBackend::default();
     let mut focus = FocusSystem::new();
     let input = crate::Input::default();
-    let mut cmds = crate::draw::DrawCommands::new();
+    let mut cmds = crate::draw::DrawCommands::new(1.0);
     let placement = Rect::new(10.0, 20.0, 50.0, 30.0);
     let mut output = crate::Output::default();
     let mut ctx = crate::widget::WidgetContext::root(

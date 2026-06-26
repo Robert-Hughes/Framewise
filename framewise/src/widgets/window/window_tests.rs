@@ -26,7 +26,7 @@ fn test_user_rect_not_overridden() {
     let mut text_backend = TestTextBackend::default();
     let mut focus = FocusSystem::new();
     let input = crate::Input::default();
-    let mut cmds = crate::draw::DrawCommands::new();
+    let mut cmds = crate::draw::DrawCommands::new(1.0);
     let custom_rect = Rect::new(10.0, 20.0, 100.0, 80.0);
     let mut output = crate::Output::default();
     let mut ctx = crate::widget::WidgetContext::root(

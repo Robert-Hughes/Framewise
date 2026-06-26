@@ -99,7 +99,7 @@ fn test_slider_page_up_down_keyboard() {
 
     // Frame 1: register_keyboard claims
     focus_system.begin_frame();
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     raw::post_layout_slider(
         spec.clone(),
         raw::SliderPreLayoutResult {
@@ -196,7 +196,7 @@ fn test_slider_drag() {
     // Warmup frame to establish hover claim
     input.mouse_pos = crate::types::Vec2::new(10.0, 10.0);
     focus_system.begin_frame();
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     raw::post_layout_slider(
         spec.clone(),
         raw::SliderPreLayoutResult {
@@ -214,7 +214,7 @@ fn test_slider_drag() {
     input.mouse_down = true;
 
     focus_system.begin_frame();
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     raw::post_layout_slider(
         spec.clone(),
         raw::SliderPreLayoutResult {
@@ -259,7 +259,7 @@ fn test_slider_track_click_hold() {
     // Warmup frame to establish hover claim
     input.mouse_pos = crate::types::Vec2::new(10.0, 80.0);
     focus_system.begin_frame();
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     raw::post_layout_slider(
         spec.clone(),
         raw::SliderPreLayoutResult {
@@ -278,7 +278,7 @@ fn test_slider_track_click_hold() {
 
     // Frame 1: time=0.0. Should page down by 20.0
     focus_system.begin_frame();
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     raw::post_layout_slider(
         spec.clone(),
         raw::SliderPreLayoutResult {
@@ -385,7 +385,7 @@ fn test_slider_arrow_keys() {
 
     // Up decrements
     input.key_pressed_up = true;
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     raw::post_layout_slider(
         spec.clone(),
         raw::SliderPreLayoutResult {
@@ -525,7 +525,7 @@ fn test_slider_tab_moves_focus_not_arrows() {
         key_pressed_tab: true,
         ..Default::default()
     };
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     raw::post_layout_slider(
         spec.clone(),
         raw::SliderPreLayoutResult {
@@ -594,7 +594,7 @@ fn test_slider_click_takes_focus() {
 
     // Warmup frame to establish hover claim
     focus_system.begin_frame();
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     raw::post_layout_slider(
         spec.clone(),
         raw::SliderPreLayoutResult {
@@ -610,7 +610,7 @@ fn test_slider_click_takes_focus() {
     // Evaluation frame with mouse pressed
     input.mouse_pressed = true;
     focus_system.begin_frame();
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     raw::post_layout_slider(
         spec.clone(),
         raw::SliderPreLayoutResult {
@@ -647,7 +647,7 @@ fn test_slider_clipped_click_does_not_take_focus() {
     input.mouse_pressed = true;
 
     focus_system.begin_frame();
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     raw::post_layout_slider(
         spec,
         raw::SliderPreLayoutResult {
@@ -683,7 +683,7 @@ fn test_slider_mouse_wheel() {
 
     // Frame 1: Register hover
     focus_system.begin_frame();
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     raw::post_layout_slider(
         spec.clone(),
         raw::SliderPreLayoutResult {
@@ -743,7 +743,7 @@ fn test_slider_wheel_over_overhanging_thumb() {
 
     // Frame 1: Register hover
     focus_system.begin_frame();
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     raw::post_layout_slider(
         spec.clone(),
         raw::SliderPreLayoutResult {
@@ -837,7 +837,7 @@ fn test_track_click_snaps_and_drags() {
     // Warmup frame to establish hover claim
     input.mouse_pos = crate::types::Vec2::new(10.0, 50.0);
     focus_system.begin_frame();
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     raw::post_layout_slider(
         spec.clone(),
         raw::SliderPreLayoutResult {
@@ -854,7 +854,7 @@ fn test_track_click_snaps_and_drags() {
     input.mouse_pressed = true;
     input.mouse_down = true;
     focus_system.begin_frame();
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     raw::post_layout_slider(
         spec.clone(),
         raw::SliderPreLayoutResult {
@@ -951,7 +951,7 @@ fn test_track_click_cross_axis_drag_captures_pointer_outside_widget() {
 
     // Warmup frame to establish hover claim.
     focus_system.begin_frame();
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     raw::post_layout_slider(
         spec.clone(),
         raw::SliderPreLayoutResult {
@@ -970,7 +970,7 @@ fn test_track_click_cross_axis_drag_captures_pointer_outside_widget() {
     input.mouse_down = true;
 
     focus_system.begin_frame();
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     raw::post_layout_slider(
         spec.clone(),
         raw::SliderPreLayoutResult {
@@ -1141,7 +1141,7 @@ fn test_track_click_repeat_does_not_overshoot_cursor() {
     // Warmup frame to establish hover claim
     input.mouse_pos = crate::types::Vec2::new(10.0, 70.0);
     focus_system.begin_frame();
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     raw::post_layout_slider(
         spec.clone(),
         raw::SliderPreLayoutResult {
@@ -1158,7 +1158,7 @@ fn test_track_click_repeat_does_not_overshoot_cursor() {
     input.mouse_pressed = true;
     input.mouse_down = true;
     focus_system.begin_frame();
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     raw::post_layout_slider(
         spec.clone(),
         raw::SliderPreLayoutResult {
@@ -1333,7 +1333,7 @@ fn test_spec(min: f32, max: f32, claim_at_ends: bool) -> SliderSpec {
 
 fn run_slider_once(spec: SliderSpec, state: &mut SliderState) {
     let mut focus_system = FocusSystem::new();
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     raw::post_layout_slider(
         spec,
         raw::SliderPreLayoutResult {
@@ -1476,7 +1476,7 @@ fn test_segment_only_slider_drag_moves_fixed_span() {
         ..Default::default()
     };
     let mut focus_system = FocusSystem::new();
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     raw::post_layout_slider(
         SliderSpec {
             orientation: Orientation::Horizontal,
@@ -1516,7 +1516,7 @@ fn test_standalone_slider_wheel_at_min_blocks_propagation() {
     // Frame 1: slider registers first (inner), parent second (outer)
     focus_system.begin_frame();
     // Standalone slider registers first (inner)
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     raw::post_layout_slider(
         test_spec(0.0, 100.0, true),
         raw::SliderPreLayoutResult {
@@ -1557,7 +1557,7 @@ fn test_standalone_slider_wheel_at_max_blocks_propagation() {
     };
 
     focus_system.begin_frame();
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     raw::post_layout_slider(
         test_spec(0.0, 100.0, true),
         raw::SliderPreLayoutResult {
@@ -1599,7 +1599,7 @@ fn test_vertical_standalone_slider_blocks_horizontal_scroll() {
     };
 
     focus_system.begin_frame();
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     raw::post_layout_slider(
         test_spec(0.0, 100.0, true),
         raw::SliderPreLayoutResult {
@@ -1643,7 +1643,7 @@ fn test_propagating_slider_at_min_yields_scroll_up_to_parent() {
     // Frame 1: inner propagating slider first, then parent claims simulating parent's end()
     focus_system.begin_frame();
     // Inner propagating slider at min: skips claim_scroll_up
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     raw::post_layout_slider(
         test_spec(0.0, 100.0, false),
         raw::SliderPreLayoutResult {
@@ -1683,7 +1683,7 @@ fn test_propagating_slider_at_max_yields_scroll_down_to_parent() {
     };
 
     focus_system.begin_frame();
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     raw::post_layout_slider(
         test_spec(0.0, 100.0, false),
         raw::SliderPreLayoutResult {
@@ -1724,7 +1724,7 @@ fn test_propagating_slider_mid_range_wins_both_directions() {
     };
 
     focus_system.begin_frame();
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     raw::post_layout_slider(
         test_spec(0.0, 100.0, false),
         raw::SliderPreLayoutResult {
@@ -1776,7 +1776,7 @@ fn test_disabled_slider_ignores_all_input() {
     };
     let spec = disabled_spec(false);
     let mut focus_system = FocusSystem::new();
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
 
     // Press on the thumb (thumb is centered around value=50).
     let input = Input {
@@ -1834,7 +1834,7 @@ fn test_disabled_slider_does_not_block_parent_scroll() {
     };
 
     focus_system.begin_frame();
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     raw::post_layout_slider(
         disabled_spec(true),
         raw::SliderPreLayoutResult {
@@ -1869,7 +1869,7 @@ fn test_disabled_slider_draws_tinted() {
     };
     let spec = disabled_spec(true); // scrollbar mode: track fill + thumb fill
     let mut focus_system = FocusSystem::new();
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
 
     focus_system.begin_frame();
     raw::post_layout_slider(
@@ -1922,7 +1922,7 @@ fn test_slider_visual_normal() {
 
     let input = Input::new();
     focus_system.begin_frame();
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     let _result = raw::post_layout_slider(
         spec.clone(),
         raw::SliderPreLayoutResult {
@@ -1981,7 +1981,7 @@ fn test_slider_visual_hovered() {
 
     // Warmup frame to establish hover claim
     focus_system.begin_frame();
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     raw::post_layout_slider(
         spec.clone(),
         raw::SliderPreLayoutResult {
@@ -1996,7 +1996,7 @@ fn test_slider_visual_hovered() {
 
     // Second frame: hover is active, should resolve to theme.hover
     focus_system.begin_frame();
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     let _result = raw::post_layout_slider(
         spec.clone(),
         raw::SliderPreLayoutResult {
@@ -2054,7 +2054,7 @@ fn test_slider_visual_drag() {
         ..Default::default()
     };
     focus_system.begin_frame();
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     let _result = raw::post_layout_slider(
         spec.clone(),
         raw::SliderPreLayoutResult {
@@ -2110,7 +2110,7 @@ fn test_slider_visual_focused() {
 
     let input = Input::new();
     focus_system.begin_frame();
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     let _result = raw::post_layout_slider(
         spec.clone(),
         raw::SliderPreLayoutResult {
@@ -2186,7 +2186,7 @@ fn test_high_level_explicit_placement_via_manual_layout() {
     let mut text_backend = TestTextBackend::default();
     let mut focus = FocusSystem::new();
     let input = crate::Input::default();
-    let mut cmds = crate::draw::DrawCommands::new();
+    let mut cmds = crate::draw::DrawCommands::new(1.0);
     let placement = Rect::new(10.0, 20.0, 50.0, 30.0);
     let mut output = crate::Output::default();
     let mut ctx = crate::widget::WidgetContext::root(
@@ -2241,7 +2241,7 @@ fn test_track_click_overshoot_first_page_no_jump_back() {
     // Warmup frame
     input.mouse_pos = crate::types::Vec2::new(10.0, 25.0);
     focus_system.begin_frame();
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     raw::post_layout_slider(
         spec.clone(),
         raw::SliderPreLayoutResult {
@@ -2258,7 +2258,7 @@ fn test_track_click_overshoot_first_page_no_jump_back() {
     input.mouse_pressed = true;
     input.mouse_down = true;
     focus_system.begin_frame();
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     raw::post_layout_slider(
         spec.clone(),
         raw::SliderPreLayoutResult {
@@ -2323,7 +2323,7 @@ fn test_non_keyboard_focusable_slider() {
     spec.keyboard_focusable = false;
 
     let mut focus_system = FocusSystem::new();
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     let mut input = Input::new();
 
     // 1. Hovering & Scroll Wheel Claim
@@ -2414,7 +2414,7 @@ fn test_segment_only_slider_visual_normal() {
 
     let input = Input::new();
     focus_system.begin_frame();
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     raw::post_layout_slider(
         spec,
         raw::SliderPreLayoutResult {
@@ -2491,7 +2491,7 @@ fn test_segment_only_slider_visual_hover() {
 
     // Warmup frame
     focus_system.begin_frame();
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     raw::post_layout_slider(
         spec.clone(),
         raw::SliderPreLayoutResult {
@@ -2506,7 +2506,7 @@ fn test_segment_only_slider_visual_hover() {
 
     // Second frame
     focus_system.begin_frame();
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     raw::post_layout_slider(
         spec,
         raw::SliderPreLayoutResult {
@@ -2583,7 +2583,7 @@ fn test_segment_only_slider_visual_drag() {
     };
 
     focus_system.begin_frame();
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     raw::post_layout_slider(
         spec,
         raw::SliderPreLayoutResult {
@@ -2657,7 +2657,7 @@ fn test_segment_only_slider_visual_focused() {
 
     let input = Input::new();
     focus_system.begin_frame();
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     raw::post_layout_slider(
         spec,
         raw::SliderPreLayoutResult {
@@ -2713,7 +2713,7 @@ fn test_slider_track_line_invisible_stroke() {
     spec.style.after_stroke = None;
 
     let mut focus_system = FocusSystem::new();
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
 
     focus_system.begin_frame();
     raw::post_layout_slider(
@@ -2754,7 +2754,7 @@ fn test_overhanging_thumb_hover_and_click() {
         ..Default::default()
     };
     let mut focus_system = FocusSystem::new();
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
 
     // Frame 1: Warmup frame
     focus_system.begin_frame();
@@ -2844,7 +2844,7 @@ fn test_lower_drag_respects_min_gap() {
     };
 
     let mut focus_system = FocusSystem::new();
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     raw::post_layout_slider(
         spec,
         raw::SliderPreLayoutResult {
@@ -2891,7 +2891,7 @@ fn test_upper_drag_respects_min_gap() {
     };
 
     let mut focus_system = FocusSystem::new();
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     raw::post_layout_slider(
         spec,
         raw::SliderPreLayoutResult {
@@ -2937,7 +2937,7 @@ fn test_away_drags_respect_max_gap() {
             ..Default::default()
         };
         let mut focus_system = FocusSystem::new();
-        let mut cmds = DrawCommands::new();
+        let mut cmds = DrawCommands::new(1.0);
         raw::post_layout_slider(
             spec.clone(),
             raw::SliderPreLayoutResult {
@@ -2975,7 +2975,7 @@ fn test_away_drags_respect_max_gap() {
             ..Default::default()
         };
         let mut focus_system = FocusSystem::new();
-        let mut cmds = DrawCommands::new();
+        let mut cmds = DrawCommands::new(1.0);
         raw::post_layout_slider(
             spec,
             raw::SliderPreLayoutResult {
@@ -3024,7 +3024,7 @@ fn test_range_slider_visual_normal() {
     let input = Input::new();
     let mut focus_system = FocusSystem::new();
     focus_system.begin_frame();
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     raw::post_layout_slider(
         spec,
         raw::SliderPreLayoutResult {
@@ -3127,7 +3127,7 @@ fn test_range_slider_visual_hover_lower_thumb() {
 
     // Warmup frame
     focus_system.begin_frame();
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     raw::post_layout_slider(
         spec.clone(),
         raw::SliderPreLayoutResult {
@@ -3142,7 +3142,7 @@ fn test_range_slider_visual_hover_lower_thumb() {
 
     // Second frame
     focus_system.begin_frame();
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     raw::post_layout_slider(
         spec,
         raw::SliderPreLayoutResult {
@@ -3239,7 +3239,7 @@ fn test_range_slider_visual_hover_upper_thumb() {
 
     // Warmup frame
     focus_system.begin_frame();
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     raw::post_layout_slider(
         spec.clone(),
         raw::SliderPreLayoutResult {
@@ -3254,7 +3254,7 @@ fn test_range_slider_visual_hover_upper_thumb() {
 
     // Second frame
     focus_system.begin_frame();
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     raw::post_layout_slider(
         spec,
         raw::SliderPreLayoutResult {
@@ -3351,7 +3351,7 @@ fn test_range_slider_visual_hover_segment() {
 
     // Warmup frame
     focus_system.begin_frame();
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     raw::post_layout_slider(
         spec.clone(),
         raw::SliderPreLayoutResult {
@@ -3366,7 +3366,7 @@ fn test_range_slider_visual_hover_segment() {
 
     // Second frame
     focus_system.begin_frame();
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     raw::post_layout_slider(
         spec,
         raw::SliderPreLayoutResult {
@@ -3462,7 +3462,7 @@ fn test_range_slider_visual_drag_lower_thumb() {
     };
     let mut focus_system = FocusSystem::new();
     focus_system.begin_frame();
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     raw::post_layout_slider(
         spec,
         raw::SliderPreLayoutResult {
@@ -3558,7 +3558,7 @@ fn test_range_slider_visual_drag_upper_thumb() {
     };
     let mut focus_system = FocusSystem::new();
     focus_system.begin_frame();
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     raw::post_layout_slider(
         spec,
         raw::SliderPreLayoutResult {
@@ -3654,7 +3654,7 @@ fn test_range_slider_visual_drag_segment() {
     };
     let mut focus_system = FocusSystem::new();
     focus_system.begin_frame();
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     raw::post_layout_slider(
         spec,
         raw::SliderPreLayoutResult {
@@ -3748,7 +3748,7 @@ fn test_range_slider_visual_focused() {
 
     let input = Input::new();
     focus_system.begin_frame();
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     raw::post_layout_slider(
         spec,
         raw::SliderPreLayoutResult {
@@ -3846,7 +3846,7 @@ fn test_range_slider_segment_drag() {
             ..Default::default()
         };
         let mut focus_system = FocusSystem::new();
-        let mut cmds = DrawCommands::new();
+        let mut cmds = DrawCommands::new(1.0);
 
         // Put mouse inside lower thumb rect (lower thumb center x = 23.6, thumb is 12px wide, so x: 17.6..29.6)
         // Click at x = 25.0 (which overlaps with segment [23.6..58.8])
@@ -3899,7 +3899,7 @@ fn test_range_slider_segment_drag() {
             ..Default::default()
         };
         let mut focus_system = FocusSystem::new();
-        let mut cmds = DrawCommands::new();
+        let mut cmds = DrawCommands::new(1.0);
 
         // Put mouse inside upper thumb rect (upper thumb center x = 58.8, thumb is 12px wide, so x: 52.8..64.8)
         // Click at x = 55.0 (which overlaps with segment [23.6..58.8])
@@ -3952,7 +3952,7 @@ fn test_range_slider_segment_drag() {
             ..Default::default()
         };
         let mut focus_system = FocusSystem::new();
-        let mut cmds = DrawCommands::new();
+        let mut cmds = DrawCommands::new(1.0);
 
         // Put mouse clearly inside segment but away from either thumb, e.g. at x = 40.0
         let input_hover = Input {
@@ -4052,7 +4052,7 @@ fn test_range_slider_track_click_pages_whole_range() {
     };
 
     let mut focus_system = FocusSystem::new();
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
 
     // Click at x=80.0, which is after the range (20..40 maps to coords 23.6..41.2)
     let input_hover = Input {
@@ -4126,7 +4126,7 @@ fn test_segment_only_slider_track_click_pages_segment() {
     };
 
     let mut focus_system = FocusSystem::new();
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
 
     // Click at x=80.0, which is after the segment (20..40 maps to coords 20.0..40.0)
     let input_hover = Input {
@@ -4206,7 +4206,7 @@ fn test_range_slider_keyboard_preserves_span() {
 
     // Frame 1: register keyboard focus
     focus_system.begin_frame();
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     raw::post_layout_slider(
         spec.clone(),
         raw::SliderPreLayoutResult {
@@ -4371,7 +4371,7 @@ fn test_range_slider_overlap_partial() {
     };
     let spec = test_range_spec_horizontal(0.0, 1.0);
     let mut focus_system = FocusSystem::new();
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     let input = Input::new();
 
     raw::post_layout_slider(
@@ -4515,7 +4515,7 @@ fn test_range_slider_overlap_full() {
     };
     let spec = test_range_spec_horizontal(0.0, 1.0);
     let mut focus_system = FocusSystem::new();
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     let input = Input::new();
 
     raw::post_layout_slider(

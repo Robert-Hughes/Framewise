@@ -7,7 +7,7 @@ fn segmented_dummy<'a>(
     spec: SegmentedSpec<'a>,
     active_index: usize,
 ) -> (raw::SegmentedResult, DrawCommands) {
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     let mut text_backend = TestTextBackend::default();
     let res = raw::post_layout_segmented(
         spec,
@@ -117,7 +117,7 @@ fn test_segmented_visual_focused() {
         clip_rect: None,
     };
     let style = spec.style;
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     let _res = raw::post_layout_segmented(
         spec,
         raw::SegmentedPreLayoutResult {
@@ -216,7 +216,7 @@ fn test_segmented_click_takes_focus() {
         clip_rect: None,
     };
 
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     focus_system.begin_frame();
     raw::post_layout_segmented(
         spec,
@@ -259,7 +259,7 @@ fn test_segmented_clipped_click_does_not_take_focus() {
         clip_rect: Some(Rect::new(500.0, 500.0, 200.0, 28.0)),
     };
 
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     focus_system.begin_frame();
     raw::post_layout_segmented(
         spec,
@@ -294,7 +294,7 @@ fn test_segmented_keyboard_navigation() {
 
     // Frame 1: Press Arrow Right -> changes active index to 1
     input.key_pressed_right = true;
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     focus_system.begin_frame();
     raw::post_layout_segmented(
         SegmentedSpec {
@@ -321,7 +321,7 @@ fn test_segmented_keyboard_navigation() {
 
     // Frame 2: Press Arrow Left -> changes active index back to 0
     input.key_pressed_left = true;
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     focus_system.begin_frame();
     raw::post_layout_segmented(
         SegmentedSpec {
@@ -371,7 +371,7 @@ fn test_high_level_explicit_placement_via_manual_layout() {
     let mut text_backend = TestTextBackend::default();
     let mut focus = FocusSystem::new();
     let input = crate::Input::default();
-    let mut cmds = crate::draw::DrawCommands::new();
+    let mut cmds = crate::draw::DrawCommands::new(1.0);
     let placement = Rect::new(10.0, 20.0, 50.0, 30.0);
     let mut output = crate::Output::default();
     let mut ctx = crate::widget::WidgetContext::root(

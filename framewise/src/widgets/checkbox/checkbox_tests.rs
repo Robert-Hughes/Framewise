@@ -199,7 +199,7 @@ fn test_checkbox_shift_tab_moves_focus_prev() {
 fn test_checkbox_visual_off() {
     let spec = checkbox_spec(Rect::new(10.0, 10.0, 14.0, 14.0));
     let s = spec.style;
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     raw::post_layout_checkbox(
         spec,
         raw::CheckboxPreLayoutResult {
@@ -233,7 +233,7 @@ fn test_checkbox_visual_off() {
 fn test_checkbox_visual_vertically_centered() {
     let spec = checkbox_spec(Rect::new(10.0, 10.0, 14.0, 20.0));
     let s = spec.style;
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     raw::post_layout_checkbox(
         spec,
         raw::CheckboxPreLayoutResult {
@@ -279,7 +279,7 @@ fn test_checkbox_visual_hovered() {
 
     // Warmup frame to establish hover claim
     focus_system.begin_frame();
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     raw::post_layout_checkbox(
         checkbox_spec(Rect::new(10.0, 10.0, 14.0, 14.0)),
         raw::CheckboxPreLayoutResult {
@@ -294,7 +294,7 @@ fn test_checkbox_visual_hovered() {
 
     // Evaluation frame
     focus_system.begin_frame();
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     raw::post_layout_checkbox(
         checkbox_spec(Rect::new(10.0, 10.0, 14.0, 14.0)),
         raw::CheckboxPreLayoutResult {
@@ -340,7 +340,7 @@ fn test_checkbox_visual_pressed() {
 
     // Warmup frame with mouse inside but not pressed
     focus_system.begin_frame();
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     raw::post_layout_checkbox(
         checkbox_spec(Rect::new(10.0, 10.0, 14.0, 14.0)),
         raw::CheckboxPreLayoutResult {
@@ -357,7 +357,7 @@ fn test_checkbox_visual_pressed() {
     input.mouse_down = true;
     input.mouse_pressed = true;
     focus_system.begin_frame();
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     raw::post_layout_checkbox(
         checkbox_spec(Rect::new(10.0, 10.0, 14.0, 14.0)),
         raw::CheckboxPreLayoutResult {
@@ -397,7 +397,7 @@ fn test_checkbox_visual_on() {
     let p0 = Vec2::new(r.x + 2.5, r.y + 7.0);
     let p1 = Vec2::new(r.x + 5.5, r.y + 10.5);
     let p2 = Vec2::new(r.x + 11.5, r.y + 4.0);
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     raw::post_layout_checkbox(
         spec,
         raw::CheckboxPreLayoutResult {
@@ -464,7 +464,7 @@ fn test_checkbox_visual_on_hovered() {
 
     // Warmup frame to establish hover claim
     focus_system.begin_frame();
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     raw::post_layout_checkbox(
         checkbox_spec(Rect::new(10.0, 10.0, 14.0, 14.0)),
         raw::CheckboxPreLayoutResult {
@@ -479,7 +479,7 @@ fn test_checkbox_visual_on_hovered() {
 
     // Evaluation frame
     focus_system.begin_frame();
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     raw::post_layout_checkbox(
         checkbox_spec(Rect::new(10.0, 10.0, 14.0, 14.0)),
         raw::CheckboxPreLayoutResult {
@@ -530,7 +530,7 @@ fn test_checkbox_visual_indeterminate() {
     let spec = tri_state_checkbox_spec(Rect::new(10.0, 10.0, 14.0, 14.0));
     let s = spec.style;
     let r = Rect::new(10.0, 10.0, 14.0, 14.0);
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     raw::post_layout_checkbox(
         spec,
         raw::CheckboxPreLayoutResult {
@@ -585,7 +585,7 @@ fn test_checkbox_visual_indeterminate_pressed() {
 
     // Warmup frame with mouse inside but not pressed
     focus_system.begin_frame();
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     raw::post_layout_checkbox(
         tri_state_checkbox_spec(Rect::new(10.0, 10.0, 14.0, 14.0)),
         raw::CheckboxPreLayoutResult {
@@ -602,7 +602,7 @@ fn test_checkbox_visual_indeterminate_pressed() {
     input.mouse_down = true;
     input.mouse_pressed = true;
     focus_system.begin_frame();
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     raw::post_layout_checkbox(
         tri_state_checkbox_spec(Rect::new(10.0, 10.0, 14.0, 14.0)),
         raw::CheckboxPreLayoutResult {
@@ -655,7 +655,7 @@ fn test_checkbox_clamps_state_to_first_allowed_state() {
         &mut state,
         &Input::default(),
         &mut FocusSystem::new(),
-        &mut DrawCommands::new(),
+        &mut DrawCommands::new(1.0),
     );
 
     assert_eq!(
@@ -745,7 +745,7 @@ fn test_checkbox_panics_when_allowed_states_is_empty() {
         &mut state,
         &Input::default(),
         &mut FocusSystem::new(),
-        &mut DrawCommands::new(),
+        &mut DrawCommands::new(1.0),
     );
 }
 
@@ -759,7 +759,7 @@ fn test_checkbox_visual_focused() {
     let s = spec.style;
     let r = Rect::new(10.0, 10.0, 14.0, 14.0);
     let mut state = state;
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     raw::post_layout_checkbox(
         spec,
         raw::CheckboxPreLayoutResult {
@@ -807,7 +807,7 @@ fn test_checkbox_visual_disabled() {
     let alpha = s.disabled_alpha;
     let tint = |c: Color| Color::linear_rgba(c.r, c.g, c.b, c.a * alpha);
     let r = Rect::new(10.0, 10.0, 14.0, 14.0);
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     raw::post_layout_checkbox(
         spec,
         raw::CheckboxPreLayoutResult {
@@ -949,7 +949,7 @@ fn test_enter_toggles_raw_checkbox() {
     let spec = || checkbox_spec(Rect::new(10.0, 10.0, 14.0, 14.0));
 
     focus_system.begin_frame();
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     raw::post_layout_checkbox(
         spec(),
         raw::CheckboxPreLayoutResult {
@@ -1154,7 +1154,7 @@ fn test_high_level_explicit_placement_via_manual_layout() {
     let mut text_backend = TestTextBackend::default();
     let mut focus = FocusSystem::new();
     let input = crate::Input::default();
-    let mut cmds = crate::draw::DrawCommands::new();
+    let mut cmds = crate::draw::DrawCommands::new(1.0);
     let placement = Rect::new(10.0, 20.0, 50.0, 30.0);
     let mut output = crate::Output::default();
     let mut ctx = crate::widget::WidgetContext::root(
@@ -1184,7 +1184,7 @@ fn test_high_level_honors_user_style() {
     let mut text_backend = TestTextBackend::default();
     let mut focus = FocusSystem::new();
     let input = crate::Input::default();
-    let mut cmds = crate::draw::DrawCommands::new();
+    let mut cmds = crate::draw::DrawCommands::new(1.0);
     let mut output = crate::Output::default();
     let mut ctx = crate::widget::WidgetContext::root(
         crate::theme::Theme::framewise(),
@@ -1224,7 +1224,7 @@ fn test_high_level_honors_allowed_checked_states() {
     let mut text_backend = TestTextBackend::default();
     let mut focus = FocusSystem::new();
     let input = crate::Input::default();
-    let mut cmds = crate::draw::DrawCommands::new();
+    let mut cmds = crate::draw::DrawCommands::new(1.0);
     let mut output = crate::Output::default();
     let mut ctx = crate::widget::WidgetContext::root(
         crate::theme::Theme::framewise(),
@@ -1271,7 +1271,7 @@ fn test_labelled_checkbox_request_size() {
     let mut text_backend = crate::test_utils::TestTextBackend::default();
     let mut focus = FocusSystem::new();
     let input = Input::default();
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     let mut output = crate::Output::default();
     let mut ctx = WidgetContext::root(
         crate::theme::Theme::framewise(),
@@ -1340,7 +1340,7 @@ fn test_labelled_checkbox_disabled_label_visual() {
     let mut text_backend = crate::test_utils::TestTextBackend::default();
     let mut focus = FocusSystem::new();
     let input = Input::default();
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     let theme = crate::theme::Theme::framewise();
     {
         let mut output = crate::Output::default();

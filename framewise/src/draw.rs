@@ -146,18 +146,8 @@ pub struct DrawCommands {
     physical_pixels_per_logical_pixel: f32,
 }
 
-impl Default for DrawCommands {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl DrawCommands {
-    pub fn new() -> Self {
-        Self::with_physical_pixels_per_logical_pixel(1.0)
-    }
-
-    pub fn with_physical_pixels_per_logical_pixel(physical_pixels_per_logical_pixel: f32) -> Self {
+    pub fn new(physical_pixels_per_logical_pixel: f32) -> Self {
         Self {
             cmds: Vec::new(),
             glyphs: Vec::new(),
@@ -173,13 +163,10 @@ impl DrawCommands {
     /// `GlyphRun` commands should be created with [`push_glyph_run`](Self::push_glyph_run)
     /// so their ranges point at this command list's glyph arena.
     pub fn from_vec(cmds: Vec<DrawCmd>) -> Self {
-        Self::from_vec_with_physical_pixels_per_logical_pixel(cmds, 1.0)
+        Self::from_vec_new(cmds, 1.0)
     }
 
-    pub fn from_vec_with_physical_pixels_per_logical_pixel(
-        cmds: Vec<DrawCmd>,
-        physical_pixels_per_logical_pixel: f32,
-    ) -> Self {
+    pub fn from_vec_new(cmds: Vec<DrawCmd>, physical_pixels_per_logical_pixel: f32) -> Self {
         Self {
             cmds,
             glyphs: Vec::new(),
@@ -579,57 +566,50 @@ mod tests {
     }
 
     #[test]
-    fn draw_commands_scale_defaults_and_sanitises() {
-        let mut cmds = DrawCommands::new();
+    fn draw_commands_scale_sanitises() {
+        let mut cmds = DrawCommands::new(1.0);
         assert_eq!(cmds.physical_pixels_per_logical_pixel(), 1.0);
-        assert_eq!(
-            DrawCommands::default().physical_pixels_per_logical_pixel(),
-            1.0
-        );
 
         cmds.set_physical_pixels_per_logical_pixel(2.0);
         assert_eq!(cmds.physical_pixels_per_logical_pixel(), 2.0);
         assert_eq!(
-            DrawCommands::with_physical_pixels_per_logical_pixel(0.0)
-                .physical_pixels_per_logical_pixel(),
+            DrawCommands::new(0.0).physical_pixels_per_logical_pixel(),
             0.01
         );
         assert_eq!(
-            DrawCommands::with_physical_pixels_per_logical_pixel(f32::NAN)
-                .physical_pixels_per_logical_pixel(),
+            DrawCommands::new(f32::NAN).physical_pixels_per_logical_pixel(),
             1.0
         );
         assert_eq!(
-            DrawCommands::from_vec_with_physical_pixels_per_logical_pixel(Vec::new(), 1.5)
-                .physical_pixels_per_logical_pixel(),
+            DrawCommands::from_vec_new(Vec::new(), 1.5).physical_pixels_per_logical_pixel(),
             1.5
         );
     }
 
     #[test]
     fn physical_pixel_grid_helpers_snap_in_logical_units() {
-        let one_x = DrawCommands::new();
+        let one_x = DrawCommands::new(1.0);
         assert_eq!(one_x.device_pixel_size(), 1.0);
         assert_eq!(one_x.snap_to_physical_pixel(10.5), 11.0);
         assert!(!one_x.is_physical_pixel_aligned(10.5));
 
-        let two_x = DrawCommands::with_physical_pixels_per_logical_pixel(2.0);
+        let two_x = DrawCommands::new(2.0);
         assert_eq!(two_x.device_pixel_size(), 0.5);
         assert_eq!(two_x.snap_to_physical_pixel(10.5), 10.5);
         assert!(two_x.is_physical_pixel_aligned(10.5));
 
-        let one_and_quarter = DrawCommands::with_physical_pixels_per_logical_pixel(1.25);
+        let one_and_quarter = DrawCommands::new(1.25);
         assert!((one_and_quarter.device_pixel_size() - 0.8).abs() < 0.0001);
         assert!((one_and_quarter.snap_to_physical_pixel(1.0) - 0.8).abs() < 0.0001);
 
-        let one_and_half = DrawCommands::with_physical_pixels_per_logical_pixel(1.5);
+        let one_and_half = DrawCommands::new(1.5);
         assert!((one_and_half.device_pixel_size() - (2.0 / 3.0)).abs() < 0.0001);
         assert!((one_and_half.snap_to_physical_pixel(1.0) - (4.0 / 3.0)).abs() < 0.0001);
     }
 
     #[test]
     fn physical_pixel_rect_helpers_snap_edges() {
-        let cmds = DrawCommands::with_physical_pixels_per_logical_pixel(2.0);
+        let cmds = DrawCommands::new(2.0);
         let rect = Rect::new(0.24, 0.26, 10.49, 5.49);
 
         assert_eq!(
@@ -644,7 +624,7 @@ mod tests {
 
     #[test]
     fn push_glyph_run_stores_glyphs_and_command_range() {
-        let mut cmds = DrawCommands::new();
+        let mut cmds = DrawCommands::new(1.0);
 
         let index = cmds.push_glyph_run([glyph(10, 1.0), glyph(11, 9.0)], color(), 7);
 
@@ -662,10 +642,10 @@ mod tests {
 
     #[test]
     fn append_rebases_glyph_run_ranges() {
-        let mut first = DrawCommands::new();
+        let mut first = DrawCommands::new(1.0);
         first.push_glyph_run([glyph(1, 0.0), glyph(2, 8.0)], color(), 1);
 
-        let mut second = DrawCommands::new();
+        let mut second = DrawCommands::new(1.0);
         second.push(DrawCmd::PopClip);
         second.push_glyph_run([glyph(3, 16.0)], color(), 2);
 
@@ -695,7 +675,7 @@ mod tests {
 
     #[test]
     fn command_indices_remain_stable() {
-        let mut cmds = DrawCommands::new();
+        let mut cmds = DrawCommands::new(1.0);
 
         let first = cmds.push(DrawCmd::PopClip);
         let second = cmds.push_glyph_run([glyph(1, 0.0)], color(), 1);
@@ -709,7 +689,7 @@ mod tests {
 
     #[test]
     fn empty_glyph_run_is_not_emitted() {
-        let mut cmds = DrawCommands::new();
+        let mut cmds = DrawCommands::new(1.0);
 
         let index = cmds.push_glyph_run([], color(), 1);
 
@@ -720,7 +700,7 @@ mod tests {
 
     #[test]
     fn test_push_stroke_helpers() {
-        let mut cmds = DrawCommands::new();
+        let mut cmds = DrawCommands::new(1.0);
         let s_valid = Stroke::new(color(), 2.0);
 
         // Smoke test for push_stroke_line
@@ -737,7 +717,7 @@ mod tests {
 
     #[test]
     fn test_push_border_rect_helpers() {
-        let mut cmds = DrawCommands::new();
+        let mut cmds = DrawCommands::new(1.0);
         let r = Rect::new(0.0, 0.0, 10.0, 10.0);
         let s_valid = Stroke::new(color(), 2.0);
 
@@ -794,7 +774,7 @@ mod tests {
 
     #[test]
     fn test_push_rule_helpers() {
-        let mut cmds = DrawCommands::new();
+        let mut cmds = DrawCommands::new(1.0);
         let s_valid = Stroke::new(color(), 2.0);
 
         // 1. push_h_rule visible horizontal rule emits FillRect
@@ -850,7 +830,7 @@ mod tests {
 
     #[test]
     fn crisp_fill_rect_snaps_at_one_x() {
-        let mut cmds = DrawCommands::new();
+        let mut cmds = DrawCommands::new(1.0);
 
         cmds.push_crisp_fill_rect(Rect::from_ltrb(0.25, 0.5, 10.49, 5.51), color(), 1);
 
@@ -866,7 +846,7 @@ mod tests {
 
     #[test]
     fn crisp_border_rect_snaps_at_one_x() {
-        let mut cmds = DrawCommands::new();
+        let mut cmds = DrawCommands::new(1.0);
 
         cmds.push_crisp_border_rect(
             Rect::from_ltrb(0.25, 0.5, 10.49, 5.51),
@@ -889,7 +869,7 @@ mod tests {
 
     #[test]
     fn crisp_fill_rect_snaps_at_two_x() {
-        let mut cmds = DrawCommands::with_physical_pixels_per_logical_pixel(2.0);
+        let mut cmds = DrawCommands::new(2.0);
 
         // 0.25 * 2 = 0.5 → rounds to 0 → 0.0 (banker's round, but f32 round() rounds half away from zero)
         // Actually 0.5.round() = 1.0 in Rust, so 0.25 * 2 = 0.5 → 1 → 0.5 logical
@@ -911,7 +891,7 @@ mod tests {
 
     #[test]
     fn crisp_border_rect_snaps_at_two_x() {
-        let mut cmds = DrawCommands::with_physical_pixels_per_logical_pixel(2.0);
+        let mut cmds = DrawCommands::new(2.0);
 
         cmds.push_crisp_border_rect(
             Rect::from_ltrb(0.24, 0.26, 10.49, 5.51),

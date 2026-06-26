@@ -15,7 +15,7 @@ fn test_headless_text_rendering() {
         let mut text_backend = SampleTextBackend::new();
         text_backend.begin_frame();
 
-        let mut cmds = DrawCommands::new();
+        let mut cmds = DrawCommands::new(1.0);
         let font_id = FontId(1);
         let body_style = TextStyle::new(font_id, 15.0, 400, TextFlow::wrapped())
             .with_line_height(LineHeight::Relative(1.55));

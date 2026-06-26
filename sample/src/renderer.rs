@@ -1275,7 +1275,7 @@ mod tests {
     fn process_commands_draws_glyph_runs_from_arena() {
         let mut text_backend = SampleTextBackend::new();
         let token = pack_prepared_glyph_token(3, 5, 11, 13);
-        let mut cmds = DrawCommands::new();
+        let mut cmds = DrawCommands::new(1.0);
         cmds.push_glyph_run(
             [DrawGlyph {
                 token,

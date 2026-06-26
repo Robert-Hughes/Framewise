@@ -32,7 +32,7 @@ fn test_label_draws_text() {
             rule: None,
         },
     };
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     let res = raw::post_layout_label(
         spec,
         raw::LabelPreLayoutResult {
@@ -97,7 +97,7 @@ fn test_label_rule() {
             rule: Some(Stroke::new(Color::WHITE, 1.0)),
         },
     };
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     let res = raw::post_layout_label(
         spec,
         raw::LabelPreLayoutResult {
@@ -172,7 +172,7 @@ fn test_label_logical_content_placement_bottom_right() {
             ..LabelStyle::from_theme(&theme::Theme::default())
         },
     };
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     let _ = raw::post_layout_label(
         spec,
         raw::LabelPreLayoutResult {
@@ -229,7 +229,7 @@ fn test_label_ink_content_placement_uses_ink_bounds() {
             ..LabelStyle::from_theme(&theme::Theme::default())
         },
     };
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     let _ = raw::post_layout_label(
         spec,
         raw::LabelPreLayoutResult {
@@ -266,7 +266,7 @@ fn test_label_passes_spec_font_to_text_backend() {
         },
     };
 
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     let _ = raw::post_layout_label(
         spec,
         raw::LabelPreLayoutResult {
@@ -319,7 +319,7 @@ fn test_high_level_explicit_placement_via_manual_layout() {
     let mut text_backend = TestTextBackend::default();
     let mut focus = FocusSystem::new();
     let input = crate::Input::default();
-    let mut cmds = crate::draw::DrawCommands::new();
+    let mut cmds = crate::draw::DrawCommands::new(1.0);
     let placement = Rect::new(10.0, 20.0, 50.0, 30.0);
     let mut output = crate::Output::default();
     let mut ctx = crate::widget::WidgetContext::root(
@@ -342,7 +342,7 @@ fn test_high_level_honors_user_style() {
     let mut text_backend = TestTextBackend::default();
     let mut focus = FocusSystem::new();
     let input = crate::Input::default();
-    let mut cmds = crate::draw::DrawCommands::new();
+    let mut cmds = crate::draw::DrawCommands::new(1.0);
     let mut output = crate::Output::default();
     let mut ctx = crate::widget::WidgetContext::root(
         crate::theme::Theme::framewise(),
@@ -490,7 +490,7 @@ fn test_label_peeks_offer_before_layout() {
     let mut text_backend = TestTextBackend::default();
     let mut focus = FocusSystem::new();
     let input = crate::Input::default();
-    let mut cmds = crate::draw::DrawCommands::new();
+    let mut cmds = crate::draw::DrawCommands::new(1.0);
     let mut output = crate::Output::default();
     let mut ctx = crate::widget::WidgetContext::root(
         crate::theme::Theme::framewise(),
@@ -517,7 +517,7 @@ fn test_label_auto_layout_uses_size_request() {
     let mut text_backend = TestTextBackend::default();
     let mut focus = FocusSystem::new();
     let input = Input::default();
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     let mut output = crate::Output::default();
     let mut ctx = WidgetContext::root(
         theme::Theme::framewise(),
@@ -559,7 +559,7 @@ fn test_label_with_custom_flow() {
     let mut text_backend = TestTextBackend::default();
     let mut focus = FocusSystem::new();
     let input = crate::Input::default();
-    let mut cmds = crate::draw::DrawCommands::new();
+    let mut cmds = crate::draw::DrawCommands::new(1.0);
     let mut output = crate::Output::default();
     let mut ctx = crate::widget::WidgetContext::root(
         crate::theme::Theme::framewise(),

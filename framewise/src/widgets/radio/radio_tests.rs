@@ -188,7 +188,7 @@ fn test_radio_visual_unselected() {
     let spec = radio_spec(Rect::new(10.0, 10.0, 14.0, 14.0));
     let s = spec.style;
     let center = Vec2::new(17.0, 17.0);
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     raw::post_layout_radio(
         spec,
         raw::RadioPreLayoutResult {
@@ -239,7 +239,7 @@ fn test_radio_visual_hovered() {
 
     // Warmup frame
     focus_system.begin_frame();
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     raw::post_layout_radio(
         radio_spec(Rect::new(10.0, 10.0, 14.0, 14.0)),
         raw::RadioPreLayoutResult {
@@ -254,7 +254,7 @@ fn test_radio_visual_hovered() {
 
     // Evaluation frame
     focus_system.begin_frame();
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     raw::post_layout_radio(
         radio_spec(Rect::new(10.0, 10.0, 14.0, 14.0)),
         raw::RadioPreLayoutResult {
@@ -304,7 +304,7 @@ fn test_radio_visual_pressed() {
 
     // Warmup frame with mouse inside but not pressed
     focus_system.begin_frame();
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     raw::post_layout_radio(
         radio_spec(Rect::new(10.0, 10.0, 14.0, 14.0)),
         raw::RadioPreLayoutResult {
@@ -321,7 +321,7 @@ fn test_radio_visual_pressed() {
     input.mouse_down = true;
     input.mouse_pressed = true;
     focus_system.begin_frame();
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     raw::post_layout_radio(
         radio_spec(Rect::new(10.0, 10.0, 14.0, 14.0)),
         raw::RadioPreLayoutResult {
@@ -359,7 +359,7 @@ fn test_radio_visual_selected() {
     let spec = radio_spec(Rect::new(10.0, 10.0, 14.0, 14.0));
     let s = spec.style;
     let center = Vec2::new(17.0, 17.0);
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     raw::post_layout_radio(
         spec,
         raw::RadioPreLayoutResult {
@@ -416,7 +416,7 @@ fn test_radio_visual_selected_hovered() {
 
     // Warmup frame
     focus_system.begin_frame();
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     raw::post_layout_radio(
         radio_spec(Rect::new(10.0, 10.0, 14.0, 14.0)),
         raw::RadioPreLayoutResult {
@@ -431,7 +431,7 @@ fn test_radio_visual_selected_hovered() {
 
     // Evaluation frame
     focus_system.begin_frame();
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     raw::post_layout_radio(
         radio_spec(Rect::new(10.0, 10.0, 14.0, 14.0)),
         raw::RadioPreLayoutResult {
@@ -480,7 +480,7 @@ fn test_radio_visual_focused() {
     let s = spec.style;
     let mut state = state;
     let center = Vec2::new(17.0, 17.0);
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     raw::post_layout_radio(
         spec,
         raw::RadioPreLayoutResult {
@@ -529,7 +529,7 @@ fn test_radio_visual_disabled() {
     let alpha = s.disabled_alpha;
     let tint = |c: Color| Color::linear_rgba(c.r, c.g, c.b, c.a * alpha);
     let center = Vec2::new(17.0, 17.0);
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     raw::post_layout_radio(
         spec,
         raw::RadioPreLayoutResult {
@@ -673,7 +673,7 @@ fn test_enter_selects_raw_radio() {
     let spec = || radio_spec(Rect::new(10.0, 10.0, 14.0, 14.0));
 
     focus_system.begin_frame();
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     raw::post_layout_radio(
         spec(),
         raw::RadioPreLayoutResult {
@@ -852,7 +852,7 @@ fn test_high_level_explicit_placement_via_manual_layout() {
     let mut text_backend = TestTextBackend::default();
     let mut focus = FocusSystem::new();
     let input = crate::Input::default();
-    let mut cmds = crate::draw::DrawCommands::new();
+    let mut cmds = crate::draw::DrawCommands::new(1.0);
     let placement = Rect::new(10.0, 20.0, 50.0, 30.0);
     let mut output = crate::Output::default();
     let mut ctx = crate::widget::WidgetContext::root(
@@ -882,7 +882,7 @@ fn test_high_level_honors_user_style() {
     let mut text_backend = TestTextBackend::default();
     let mut focus = FocusSystem::new();
     let input = crate::Input::default();
-    let mut cmds = crate::draw::DrawCommands::new();
+    let mut cmds = crate::draw::DrawCommands::new(1.0);
     let mut output = crate::Output::default();
     let mut ctx = crate::widget::WidgetContext::root(
         crate::theme::Theme::framewise(),
@@ -928,7 +928,7 @@ fn test_size_radio() {
 fn test_radio_visual_vertically_centered() {
     let spec = radio_spec(Rect::new(10.0, 10.0, 14.0, 20.0));
     let s = spec.style;
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     raw::post_layout_radio(
         spec,
         raw::RadioPreLayoutResult {
@@ -968,7 +968,7 @@ fn test_labelled_radio_request_size() {
     let mut text_backend = crate::test_utils::TestTextBackend::default();
     let mut focus = FocusSystem::new();
     let input = Input::default();
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     let mut output = crate::Output::default();
     let mut ctx = WidgetContext::root(
         crate::theme::Theme::framewise(),
@@ -1037,7 +1037,7 @@ fn test_labelled_radio_disabled_label_visual() {
     let mut text_backend = crate::test_utils::TestTextBackend::default();
     let mut focus = FocusSystem::new();
     let input = Input::default();
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     let theme = crate::theme::Theme::framewise();
     {
         let mut output = crate::Output::default();

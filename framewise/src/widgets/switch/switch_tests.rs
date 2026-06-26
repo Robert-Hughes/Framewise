@@ -189,7 +189,7 @@ fn test_switch_visual_off() {
     let spec = switch_spec(Rect::new(10.0, 10.0, 30.0, 16.0));
     let s = spec.style;
     let r = Rect::new(10.0, 10.0, 30.0, 16.0);
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     raw::post_layout_switch(
         spec,
         raw::SwitchPreLayoutResult {
@@ -238,7 +238,7 @@ fn test_switch_visual_hovered() {
 
     // Warmup frame
     focus_system.begin_frame();
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     raw::post_layout_switch(
         switch_spec(Rect::new(10.0, 10.0, 30.0, 16.0)),
         raw::SwitchPreLayoutResult {
@@ -253,7 +253,7 @@ fn test_switch_visual_hovered() {
 
     // Evaluation frame
     focus_system.begin_frame();
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     raw::post_layout_switch(
         switch_spec(Rect::new(10.0, 10.0, 30.0, 16.0)),
         raw::SwitchPreLayoutResult {
@@ -304,7 +304,7 @@ fn test_switch_visual_pressed() {
 
     // Warmup frame with mouse inside but not pressed
     focus_system.begin_frame();
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     raw::post_layout_switch(
         switch_spec(Rect::new(10.0, 10.0, 30.0, 16.0)),
         raw::SwitchPreLayoutResult {
@@ -321,7 +321,7 @@ fn test_switch_visual_pressed() {
     input.mouse_down = true;
     input.mouse_pressed = true;
     focus_system.begin_frame();
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     raw::post_layout_switch(
         switch_spec(Rect::new(10.0, 10.0, 30.0, 16.0)),
         raw::SwitchPreLayoutResult {
@@ -363,7 +363,7 @@ fn test_switch_visual_on() {
     let spec = switch_spec(Rect::new(10.0, 10.0, 30.0, 16.0));
     let s = spec.style;
     let r = Rect::new(10.0, 10.0, 30.0, 16.0);
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     raw::post_layout_switch(
         spec,
         raw::SwitchPreLayoutResult {
@@ -418,7 +418,7 @@ fn test_switch_visual_on_hovered() {
 
     // Warmup frame
     focus_system.begin_frame();
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     raw::post_layout_switch(
         switch_spec(Rect::new(10.0, 10.0, 30.0, 16.0)),
         raw::SwitchPreLayoutResult {
@@ -433,7 +433,7 @@ fn test_switch_visual_on_hovered() {
 
     // Evaluation frame
     focus_system.begin_frame();
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     raw::post_layout_switch(
         switch_spec(Rect::new(10.0, 10.0, 30.0, 16.0)),
         raw::SwitchPreLayoutResult {
@@ -480,7 +480,7 @@ fn test_switch_visual_focused() {
     let s = spec.style;
     let r = Rect::new(10.0, 10.0, 30.0, 16.0);
     let mut state = state;
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     raw::post_layout_switch(
         spec,
         raw::SwitchPreLayoutResult {
@@ -533,7 +533,7 @@ fn test_switch_visual_disabled() {
     let alpha = s.disabled_alpha;
     let tint = |c: Color| Color::linear_rgba(c.r, c.g, c.b, c.a * alpha);
     let r = Rect::new(10.0, 10.0, 30.0, 16.0);
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     raw::post_layout_switch(
         spec,
         raw::SwitchPreLayoutResult {
@@ -681,7 +681,7 @@ fn test_enter_toggles_raw_switch() {
     let spec = || switch_spec(Rect::new(10.0, 10.0, 30.0, 16.0));
 
     focus_system.begin_frame();
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     raw::post_layout_switch(
         spec(),
         raw::SwitchPreLayoutResult {
@@ -863,7 +863,7 @@ fn test_high_level_explicit_placement_via_manual_layout() {
     let mut text_backend = TestTextBackend::default();
     let mut focus = FocusSystem::new();
     let input = crate::Input::default();
-    let mut cmds = crate::draw::DrawCommands::new();
+    let mut cmds = crate::draw::DrawCommands::new(1.0);
     let placement = Rect::new(10.0, 20.0, 50.0, 30.0);
     let mut output = crate::Output::default();
     let mut ctx = crate::widget::WidgetContext::root(
@@ -888,7 +888,7 @@ fn test_high_level_honors_user_style() {
     let mut text_backend = TestTextBackend::default();
     let mut focus = FocusSystem::new();
     let input = crate::Input::default();
-    let mut cmds = crate::draw::DrawCommands::new();
+    let mut cmds = crate::draw::DrawCommands::new(1.0);
     let mut output = crate::Output::default();
     let mut ctx = crate::widget::WidgetContext::root(
         crate::theme::Theme::framewise(),
@@ -934,7 +934,7 @@ fn test_size_switch() {
 fn test_switch_visual_vertically_centered() {
     let spec = switch_spec(Rect::new(10.0, 10.0, 30.0, 20.0));
     let s = spec.style;
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     raw::post_layout_switch(
         spec,
         raw::SwitchPreLayoutResult {
@@ -977,7 +977,7 @@ fn test_labelled_switch_request_size() {
     let mut text_backend = crate::test_utils::TestTextBackend::default();
     let mut focus = FocusSystem::new();
     let input = Input::default();
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     let mut output = crate::Output::default();
     let mut ctx = WidgetContext::root(
         crate::theme::Theme::framewise(),
@@ -1046,7 +1046,7 @@ fn test_labelled_switch_disabled_label_visual() {
     let mut text_backend = crate::test_utils::TestTextBackend::default();
     let mut focus = FocusSystem::new();
     let input = Input::default();
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     let theme = crate::theme::Theme::framewise();
     {
         let mut output = crate::Output::default();

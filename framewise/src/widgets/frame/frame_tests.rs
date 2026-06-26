@@ -4,7 +4,7 @@ use crate::test_utils::TestTextBackend;
 
 #[test]
 fn test_frame_layout_and_draw() {
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     let rect = Rect::new(10.0, 10.0, 100.0, 50.0);
     let style = FrameStyle {
         background: Color::WHITE,
@@ -119,7 +119,7 @@ fn test_high_level_container_fit_to_children() {
     let mut ts = TestTextBackend::default();
     let mut focus = FocusSystem::new();
     let input = crate::Input::default();
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
 
     let mut output = crate::Output::default();
     let mut ctx = WidgetContext::root(

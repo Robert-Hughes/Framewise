@@ -384,7 +384,7 @@ fn test_enter_clicks_raw_button() {
 
     // Frame 1: Register and take focus explicitly
     let mut input = Input::default();
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     raw::post_layout_button(
         spec(),
         raw::ButtonPreLayoutResult {
@@ -505,7 +505,7 @@ fn test_button_visual_normal() {
 
     let mut state = state;
     focus_system.begin_frame();
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     let _res = raw::post_layout_button(
         spec,
         raw::ButtonPreLayoutResult {
@@ -579,7 +579,7 @@ fn test_button_visual_hovered() {
     let mut state = state;
     // Warmup frame to establish hover claim
     focus_system.begin_frame();
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     let _res = raw::post_layout_button(
         btn_spec(Rect::new(10.0, 10.0, 100.0, 30.0)),
         raw::ButtonPreLayoutResult {
@@ -595,7 +595,7 @@ fn test_button_visual_hovered() {
 
     // Evaluation frame
     focus_system.begin_frame();
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     let _res = raw::post_layout_button(
         btn_spec(Rect::new(10.0, 10.0, 100.0, 30.0)),
         raw::ButtonPreLayoutResult {
@@ -670,7 +670,7 @@ fn test_button_visual_pressed() {
     let mut state = state;
     // Warmup frame to establish hover claim
     focus_system.begin_frame();
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     let _res = raw::post_layout_button(
         btn_spec(Rect::new(10.0, 10.0, 100.0, 30.0)),
         raw::ButtonPreLayoutResult {
@@ -688,7 +688,7 @@ fn test_button_visual_pressed() {
     input.mouse_down = true;
     input.mouse_pressed = true;
     focus_system.begin_frame();
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     let _res = raw::post_layout_button(
         btn_spec(Rect::new(10.0, 10.0, 100.0, 30.0)),
         raw::ButtonPreLayoutResult {
@@ -761,7 +761,7 @@ fn test_button_visual_focused() {
 
     let mut state = state;
     focus_system.begin_frame();
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     let _res = raw::post_layout_button(
         spec,
         raw::ButtonPreLayoutResult {
@@ -847,7 +847,7 @@ fn test_button_visual_disabled() {
 
     let mut state = state;
     focus_system.begin_frame();
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     let _res = raw::post_layout_button(
         spec,
         raw::ButtonPreLayoutResult {
@@ -929,7 +929,7 @@ fn test_button_logical_content_placement_respects_padding() {
     };
 
     focus_system.begin_frame();
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     let _ = raw::post_layout_button(
         spec,
         raw::ButtonPreLayoutResult {
@@ -968,7 +968,7 @@ fn test_button_ink_content_placement_uses_ink_bounds_when_disabled() {
     };
 
     focus_system.begin_frame();
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     let _ = raw::post_layout_button(
         spec,
         raw::ButtonPreLayoutResult {
@@ -1030,7 +1030,7 @@ fn test_regression_custom_style_no_theme_lookup() {
 
     let mut state = state;
     focus_system.begin_frame();
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     let _res = raw::post_layout_button(
         spec,
         raw::ButtonPreLayoutResult {
@@ -1153,7 +1153,7 @@ fn test_high_level_explicit_placement_via_manual_layout() {
     let mut text_backend = TestTextBackend::default();
     let mut focus = FocusSystem::new();
     let input = crate::Input::default();
-    let mut cmds = crate::draw::DrawCommands::new();
+    let mut cmds = crate::draw::DrawCommands::new(1.0);
     let placement = Rect::new(10.0, 20.0, 50.0, 30.0);
     let mut output = crate::Output::default();
     let mut ctx = crate::widget::WidgetContext::root(
@@ -1184,7 +1184,7 @@ fn test_high_level_honors_user_style() {
     let mut text_backend = TestTextBackend::default();
     let mut focus = FocusSystem::new();
     let input = crate::Input::default();
-    let mut cmds = crate::draw::DrawCommands::new();
+    let mut cmds = crate::draw::DrawCommands::new(1.0);
     let mut output = crate::Output::default();
     let mut ctx = crate::widget::WidgetContext::root(
         crate::theme::Theme::framewise(),
@@ -1263,7 +1263,7 @@ fn test_button_auto_layout_uses_size_request() {
     let mut text_backend = TestTextBackend::default();
     let mut focus = FocusSystem::new();
     let input = Input::default();
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     let mut output = crate::Output::default();
     let mut ctx = WidgetContext::root(
         theme::Theme::framewise(),
@@ -1294,7 +1294,7 @@ fn test_button_peek_offer_flow_does_not_move_sibling() {
     let mut text_backend = TestTextBackend::default();
     let mut focus = FocusSystem::new();
     let input = Input::default();
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     let mut output = crate::Output::default();
     let mut ctx = WidgetContext::root(
         theme::Theme::framewise(),

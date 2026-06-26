@@ -505,7 +505,7 @@ mod tests {
         let mut ts = TestTextBackend::default();
         let mut focus = FocusSystem::new();
         let input = Input::default();
-        let mut cmds = DrawCommands::new();
+        let mut cmds = DrawCommands::new(1.0);
 
         let mut output = Output::default();
         let mut ctx = WidgetContext::root(
@@ -541,7 +541,7 @@ mod tests {
         let mut ts = TestTextBackend::default();
         let mut focus = FocusSystem::new();
         let input = Input::default();
-        let mut cmds = DrawCommands::new();
+        let mut cmds = DrawCommands::new(1.0);
 
         let mut output = Output::default();
         let mut ctx = WidgetContext::root(
@@ -579,7 +579,7 @@ mod tests {
         let mut ts = TestTextBackend::default();
         let mut focus = FocusSystem::new();
         let input = Input::default();
-        let mut cmds = DrawCommands::new();
+        let mut cmds = DrawCommands::new(1.0);
 
         let mut output = Output::default();
         let mut ctx = WidgetContext::root(
@@ -616,7 +616,7 @@ mod tests {
         let mut ts = TestTextBackend::default();
         let mut focus = FocusSystem::new();
         let input = Input::default();
-        let mut cmds = DrawCommands::new();
+        let mut cmds = DrawCommands::new(1.0);
 
         let mut output = Output::default();
         let mut ctx = WidgetContext::root(
@@ -649,7 +649,7 @@ mod tests {
         let mut ts = TestTextBackend::default();
         let mut focus = FocusSystem::new();
         let input = Input::default();
-        let mut cmds = DrawCommands::new();
+        let mut cmds = DrawCommands::new(1.0);
 
         let mut output = Output::default();
         let ctx = WidgetContext::root(
@@ -674,7 +674,7 @@ mod tests {
         let mut ts = TestTextBackend::default();
         let mut focus = FocusSystem::new();
         let input = Input::default();
-        let mut cmds = DrawCommands::new();
+        let mut cmds = DrawCommands::new(1.0);
 
         let mut output = Output::default();
         let mut ctx = WidgetContext::root(
@@ -699,7 +699,7 @@ mod tests {
         let mut ts = TestTextBackend::default();
         let mut focus = FocusSystem::new();
         let input = Input::default();
-        let mut cmds = DrawCommands::new();
+        let mut cmds = DrawCommands::new(1.0);
 
         let mut output = Output::default();
         let mut ctx = WidgetContext::root(
@@ -727,7 +727,7 @@ mod tests {
         let mut ts = TestTextBackend::default();
         let mut focus = FocusSystem::new();
         let input = Input::default();
-        let mut cmds = DrawCommands::new();
+        let mut cmds = DrawCommands::new(1.0);
 
         let mut output = Output::default();
         let mut ctx = WidgetContext::root(
@@ -783,7 +783,7 @@ mod tests {
         let mut ts = TestTextBackend::default();
         let mut focus = FocusSystem::new();
         let input = Input::default();
-        let mut cmds = DrawCommands::new();
+        let mut cmds = DrawCommands::new(1.0);
 
         let mut output = Output::default();
         let mut ctx = WidgetContext::root(

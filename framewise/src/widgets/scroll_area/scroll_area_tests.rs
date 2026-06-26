@@ -65,7 +65,7 @@ fn scroll_area(
 
         keyboard_focusable: true,
     };
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     let r = raw::begin_scroll_area(spec, state, input, focus_system, &mut cmds);
     raw::end_scroll_area(r.token, content_size, state, input, focus_system, &mut cmds);
     let layout = crate::layouts::OffsetLayout {
@@ -136,7 +136,7 @@ fn nested_scroll_two_frames(
 
             keyboard_focusable: true,
         };
-        let mut cmds = DrawCommands::new();
+        let mut cmds = DrawCommands::new(1.0);
         let outer_r = begin_scroll_area(
             outer_spec,
             outer_state,
@@ -313,7 +313,7 @@ fn test_pgup_pgdn_horiz_uses_vert_wheel() {
 
             keyboard_focusable: true,
         };
-        let mut cmds = DrawCommands::new();
+        let mut cmds = DrawCommands::new(1.0);
         let token =
             raw::begin_scroll_area(spec, &mut state, &input, &mut focus_system, &mut cmds).token;
 
@@ -395,7 +395,7 @@ fn test_pgdn_step_uses_content_bounds() {
 
             keyboard_focusable: true,
         };
-        let mut cmds = DrawCommands::new();
+        let mut cmds = DrawCommands::new(1.0);
         let token =
             raw::begin_scroll_area(spec, &mut state, &input, &mut focus_system, &mut cmds).token;
         crate::widgets::button::raw::post_layout_button(
@@ -447,7 +447,7 @@ fn test_pgdn_with_focus_outside_token() {
 
     focus_system.take_keyboard_focus(btn_state.focus_id);
 
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     for _ in 0..2 {
         focus_system.begin_frame();
         let mut input = Input::new();
@@ -498,7 +498,7 @@ fn test_pgdn_with_focus_outside_token() {
 
             keyboard_focusable: true,
         };
-        let mut cmds = DrawCommands::new();
+        let mut cmds = DrawCommands::new(1.0);
         let token =
             raw::begin_scroll_area(spec, &mut state, &input, &mut focus_system, &mut cmds).token;
         raw::end_scroll_area(
@@ -553,7 +553,7 @@ fn test_slider_drag_with_wheel_drag_wins() {
 
         keyboard_focusable: true,
     };
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     let token = begin_scroll_area(spec, &mut state, &input, &mut focus_system, &mut cmds).token;
     raw::end_scroll_area(
         token,
@@ -594,7 +594,7 @@ fn test_slider_drag_with_wheel_drag_wins() {
 
         keyboard_focusable: true,
     };
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     let token = begin_scroll_area(spec, &mut state, &input, &mut focus_system, &mut cmds).token;
     raw::end_scroll_area(
         token,
@@ -698,7 +698,7 @@ fn test_auto_degenerate_does_not_block_parent() {
 
             keyboard_focusable: true,
         };
-        let mut cmds = DrawCommands::new();
+        let mut cmds = DrawCommands::new(1.0);
         let outer_token =
             begin_scroll_area(outer_spec, &mut outer, &input, &mut focus_system, &mut cmds).token;
         // Inner has no scrollbars (None) — content fits, no claim, no block.
@@ -793,7 +793,7 @@ fn test_always_visible_but_fits_does_not_block_parent() {
 
             keyboard_focusable: true,
         };
-        let mut cmds = DrawCommands::new();
+        let mut cmds = DrawCommands::new(1.0);
         let outer_token =
             begin_scroll_area(outer_spec, &mut outer, &input, &mut focus_system, &mut cmds).token;
         // Inner Always+fits: scrollbars drawn, no scroll possible.
@@ -880,7 +880,7 @@ fn vert_bar_frame(
 
         keyboard_focusable: true,
     };
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     let token = raw::begin_scroll_area(spec, state, input, focus_system, &mut cmds).token;
     raw::end_scroll_area(
         token,
@@ -979,7 +979,7 @@ fn test_mouse_outside_bounds_no_scroll() {
 
             keyboard_focusable: true,
         };
-        let mut cmds = DrawCommands::new();
+        let mut cmds = DrawCommands::new(1.0);
         let token = raw::begin_scroll_area(spec, &mut state, &input, fs, &mut cmds).token;
         raw::end_scroll_area(
             token,
@@ -1029,7 +1029,7 @@ fn test_sibling_scroll_areas_dont_steal() {
 
             keyboard_focusable: true,
         };
-        let mut cmds = DrawCommands::new();
+        let mut cmds = DrawCommands::new(1.0);
         let token_a = begin_scroll_area(spec_a, &mut a, &input, fs, &mut cmds).token;
         raw::end_scroll_area(
             token_a,
@@ -1116,7 +1116,7 @@ fn test_simultaneous_dx_and_dy() {
 
             keyboard_focusable: true,
         };
-        let mut cmds = DrawCommands::new();
+        let mut cmds = DrawCommands::new(1.0);
         let token = raw::begin_scroll_area(spec, &mut state, &input, fs, &mut cmds).token;
         raw::end_scroll_area(
             token,
@@ -1169,7 +1169,7 @@ fn test_offset_clamps_on_content_shrink() {
         keyboard_focusable: true,
     };
     // content shrunk: content_extent.y = 250 → max_scroll.y = 50
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     let token = begin_scroll_area(spec, &mut state, &input, &mut focus_system, &mut cmds).token;
     raw::end_scroll_area(
         token,
@@ -1224,7 +1224,7 @@ fn test_non_zero_bounds_origin() {
 
             keyboard_focusable: true,
         };
-        let mut cmds = DrawCommands::new();
+        let mut cmds = DrawCommands::new(1.0);
         let sa_r = begin_scroll_area(spec, &mut state, &input, &mut focus_system, &mut cmds);
         let token = sa_r.token;
         let cb = sa_r.content_bounds;
@@ -1277,7 +1277,7 @@ fn test_non_zero_bounds_origin() {
 
             keyboard_focusable: true,
         };
-        let mut cmds = DrawCommands::new();
+        let mut cmds = DrawCommands::new(1.0);
         let token =
             raw::begin_scroll_area(spec, &mut state2, &input, &mut focus_sys2, &mut cmds).token;
         raw::end_scroll_area(
@@ -1333,7 +1333,7 @@ fn test_scrollbar_corner_is_dead_zone() {
 
             keyboard_focusable: true,
         };
-        let mut cmds = DrawCommands::new();
+        let mut cmds = DrawCommands::new(1.0);
         let token = raw::begin_scroll_area(spec, &mut state, &input, fs, &mut cmds).token;
         raw::end_scroll_area(
             token,
@@ -1393,7 +1393,7 @@ fn test_clip_rect_masks_scroll() {
 
             keyboard_focusable: true,
         };
-        let mut cmds = DrawCommands::new();
+        let mut cmds = DrawCommands::new(1.0);
         let token = raw::begin_scroll_area(spec, &mut state, &input, fs, &mut cmds).token;
         raw::end_scroll_area(
             token,
@@ -1469,7 +1469,7 @@ fn test_spatial_nav_skips_widget_clipped_by_scroll_area() {
 
             keyboard_focusable: true,
         };
-        let mut cmds = DrawCommands::new();
+        let mut cmds = DrawCommands::new(1.0);
         let sa_r = begin_scroll_area(
             scroll_spec,
             &mut scroll_state,
@@ -1622,7 +1622,7 @@ fn test_spatial_nav_reaches_partially_clipped_widget() {
 
             keyboard_focusable: true,
         };
-        let mut cmds = DrawCommands::new();
+        let mut cmds = DrawCommands::new(1.0);
         let sa_r = begin_scroll_area(
             scroll_spec,
             &mut scroll_state,
@@ -1729,7 +1729,7 @@ fn test_scrollbar_click_takes_focus() {
 
         keyboard_focusable: true,
     };
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     let mut warmup_input = Input::new();
     warmup_input.mouse_pos = Vec2::new(194.0, 10.0);
     let token = begin_scroll_area(
@@ -1828,7 +1828,7 @@ fn test_scrollbar_clipped_click_does_not_take_focus() {
 
         keyboard_focusable: true,
     };
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     let token = begin_scroll_area(
         spec,
         &mut state,
@@ -1928,7 +1928,7 @@ fn test_home_end_on_focused_slider() {
 
         keyboard_focusable: true,
     };
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     let token = begin_scroll_area(spec, &mut state, &input, &mut focus_system, &mut cmds).token;
     raw::end_scroll_area(
         token,
@@ -2113,7 +2113,7 @@ mod nested_bubbling_tests {
 
                 keyboard_focusable: true,
             };
-            let mut cmds = DrawCommands::new();
+            let mut cmds = DrawCommands::new(1.0);
             let outer_token = begin_scroll_area(
                 outer_spec,
                 &mut outer_state,
@@ -2214,7 +2214,7 @@ mod nested_bubbling_tests {
 
                 keyboard_focusable: true,
             };
-            let mut cmds = DrawCommands::new();
+            let mut cmds = DrawCommands::new(1.0);
             let outer_token = begin_scroll_area(
                 outer_spec,
                 &mut outer_state,
@@ -2315,7 +2315,7 @@ mod nested_bubbling_tests {
 
                 keyboard_focusable: true,
             };
-            let mut cmds = DrawCommands::new();
+            let mut cmds = DrawCommands::new(1.0);
             let outer_token = begin_scroll_area(
                 outer_spec,
                 &mut outer_state,
@@ -2416,7 +2416,7 @@ mod nested_bubbling_tests {
 
                 keyboard_focusable: true,
             };
-            let mut cmds = DrawCommands::new();
+            let mut cmds = DrawCommands::new(1.0);
             let outer_token = begin_scroll_area(
                 outer_spec,
                 &mut outer_state,
@@ -2521,7 +2521,7 @@ mod nested_bubbling_tests {
 
                 keyboard_focusable: true,
             };
-            let mut cmds = DrawCommands::new();
+            let mut cmds = DrawCommands::new(1.0);
             let outer_token = begin_scroll_area(
                 outer_spec,
                 &mut outer_state,
@@ -2646,7 +2646,7 @@ mod nested_bubbling_tests {
 
                 keyboard_focusable: true,
             };
-            let mut cmds = DrawCommands::new();
+            let mut cmds = DrawCommands::new(1.0);
             let outer_token = begin_scroll_area(
                 outer_spec,
                 &mut outer_state,
@@ -2762,7 +2762,7 @@ mod nested_bubbling_tests {
 
             keyboard_focusable: true,
         };
-        let mut cmds = DrawCommands::new();
+        let mut cmds = DrawCommands::new(1.0);
         let inner_token = begin_scroll_area(
             inner_spec,
             &mut inner_state,
@@ -2906,7 +2906,7 @@ mod nested_bubbling_tests {
 
             keyboard_focusable: true,
         };
-        let mut cmds = DrawCommands::new();
+        let mut cmds = DrawCommands::new(1.0);
         let inner_token = begin_scroll_area(
             inner_spec,
             &mut inner_state,
@@ -3072,7 +3072,7 @@ mod nested_bubbling_tests {
 
                 keyboard_focusable: true,
             };
-            let mut cmds = DrawCommands::new();
+            let mut cmds = DrawCommands::new(1.0);
             let outer_token = begin_scroll_area(
                 outer_spec,
                 &mut outer_state,
@@ -3190,7 +3190,7 @@ mod nested_bubbling_tests {
 
                 keyboard_focusable: true,
             };
-            let mut cmds = DrawCommands::new();
+            let mut cmds = DrawCommands::new(1.0);
             let outer_token = begin_scroll_area(
                 outer_spec,
                 &mut outer_state,
@@ -3301,7 +3301,7 @@ mod nested_bubbling_tests {
 
                 keyboard_focusable: true,
             };
-            let mut cmds = DrawCommands::new();
+            let mut cmds = DrawCommands::new(1.0);
             let outer_token = begin_scroll_area(
                 outer_spec,
                 &mut outer_state,
@@ -3421,7 +3421,7 @@ mod nested_bubbling_tests {
 
             keyboard_focusable: true,
         };
-        let mut cmds = DrawCommands::new();
+        let mut cmds = DrawCommands::new(1.0);
         let inner_token = begin_scroll_area(
             inner_spec,
             &mut inner_state,
@@ -3606,7 +3606,7 @@ mod nested_bubbling_tests {
 
                 keyboard_focusable: true,
             };
-            let mut cmds = DrawCommands::new();
+            let mut cmds = DrawCommands::new(1.0);
             let outer_token = begin_scroll_area(
                 outer_spec,
                 &mut outer_state,
@@ -3763,7 +3763,7 @@ mod nested_bubbling_tests {
 
                 keyboard_focusable: true,
             };
-            let mut cmds = DrawCommands::new();
+            let mut cmds = DrawCommands::new(1.0);
             let outer_token = begin_scroll_area(
                 outer_spec,
                 &mut outer_state,
@@ -3918,7 +3918,7 @@ mod nested_bubbling_tests {
 
                 keyboard_focusable: true,
             };
-            let mut cmds = DrawCommands::new();
+            let mut cmds = DrawCommands::new(1.0);
             let outer_token = begin_scroll_area(
                 outer_spec,
                 &mut outer_state,
@@ -4086,7 +4086,7 @@ mod nested_bubbling_tests {
 
             keyboard_focusable: true,
         };
-        let mut cmds = DrawCommands::new();
+        let mut cmds = DrawCommands::new(1.0);
         let inner_token = begin_scroll_area(
             inner_spec,
             &mut inner_state,
@@ -4314,7 +4314,7 @@ mod nested_bubbling_tests {
 
                 keyboard_focusable: true,
             };
-            let mut cmds = DrawCommands::new();
+            let mut cmds = DrawCommands::new(1.0);
             let outer_token = begin_scroll_area(
                 outer_spec,
                 &mut outer_state,
@@ -4470,7 +4470,7 @@ mod nested_bubbling_tests {
 
                 keyboard_focusable: true,
             };
-            let mut cmds = DrawCommands::new();
+            let mut cmds = DrawCommands::new(1.0);
             let outer_token = begin_scroll_area(
                 outer_spec,
                 &mut outer_state,
@@ -4624,7 +4624,7 @@ mod nested_bubbling_tests {
 
                 keyboard_focusable: true,
             };
-            let mut cmds = DrawCommands::new();
+            let mut cmds = DrawCommands::new(1.0);
             let outer_token = begin_scroll_area(
                 outer_spec,
                 &mut outer_state,
@@ -4790,7 +4790,7 @@ mod nested_bubbling_tests {
 
             keyboard_focusable: true,
         };
-        let mut cmds = DrawCommands::new();
+        let mut cmds = DrawCommands::new(1.0);
         let inner_token = begin_scroll_area(
             inner_spec,
             &mut inner_state,
@@ -5006,7 +5006,7 @@ mod nested_bubbling_tests {
 
                 keyboard_focusable: true,
             };
-            let mut cmds = DrawCommands::new();
+            let mut cmds = DrawCommands::new(1.0);
             let outer_token = begin_scroll_area(
                 outer_spec,
                 &mut outer_state,
@@ -5117,7 +5117,7 @@ mod nested_bubbling_tests {
 
                 keyboard_focusable: true,
             };
-            let mut cmds = DrawCommands::new();
+            let mut cmds = DrawCommands::new(1.0);
             let outer_token = begin_scroll_area(
                 outer_spec,
                 &mut outer_state,
@@ -5237,7 +5237,7 @@ mod nested_bubbling_tests {
 
                 keyboard_focusable: true,
             };
-            let mut cmds = DrawCommands::new();
+            let mut cmds = DrawCommands::new(1.0);
             let outer_token = begin_scroll_area(
                 outer_spec,
                 &mut outer_state,
@@ -5341,7 +5341,7 @@ mod nested_bubbling_tests {
 
                 keyboard_focusable: true,
             };
-            let mut cmds = DrawCommands::new();
+            let mut cmds = DrawCommands::new(1.0);
             let outer_token = begin_scroll_area(
                 outer_spec,
                 &mut outer_state,
@@ -5450,7 +5450,7 @@ mod nested_bubbling_tests {
 
                 keyboard_focusable: true,
             };
-            let mut cmds = DrawCommands::new();
+            let mut cmds = DrawCommands::new(1.0);
             let outer_token = begin_scroll_area(
                 outer_spec,
                 &mut outer_state,
@@ -5548,7 +5548,7 @@ mod nested_bubbling_tests {
 
             keyboard_focusable: true,
         };
-        let mut cmds = DrawCommands::new();
+        let mut cmds = DrawCommands::new(1.0);
         let inner_token = begin_scroll_area(
             inner_spec,
             &mut inner_state,
@@ -5698,7 +5698,7 @@ mod nested_bubbling_tests {
 
             keyboard_focusable: true,
         };
-        let mut cmds = DrawCommands::new();
+        let mut cmds = DrawCommands::new(1.0);
         let inner_token = begin_scroll_area(
             inner_spec,
             &mut inner_state,
@@ -5855,7 +5855,7 @@ mod nested_bubbling_tests {
 
                 keyboard_focusable: true,
             };
-            let mut cmds = DrawCommands::new();
+            let mut cmds = DrawCommands::new(1.0);
             let outer_token = begin_scroll_area(
                 outer_spec,
                 &mut outer_state,
@@ -5983,7 +5983,7 @@ mod nested_bubbling_tests {
 
                 keyboard_focusable: true,
             };
-            let mut cmds = DrawCommands::new();
+            let mut cmds = DrawCommands::new(1.0);
             let outer_token = begin_scroll_area(
                 outer_spec,
                 &mut outer_state,
@@ -6057,7 +6057,7 @@ mod nested_bubbling_tests {
         let mut text_backend = TestTextBackend::default();
         let mut focus = FocusSystem::new();
         let input = crate::Input::default();
-        let mut cmds = crate::draw::DrawCommands::new();
+        let mut cmds = crate::draw::DrawCommands::new(1.0);
         let placement = Rect::new(10.0, 20.0, 200.0, 40.0);
         let mut scroll_state = ScrollState::default();
         let mut output = crate::Output::default();
@@ -6101,7 +6101,7 @@ mod nested_bubbling_tests {
         let mut focus_system = FocusSystem::new();
         let input = Input::new();
         let mut state = ScrollState::default();
-        let mut cmds = DrawCommands::new();
+        let mut cmds = DrawCommands::new(1.0);
 
         let spec = ScrollAreaSpec {
             layer: Layer::default(),
@@ -6142,7 +6142,7 @@ mod nested_bubbling_tests {
         let mut focus_system = FocusSystem::new();
         let input = Input::new();
         let mut state = ScrollState::default();
-        let mut cmds = DrawCommands::new();
+        let mut cmds = DrawCommands::new(1.0);
 
         let spec = ScrollAreaSpec {
             layer: Layer::default(),
@@ -6183,7 +6183,7 @@ mod nested_bubbling_tests {
         let mut text_backend = TestTextBackend::default();
         let mut focus = FocusSystem::new();
         let input = Input::new();
-        let mut cmds = DrawCommands::new();
+        let mut cmds = DrawCommands::new(1.0);
         let mut scroll_state = ScrollState::default();
 
         let mut output = crate::Output::default();
@@ -6227,7 +6227,7 @@ mod nested_bubbling_tests {
         let mut focus_system = FocusSystem::new();
         let mut input = Input::new();
         let mut state = ScrollState::default();
-        let mut cmds = DrawCommands::new();
+        let mut cmds = DrawCommands::new(1.0);
 
         let spec = ScrollAreaSpec {
             layer: Layer::default(),

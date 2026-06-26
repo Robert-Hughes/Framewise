@@ -382,7 +382,7 @@ fn card_label_glyph_counts_by_line(
     line_height: u32,
 ) -> Vec<usize> {
     let mut backend = card_test_backend(line_height);
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     raw_label::post_layout_label(
         raw_label::LabelSpec {
             layer: Layer::default(),
@@ -1297,7 +1297,7 @@ fn emit_glyphs_skips_backend_non_drawable_glyphs_and_offsets_origin() {
     let style = style(TextFlow::single_line());
     let mut backend = TestTextBackend::default();
     let layout = layout_text(&mut backend, "a b", style, TextBounds::UNBOUNDED);
-    let mut commands = DrawCommands::new();
+    let mut commands = DrawCommands::new(1.0);
 
     layout.emit_glyphs(
         &mut commands,
@@ -1326,7 +1326,7 @@ fn resolved_glyphs_match_emitted_layout_origins() {
     let mut backend = TestTextBackend::default();
     let layout = layout_text(&mut backend, "ab", style, TextBounds::UNBOUNDED);
     let origin = Vec2::new(10.0, 20.0);
-    let mut commands = DrawCommands::new();
+    let mut commands = DrawCommands::new(1.0);
 
     layout.emit_glyphs(&mut commands, &mut backend, origin, Color::BLACK, 0);
 
@@ -1375,7 +1375,7 @@ fn emit_glyphs_omits_empty_runs() {
     let style = style(TextFlow::single_line());
     let mut backend = TestTextBackend::default();
     let layout = layout_text(&mut backend, "   ", style, TextBounds::UNBOUNDED);
-    let mut commands = DrawCommands::new();
+    let mut commands = DrawCommands::new(1.0);
 
     layout.emit_glyphs(&mut commands, &mut backend, Vec2::ZERO, Color::BLACK, 0);
 

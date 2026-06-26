@@ -5,7 +5,7 @@ use crate::types::Vec2;
 use crate::{DrawGlyph, PreparedGlyphToken};
 
 fn chip_raw<'a>(spec: ChipSpec<'a>) -> (raw::ChipResult, DrawCommands) {
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     let mut text_backend = TestTextBackend::default();
     let res = raw::post_layout_chip(
         spec,
@@ -91,7 +91,7 @@ fn test_chip_visual_active() {
         clip_rect: None,
     };
     let style = spec.style;
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     raw::post_layout_chip(
         spec,
         raw::ChipPreLayoutResult {
@@ -162,7 +162,7 @@ fn test_chip_visual_focused() {
     };
     let style = spec.style;
     let mut state = state;
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     raw::post_layout_chip(
         spec,
         raw::ChipPreLayoutResult {
@@ -248,7 +248,7 @@ fn test_chip_click_takes_focus() {
 
     let mut state = state;
     focus_system.begin_frame();
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     raw::post_layout_chip(
         spec,
         raw::ChipPreLayoutResult {
@@ -291,7 +291,7 @@ fn test_chip_clipped_click_does_not_take_focus() {
 
     let mut state = state;
     focus_system.begin_frame();
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     raw::post_layout_chip(
         spec,
         raw::ChipPreLayoutResult {
@@ -322,7 +322,7 @@ fn test_chip_keyboard_toggle() {
     // Frame 1: Focus chip
     focus_system.take_keyboard_focus(state.focus_id);
     focus_system.begin_frame();
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     raw::post_layout_chip(
         ChipSpec {
             layer: Layer::default(),
@@ -347,7 +347,7 @@ fn test_chip_keyboard_toggle() {
     input.key_down_space = true;
     input.key_pressed_space = true;
     focus_system.begin_frame();
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     raw::post_layout_chip(
         ChipSpec {
             layer: Layer::default(),
@@ -373,7 +373,7 @@ fn test_chip_keyboard_toggle() {
     input.key_pressed_space = false;
     input.key_released_space = true;
     focus_system.begin_frame();
-    let mut cmds = DrawCommands::new();
+    let mut cmds = DrawCommands::new(1.0);
     raw::post_layout_chip(
         ChipSpec {
             layer: Layer::default(),
@@ -422,7 +422,7 @@ fn test_explicit_placement_via_manual_layout() {
     let mut text_backend = TestTextBackend::default();
     let mut focus = FocusSystem::new();
     let input = crate::Input::default();
-    let mut cmds = crate::draw::DrawCommands::new();
+    let mut cmds = crate::draw::DrawCommands::new(1.0);
     let placement = Rect::new(10.0, 20.0, 200.0, 36.0);
     let mut output = crate::Output::default();
     let mut ctx = crate::widget::WidgetContext::root(

@@ -139,7 +139,7 @@ fn glyph_cache_keys_include_font_id() {
             },
         );
         layout.emit_glyphs(
-            &mut framewise::DrawCommands::new(),
+            &mut framewise::DrawCommands::new(1.0),
             &mut sys,
             rect.top_left(),
             framewise::Color::BLACK,
@@ -173,7 +173,7 @@ fn glyph_cache_keys_include_weight_and_opsz() {
             },
         );
         layout.emit_glyphs(
-            &mut framewise::DrawCommands::new(),
+            &mut framewise::DrawCommands::new(1.0),
             &mut sys,
             rect.top_left(),
             framewise::Color::BLACK,
@@ -228,7 +228,7 @@ fn font_without_opsz_uses_zero_opsz() {
         },
     );
     layout.emit_glyphs(
-        &mut framewise::DrawCommands::new(),
+        &mut framewise::DrawCommands::new(1.0),
         &mut sys,
         rect.top_left(),
         framewise::Color::BLACK,
@@ -280,7 +280,7 @@ fn jetbrains_mono_weight_preserves_monospace_width() {
             },
         );
         layout.emit_glyphs(
-            &mut framewise::DrawCommands::new(),
+            &mut framewise::DrawCommands::new(1.0),
             &mut sys,
             rect.top_left(),
             framewise::Color::BLACK,
@@ -488,7 +488,7 @@ fn subpixel_bins_match_final_glyph_positions() {
     let mut sys = sys();
     let style = style(FontId(1), 15.0, 400, TextFlow::single_line());
     let layout = layout_text(&mut sys, "abc", style, TextBounds::UNBOUNDED);
-    let mut commands = framewise::DrawCommands::new();
+    let mut commands = framewise::DrawCommands::new(1.0);
     let origin = Vec2::new(12.25, 0.0);
 
     layout.emit_glyphs(&mut commands, &mut sys, origin, framewise::Color::BLACK, 0);
@@ -520,7 +520,7 @@ fn emit(
     DrawCommands,
 ) {
     let layout = layout_text(sys, text, style, bounds);
-    let mut commands = DrawCommands::new();
+    let mut commands = DrawCommands::new(1.0);
     layout.emit_glyphs(&mut commands, sys, origin, Color::BLACK, 0);
     (layout, commands)
 }

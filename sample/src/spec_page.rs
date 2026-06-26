@@ -1376,8 +1376,7 @@ pub fn draw_spec_page(
     let t = Theme::framewise();
 
     let win_rect = Rect::new(0.0, 0.0, win_w, win_h);
-    let mut cmds =
-        DrawCommands::with_physical_pixels_per_logical_pixel(physical_pixels_per_logical_pixel);
+    let mut cmds = DrawCommands::new(physical_pixels_per_logical_pixel);
     let mut b = WidgetContext::root(
         t,
         ts,
@@ -1535,7 +1534,7 @@ fn header_section<CF>(b: &mut WidgetContext<SampleTextBackend, ColumnState, CF>,
     b.spacer(LinearSpacer::always(64.0));
     let mut b = b.child_with_layout(ColumnLayoutParams::fixed(content_w, 320.0), ManualLayout);
     let logo_rect = b.layout(Rect::new(0.0, 0.0, 96.0, 96.0), SizeRequest::UNKNOWN);
-    b.append_cmds(hero_logo(&b.theme, logo_rect.x, logo_rect.y));
+    hero_logo(&b.theme, logo_rect.x, logo_rect.y, b.cmds);
     let tx = 124.0;
     // 28px gap + 96px logo = 124px
     let hero_w = content_w - 124.0;
@@ -1621,68 +1620,41 @@ fn header_section<CF>(b: &mut WidgetContext<SampleTextBackend, ColumnState, CF>,
 
     b.finish();
 }
-fn hero_logo(t: &Theme, x0: f32, y0: f32) -> DrawCommands {
-    let mut cmds = DrawCommands::new();
+fn hero_logo(t: &Theme, x0: f32, y0: f32, cmds: &mut DrawCommands) {
+    // Logo (Framewise mark), rendered as pixel-aligned filled rectangles.
+    //
+    // Derived from the SVG mockup: viewBox 200×200, rendered at 96×96 px (scale 0.48),
+    // stroke-width 10 with square linecaps. Each stroke segment is equivalent to a filled
+    // rectangle whose edges extend ±5 viewBox units past the endpoint in the stroke direction.
+    // Coordinates are rounded to the nearest integer pixel for crisp, AA-free rendering.
+    //
+    //   Bracket V  : viewBox x 35..45, y 35..165  →  screen x+17, y+17, w 5, h 62
+    //   Bracket top: viewBox x 35..61, y 35..45   →  screen x+17, y+17, w 12, h 5
+    //   Bracket bot: viewBox x 35..61, y 155..165 →  screen x+17, y+74, w 12, h 5
+    //   Top horiz  : viewBox x 73..145, y 35..45  →  screen x+35, y+17, w 35, h 5
+    //   Middle rust: viewBox x 73..125, y 91..101 →  screen x+35, y+44, w 25, h 5
+    //   Vertical   : viewBox x 73..83, y 35..165  →  screen x+35, y+17, w 5, h 62
 
-    // Logo (Framewise mark), scaled from 200×200 viewBox → 96×96 px
-    let ls = 0.48_f32;
-    let lx0 = x0;
-    let lw = 4.8_f32;
+    let fill = |cmds: &mut DrawCommands, dx: f32, dy: f32, w: f32, h: f32, color: Color| {
+        cmds.push(DrawCmd::FillRect {
+            rect: Rect::new(x0 + dx, y0 + dy, w, h),
+            color,
+            z: 0,
+        });
+    };
 
-    // Since lines are drawn using "butt end caps" (which terminate flat at endpoints),
-    // we manually extend/overlap connected segment coordinates by half the stroke width
-    // (5.0 viewBox units / 2.4 screen pixels) to form perfect miter-like joins and
-    // simulate square cap endings.
-    let ext = 5.0_f32;
-
-    // left bracket
-    cmds.push(DrawCmd::StrokeLine {
-        p0: Vec2::new(lx0 + (56. + ext) * ls, y0 + 40. * ls),
-        p1: Vec2::new(lx0 + (40. - ext) * ls, y0 + 40. * ls),
-        color: t.ink,
-        width: lw,
-        z: 0,
-    });
-    cmds.push(DrawCmd::StrokeLine {
-        p0: Vec2::new(lx0 + 40. * ls, y0 + (40. - ext) * ls),
-        p1: Vec2::new(lx0 + 40. * ls, y0 + (160. + ext) * ls),
-        color: t.ink,
-        width: lw,
-        z: 0,
-    });
-    cmds.push(DrawCmd::StrokeLine {
-        p0: Vec2::new(lx0 + (40. - ext) * ls, y0 + 160. * ls),
-        p1: Vec2::new(lx0 + (56. + ext) * ls, y0 + 160. * ls),
-        color: t.ink,
-        width: lw,
-        z: 0,
-    });
-    // top horizontal
-    cmds.push(DrawCmd::StrokeLine {
-        p0: Vec2::new(lx0 + (78. - ext) * ls, y0 + 40. * ls),
-        p1: Vec2::new(lx0 + (140. + ext) * ls, y0 + 40. * ls),
-        color: t.ink,
-        width: lw,
-        z: 0,
-    });
-    // middle horizontal (rust)
-    cmds.push(DrawCmd::StrokeLine {
-        p0: Vec2::new(lx0 + (78. - ext) * ls, y0 + 96. * ls),
-        p1: Vec2::new(lx0 + (120. + ext) * ls, y0 + 96. * ls),
-        color: t.rust,
-        width: lw,
-        z: 0,
-    });
-    // vertical
-    cmds.push(DrawCmd::StrokeLine {
-        p0: Vec2::new(lx0 + 78. * ls, y0 + (40. - ext) * ls),
-        p1: Vec2::new(lx0 + 78. * ls, y0 + (160. + ext) * ls),
-        color: t.ink,
-        width: lw,
-        z: 0,
-    });
-
-    cmds
+    // left bracket — vertical bar
+    fill(cmds, 17., 17., 5., 62., t.ink);
+    // left bracket — top arm
+    fill(cmds, 17., 17., 12., 5., t.ink);
+    // left bracket — bottom arm
+    fill(cmds, 17., 74., 12., 5., t.ink);
+    // top horizontal (connects bracket to vertical)
+    fill(cmds, 35., 17., 35., 5., t.ink);
+    // middle horizontal — rust accent
+    fill(cmds, 35., 44., 25., 5., t.rust);
+    // vertical bar
+    fill(cmds, 35., 17., 5., 62., t.ink);
 }
 
 #[cfg(feature = "button")]
