@@ -1,5 +1,5 @@
 use crate::{
-    draw::{BorderPlacement, DrawCmd, DrawCommands},
+    draw::{BorderPlacement, DrawCommands},
     focus::{FocusId, FocusSystem},
     input::Input,
     layout::{LayoutState, SizeOffer},
@@ -1001,7 +1001,12 @@ fn finite_or(value: f32, fallback: f32) -> f32 {
 }
 
 fn snap_value(value: f32, min: f32, max: f32, value_snap: Option<f32>) -> f32 {
+    // Repair can see externally supplied state, so convert non-finite input to
+    // a deterministic in-domain value before doing any arithmetic.
     let value = finite_or(value, min).clamp(min, max);
+
+    // Keep exact endpoints stable. This also preserves Home/End behavior when
+    // the snap interval does not divide the domain evenly.
     if value <= min {
         return min;
     }
@@ -1009,16 +1014,23 @@ fn snap_value(value: f32, min: f32, max: f32, value_snap: Option<f32>) -> f32 {
         return max;
     }
 
+    // Snapping is opt-in and invalid snap settings degrade to a continuous
+    // clamped slider instead of producing NaN or surprising quantisation.
     let Some(value_snap) = value_snap else {
         return value;
     };
     if !value_snap.is_finite() || value_snap <= 0.0 {
         return value;
     }
+
+    // Treat max as a valid snap target even when it is not on the min-relative
+    // grid, so users can still reach the upper endpoint naturally.
     if max - value <= value_snap * 0.5 {
         return max;
     }
 
+    // The grid is anchored at min rather than zero, which keeps non-zero
+    // domains aligned to their own value space.
     let snapped = min + ((value - min) / value_snap).round() * value_snap;
     snapped.clamp(min, max)
 }
@@ -1312,11 +1324,7 @@ fn draw_track_marks(
                 marks.length,
             )
         };
-        cmds.push(DrawCmd::FillRect {
-            rect,
-            color: tint(marks.color),
-            z: layer.get_z(),
-        });
+        cmds.push_crisp_fill_rect(rect, tint(marks.color), layer.get_z());
     }
 }
 
@@ -1534,6 +1542,18 @@ pub struct TrackMarksStyle {
 
     /// Space between the slider track/thumb area and the marks.
     pub gap: f32,
+}
+
+impl TrackMarksStyle {
+    pub fn from_theme(theme: &crate::theme::Theme, value_spacing: f32) -> Self {
+        Self {
+            value_spacing,
+            color: theme.line_on_paper,
+            width: 2.0,
+            length: 4.0,
+            gap: 2.0,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]

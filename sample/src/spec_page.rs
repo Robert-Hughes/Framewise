@@ -2551,13 +2551,7 @@ fn section_04_sliders<CF>(
             } else {
                 let spec_builder = if show_ticks {
                     let mut style = SliderStyle::from_theme(&b.theme);
-                    style.track_marks = Some(TrackMarksStyle {
-                        value_spacing: 1.0,
-                        color: b.theme.line_on_paper,
-                        width: 1.0,
-                        length: 4.0,
-                        gap: 2.0,
-                    });
+                    style.track_marks = Some(TrackMarksStyle::from_theme(&b.theme, 1.0));
                     SliderSpecBuilder::new()
                         .max(9.0)
                         .page_step(step)

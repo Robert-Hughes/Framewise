@@ -4758,7 +4758,7 @@ fn test_slider_track_marks_draw_horizontal() {
     let rects = marker_rects(&draw_slider_for_marks(spec), color);
 
     assert_eq!(rects.len(), 5);
-    let expected_x = [4.5, 29.5, 54.5, 79.5, 104.5];
+    let expected_x = [5.0, 30.0, 55.0, 80.0, 105.0];
     for (rect, x) in rects.iter().zip(expected_x) {
         assert_eq!(*rect, Rect::new(x, 22.0, 1.0, 4.0));
     }
@@ -4774,7 +4774,7 @@ fn test_slider_track_marks_draw_max_endpoint_when_spacing_does_not_divide_range(
     assert_eq!(rects.len(), 5);
     assert_eq!(
         rects.last().copied(),
-        Some(Rect::new(104.5, 22.0, 1.0, 4.0))
+        Some(Rect::new(105.0, 22.0, 1.0, 4.0))
     );
 }
 
