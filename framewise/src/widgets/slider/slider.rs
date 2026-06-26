@@ -114,21 +114,41 @@ pub mod raw {
         let is_visible = spec.clip_rect.is_none_or(|c| c.contains(input.mouse_pos));
         let is_vert = spec.orientation == Orientation::Vertical;
 
+        let marks_after = valid_track_marks(spec.style.track_marks)
+            .map(|marks| marks.gap.max(0.0) + marks.length)
+            .unwrap_or(0.0);
+
+        let track_outer_rect = if is_vert {
+            Rect::new(
+                spec.rect.x,
+                spec.rect.y,
+                (spec.rect.w - marks_after).max(0.0),
+                spec.rect.h,
+            )
+        } else {
+            Rect::new(
+                spec.rect.x,
+                spec.rect.y,
+                spec.rect.w,
+                (spec.rect.h - marks_after).max(0.0),
+            )
+        };
+
         let (main_start_padding, main_end_padding) = if !state.value.is_range() {
             if let Some(lower_style) = spec.style.lower_thumb_style {
-                let len = main_axis_len(lower_style.cross_axis, spec.rect, is_vert);
+                let len = main_axis_len(lower_style.cross_axis, track_outer_rect, is_vert);
                 (len * 0.5, len * 0.5)
             } else {
                 (0.0, 0.0)
             }
         } else {
             let start_pad = if let Some(lower_style) = spec.style.lower_thumb_style {
-                main_axis_len(lower_style.cross_axis, spec.rect, is_vert) * 0.5
+                main_axis_len(lower_style.cross_axis, track_outer_rect, is_vert) * 0.5
             } else {
                 0.0
             };
             let end_pad = if let Some(upper_style) = spec.style.upper_thumb_style {
-                main_axis_len(upper_style.cross_axis, spec.rect, is_vert) * 0.5
+                main_axis_len(upper_style.cross_axis, track_outer_rect, is_vert) * 0.5
             } else {
                 0.0
             };
@@ -136,13 +156,13 @@ pub mod raw {
         };
 
         let track_rect = if is_vert {
-            let new_y = spec.rect.y + main_start_padding;
-            let new_h = (spec.rect.h - (main_start_padding + main_end_padding)).max(0.0);
-            Rect::new(spec.rect.x, new_y, spec.rect.w, new_h)
+            let new_y = track_outer_rect.y + main_start_padding;
+            let new_h = (track_outer_rect.h - (main_start_padding + main_end_padding)).max(0.0);
+            Rect::new(track_outer_rect.x, new_y, track_outer_rect.w, new_h)
         } else {
-            let new_x = spec.rect.x + main_start_padding;
-            let new_w = (spec.rect.w - (main_start_padding + main_end_padding)).max(0.0);
-            Rect::new(new_x, spec.rect.y, new_w, spec.rect.h)
+            let new_x = track_outer_rect.x + main_start_padding;
+            let new_w = (track_outer_rect.w - (main_start_padding + main_end_padding)).max(0.0);
+            Rect::new(new_x, track_outer_rect.y, new_w, track_outer_rect.h)
         };
 
         let track_len = if is_vert { track_rect.h } else { track_rect.w };

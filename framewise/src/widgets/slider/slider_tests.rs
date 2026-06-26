@@ -4707,7 +4707,7 @@ fn horizontal_mark_spec(value_spacing: f32) -> SliderSpec {
     style.track_marks = Some(track_mark_style(value_spacing, mark_color, 1.0, 4.0, 2.0));
     SliderSpec {
         orientation: Orientation::Horizontal,
-        rect: Rect::new(0.0, 0.0, 110.0, 20.0),
+        rect: Rect::new(0.0, 0.0, 110.0, 16.0),
         min: 0.0,
         max: 10.0,
         page_step: 1.0,
@@ -4755,13 +4755,40 @@ fn marker_rects(cmds: &DrawCommands, color: Color) -> Vec<Rect> {
 fn test_slider_track_marks_draw_horizontal() {
     let color = Color::from_srgb_u8(1, 2, 3, 255);
     let spec = horizontal_mark_spec(2.5);
-    let rects = marker_rects(&draw_slider_for_marks(spec), color);
+    let cmds = draw_slider_for_marks(spec);
+    let rects = marker_rects(&cmds, color);
 
     assert_eq!(rects.len(), 5);
     let expected_x = [5.0, 30.0, 55.0, 80.0, 105.0];
     for (rect, x) in rects.iter().zip(expected_x) {
-        assert_eq!(*rect, Rect::new(x, 22.0, 1.0, 4.0));
+        assert_eq!(*rect, Rect::new(x, 12.0, 1.0, 4.0));
+        assert!(rect.bottom() <= 16.0);
     }
+
+    // Assert track stroke is top-aligned
+    let theme = crate::theme::Theme::framewise();
+    let has_track_stroke = cmds.commands().iter().any(|cmd| match cmd {
+        DrawCmd::FillRect { rect, color: c, .. } => {
+            *rect == Rect::new(5.0, 4.0, 100.0, 2.0) && *c == theme.line_on_paper
+        }
+        _ => false,
+    });
+    assert!(
+        has_track_stroke,
+        "Could not find expected track stroke: Rect::new(5.0, 4.0, 100.0, 2.0)"
+    );
+
+    // Assert lower thumb is top-aligned
+    let has_lower_thumb = cmds.commands().iter().any(|cmd| match cmd {
+        DrawCmd::FillRect { rect, color: c, .. } => {
+            *rect == Rect::new(0.0, 0.0, 10.0, 10.0) && *c == theme.paper_elev
+        }
+        _ => false,
+    });
+    assert!(
+        has_lower_thumb,
+        "Could not find expected lower thumb: Rect::new(0.0, 0.0, 10.0, 10.0)"
+    );
 }
 
 #[test]
@@ -4772,10 +4799,173 @@ fn test_slider_track_marks_draw_max_endpoint_when_spacing_does_not_divide_range(
     let rects = marker_rects(&draw_slider_for_marks(spec), color);
 
     assert_eq!(rects.len(), 5);
-    assert_eq!(
-        rects.last().copied(),
-        Some(Rect::new(105.0, 22.0, 1.0, 4.0))
+    let expected = [
+        Rect::new(5.0, 12.0, 1.0, 4.0),
+        Rect::new(35.0, 12.0, 1.0, 4.0),
+        Rect::new(65.0, 12.0, 1.0, 4.0),
+        Rect::new(95.0, 12.0, 1.0, 4.0),
+        Rect::new(105.0, 12.0, 1.0, 4.0),
+    ];
+    assert_eq!(rects, expected);
+}
+
+#[test]
+fn test_slider_track_marks_draw_vertical() {
+    let mark_color = Color::from_srgb_u8(1, 2, 3, 255);
+    let mut style = SliderStyle::from_theme(&crate::theme::Theme::framewise());
+    style.lower_thumb_style.as_mut().unwrap().cross_axis = ThumbCrossAxis::FixedCentered(10.0);
+    style.track_marks = Some(track_mark_style(2.5, mark_color, 1.0, 4.0, 2.0));
+
+    let spec = SliderSpec {
+        orientation: Orientation::Vertical,
+        rect: Rect::new(0.0, 0.0, 16.0, 110.0),
+        min: 0.0,
+        max: 10.0,
+        page_step: 1.0,
+        step: 1.0,
+        min_gap: None,
+        max_gap: None,
+        value_snap: None,
+        style,
+        clip_rect: None,
+        scroll_claim: ScrollClaimPolicy::ClaimAllDirections,
+        time: 0.0,
+        disabled: false,
+        keyboard_focusable: true,
+        layer: Layer::default(),
+    };
+
+    let cmds = draw_slider_for_marks(spec);
+    let rects = marker_rects(&cmds, mark_color);
+
+    assert_eq!(rects.len(), 5);
+    let expected = [
+        Rect::new(12.0, 5.0, 4.0, 1.0),
+        Rect::new(12.0, 30.0, 4.0, 1.0),
+        Rect::new(12.0, 55.0, 4.0, 1.0),
+        Rect::new(12.0, 80.0, 4.0, 1.0),
+        Rect::new(12.0, 105.0, 4.0, 1.0),
+    ];
+    assert_eq!(rects, expected);
+
+    for rect in &rects {
+        assert!(rect.right() <= 16.0);
+    }
+
+    let theme = crate::theme::Theme::framewise();
+    let has_track_stroke = cmds.commands().iter().any(|cmd| match cmd {
+        DrawCmd::FillRect { rect, color: c, .. } => {
+            *rect == Rect::new(4.0, 5.0, 2.0, 100.0) && *c == theme.line_on_paper
+        }
+        _ => false,
+    });
+    assert!(
+        has_track_stroke,
+        "Could not find expected track stroke: Rect::new(4.0, 5.0, 2.0, 100.0)"
     );
+
+    let has_lower_thumb = cmds.commands().iter().any(|cmd| match cmd {
+        DrawCmd::FillRect { rect, color: c, .. } => {
+            *rect == Rect::new(0.0, 0.0, 10.0, 10.0) && *c == theme.paper_elev
+        }
+        _ => false,
+    });
+    assert!(
+        has_lower_thumb,
+        "Could not find expected lower thumb: Rect::new(0.0, 0.0, 10.0, 10.0)"
+    );
+}
+
+#[test]
+fn test_horizontal_track_marks_fit_inside_requested_height() {
+    let mark_color = Color::from_srgb_u8(1, 2, 3, 255);
+    let mut style = SliderStyle::from_theme(&crate::theme::Theme::framewise());
+    style.lower_thumb_style.as_mut().unwrap().cross_axis = ThumbCrossAxis::FixedCentered(10.0);
+    style.track_marks = Some(track_mark_style(2.5, mark_color, 1.0, 4.0, 2.0));
+
+    let pre = raw::pre_layout_slider(
+        &raw::SliderPreLayoutSpec {
+            orientation: Orientation::Horizontal,
+            style,
+        },
+        SizeOffer::UNBOUNDED,
+    );
+
+    assert_eq!(pre.size_request.preferred.unwrap().y, 16.0);
+
+    let spec = SliderSpec {
+        orientation: Orientation::Horizontal,
+        rect: Rect::new(0.0, 0.0, 110.0, 16.0),
+        min: 0.0,
+        max: 10.0,
+        page_step: 1.0,
+        step: 1.0,
+        min_gap: None,
+        max_gap: None,
+        value_snap: None,
+        style,
+        clip_rect: None,
+        scroll_claim: ScrollClaimPolicy::ClaimAllDirections,
+        time: 0.0,
+        disabled: false,
+        keyboard_focusable: true,
+        layer: Layer::default(),
+    };
+
+    let cmds = draw_slider_for_marks(spec);
+    let rects = marker_rects(&cmds, mark_color);
+
+    assert_eq!(rects.len(), 5);
+    for rect in rects {
+        assert!(rect.y >= 0.0);
+        assert!(rect.bottom() <= 16.0);
+    }
+}
+
+#[test]
+fn test_vertical_track_marks_fit_inside_requested_width() {
+    let mark_color = Color::from_srgb_u8(1, 2, 3, 255);
+    let mut style = SliderStyle::from_theme(&crate::theme::Theme::framewise());
+    style.lower_thumb_style.as_mut().unwrap().cross_axis = ThumbCrossAxis::FixedCentered(10.0);
+    style.track_marks = Some(track_mark_style(2.5, mark_color, 1.0, 4.0, 2.0));
+
+    let pre = raw::pre_layout_slider(
+        &raw::SliderPreLayoutSpec {
+            orientation: Orientation::Vertical,
+            style,
+        },
+        SizeOffer::UNBOUNDED,
+    );
+
+    assert_eq!(pre.size_request.preferred.unwrap().x, 16.0);
+
+    let spec = SliderSpec {
+        orientation: Orientation::Vertical,
+        rect: Rect::new(0.0, 0.0, 16.0, 110.0),
+        min: 0.0,
+        max: 10.0,
+        page_step: 1.0,
+        step: 1.0,
+        min_gap: None,
+        max_gap: None,
+        value_snap: None,
+        style,
+        clip_rect: None,
+        scroll_claim: ScrollClaimPolicy::ClaimAllDirections,
+        time: 0.0,
+        disabled: false,
+        keyboard_focusable: true,
+        layer: Layer::default(),
+    };
+
+    let cmds = draw_slider_for_marks(spec);
+    let rects = marker_rects(&cmds, mark_color);
+
+    assert_eq!(rects.len(), 5);
+    for rect in rects {
+        assert!(rect.x >= 0.0);
+        assert!(rect.right() <= 16.0);
+    }
 }
 
 #[test]

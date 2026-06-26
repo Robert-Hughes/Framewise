@@ -362,7 +362,13 @@ fn draw_slider_fake_state<T: TextBackend, LS: LayoutState, CF>(
     is_dragging: bool,
     focused: bool,
 ) {
-    let rect = b.layout(layout_params, SizeRequest::UNKNOWN);
+    let size_offer = b.peek_offer(layout_params.clone());
+    let pre_layout_spec = framewise::widgets::slider::raw::SliderPreLayoutSpec {
+        orientation: Orientation::Horizontal,
+        style: SliderStyle::from_theme(&b.theme),
+    };
+    let pre_layout = framewise::widgets::slider::raw::pre_layout_slider(&pre_layout_spec, size_offer);
+    let rect = b.layout(layout_params, pre_layout.size_request);
     let mut state = SliderState {
         value: SliderValue::Single(val),
         active_part: is_dragging.then_some(SliderPart::LowerThumb),
@@ -393,9 +399,6 @@ fn draw_slider_fake_state<T: TextBackend, LS: LayoutState, CF>(
         disabled: false,
         keyboard_focusable: true,
         layer: b.layer,
-    };
-    let pre_layout = framewise::widgets::slider::raw::SliderPreLayoutResult {
-        size_request: SizeRequest::UNKNOWN,
     };
     framewise::widgets::slider::raw::post_layout_slider(
         spec,
@@ -2532,11 +2535,8 @@ fn section_04_sliders<CF>(
 
     group_y(b, "slider · single value");
     {
-        let mut b = b.child_with_layout(ColumnLayoutParams::fixed(content_w, 120.0), ManualLayout);
+        let mut b = b.child_with_layout(ColumnLayoutParams::auto().fixed_x(content_w), ColumnLayout);
         let slider_w = 260.0_f32;
-        let row_gap = 10.0_f32;
-        let row_h = 18.0_f32;
-        let mut y = 0.0;
         let values = [
             (0.1, &mut state.slider1_state, false, false),
             (0.1, &mut state.slider2_state, false, false),
@@ -2545,9 +2545,10 @@ fn section_04_sliders<CF>(
         ];
 
         for (step, slider_state, show_ticks, is_static) in values {
-            let rect = Rect::new(0.0, y, slider_w, row_h);
+            b.spacer(8.0);
+            let mut b = b.child_with_layout(ColumnLayoutParams::auto(), RowLayout);
             if is_static {
-                draw_slider_fake_state(&mut b, rect, 0.88, true, true);
+                draw_slider_fake_state(&mut b, RowLayoutParams::auto().fixed_x(slider_w), 0.88, true, true);
             } else {
                 let spec_builder = if show_ticks {
                     let mut style = SliderStyle::from_theme(&b.theme);
@@ -2561,8 +2562,10 @@ fn section_04_sliders<CF>(
                 } else {
                     SliderSpecBuilder::new().max(1.0).page_step(step).step(step)
                 };
-                slider(&mut b, spec_builder, rect, slider_state);
+                slider(&mut b, spec_builder, RowLayoutParams::auto().fixed_x(slider_w), slider_state);
             }
+
+            b.spacer(8.0);
 
             let text = if is_static {
                 format!("{:.2}", 0.88)
@@ -2580,28 +2583,24 @@ fn section_04_sliders<CF>(
                 text_color: b.theme.ink,
                 ..LabelStyle::from_theme(&b.theme)
             });
-            label(&mut b, spec, Rect::new(slider_w + 12.0, y, 80.0, row_h));
+            label(&mut b, spec, RowLayoutParams::auto());
 
             if is_static {
                 let badge_rect = b.layout(
-                    Rect::new(slider_w + 60.0, y, 70.0, row_h),
+                    RowLayoutParams::fixed(70.0, 12.0),
                     SizeRequest::UNKNOWN,
                 );
                 static_badge(&mut b, badge_rect);
             }
 
-            if show_ticks {
-                y += row_h + 8.0;
-            } else {
-                y += row_h + row_gap;
-            }
+            b.finish();
         }
         b.finish();
     }
 
     group_y(b, "range slider");
     {
-        let mut b = b.child_with_layout(ColumnLayoutParams::fixed(content_w, 18.0), ManualLayout);
+        let mut b = b.child_with_layout(ColumnLayoutParams::auto(), RowLayout);
         let track_w = 260.0_f32;
         let spec_builder = SliderSpecBuilder::new()
             .max(1.0)
@@ -2612,9 +2611,11 @@ fn section_04_sliders<CF>(
         slider(
             &mut b,
             spec_builder,
-            Rect::new(0.0, 0.0, track_w, 18.0),
+            RowLayoutParams::auto().fixed_x(track_w),
             &mut state.slider_range_state,
         );
+
+        b.spacer(8.0);
 
         let text = if let SliderValue::Range { lower, upper } = state.slider_range_state.value {
             format!("{:.2}–{:.2}", lower, upper)
@@ -2631,7 +2632,7 @@ fn section_04_sliders<CF>(
             text_color: b.theme.ink,
             ..LabelStyle::from_theme(&b.theme)
         });
-        label(&mut b, spec, Rect::new(track_w + 12.0, 0.0, 80.0, 18.0));
+        label(&mut b, spec, RowLayoutParams::auto());
         b.finish();
     }
 
@@ -2639,7 +2640,7 @@ fn section_04_sliders<CF>(
     {
         let mut b = b.child_with_layout(ColumnLayoutParams::fixed(content_w, 42.0), ManualLayout);
         let mut x = 0.0;
-        let rect = Rect::new(x, 14.0, 100.0, b.theme.h_md);
+        let rect = Rect::new(x, 0.0, 100.0, b.theme.h_md);
         drag_number(
             &mut b,
             DragNumberSpecBuilder::new().text("X").max(800.0),
@@ -2647,7 +2648,7 @@ fn section_04_sliders<CF>(
             &mut state.dn_showcase[0],
         );
         x += 108.0;
-        let rect = Rect::new(x, 14.0, 100.0, b.theme.h_md);
+        let rect = Rect::new(x, 0.0, 100.0, b.theme.h_md);
         drag_number(
             &mut b,
             DragNumberSpecBuilder::new().text("Y").max(600.0),
@@ -2657,10 +2658,10 @@ fn section_04_sliders<CF>(
         x += 108.0;
         let badge_rect = b.layout(Rect::new(x, 0.0, 72.0, 12.0), SizeRequest::UNKNOWN);
         static_badge(&mut b, badge_rect);
-        let rect = Rect::new(x, 14.0, 100.0, b.theme.h_md);
+        let rect = Rect::new(x, 0.0, 100.0, b.theme.h_md);
         draw_drag_number_fake_state(&mut b, rect, "W", 576.0, 0.0, 800.0, true);
         x += 108.0;
-        let rect = Rect::new(x, 14.0, 100.0, b.theme.h_md);
+        let rect = Rect::new(x, 0.0, 100.0, b.theme.h_md);
         drag_number(
             &mut b,
             DragNumberSpecBuilder::new().text("H").max(600.0),

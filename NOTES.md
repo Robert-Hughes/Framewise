@@ -4,11 +4,6 @@ Working notes, TODOs, open questions, and half-baked ideas.
 
 ## Current Work
 
-- Slider visual markers and snap work (check chatgpt session)
-  - markers being drawn (see chatgpt chat)
-  - fixed steps (see chatgpt chat)
-  - focus ring doesn't include markers
-
 - Sliders!
   - thumbs are not odd pixel size, so the centre 'value marker' line (collapsed range slider) is off-centre slightly. Fix with new renderer semantics?
   - are we using the widget helpers and or test helpers?

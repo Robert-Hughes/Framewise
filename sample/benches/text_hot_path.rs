@@ -50,7 +50,7 @@ fn bench_text_hot_path(c: &mut Criterion) {
 
     c.bench_function("text_hot_path_measure_layout_emit_warm_cache", |b| {
         b.iter_batched(
-            DrawCommands::new,
+            || DrawCommands::new(1.0),
             |mut commands| {
                 let layout = layout_text(&mut backend, black_box(BENCH_TEXT), style, bounds);
                 let metrics = layout.metrics();
