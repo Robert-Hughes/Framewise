@@ -4863,6 +4863,75 @@ fn test_slider_prelayout_reserves_width_for_vertical_track_marks() {
 }
 
 #[test]
+fn test_slider_prelayout_includes_visible_track_stroke_width() {
+    let style = SliderStyle {
+        background_fill: None,
+        before_stroke: Some(Stroke::new(Color::BLACK, 3.0)),
+        after_stroke: Some(Stroke::new(Color::BLACK, 5.0)),
+        segment_style: None,
+        lower_thumb_style: None,
+        upper_thumb_style: None,
+        separator_line: None,
+        track_marks: None,
+        focus: None,
+        disabled_alpha: 0.32,
+    };
+
+    let request = raw::pre_layout_slider(
+        &raw::SliderPreLayoutSpec {
+            orientation: Orientation::Horizontal,
+            style,
+        },
+        SizeOffer::UNBOUNDED,
+    )
+    .size_request;
+    assert!(request.preferred.unwrap().y >= 5.0);
+
+    let style = SliderStyle {
+        background_fill: None,
+        before_stroke: None,
+        after_stroke: None,
+        segment_style: None,
+        lower_thumb_style: None,
+        upper_thumb_style: None,
+        separator_line: Some(Stroke::new(Color::BLACK, 4.0)),
+        track_marks: None,
+        focus: None,
+        disabled_alpha: 0.32,
+    };
+
+    let request = raw::pre_layout_slider(
+        &raw::SliderPreLayoutSpec {
+            orientation: Orientation::Vertical,
+            style,
+        },
+        SizeOffer::UNBOUNDED,
+    )
+    .size_request;
+    assert!(request.preferred.unwrap().x >= 4.0);
+}
+
+#[test]
+fn test_snap_value_chooses_nearest_grid_value_or_max_endpoint() {
+    assert_eq!(snap_value(8.6, 0.0, 10.0, Some(3.0)), 9.0);
+    assert_eq!(snap_value(9.4, 0.0, 10.0, Some(3.0)), 9.0);
+    assert_eq!(snap_value(9.6, 0.0, 10.0, Some(3.0)), 10.0);
+    assert_eq!(snap_value(10.0, 0.0, 10.0, Some(3.0)), 10.0);
+}
+
+#[test]
+fn test_snap_value_in_bounds_keeps_result_snapped_when_clamp_bound_is_unsnapped() {
+    assert_eq!(
+        snap_value_in_bounds(40.0, 0.0, 100.0, 0.0, 32.0, Some(10.0)),
+        30.0
+    );
+    assert_eq!(
+        snap_value_in_bounds(10.0, 0.0, 100.0, 23.0, 100.0, Some(10.0)),
+        30.0
+    );
+}
+
+#[test]
 fn test_slider_value_snap_invalid_settings_are_ignored() {
     for value_snap in [Some(0.0), Some(-1.0), Some(f32::NAN), Some(f32::INFINITY)] {
         let mut state = SliderState {
@@ -5249,6 +5318,47 @@ fn test_slider_value_snap_preserves_fixed_size_range_segment() {
     assert_eq!(state.value.lower() % 10.0, 0.0);
     assert_eq!(state.value.upper().unwrap() % 10.0, 0.0);
     assert!(state.value.lower() >= 0.0 && state.value.upper().unwrap() <= 100.0);
+}
+
+#[test]
+fn test_repair_values_keeps_range_snapped_with_unsnapped_gap_constraints() {
+    let mut state = SliderState {
+        value: SliderValue::Range {
+            lower: 20.0,
+            upper: 55.0,
+        },
+        ..Default::default()
+    };
+
+    repair_values(&mut state, 0.0, 100.0, Some(23.0), None, Some(10.0));
+
+    let lower = state.value.lower();
+    let upper = state.value.upper().unwrap();
+    assert!(lower.is_finite());
+    assert!(upper.is_finite());
+    assert!(lower >= 0.0 && upper <= 100.0);
+    assert!(upper - lower >= 23.0);
+    assert_eq!(lower % 10.0, 0.0);
+    assert_eq!(upper % 10.0, 0.0);
+
+    let mut state = SliderState {
+        value: SliderValue::Range {
+            lower: 20.0,
+            upper: 57.0,
+        },
+        ..Default::default()
+    };
+
+    repair_values(&mut state, 0.0, 100.0, None, Some(23.0), Some(10.0));
+
+    let lower = state.value.lower();
+    let upper = state.value.upper().unwrap();
+    assert!(lower.is_finite());
+    assert!(upper.is_finite());
+    assert!(lower >= 0.0 && upper <= 100.0);
+    assert!(upper - lower <= 23.0);
+    assert_eq!(lower % 10.0, 0.0);
+    assert_eq!(upper % 10.0, 0.0);
 }
 
 #[test]

@@ -2554,7 +2554,9 @@ fn section_04_sliders<CF>(
                     style.track_marks = Some(TrackMarksStyle::from_theme(&b.theme, 1.0));
                     SliderSpecBuilder::new()
                         .max(9.0)
-                        .page_step(step)
+                        .page_step(1.0)
+                        .step(1.0)
+                        .value_snap(Some(1.0))
                         .style(style)
                 } else {
                     SliderSpecBuilder::new().max(1.0).page_step(step).step(step)

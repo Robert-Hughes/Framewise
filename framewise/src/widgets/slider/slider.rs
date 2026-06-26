@@ -920,6 +920,18 @@ fn main_axis_len(cross_axis: ThumbCrossAxis, track_rect: Rect, is_vert: bool) ->
 
 fn slider_base_cross_axis_request(style: SliderStyle) -> f32 {
     let mut cross: f32 = 0.0;
+    for stroke in [
+        style.before_stroke,
+        style.after_stroke,
+        style.separator_line,
+    ]
+    .into_iter()
+    .flatten()
+    {
+        if stroke.is_visible() && stroke.width.is_finite() {
+            cross = cross.max(stroke.width);
+        }
+    }
     if let Some(style) = style.lower_thumb_style {
         if let ThumbCrossAxis::FixedCentered(len) = style.cross_axis {
             if len.is_finite() && len > 0.0 {
@@ -1023,16 +1035,151 @@ fn snap_value(value: f32, min: f32, max: f32, value_snap: Option<f32>) -> f32 {
         return value;
     }
 
-    // Treat max as a valid snap target even when it is not on the min-relative
-    // grid, so users can still reach the upper endpoint naturally.
-    if max - value <= value_snap * 0.5 {
-        return max;
-    }
-
     // The grid is anchored at min rather than zero, which keeps non-zero
     // domains aligned to their own value space.
     let snapped = min + ((value - min) / value_snap).round() * value_snap;
-    snapped.clamp(min, max)
+    let snapped = snapped.clamp(min, max);
+
+    // Treat max as an extra candidate when it is not on the grid, but only
+    // choose it when it is nearer than the ordinary snapped grid value.
+    if (max - value).abs() < (value - snapped).abs() {
+        max
+    } else {
+        snapped
+    }
+}
+
+fn snap_value_in_bounds(
+    value: f32,
+    min: f32,
+    max: f32,
+    lower_bound: f32,
+    upper_bound: f32,
+    value_snap: Option<f32>,
+) -> f32 {
+    let lower_bound = finite_or(lower_bound, min).clamp(min, max);
+    let upper_bound = finite_or(upper_bound, max).clamp(min, max);
+    let (lower_bound, upper_bound) = if lower_bound <= upper_bound {
+        (lower_bound, upper_bound)
+    } else {
+        (upper_bound, lower_bound)
+    };
+    let value = finite_or(value, lower_bound).clamp(lower_bound, upper_bound);
+
+    let Some(candidates) = snapped_candidates(min, max, value_snap) else {
+        return value;
+    };
+
+    candidates
+        .into_iter()
+        .filter(|candidate| *candidate >= lower_bound && *candidate <= upper_bound)
+        .min_by(|a, b| {
+            (value - *a)
+                .abs()
+                .total_cmp(&(value - *b).abs())
+                .then_with(|| a.total_cmp(b))
+        })
+        // Snapping can be impossible inside an unsnapped gap interval. Preserve
+        // the requested bounds in that case rather than returning an invalid
+        // snapped value outside the allowed range.
+        .unwrap_or(value)
+}
+
+fn snapped_candidates(min: f32, max: f32, value_snap: Option<f32>) -> Option<Vec<f32>> {
+    const MAX_SNAP_CANDIDATES: usize = 512;
+
+    let value_snap = value_snap?;
+    if !value_snap.is_finite() || value_snap <= 0.0 || !min.is_finite() || !max.is_finite() {
+        return None;
+    }
+    let range = max - min;
+    if range < 0.0 || !range.is_finite() {
+        return None;
+    }
+
+    let spacing_count = (range / value_snap).floor();
+    if !spacing_count.is_finite() || spacing_count as usize + 2 > MAX_SNAP_CANDIDATES {
+        return None;
+    }
+
+    let mut candidates = Vec::with_capacity(spacing_count as usize + 2);
+    candidates.push(min);
+    for i in 1..=spacing_count as usize {
+        let candidate = min + i as f32 * value_snap;
+        if candidate > min && candidate < max {
+            candidates.push(candidate);
+        }
+    }
+    if candidates
+        .last()
+        .is_none_or(|last| (*last - max).abs() > f32::EPSILON)
+    {
+        candidates.push(max);
+    }
+    Some(candidates)
+}
+
+fn repair_range_continuous(
+    mut lower: f32,
+    mut upper: f32,
+    min: f32,
+    max: f32,
+    min_gap: Option<f32>,
+    max_gap: Option<f32>,
+    value_snap: Option<f32>,
+) -> (f32, f32) {
+    lower = snap_value(lower, min, max, value_snap);
+    upper = snap_value(upper, min, max, value_snap);
+    if lower > upper {
+        core::mem::swap(&mut lower, &mut upper);
+    }
+
+    let (min_gap_val, max_gap_val) = effective_gaps(min, max, min_gap, max_gap);
+    let gap = (upper - lower).clamp(min_gap_val, max_gap_val);
+
+    upper = (lower + gap).min(max);
+    lower = (upper - gap).max(min);
+    upper = (lower + gap).min(max);
+    (lower, upper)
+}
+
+fn repair_range_snapped(
+    requested_lower: f32,
+    requested_upper: f32,
+    min: f32,
+    max: f32,
+    min_gap: Option<f32>,
+    max_gap: Option<f32>,
+    value_snap: Option<f32>,
+) -> Option<(f32, f32)> {
+    let candidates = snapped_candidates(min, max, value_snap)?;
+    let (min_gap_val, max_gap_val) = effective_gaps(min, max, min_gap, max_gap);
+    let mut target_lower = snap_value(requested_lower, min, max, value_snap);
+    let mut target_upper = snap_value(requested_upper, min, max, value_snap);
+    if target_lower > target_upper {
+        core::mem::swap(&mut target_lower, &mut target_upper);
+    }
+
+    let mut best: Option<(f32, f32, f32)> = None;
+    for &lower in &candidates {
+        for &upper in &candidates {
+            let gap = upper - lower;
+            if gap < min_gap_val || gap > max_gap_val {
+                continue;
+            }
+            let distance = (lower - target_lower).abs() + (upper - target_upper).abs();
+            match best {
+                Some((best_distance, best_lower, best_upper))
+                    if distance
+                        .total_cmp(&best_distance)
+                        .then_with(|| lower.total_cmp(&best_lower))
+                        .then_with(|| upper.total_cmp(&best_upper))
+                        .is_ge() => {}
+                _ => best = Some((distance, lower, upper)),
+            }
+        }
+    }
+    best.map(|(_, lower, upper)| (lower, upper))
 }
 
 fn repair_values(
@@ -1051,18 +1198,13 @@ fn repair_values(
             mut lower,
             mut upper,
         } => {
-            lower = snap_value(lower, min, max, value_snap);
-            upper = snap_value(upper, min, max, value_snap);
-            if lower > upper {
-                core::mem::swap(&mut lower, &mut upper);
-            }
-
-            let (min_gap_val, max_gap_val) = effective_gaps(min, max, min_gap, max_gap);
-            let gap = (upper - lower).clamp(min_gap_val, max_gap_val);
-
-            upper = (lower + gap).min(max);
-            lower = (upper - gap).max(min);
-            upper = (lower + gap).min(max);
+            (lower, upper) =
+                repair_range_snapped(lower, upper, min, max, min_gap, max_gap, value_snap)
+                    .unwrap_or_else(|| {
+                        repair_range_continuous(
+                            lower, upper, min, max, min_gap, max_gap, value_snap,
+                        )
+                    });
             state.value = SliderValue::Range { lower, upper };
         }
     }
@@ -1091,8 +1233,14 @@ fn apply_drag_delta(
                 let (min_gap_val, max_gap_val) = effective_gaps(min, max, min_gap, max_gap);
                 let min_lower = (upper - max_gap_val).max(min);
                 let max_lower = (upper - min_gap_val).min(max);
-                let lower =
-                    snap_value(requested_lower, min, max, value_snap).clamp(min_lower, max_lower);
+                let lower = snap_value_in_bounds(
+                    requested_lower,
+                    min,
+                    max,
+                    min_lower,
+                    max_lower,
+                    value_snap,
+                );
                 state.value = SliderValue::Range { lower, upper };
             }
         },
@@ -1103,8 +1251,14 @@ fn apply_drag_delta(
                 let (min_gap_val, max_gap_val) = effective_gaps(min, max, min_gap, max_gap);
                 let min_upper = (lower + min_gap_val).max(min);
                 let max_upper = (lower + max_gap_val).min(max);
-                let upper =
-                    snap_value(requested_upper, min, max, value_snap).clamp(min_upper, max_upper);
+                let upper = snap_value_in_bounds(
+                    requested_upper,
+                    min,
+                    max,
+                    min_upper,
+                    max_upper,
+                    value_snap,
+                );
                 state.value = SliderValue::Range { lower, upper };
             }
         },
