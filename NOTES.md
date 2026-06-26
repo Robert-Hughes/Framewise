@@ -11,6 +11,7 @@ Working notes, TODOs, open questions, and half-baked ideas.
 
 - Focus outline for text box with scrollbars isn't quite right (thinner around scrollbar)
 
+- Try to speed up cargo test for faster iteration
 
 - Go through the spec_page, check/implement/test each widget/aspect to make better match the mock-up and add interactivity as we go (https://claude.ai/design/p/1aab4e86-cbf2-497e-b379-44cf41de2b12?file=Framewise+Widgets.html)
   - Done 01-03

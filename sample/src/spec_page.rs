@@ -367,7 +367,8 @@ fn draw_slider_fake_state<T: TextBackend, LS: LayoutState, CF>(
         orientation: Orientation::Horizontal,
         style: SliderStyle::from_theme(&b.theme),
     };
-    let pre_layout = framewise::widgets::slider::raw::pre_layout_slider(&pre_layout_spec, size_offer);
+    let pre_layout =
+        framewise::widgets::slider::raw::pre_layout_slider(&pre_layout_spec, size_offer);
     let rect = b.layout(layout_params, pre_layout.size_request);
     let mut state = SliderState {
         value: SliderValue::Single(val),
@@ -2535,7 +2536,8 @@ fn section_04_sliders<CF>(
 
     group_y(b, "slider · single value");
     {
-        let mut b = b.child_with_layout(ColumnLayoutParams::auto().fixed_x(content_w), ColumnLayout);
+        let mut b =
+            b.child_with_layout(ColumnLayoutParams::auto().fixed_x(content_w), ColumnLayout);
         let slider_w = 260.0_f32;
         let values = [
             (0.1, &mut state.slider1_state, false, false),
@@ -2548,7 +2550,13 @@ fn section_04_sliders<CF>(
             b.spacer(8.0);
             let mut b = b.child_with_layout(ColumnLayoutParams::auto(), RowLayout);
             if is_static {
-                draw_slider_fake_state(&mut b, RowLayoutParams::auto().fixed_x(slider_w), 0.88, true, true);
+                draw_slider_fake_state(
+                    &mut b,
+                    RowLayoutParams::auto().fixed_x(slider_w),
+                    0.88,
+                    true,
+                    true,
+                );
             } else {
                 let spec_builder = if show_ticks {
                     let mut style = SliderStyle::from_theme(&b.theme);
@@ -2562,7 +2570,12 @@ fn section_04_sliders<CF>(
                 } else {
                     SliderSpecBuilder::new().max(1.0).page_step(step).step(step)
                 };
-                slider(&mut b, spec_builder, RowLayoutParams::auto().fixed_x(slider_w), slider_state);
+                slider(
+                    &mut b,
+                    spec_builder,
+                    RowLayoutParams::auto().fixed_x(slider_w),
+                    slider_state,
+                );
             }
 
             b.spacer(8.0);
@@ -2586,10 +2599,7 @@ fn section_04_sliders<CF>(
             label(&mut b, spec, RowLayoutParams::auto());
 
             if is_static {
-                let badge_rect = b.layout(
-                    RowLayoutParams::fixed(70.0, 12.0),
-                    SizeRequest::UNKNOWN,
-                );
+                let badge_rect = b.layout(RowLayoutParams::fixed(70.0, 12.0), SizeRequest::UNKNOWN);
                 static_badge(&mut b, badge_rect);
             }
 
