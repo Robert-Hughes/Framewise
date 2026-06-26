@@ -184,6 +184,7 @@ fn test_slider_drag() {
     let spec = SliderSpec {
         min_gap: None,
         max_gap: None,
+        value_snap: None,
         style,
         ..test_spec(0.0, 100.0, true)
     };
@@ -728,6 +729,7 @@ fn test_slider_wheel_over_overhanging_thumb() {
     let spec = SliderSpec {
         min_gap: None,
         max_gap: None,
+        value_snap: None,
         style,
         ..test_spec(0.0, 100.0, true) // rect is Rect::new(0.0, 0.0, 20.0, 100.0)
     };
@@ -828,6 +830,7 @@ fn test_track_click_snaps_and_drags() {
     let spec = SliderSpec {
         min_gap: None,
         max_gap: None,
+        value_snap: None,
         style,
         ..test_spec(0.0, 100.0, true)
     };
@@ -933,6 +936,7 @@ fn test_track_click_cross_axis_drag_captures_pointer_outside_widget() {
         rect: Rect::new(0.0, 0.0, 100.0, 20.0),
         min_gap: None,
         max_gap: None,
+        value_snap: None,
         style,
         ..test_spec(0.0, 100.0, true)
     };
@@ -1132,6 +1136,7 @@ fn test_track_click_repeat_does_not_overshoot_cursor() {
         page_step: 60.0,
         min_gap: None,
         max_gap: None,
+        value_snap: None,
         style,
         ..test_spec(0.0, 100.0, true)
     };
@@ -1315,6 +1320,7 @@ fn test_spec(min: f32, max: f32, claim_at_ends: bool) -> SliderSpec {
         step: 5.0,
         min_gap: None,
         max_gap: None,
+        value_snap: None,
         style: SliderStyle::from_theme(&crate::theme::Theme::framewise()),
         clip_rect: None,
         scroll_claim: if claim_at_ends {
@@ -1356,6 +1362,7 @@ fn test_single_slider_ignores_gap_constraints() {
         SliderSpec {
             min_gap: Some(40.0),
             max_gap: Some(40.0),
+            value_snap: None,
             ..test_spec(0.0, 100.0, true)
         },
         &mut state,
@@ -1385,6 +1392,7 @@ fn test_gap_repair_clamping_rules() {
     let spec = SliderSpec {
         min_gap: Some(20.0),
         max_gap: Some(40.0),
+        value_snap: None,
         ..test_spec(0.0, 100.0, true)
     };
 
@@ -1441,6 +1449,7 @@ fn test_fixed_span_slider_clamps_at_domain_end() {
         SliderSpec {
             min_gap: Some(30.0),
             max_gap: Some(30.0),
+            value_snap: None,
             ..test_spec(0.0, 100.0, true)
         },
         &mut state,
@@ -1483,6 +1492,7 @@ fn test_segment_only_slider_drag_moves_fixed_span() {
             rect: Rect::new(0.0, 0.0, 100.0, 20.0),
             min_gap: Some(20.0),
             max_gap: Some(20.0),
+            value_snap: None,
             style,
             ..test_spec(0.0, 100.0, true)
         },
@@ -2215,11 +2225,14 @@ fn test_high_level_explicit_placement_via_manual_layout() {
 
 #[test]
 fn test_size_slider() {
-    // A slider's size is caller-driven; it reports no size request.
-    let spec = raw::SliderPreLayoutSpec {};
+    // A slider's main-axis size is caller-driven; it only reports cross-axis visuals.
+    let spec = raw::SliderPreLayoutSpec {
+        orientation: Orientation::Horizontal,
+        style: SliderStyle::from_theme(&crate::theme::Theme::framewise()),
+    };
     assert_eq!(
         raw::pre_layout_slider(&spec, SizeOffer::UNBOUNDED).size_request,
-        crate::layout::SizeRequest::UNKNOWN
+        crate::layout::SizeRequest::preferred(Vec2::new(0.0, 12.0))
     );
 }
 
@@ -2232,6 +2245,7 @@ fn test_track_click_overshoot_first_page_no_jump_back() {
         page_step: 60.0,
         min_gap: None,
         max_gap: None,
+        value_snap: None,
         style,
         ..test_spec(0.0, 100.0, true) // track y=0..100, usable_track=80
     };
@@ -2403,6 +2417,7 @@ fn test_segment_only_slider_visual_normal() {
         step: 5.0,
         min_gap: None,
         max_gap: None,
+        value_snap: None,
         style,
         clip_rect: None,
         scroll_claim: ScrollClaimPolicy::YieldSameAxisAtEnds,
@@ -2475,6 +2490,7 @@ fn test_segment_only_slider_visual_hover() {
         step: 5.0,
         min_gap: None,
         max_gap: None,
+        value_snap: None,
         style,
         clip_rect: None,
         scroll_claim: ScrollClaimPolicy::YieldSameAxisAtEnds,
@@ -2568,6 +2584,7 @@ fn test_segment_only_slider_visual_drag() {
         step: 5.0,
         min_gap: None,
         max_gap: None,
+        value_snap: None,
         style,
         clip_rect: None,
         scroll_claim: ScrollClaimPolicy::YieldSameAxisAtEnds,
@@ -2644,6 +2661,7 @@ fn test_segment_only_slider_visual_focused() {
         step: 5.0,
         min_gap: None,
         max_gap: None,
+        value_snap: None,
         style,
         clip_rect: None,
         scroll_claim: ScrollClaimPolicy::YieldSameAxisAtEnds,
@@ -3012,6 +3030,7 @@ fn test_range_slider_visual_normal() {
         step: 5.0,
         min_gap: None,
         max_gap: None,
+        value_snap: None,
         style: SliderStyle::range_from_theme(&theme),
         clip_rect: None,
         scroll_claim: ScrollClaimPolicy::ClaimAllDirections,
@@ -3110,6 +3129,7 @@ fn test_range_slider_visual_hover_lower_thumb() {
         step: 5.0,
         min_gap: None,
         max_gap: None,
+        value_snap: None,
         style: SliderStyle::range_from_theme(&theme),
         clip_rect: None,
         scroll_claim: ScrollClaimPolicy::ClaimAllDirections,
@@ -3222,6 +3242,7 @@ fn test_range_slider_visual_hover_upper_thumb() {
         step: 5.0,
         min_gap: None,
         max_gap: None,
+        value_snap: None,
         style: SliderStyle::range_from_theme(&theme),
         clip_rect: None,
         scroll_claim: ScrollClaimPolicy::ClaimAllDirections,
@@ -3334,6 +3355,7 @@ fn test_range_slider_visual_hover_segment() {
         step: 5.0,
         min_gap: None,
         max_gap: None,
+        value_snap: None,
         style: SliderStyle::range_from_theme(&theme),
         clip_rect: None,
         scroll_claim: ScrollClaimPolicy::ClaimAllDirections,
@@ -3447,6 +3469,7 @@ fn test_range_slider_visual_drag_lower_thumb() {
         step: 5.0,
         min_gap: None,
         max_gap: None,
+        value_snap: None,
         style: SliderStyle::range_from_theme(&theme),
         clip_rect: None,
         scroll_claim: ScrollClaimPolicy::ClaimAllDirections,
@@ -3543,6 +3566,7 @@ fn test_range_slider_visual_drag_upper_thumb() {
         step: 5.0,
         min_gap: None,
         max_gap: None,
+        value_snap: None,
         style: SliderStyle::range_from_theme(&theme),
         clip_rect: None,
         scroll_claim: ScrollClaimPolicy::ClaimAllDirections,
@@ -3639,6 +3663,7 @@ fn test_range_slider_visual_drag_segment() {
         step: 5.0,
         min_gap: None,
         max_gap: None,
+        value_snap: None,
         style: SliderStyle::range_from_theme(&theme),
         clip_rect: None,
         scroll_claim: ScrollClaimPolicy::ClaimAllDirections,
@@ -3734,6 +3759,7 @@ fn test_range_slider_visual_focused() {
         step: 5.0,
         min_gap: None,
         max_gap: None,
+        value_snap: None,
         style: SliderStyle::range_from_theme(&theme),
         clip_rect: None,
         scroll_claim: ScrollClaimPolicy::ClaimAllDirections,
@@ -3827,6 +3853,7 @@ fn test_range_slider_segment_drag() {
         step: 5.0,
         min_gap: None,
         max_gap: None,
+        value_snap: None,
         style: SliderStyle::range_from_theme(&theme),
         clip_rect: None,
         scroll_claim: ScrollClaimPolicy::ClaimAllDirections,
@@ -4042,6 +4069,7 @@ fn test_range_slider_track_click_pages_whole_range() {
         step: 5.0,
         min_gap: None,
         max_gap: None,
+        value_snap: None,
         style: SliderStyle::range_from_theme(&theme),
         clip_rect: None,
         scroll_claim: ScrollClaimPolicy::ClaimAllDirections,
@@ -4116,6 +4144,7 @@ fn test_segment_only_slider_track_click_pages_segment() {
         step: 5.0,
         min_gap: Some(20.0),
         max_gap: Some(20.0),
+        value_snap: None,
         style: SliderStyle::scrollbar_from_theme(&theme),
         clip_rect: None,
         scroll_claim: ScrollClaimPolicy::ClaimAllDirections,
@@ -4189,6 +4218,7 @@ fn test_range_slider_keyboard_preserves_span() {
         step: 5.0,
         min_gap: None,
         max_gap: None,
+        value_snap: None,
         style: SliderStyle::range_from_theme(&theme),
         clip_rect: None,
         scroll_claim: ScrollClaimPolicy::ClaimAllDirections,
@@ -4350,6 +4380,7 @@ fn test_range_spec_horizontal(min: f32, max: f32) -> SliderSpec {
         step: 0.01,
         min_gap: None,
         max_gap: None,
+        value_snap: None,
         style: SliderStyle::range_from_theme(&theme),
         clip_rect: None,
         scroll_claim: ScrollClaimPolicy::ClaimAllDirections,
@@ -4645,4 +4676,620 @@ fn test_range_slider_overlap_full() {
     );
     assert_eq!(state.active_part, Some(SliderPart::UpperThumb));
     focus_system.end_frame();
+}
+
+fn test_pre_layout() -> raw::SliderPreLayoutResult {
+    raw::SliderPreLayoutResult {
+        size_request: crate::layout::SizeRequest::UNKNOWN,
+    }
+}
+
+fn track_mark_style(
+    value_spacing: f32,
+    color: Color,
+    width: f32,
+    length: f32,
+    gap: f32,
+) -> TrackMarksStyle {
+    TrackMarksStyle {
+        value_spacing,
+        color,
+        width,
+        length,
+        gap,
+    }
+}
+
+fn horizontal_mark_spec(value_spacing: f32) -> SliderSpec {
+    let mark_color = Color::from_srgb_u8(1, 2, 3, 255);
+    let mut style = SliderStyle::from_theme(&crate::theme::Theme::framewise());
+    style.lower_thumb_style.as_mut().unwrap().cross_axis = ThumbCrossAxis::FixedCentered(10.0);
+    style.track_marks = Some(track_mark_style(value_spacing, mark_color, 1.0, 4.0, 2.0));
+    SliderSpec {
+        orientation: Orientation::Horizontal,
+        rect: Rect::new(0.0, 0.0, 110.0, 20.0),
+        min: 0.0,
+        max: 10.0,
+        page_step: 1.0,
+        step: 1.0,
+        min_gap: None,
+        max_gap: None,
+        value_snap: None,
+        style,
+        clip_rect: None,
+        scroll_claim: ScrollClaimPolicy::ClaimAllDirections,
+        time: 0.0,
+        disabled: false,
+        keyboard_focusable: true,
+        layer: Layer::default(),
+    }
+}
+
+fn draw_slider_for_marks(spec: SliderSpec) -> DrawCommands {
+    let mut state = SliderState::default();
+    let input = Input::new();
+    let mut focus_system = FocusSystem::new();
+    let mut cmds = DrawCommands::new(1.0);
+    raw::post_layout_slider(
+        spec,
+        test_pre_layout(),
+        &mut state,
+        &input,
+        &mut focus_system,
+        &mut cmds,
+    );
+    cmds
+}
+
+fn marker_rects(cmds: &DrawCommands, color: Color) -> Vec<Rect> {
+    cmds.commands()
+        .iter()
+        .filter_map(|cmd| match cmd {
+            DrawCmd::FillRect { rect, color: c, .. } if *c == color => Some(*rect),
+            _ => None,
+        })
+        .collect()
+}
+
+#[test]
+fn test_slider_track_marks_draw_horizontal() {
+    let color = Color::from_srgb_u8(1, 2, 3, 255);
+    let spec = horizontal_mark_spec(2.5);
+    let rects = marker_rects(&draw_slider_for_marks(spec), color);
+
+    assert_eq!(rects.len(), 5);
+    let expected_x = [4.5, 29.5, 54.5, 79.5, 104.5];
+    for (rect, x) in rects.iter().zip(expected_x) {
+        assert_eq!(*rect, Rect::new(x, 22.0, 1.0, 4.0));
+    }
+}
+
+#[test]
+fn test_slider_track_marks_draw_max_endpoint_when_spacing_does_not_divide_range() {
+    let color = Color::from_srgb_u8(1, 2, 3, 255);
+    let mut spec = horizontal_mark_spec(0.3);
+    spec.max = 1.0;
+    let rects = marker_rects(&draw_slider_for_marks(spec), color);
+
+    assert_eq!(rects.len(), 5);
+    assert_eq!(
+        rects.last().copied(),
+        Some(Rect::new(104.5, 22.0, 1.0, 4.0))
+    );
+}
+
+#[test]
+fn test_slider_track_marks_invalid_spacing_or_dimensions_draws_no_marks() {
+    let color = Color::from_srgb_u8(1, 2, 3, 255);
+    let invalid = [
+        track_mark_style(0.0, color, 1.0, 4.0, 2.0),
+        track_mark_style(-1.0, color, 1.0, 4.0, 2.0),
+        track_mark_style(f32::NAN, color, 1.0, 4.0, 2.0),
+        track_mark_style(1.0, color, 0.0, 4.0, 2.0),
+        track_mark_style(1.0, color, 1.0, 0.0, 2.0),
+    ];
+
+    for marks in invalid {
+        let mut spec = horizontal_mark_spec(1.0);
+        spec.style.track_marks = Some(marks);
+        assert!(marker_rects(&draw_slider_for_marks(spec), color).is_empty());
+    }
+}
+
+#[test]
+fn test_slider_prelayout_reserves_height_for_horizontal_track_marks() {
+    let mut marked = SliderStyle::from_theme(&crate::theme::Theme::framewise());
+    marked.track_marks = Some(track_mark_style(1.0, Color::BLACK, 1.0, 5.0, 3.0));
+    let unmarked = SliderStyle {
+        track_marks: None,
+        ..marked
+    };
+
+    let marked_request = raw::pre_layout_slider(
+        &raw::SliderPreLayoutSpec {
+            orientation: Orientation::Horizontal,
+            style: marked,
+        },
+        SizeOffer::UNBOUNDED,
+    )
+    .size_request;
+    let unmarked_request = raw::pre_layout_slider(
+        &raw::SliderPreLayoutSpec {
+            orientation: Orientation::Horizontal,
+            style: unmarked,
+        },
+        SizeOffer::UNBOUNDED,
+    )
+    .size_request;
+
+    assert_eq!(
+        marked_request.preferred.unwrap().x,
+        unmarked_request.preferred.unwrap().x
+    );
+    assert!(marked_request.preferred.unwrap().y >= unmarked_request.preferred.unwrap().y + 8.0);
+}
+
+#[test]
+fn test_slider_prelayout_reserves_width_for_vertical_track_marks() {
+    let mut marked = SliderStyle::from_theme(&crate::theme::Theme::framewise());
+    marked.track_marks = Some(track_mark_style(1.0, Color::BLACK, 1.0, 5.0, 3.0));
+    let unmarked = SliderStyle {
+        track_marks: None,
+        ..marked
+    };
+
+    let marked_request = raw::pre_layout_slider(
+        &raw::SliderPreLayoutSpec {
+            orientation: Orientation::Vertical,
+            style: marked,
+        },
+        SizeOffer::UNBOUNDED,
+    )
+    .size_request;
+    let unmarked_request = raw::pre_layout_slider(
+        &raw::SliderPreLayoutSpec {
+            orientation: Orientation::Vertical,
+            style: unmarked,
+        },
+        SizeOffer::UNBOUNDED,
+    )
+    .size_request;
+
+    assert!(marked_request.preferred.unwrap().x >= unmarked_request.preferred.unwrap().x + 8.0);
+    assert_eq!(
+        marked_request.preferred.unwrap().y,
+        unmarked_request.preferred.unwrap().y
+    );
+}
+
+#[test]
+fn test_slider_value_snap_invalid_settings_are_ignored() {
+    for value_snap in [Some(0.0), Some(-1.0), Some(f32::NAN), Some(f32::INFINITY)] {
+        let mut state = SliderState {
+            value: SliderValue::Single(42.3),
+            ..Default::default()
+        };
+        let spec = SliderSpec {
+            value_snap,
+            ..test_spec(0.0, 100.0, true)
+        };
+        run_slider_once(spec.clone(), &mut state);
+        assert!(state.value.lower().is_finite());
+        assert_eq!(state.value.lower(), 42.3);
+
+        state.value = SliderValue::Single(123.4);
+        run_slider_once(spec, &mut state);
+        assert_eq!(state.value.lower(), 100.0);
+    }
+}
+
+#[test]
+fn test_slider_value_snap_repairs_initial_single_value() {
+    let mut state = SliderState {
+        value: SliderValue::Single(3.1),
+        ..Default::default()
+    };
+    let spec = SliderSpec {
+        value_snap: Some(2.0),
+        ..test_spec(0.0, 10.0, true)
+    };
+    run_slider_once(spec.clone(), &mut state);
+    assert_eq!(state.value.lower(), 4.0);
+
+    state.value = SliderValue::Single(-1.0);
+    run_slider_once(spec.clone(), &mut state);
+    assert_eq!(state.value.lower(), 0.0);
+
+    state.value = SliderValue::Single(10.0);
+    run_slider_once(spec.clone(), &mut state);
+    assert_eq!(state.value.lower(), 10.0);
+
+    state.value = SliderValue::Single(9.9);
+    run_slider_once(
+        SliderSpec {
+            value_snap: Some(3.0),
+            ..spec
+        },
+        &mut state,
+    );
+    assert_eq!(state.value.lower(), 10.0);
+}
+
+#[test]
+fn test_slider_value_snap_applies_during_drag() {
+    let mut style = SliderStyle::from_theme(&crate::theme::Theme::framewise());
+    style.lower_thumb_style.as_mut().unwrap().cross_axis = ThumbCrossAxis::FixedCentered(20.0);
+    let spec = SliderSpec {
+        orientation: Orientation::Horizontal,
+        rect: Rect::new(0.0, 0.0, 120.0, 20.0),
+        value_snap: Some(10.0),
+        style,
+        ..test_spec(0.0, 100.0, true)
+    };
+    let mut state = SliderState::default();
+    let mut focus_system = FocusSystem::new();
+    let mut cmds = DrawCommands::new(1.0);
+    let mut input = Input {
+        mouse_pos: Vec2::new(10.0, 10.0),
+        ..Default::default()
+    };
+
+    focus_system.begin_frame();
+    raw::post_layout_slider(
+        spec.clone(),
+        test_pre_layout(),
+        &mut state,
+        &input,
+        &mut focus_system,
+        &mut cmds,
+    );
+    focus_system.end_frame();
+
+    input.mouse_pressed = true;
+    input.mouse_down = true;
+    focus_system.begin_frame();
+    raw::post_layout_slider(
+        spec.clone(),
+        test_pre_layout(),
+        &mut state,
+        &input,
+        &mut focus_system,
+        &mut cmds,
+    );
+    focus_system.end_frame();
+
+    input.mouse_pressed = false;
+    input.mouse_pos.x = 56.0;
+    focus_system.begin_frame();
+    raw::post_layout_slider(
+        spec,
+        test_pre_layout(),
+        &mut state,
+        &input,
+        &mut focus_system,
+        &mut cmds,
+    );
+    focus_system.end_frame();
+
+    assert_eq!(state.value.lower(), 50.0);
+    assert!(state.value.lower().is_finite());
+}
+
+#[test]
+fn test_slider_value_snap_applies_to_step_and_page_inputs() {
+    let spec = SliderSpec {
+        step: 5.0,
+        page_step: 20.0,
+        value_snap: Some(7.0),
+        ..test_spec(0.0, 100.0, true)
+    };
+    let mut state = SliderState {
+        value: SliderValue::Single(14.0),
+        ..Default::default()
+    };
+    let mut focus_system = FocusSystem::new();
+    let mut cmds = DrawCommands::new(1.0);
+    let mut input = Input::new();
+    focus_system.take_keyboard_focus(state.focus_id);
+
+    focus_system.begin_frame();
+    raw::post_layout_slider(
+        spec.clone(),
+        test_pre_layout(),
+        &mut state,
+        &input,
+        &mut focus_system,
+        &mut cmds,
+    );
+    focus_system.end_frame();
+
+    input.key_pressed_down = true;
+    focus_system.begin_frame();
+    raw::post_layout_slider(
+        spec.clone(),
+        test_pre_layout(),
+        &mut state,
+        &input,
+        &mut focus_system,
+        &mut cmds,
+    );
+    focus_system.end_frame();
+    assert_eq!(state.value.lower(), 21.0);
+
+    input.key_pressed_down = false;
+    input.key_pressed_page_down = true;
+    focus_system.begin_frame();
+    raw::post_layout_slider(
+        spec.clone(),
+        test_pre_layout(),
+        &mut state,
+        &input,
+        &mut focus_system,
+        &mut cmds,
+    );
+    focus_system.end_frame();
+    assert_eq!(state.value.lower(), 42.0);
+
+    input = Input {
+        mouse_pos: Vec2::new(10.0, 42.0),
+        ..Default::default()
+    };
+    focus_system.begin_frame();
+    raw::post_layout_slider(
+        spec.clone(),
+        test_pre_layout(),
+        &mut state,
+        &input,
+        &mut focus_system,
+        &mut cmds,
+    );
+    focus_system.end_frame();
+    input.scroll_delta = Vec2::new(0.0, -1.0);
+    focus_system.begin_frame();
+    raw::post_layout_slider(
+        spec,
+        test_pre_layout(),
+        &mut state,
+        &input,
+        &mut focus_system,
+        &mut cmds,
+    );
+    focus_system.end_frame();
+    assert_eq!(state.value.lower(), 49.0);
+}
+
+#[test]
+fn test_slider_value_snap_respects_range_min_gap() {
+    let spec = SliderSpec {
+        orientation: Orientation::Horizontal,
+        rect: Rect::new(0.0, 0.0, 112.0, 20.0),
+        min_gap: Some(30.0),
+        max_gap: None,
+        value_snap: Some(10.0),
+        ..test_range_spec_horizontal(0.0, 100.0)
+    };
+
+    let mut state = SliderState {
+        value: SliderValue::Range {
+            lower: 20.0,
+            upper: 60.0,
+        },
+        active_part: Some(SliderPart::UpperThumb),
+        drag_start_mouse_coord: 58.8,
+        drag_start_value: SliderValue::Range {
+            lower: 20.0,
+            upper: 60.0,
+        },
+        ..Default::default()
+    };
+    let input = Input {
+        mouse_pos: Vec2::new(28.0, 10.0),
+        mouse_down: true,
+        ..Default::default()
+    };
+    let mut focus_system = FocusSystem::new();
+    let mut cmds = DrawCommands::new(1.0);
+    raw::post_layout_slider(
+        spec.clone(),
+        test_pre_layout(),
+        &mut state,
+        &input,
+        &mut focus_system,
+        &mut cmds,
+    );
+    assert!(state.value.upper().unwrap() - state.value.lower() >= 30.0);
+    assert_eq!(state.value.lower() % 10.0, 0.0);
+    assert_eq!(state.value.upper().unwrap() % 10.0, 0.0);
+
+    state = SliderState {
+        value: SliderValue::Range {
+            lower: 20.0,
+            upper: 60.0,
+        },
+        active_part: Some(SliderPart::LowerThumb),
+        drag_start_mouse_coord: 23.6,
+        drag_start_value: SliderValue::Range {
+            lower: 20.0,
+            upper: 60.0,
+        },
+        ..Default::default()
+    };
+    let input = Input {
+        mouse_pos: Vec2::new(50.0, 10.0),
+        mouse_down: true,
+        ..Default::default()
+    };
+    raw::post_layout_slider(
+        spec,
+        test_pre_layout(),
+        &mut state,
+        &input,
+        &mut focus_system,
+        &mut cmds,
+    );
+    assert!(state.value.upper().unwrap() - state.value.lower() >= 30.0);
+    assert_eq!(state.value.lower() % 10.0, 0.0);
+    assert_eq!(state.value.upper().unwrap() % 10.0, 0.0);
+}
+
+#[test]
+fn test_slider_value_snap_respects_range_max_gap() {
+    let spec = SliderSpec {
+        orientation: Orientation::Horizontal,
+        rect: Rect::new(0.0, 0.0, 112.0, 20.0),
+        min_gap: None,
+        max_gap: Some(30.0),
+        value_snap: Some(10.0),
+        ..test_range_spec_horizontal(0.0, 100.0)
+    };
+
+    let mut state = SliderState {
+        value: SliderValue::Range {
+            lower: 20.0,
+            upper: 40.0,
+        },
+        active_part: Some(SliderPart::UpperThumb),
+        drag_start_mouse_coord: 41.2,
+        drag_start_value: SliderValue::Range {
+            lower: 20.0,
+            upper: 40.0,
+        },
+        ..Default::default()
+    };
+    let input = Input {
+        mouse_pos: Vec2::new(90.0, 10.0),
+        mouse_down: true,
+        ..Default::default()
+    };
+    let mut focus_system = FocusSystem::new();
+    let mut cmds = DrawCommands::new(1.0);
+    raw::post_layout_slider(
+        spec.clone(),
+        test_pre_layout(),
+        &mut state,
+        &input,
+        &mut focus_system,
+        &mut cmds,
+    );
+    assert!(state.value.upper().unwrap() - state.value.lower() <= 30.0);
+    assert_eq!(state.value.lower() % 10.0, 0.0);
+    assert_eq!(state.value.upper().unwrap() % 10.0, 0.0);
+
+    state = SliderState {
+        value: SliderValue::Range {
+            lower: 20.0,
+            upper: 40.0,
+        },
+        active_part: Some(SliderPart::LowerThumb),
+        drag_start_mouse_coord: 23.6,
+        drag_start_value: SliderValue::Range {
+            lower: 20.0,
+            upper: 40.0,
+        },
+        ..Default::default()
+    };
+    let input = Input {
+        mouse_pos: Vec2::new(0.0, 10.0),
+        mouse_down: true,
+        ..Default::default()
+    };
+    raw::post_layout_slider(
+        spec,
+        test_pre_layout(),
+        &mut state,
+        &input,
+        &mut focus_system,
+        &mut cmds,
+    );
+    assert!(state.value.upper().unwrap() - state.value.lower() <= 30.0);
+    assert_eq!(state.value.lower() % 10.0, 0.0);
+    assert_eq!(state.value.upper().unwrap() % 10.0, 0.0);
+}
+
+#[test]
+fn test_slider_value_snap_preserves_fixed_size_range_segment() {
+    let spec = SliderSpec {
+        orientation: Orientation::Horizontal,
+        rect: Rect::new(0.0, 0.0, 112.0, 20.0),
+        min_gap: Some(30.0),
+        max_gap: Some(30.0),
+        value_snap: Some(10.0),
+        ..test_range_spec_horizontal(0.0, 100.0)
+    };
+    let mut state = SliderState {
+        value: SliderValue::Range {
+            lower: 20.0,
+            upper: 50.0,
+        },
+        active_part: Some(SliderPart::Segment),
+        drag_start_mouse_coord: 40.0,
+        drag_start_value: SliderValue::Range {
+            lower: 20.0,
+            upper: 50.0,
+        },
+        ..Default::default()
+    };
+    let input = Input {
+        mouse_pos: Vec2::new(49.0, 10.0),
+        mouse_down: true,
+        ..Default::default()
+    };
+    let mut focus_system = FocusSystem::new();
+    let mut cmds = DrawCommands::new(1.0);
+    raw::post_layout_slider(
+        spec,
+        test_pre_layout(),
+        &mut state,
+        &input,
+        &mut focus_system,
+        &mut cmds,
+    );
+
+    assert_eq!(state.value.upper().unwrap() - state.value.lower(), 30.0);
+    assert_eq!(state.value.lower() % 10.0, 0.0);
+    assert_eq!(state.value.upper().unwrap() % 10.0, 0.0);
+    assert!(state.value.lower() >= 0.0 && state.value.upper().unwrap() <= 100.0);
+}
+
+#[test]
+fn test_slider_value_snap_preserves_home_end_exact_endpoints() {
+    let spec = SliderSpec {
+        value_snap: Some(3.0),
+        ..test_spec(0.0, 10.0, true)
+    };
+    let mut state = SliderState {
+        value: SliderValue::Single(6.0),
+        ..Default::default()
+    };
+    let mut focus_system = FocusSystem::new();
+    let mut cmds = DrawCommands::new(1.0);
+    focus_system.take_keyboard_focus(state.focus_id);
+
+    let input = Input {
+        key_pressed_home: true,
+        ..Default::default()
+    };
+    raw::post_layout_slider(
+        spec.clone(),
+        test_pre_layout(),
+        &mut state,
+        &input,
+        &mut focus_system,
+        &mut cmds,
+    );
+    assert_eq!(state.value.lower(), 0.0);
+
+    let input = Input {
+        key_pressed_end: true,
+        ..Default::default()
+    };
+    raw::post_layout_slider(
+        spec,
+        test_pre_layout(),
+        &mut state,
+        &input,
+        &mut focus_system,
+        &mut cmds,
+    );
+    assert_eq!(state.value.lower(), 10.0);
 }

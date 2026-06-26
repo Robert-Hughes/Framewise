@@ -1,5 +1,5 @@
 use crate::{
-    draw::{BorderPlacement, DrawCommands},
+    draw::{BorderPlacement, DrawCmd, DrawCommands},
     focus::{FocusId, FocusSystem},
     input::Input,
     layout::{LayoutState, SizeOffer},
@@ -28,6 +28,7 @@ pub mod raw {
         /// If both `min_gap` and `max_gap` are set to the same value, the slider
         /// represents a fixed-size span that can be offset but not resized.
         pub max_gap: Option<f32>,
+        pub value_snap: Option<f32>,
         pub page_step: f32,
         pub step: f32,
         pub orientation: super::Orientation,
@@ -45,7 +46,10 @@ pub mod raw {
     }
 
     #[derive(Debug, Clone, PartialEq)]
-    pub struct SliderPreLayoutSpec {}
+    pub struct SliderPreLayoutSpec {
+        pub orientation: super::Orientation,
+        pub style: super::SliderStyle,
+    }
 
     #[derive(Debug, Clone, PartialEq)]
     pub struct SliderPreLayoutResult {
@@ -79,8 +83,18 @@ pub mod raw {
         spec: &SliderPreLayoutSpec,
         _offer: SizeOffer,
     ) -> crate::layout::SizeRequest {
-        let _ = spec;
-        crate::layout::SizeRequest::UNKNOWN
+        let cross = slider_base_cross_axis_request(spec.style)
+            + valid_track_marks(spec.style.track_marks)
+                .map(|marks| marks.gap.max(0.0) + marks.length)
+                .unwrap_or(0.0);
+
+        if cross <= 0.0 {
+            crate::layout::SizeRequest::UNKNOWN
+        } else if spec.orientation == Orientation::Vertical {
+            crate::layout::SizeRequest::preferred(Vec2::new(cross, 0.0))
+        } else {
+            crate::layout::SizeRequest::preferred(Vec2::new(0.0, cross))
+        }
     }
 
     /// High-level wrappers should use this internally.
@@ -95,7 +109,7 @@ pub mod raw {
         let min = spec.min.min(spec.max);
         let max = spec.max.max(spec.min);
         let range = max - min;
-        repair_values(state, min, max, spec.min_gap, spec.max_gap);
+        repair_values(state, min, max, spec.min_gap, spec.max_gap, spec.value_snap);
 
         let is_visible = spec.clip_rect.is_none_or(|c| c.contains(input.mouse_pos));
         let is_vert = spec.orientation == Orientation::Vertical;
@@ -251,6 +265,7 @@ pub mod raw {
                     max,
                     spec.min_gap,
                     spec.max_gap,
+                    spec.value_snap,
                 );
             }
 
@@ -293,9 +308,11 @@ pub mod raw {
                                 }
                             }
                         },
-                        SliderPart::Segment => move_segment_center_to(state, value, min, max),
+                        SliderPart::Segment => {
+                            move_segment_center_to(state, value, min, max, spec.value_snap)
+                        }
                     }
-                    repair_values(state, min, max, spec.min_gap, spec.max_gap);
+                    repair_values(state, min, max, spec.min_gap, spec.max_gap, spec.value_snap);
                     state.drag_start_mouse_coord = mouse_coord;
                     state.drag_start_value = state.value;
                     state.active_part = Some(part);
@@ -381,6 +398,7 @@ pub mod raw {
                             max,
                             spec.min_gap,
                             spec.max_gap,
+                            spec.value_snap,
                         );
                     }
                     if scroll_delta < 0.0 && is_active_down_right {
@@ -391,6 +409,7 @@ pub mod raw {
                             max,
                             spec.min_gap,
                             spec.max_gap,
+                            spec.value_snap,
                         );
                     }
                 }
@@ -414,10 +433,26 @@ pub mod raw {
                 // Page up/down towards mouse
                 if mouse_coord < active_start {
                     state.track_click_direction = Some(PagingDirection::Up);
-                    page_active_value(state, -spec.page_step, min, max, spec.min_gap, spec.max_gap);
+                    page_active_value(
+                        state,
+                        -spec.page_step,
+                        min,
+                        max,
+                        spec.min_gap,
+                        spec.max_gap,
+                        spec.value_snap,
+                    );
                 } else if mouse_coord > active_end {
                     state.track_click_direction = Some(PagingDirection::Down);
-                    page_active_value(state, spec.page_step, min, max, spec.min_gap, spec.max_gap);
+                    page_active_value(
+                        state,
+                        spec.page_step,
+                        min,
+                        max,
+                        spec.min_gap,
+                        spec.max_gap,
+                        spec.value_snap,
+                    );
                 }
             }
 
@@ -446,6 +481,7 @@ pub mod raw {
                                     max,
                                     spec.min_gap,
                                     spec.max_gap,
+                                    spec.value_snap,
                                 );
                                 if !state.value.is_range() {
                                     let cursor_val = coord_to_value(
@@ -455,7 +491,12 @@ pub mod raw {
                                         track_start,
                                         track_len,
                                     );
-                                    let val = state.value.lower().max(cursor_val);
+                                    let val = snap_value(
+                                        state.value.lower().max(cursor_val),
+                                        min,
+                                        max,
+                                        spec.value_snap,
+                                    );
                                     state.value = SliderValue::Single(val);
                                 }
                                 state.next_repeat_time = spec.time + 0.05;
@@ -470,6 +511,7 @@ pub mod raw {
                                     max,
                                     spec.min_gap,
                                     spec.max_gap,
+                                    spec.value_snap,
                                 );
                                 if !state.value.is_range() {
                                     let cursor_val = coord_to_value(
@@ -479,7 +521,12 @@ pub mod raw {
                                         track_start,
                                         track_len,
                                     );
-                                    let val = state.value.lower().min(cursor_val);
+                                    let val = snap_value(
+                                        state.value.lower().min(cursor_val),
+                                        min,
+                                        max,
+                                        spec.value_snap,
+                                    );
                                     state.value = SliderValue::Single(val);
                                 }
                                 state.next_repeat_time = spec.time + 0.05;
@@ -548,24 +595,56 @@ pub mod raw {
                 };
 
                 if input.key_pressed_page_up && is_active_pgup {
-                    step_active_value(state, -spec.page_step, min, max, spec.min_gap, spec.max_gap);
+                    step_active_value(
+                        state,
+                        -spec.page_step,
+                        min,
+                        max,
+                        spec.min_gap,
+                        spec.max_gap,
+                        spec.value_snap,
+                    );
                 }
                 if input.key_pressed_page_down && is_active_pgdn {
-                    step_active_value(state, spec.page_step, min, max, spec.min_gap, spec.max_gap);
+                    step_active_value(
+                        state,
+                        spec.page_step,
+                        min,
+                        max,
+                        spec.min_gap,
+                        spec.max_gap,
+                        spec.value_snap,
+                    );
                 }
                 if input.key_pressed_up || input.key_pressed_left {
-                    step_active_value(state, -spec.step, min, max, spec.min_gap, spec.max_gap);
+                    step_active_value(
+                        state,
+                        -spec.step,
+                        min,
+                        max,
+                        spec.min_gap,
+                        spec.max_gap,
+                        spec.value_snap,
+                    );
                 }
                 if input.key_pressed_down || input.key_pressed_right {
-                    step_active_value(state, spec.step, min, max, spec.min_gap, spec.max_gap);
+                    step_active_value(
+                        state,
+                        spec.step,
+                        min,
+                        max,
+                        spec.min_gap,
+                        spec.max_gap,
+                        spec.value_snap,
+                    );
                 }
                 if input.key_pressed_home {
                     set_active_min(state, min);
-                    repair_values(state, min, max, spec.min_gap, spec.max_gap);
+                    repair_values(state, min, max, spec.min_gap, spec.max_gap, spec.value_snap);
                 }
                 if input.key_pressed_end {
                     set_active_max(state, min, max);
-                    repair_values(state, min, max, spec.min_gap, spec.max_gap);
+                    repair_values(state, min, max, spec.min_gap, spec.max_gap, spec.value_snap);
                 }
 
                 // Slider owns all four arrow keys for value adjustment; only Tab navigates focus.
@@ -627,6 +706,20 @@ pub mod raw {
                 &tint,
             );
         }
+
+        draw_track_marks(
+            cmds,
+            spec.layer,
+            track_rect,
+            is_vert,
+            min,
+            max,
+            range,
+            track_start,
+            track_len,
+            spec.style.track_marks,
+            &tint,
+        );
 
         if let Some((style, rect)) = spec.style.segment_style.zip(segment_rect) {
             let segment_is_hovered =
@@ -825,6 +918,32 @@ fn main_axis_len(cross_axis: ThumbCrossAxis, track_rect: Rect, is_vert: bool) ->
     }
 }
 
+fn slider_base_cross_axis_request(style: SliderStyle) -> f32 {
+    let mut cross: f32 = 0.0;
+    if let Some(style) = style.lower_thumb_style {
+        if let ThumbCrossAxis::FixedCentered(len) = style.cross_axis {
+            if len.is_finite() && len > 0.0 {
+                cross = cross.max(len);
+            }
+        }
+    }
+    if let Some(style) = style.upper_thumb_style {
+        if let ThumbCrossAxis::FixedCentered(len) = style.cross_axis {
+            if len.is_finite() && len > 0.0 {
+                cross = cross.max(len);
+            }
+        }
+    }
+    if let Some(style) = style.segment_style {
+        if let ThumbCrossAxis::FixedCentered(len) = style.cross_axis {
+            if len.is_finite() && len > 0.0 {
+                cross = cross.max(len);
+            }
+        }
+    }
+    cross
+}
+
 fn cross_axis_rect(
     track_rect: Rect,
     is_vert: bool,
@@ -873,23 +992,55 @@ fn effective_gaps(min: f32, max: f32, min_gap: Option<f32>, max_gap: Option<f32>
     (min_gap, max_gap)
 }
 
+fn finite_or(value: f32, fallback: f32) -> f32 {
+    if value.is_finite() {
+        value
+    } else {
+        fallback
+    }
+}
+
+fn snap_value(value: f32, min: f32, max: f32, value_snap: Option<f32>) -> f32 {
+    let value = finite_or(value, min).clamp(min, max);
+    if value <= min {
+        return min;
+    }
+    if value >= max {
+        return max;
+    }
+
+    let Some(value_snap) = value_snap else {
+        return value;
+    };
+    if !value_snap.is_finite() || value_snap <= 0.0 {
+        return value;
+    }
+    if max - value <= value_snap * 0.5 {
+        return max;
+    }
+
+    let snapped = min + ((value - min) / value_snap).round() * value_snap;
+    snapped.clamp(min, max)
+}
+
 fn repair_values(
     state: &mut SliderState,
     min: f32,
     max: f32,
     min_gap: Option<f32>,
     max_gap: Option<f32>,
+    value_snap: Option<f32>,
 ) {
     match state.value {
         SliderValue::Single(lower) => {
-            state.value = SliderValue::Single(lower.clamp(min, max));
+            state.value = SliderValue::Single(snap_value(lower, min, max, value_snap));
         }
         SliderValue::Range {
             mut lower,
             mut upper,
         } => {
-            lower = lower.clamp(min, max);
-            upper = upper.clamp(min, max);
+            lower = snap_value(lower, min, max, value_snap);
+            upper = snap_value(upper, min, max, value_snap);
             if lower > upper {
                 core::mem::swap(&mut lower, &mut upper);
             }
@@ -905,6 +1056,7 @@ fn repair_values(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn apply_drag_delta(
     state: &mut SliderState,
     part: SliderPart,
@@ -913,19 +1065,22 @@ fn apply_drag_delta(
     max: f32,
     min_gap: Option<f32>,
     max_gap: Option<f32>,
+    value_snap: Option<f32>,
 ) {
     match part {
         SliderPart::LowerThumb => match state.value {
             SliderValue::Single(_) => {
                 let requested_lower = state.drag_start_value.lower() + val_delta;
-                state.value = SliderValue::Single(requested_lower.clamp(min, max));
+                state.value =
+                    SliderValue::Single(snap_value(requested_lower, min, max, value_snap));
             }
             SliderValue::Range { upper, .. } => {
                 let requested_lower = state.drag_start_value.lower() + val_delta;
                 let (min_gap_val, max_gap_val) = effective_gaps(min, max, min_gap, max_gap);
                 let min_lower = (upper - max_gap_val).max(min);
                 let max_lower = (upper - min_gap_val).min(max);
-                let lower = requested_lower.clamp(min_lower, max_lower);
+                let lower =
+                    snap_value(requested_lower, min, max, value_snap).clamp(min_lower, max_lower);
                 state.value = SliderValue::Range { lower, upper };
             }
         },
@@ -936,7 +1091,8 @@ fn apply_drag_delta(
                 let (min_gap_val, max_gap_val) = effective_gaps(min, max, min_gap, max_gap);
                 let min_upper = (lower + min_gap_val).max(min);
                 let max_upper = (lower + max_gap_val).min(max);
-                let upper = requested_upper.clamp(min_upper, max_upper);
+                let upper =
+                    snap_value(requested_upper, min, max, value_snap).clamp(min_upper, max_upper);
                 state.value = SliderValue::Range { lower, upper };
             }
         },
@@ -945,7 +1101,8 @@ fn apply_drag_delta(
                 let start_lower = state.drag_start_value.lower();
                 let start_upper = state.drag_start_value.upper().unwrap_or(max);
                 let gap = start_upper - start_lower;
-                let lower = (start_lower + val_delta).clamp(min, max - gap);
+                let lower =
+                    snap_value(start_lower + val_delta, min, max, value_snap).clamp(min, max - gap);
                 state.value = SliderValue::Range {
                     lower,
                     upper: lower + gap,
@@ -955,14 +1112,21 @@ fn apply_drag_delta(
     }
 }
 
-fn move_segment_center_to(state: &mut SliderState, value: f32, min: f32, max: f32) {
+fn move_segment_center_to(
+    state: &mut SliderState,
+    value: f32,
+    min: f32,
+    max: f32,
+    value_snap: Option<f32>,
+) {
     match state.value {
         SliderValue::Single(_) => {
-            state.value = SliderValue::Single(value.clamp(min, max));
+            state.value = SliderValue::Single(snap_value(value, min, max, value_snap));
         }
         SliderValue::Range { lower, upper } => {
             let gap = upper - lower;
-            let new_lower = (value - gap * 0.5).clamp(min, max - gap);
+            let new_lower =
+                snap_value(value - gap * 0.5, min, max, value_snap).clamp(min, max - gap);
             state.value = SliderValue::Range {
                 lower: new_lower,
                 upper: new_lower + gap,
@@ -978,21 +1142,22 @@ fn step_active_value(
     max: f32,
     min_gap: Option<f32>,
     max_gap: Option<f32>,
+    value_snap: Option<f32>,
 ) {
     match state.value {
         SliderValue::Single(lower) => {
-            state.value = SliderValue::Single((lower + delta).clamp(min, max));
+            state.value = SliderValue::Single(snap_value(lower + delta, min, max, value_snap));
         }
         SliderValue::Range { lower, upper } => {
             let gap = upper - lower;
-            let new_lower = (lower + delta).clamp(min, max - gap);
+            let new_lower = snap_value(lower + delta, min, max, value_snap).clamp(min, max - gap);
             state.value = SliderValue::Range {
                 lower: new_lower,
                 upper: new_lower + gap,
             };
         }
     }
-    repair_values(state, min, max, min_gap, max_gap);
+    repair_values(state, min, max, min_gap, max_gap, value_snap);
 }
 
 fn page_active_value(
@@ -1002,8 +1167,9 @@ fn page_active_value(
     max: f32,
     min_gap: Option<f32>,
     max_gap: Option<f32>,
+    value_snap: Option<f32>,
 ) {
-    step_active_value(state, delta, min, max, min_gap, max_gap);
+    step_active_value(state, delta, min, max, min_gap, max_gap, value_snap);
 }
 
 fn active_min_value(state: &SliderState) -> f32 {
@@ -1066,6 +1232,91 @@ fn effective_fill(fill: InteractiveColor, disabled: bool, active: bool, hovered:
         fill.hovered
     } else {
         fill.idle
+    }
+}
+
+fn valid_track_marks(track_marks: Option<TrackMarksStyle>) -> Option<TrackMarksStyle> {
+    let marks = track_marks?;
+    if !marks.value_spacing.is_finite() || marks.value_spacing <= 0.0 {
+        return None;
+    }
+    if !marks.width.is_finite() || marks.width <= 0.0 {
+        return None;
+    }
+    if !marks.length.is_finite() || marks.length <= 0.0 {
+        return None;
+    }
+    Some(TrackMarksStyle {
+        gap: if marks.gap.is_finite() {
+            marks.gap
+        } else {
+            0.0
+        },
+        ..marks
+    })
+}
+
+#[allow(clippy::too_many_arguments)]
+fn draw_track_marks(
+    cmds: &mut DrawCommands,
+    layer: Layer,
+    track_rect: Rect,
+    is_vert: bool,
+    min: f32,
+    max: f32,
+    range: f32,
+    track_start: f32,
+    track_len: f32,
+    track_marks: Option<TrackMarksStyle>,
+    tint: &impl Fn(Color) -> Color,
+) {
+    const MAX_TRACK_MARKS: usize = 512;
+    let Some(marks) = valid_track_marks(track_marks) else {
+        return;
+    };
+    if !range.is_finite() || range < 0.0 {
+        return;
+    }
+
+    let spacing_count = if range == 0.0 {
+        0
+    } else {
+        (range / marks.value_spacing).floor() as usize
+    };
+    let lands_on_max = range == 0.0
+        || (min + spacing_count as f32 * marks.value_spacing - max).abs() <= f32::EPSILON;
+    let mark_count = spacing_count + 1 + usize::from(!lands_on_max);
+    if mark_count > MAX_TRACK_MARKS {
+        return;
+    }
+
+    for i in 0..mark_count {
+        let value = if i <= spacing_count {
+            min + i as f32 * marks.value_spacing
+        } else {
+            max
+        };
+        let coord = value_to_coord(value, min, range, track_start, track_len);
+        let rect = if is_vert {
+            Rect::new(
+                track_rect.x + track_rect.w + marks.gap,
+                coord - marks.width * 0.5,
+                marks.length,
+                marks.width,
+            )
+        } else {
+            Rect::new(
+                coord - marks.width * 0.5,
+                track_rect.y + track_rect.h + marks.gap,
+                marks.width,
+                marks.length,
+            )
+        };
+        cmds.push(DrawCmd::FillRect {
+            rect,
+            color: tint(marks.color),
+            z: layer.get_z(),
+        });
     }
 }
 
@@ -1260,8 +1511,29 @@ pub struct SliderStyle {
     /// making before/after track regions responsible for the whole scrollbar edge.
     pub separator_line: Option<Stroke>,
 
+    /// Optional non-interactive visual marks drawn after the track.
+    pub track_marks: Option<TrackMarksStyle>,
+
     pub focus: Option<Outline>,
     pub disabled_alpha: f32,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct TrackMarksStyle {
+    /// Distance between marks in slider value/domain units.
+    pub value_spacing: f32,
+
+    /// Mark colour.
+    pub color: Color,
+
+    /// Mark thickness along the slider's main axis.
+    pub width: f32,
+
+    /// Mark length along the slider's cross axis.
+    pub length: f32,
+
+    /// Space between the slider track/thumb area and the marks.
+    pub gap: f32,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -1311,6 +1583,7 @@ impl SliderStyle {
             lower_thumb_style: Some(default_thumb),
             upper_thumb_style: None,
             separator_line: None,
+            track_marks: None,
             focus: Some(Outline::new(
                 theme.rust,
                 theme.focus_width,
@@ -1347,6 +1620,7 @@ impl SliderStyle {
             lower_thumb_style: Some(default_thumb),
             upper_thumb_style: Some(default_thumb),
             separator_line: None,
+            track_marks: None,
             focus: Some(Outline::new(
                 theme.rust,
                 theme.focus_width,
@@ -1373,6 +1647,7 @@ impl SliderStyle {
             lower_thumb_style: None,
             upper_thumb_style: None,
             separator_line: Some(Stroke::new(theme.line_soft_on_paper, 1.0)),
+            track_marks: None,
             focus: Some(Outline::new(
                 theme.rust,
                 theme.focus_width,
@@ -1543,6 +1818,7 @@ pub struct SliderSpec {
     /// If both `min_gap` and `max_gap` are set to the same value, the slider
     /// represents a fixed-size span that can be offset but not resized.
     pub max_gap: Option<f32>,
+    pub value_snap: Option<f32>,
     pub page_step: f32,
     pub step: f32,
     pub orientation: Orientation,
@@ -1560,6 +1836,7 @@ pub struct SliderSpecBuilder {
     pub max: Option<f32>,
     pub min_gap: Option<f32>,
     pub max_gap: Option<f32>,
+    pub value_snap: Option<Option<f32>>,
     pub page_step: Option<f32>,
     pub step: Option<f32>,
     pub orientation: Option<Orientation>,
@@ -1588,6 +1865,10 @@ impl SliderSpecBuilder {
     }
     pub fn max_gap(mut self, max_gap: f32) -> Self {
         self.max_gap = Some(max_gap);
+        self
+    }
+    pub fn value_snap(mut self, value_snap: Option<f32>) -> Self {
+        self.value_snap = Some(value_snap);
         self
     }
     pub fn page_step(mut self, page_step: f32) -> Self {
@@ -1634,6 +1915,7 @@ impl SliderSpecBuilder {
             max: self.max.unwrap_or(100.0),
             min_gap: self.min_gap,
             max_gap: self.max_gap,
+            value_snap: self.value_snap.unwrap_or(None),
             page_step: self.page_step.unwrap_or(10.0),
             step: self.step.unwrap_or(1.0),
             orientation: self.orientation.unwrap_or(Orientation::Horizontal),
@@ -1662,7 +1944,10 @@ pub fn slider<T: TextBackend, S: LayoutState, CF>(
     state: &mut SliderState,
 ) -> SliderResult {
     let spec = builder.defaults_from_theme(&ctx.theme).build();
-    let pre_layout_spec = raw::SliderPreLayoutSpec {};
+    let pre_layout_spec = raw::SliderPreLayoutSpec {
+        orientation: spec.orientation,
+        style: spec.style,
+    };
     let offer = ctx.peek_offer(layout_params.clone());
     let pre_layout = raw::pre_layout_slider(&pre_layout_spec, offer);
     let rect = ctx.layout(layout_params, pre_layout.size_request);
@@ -1672,6 +1957,7 @@ pub fn slider<T: TextBackend, S: LayoutState, CF>(
         max: spec.max,
         min_gap: spec.min_gap,
         max_gap: spec.max_gap,
+        value_snap: spec.value_snap,
         page_step: spec.page_step,
         step: spec.step,
         orientation: spec.orientation,

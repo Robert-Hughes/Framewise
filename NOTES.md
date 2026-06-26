@@ -4,10 +4,6 @@ Working notes, TODOs, open questions, and half-baked ideas.
 
 ## Current Work
 
-- Pixel coordinates/coordinate system/AA cleanup
-  - address remaining golden differences (fractional layout - check chatgpt message)
-  - pixel display/DPI scaling (see chatgpt chat), test on Mac + Windows DPI scaling
-
 - Slider visual markers and snap work (check chatgpt session)
   - markers being drawn (see chatgpt chat)
   - fixed steps (see chatgpt chat)
@@ -327,6 +323,8 @@ We want to design a unified strategy for pixel snapping for geometry in Framewis
 but then a widget comes under the cursor and that widget uses mouse wheel to change a slider value then that is surprising and annoying. Instead it could
 continue to scroll up, and only when you move the mouse does it 'reset' onto the widget under the cursor again?
   - This might make scrollbars on text edits more viable?
+
+- Scrolling doesn't feel as 'smooth' as e.g. browser. Maybe need to interpolate somehow? Check how the scroll deltas are reported.
 
 ## Text
 

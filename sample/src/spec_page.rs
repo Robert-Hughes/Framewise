@@ -81,7 +81,7 @@ use framewise::widgets::select::{select, SelectSpecBuilder, SelectState, SelectS
 #[allow(unused_imports)]
 use framewise::widgets::slider::{
     slider, Orientation, ScrollClaimPolicy, SliderPart, SliderSpecBuilder, SliderState,
-    SliderStyle, SliderValue,
+    SliderStyle, SliderValue, TrackMarksStyle,
 };
 #[cfg(feature = "spinner")]
 #[allow(unused_imports)]
@@ -385,6 +385,7 @@ fn draw_slider_fake_state<T: TextBackend, LS: LayoutState, CF>(
         orientation: Orientation::Horizontal,
         min_gap: None,
         max_gap: None,
+        value_snap: None,
         style: SliderStyle::from_theme(&b.theme),
         clip_rect: b.clip_rect,
         scroll_claim: ScrollClaimPolicy::ClaimAllDirections,
@@ -2549,7 +2550,18 @@ fn section_04_sliders<CF>(
                 draw_slider_fake_state(&mut b, rect, 0.88, true, true);
             } else {
                 let spec_builder = if show_ticks {
-                    SliderSpecBuilder::new().max(9.0).page_step(step)
+                    let mut style = SliderStyle::from_theme(&b.theme);
+                    style.track_marks = Some(TrackMarksStyle {
+                        value_spacing: 1.0,
+                        color: b.theme.line_on_paper,
+                        width: 1.0,
+                        length: 4.0,
+                        gap: 2.0,
+                    });
+                    SliderSpecBuilder::new()
+                        .max(9.0)
+                        .page_step(step)
+                        .style(style)
                 } else {
                     SliderSpecBuilder::new().max(1.0).page_step(step).step(step)
                 };
@@ -2583,18 +2595,6 @@ fn section_04_sliders<CF>(
             }
 
             if show_ticks {
-                let tick_y = y + row_h + 2.0;
-                let usable = slider_w - 12.0;
-                for i in 0..=9usize {
-                    let tx = 6.0 + (i as f32 / 9.0) * usable;
-                    let rect =
-                        b.layout(Rect::new(tx - 0.5, tick_y, 1.0, 4.0), SizeRequest::UNKNOWN);
-                    b.cmds.push(DrawCmd::FillRect {
-                        rect,
-                        color: b.theme.line_on_paper,
-                        z: 0,
-                    });
-                }
                 y += row_h + 8.0;
             } else {
                 y += row_h + row_gap;
