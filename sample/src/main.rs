@@ -232,15 +232,9 @@ impl App {
 
     #[allow(unreachable_code)]
     fn draw_ui(&mut self, text_backend: &mut SampleTextBackend) -> framewise::DrawCommands {
-        let physical_pixels_per_logical_pixel = self
-            .gpu
-            .as_ref()
-            .map_or(1.0, |g| g.physical_pixels_per_logical_pixel);
-        let win_size = self
-            .gpu
-            .as_ref()
-            .map(|g| g.logical_size())
-            .unwrap_or((1600.0, 1200.0));
+        let physical_pixels_per_logical_pixel =
+            self.gpu.as_ref().unwrap().physical_pixels_per_logical_pixel;
+        let win_size = self.gpu.as_ref().unwrap().logical_size();
         let time = self.start_time.elapsed().as_secs_f64();
 
         match self.active_page {
@@ -429,7 +423,7 @@ impl ApplicationHandler for App {
         let start = std::time::Instant::now();
         let mut attrs = Window::default_attributes()
             .with_title("Framewise Sample")
-            .with_inner_size(LogicalSize::new(1200.0, 900.0))
+            .with_inner_size(LogicalSize::new(1600.0, 1200.0))
             .with_visible(false);
 
         let svg_start = std::time::Instant::now();
@@ -902,7 +896,6 @@ impl ApplicationHandler for App {
                                 &mut encoder,
                                 &draw_cmds,
                                 (gpu.physical_size.width, gpu.physical_size.height),
-                                gpu.physical_pixels_per_logical_pixel,
                                 &mut text_backend,
                             );
                             if is_first {
@@ -995,7 +988,10 @@ impl ApplicationHandler for App {
 async fn init_wgpu(window: Arc<Window>) -> GpuState {
     let physical_size = window.inner_size();
     let physical_pixels_per_logical_pixel = window.scale_factor() as f32;
-    dbg!(physical_pixels_per_logical_pixel);
+    eprintln!(
+        "[STARTUP]   physical_pixels_per_logical_pixel = {}",
+        physical_pixels_per_logical_pixel
+    );
     let t0 = std::time::Instant::now();
 
     let instance = wgpu::Instance::new(&wgpu::InstanceDescriptor {

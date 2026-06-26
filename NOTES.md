@@ -6,12 +6,14 @@ Working notes, TODOs, open questions, and half-baked ideas.
 
 - Pixel coordinates/coordinate system/AA cleanup
   - address remaining golden differences (fractional layout - check chatgpt message)
-  - pixel display/DPI scaling (see chatgpt chat)
+  - pixel display/DPI scaling (see chatgpt chat), test on Mac + Windows DPI scaling
+
+- Slider visual markers and snap work (check chatgpt session)
+  - markers being drawn (see chatgpt chat)
+  - fixed steps (see chatgpt chat)
 
 - Sliders!
   - thumbs are not odd pixel size, so the centre 'value marker' line (collapsed range slider) is off-centre slightly. Fix with new renderer semantics?
-  - markers being drawn (see chatgpt chat)
-  - fixed steps (see chatgpt chat)
   - are we using the widget helpers and or test helpers?
   - logarithmic (or otherwise custom) scales?
 
@@ -213,7 +215,6 @@ All require `AxisBound::Exact` on the divided axis (a committed far edge), the s
 
 - Grid and table layouts
 - Window min/max sizing based on layout
-- DPI awareness/scaling etc.
 
 ### Layout Validation
 

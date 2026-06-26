@@ -1940,12 +1940,12 @@ fn test_slider_visual_normal() {
         &cmds[..],
         &[
             DrawCmd::FillRect {
-                rect: Rect::new(9.0, 6.0, 1.5, 44.0),
+                rect: Rect::new(9.0, 6.0, 2.0, 44.0),
                 color: theme.ink,
                 z: 0,
             },
             DrawCmd::FillRect {
-                rect: Rect::new(9.0, 50.0, 1.5, 44.0),
+                rect: Rect::new(9.0, 50.0, 2.0, 44.0),
                 color: theme.line_on_paper,
                 z: 0,
             },
@@ -2014,12 +2014,12 @@ fn test_slider_visual_hovered() {
         &cmds[..],
         &[
             DrawCmd::FillRect {
-                rect: Rect::new(9.0, 6.0, 1.5, 44.0),
+                rect: Rect::new(9.0, 6.0, 2.0, 44.0),
                 color: theme.ink,
                 z: 0,
             },
             DrawCmd::FillRect {
-                rect: Rect::new(9.0, 50.0, 1.5, 44.0),
+                rect: Rect::new(9.0, 50.0, 2.0, 44.0),
                 color: theme.line_on_paper,
                 z: 0,
             },
@@ -2072,12 +2072,12 @@ fn test_slider_visual_drag() {
         &cmds[..],
         &[
             DrawCmd::FillRect {
-                rect: Rect::new(9.0, 6.0, 1.5, 44.0),
+                rect: Rect::new(9.0, 6.0, 2.0, 44.0),
                 color: theme.rust,
                 z: 0,
             },
             DrawCmd::FillRect {
-                rect: Rect::new(9.0, 50.0, 1.5, 44.0),
+                rect: Rect::new(9.0, 50.0, 2.0, 44.0),
                 color: theme.line_on_paper,
                 z: 0,
             },
@@ -2128,12 +2128,12 @@ fn test_slider_visual_focused() {
         &cmds[..],
         &[
             DrawCmd::FillRect {
-                rect: Rect::new(9.0, 6.0, 1.5, 44.0),
+                rect: Rect::new(9.0, 6.0, 2.0, 44.0),
                 color: theme.ink,
                 z: 0,
             },
             DrawCmd::FillRect {
-                rect: Rect::new(9.0, 50.0, 1.5, 44.0),
+                rect: Rect::new(9.0, 50.0, 2.0, 44.0),
                 color: theme.line_on_paper,
                 z: 0,
             },
@@ -3042,19 +3042,19 @@ fn test_range_slider_visual_normal() {
         &[
             // Before track
             DrawCmd::FillRect {
-                rect: Rect::new(6.0, 9.0, 22.0, 1.5),
+                rect: Rect::new(6.0, 9.0, 22.0, 2.0),
                 color: theme.line_on_paper,
                 z: 0,
             },
             // After track
             DrawCmd::FillRect {
-                rect: Rect::new(72.0, 9.0, 22.0, 1.5),
+                rect: Rect::new(72.0, 9.0, 22.0, 2.0),
                 color: theme.line_on_paper,
                 z: 0,
             },
             // Segment
             DrawCmd::FillRect {
-                rect: Rect::new(28.0, 9.0, 44.0, 1.5),
+                rect: Rect::new(28.0, 9.0, 44.0, 2.0),
                 color: theme.ink,
                 z: 0,
             },
@@ -3159,17 +3159,17 @@ fn test_range_slider_visual_hover_lower_thumb() {
         &cmds[..],
         &[
             DrawCmd::FillRect {
-                rect: Rect::new(6.0, 9.0, 22.0, 1.5),
+                rect: Rect::new(6.0, 9.0, 22.0, 2.0),
                 color: theme.line_on_paper,
                 z: 0,
             },
             DrawCmd::FillRect {
-                rect: Rect::new(72.0, 9.0, 22.0, 1.5),
+                rect: Rect::new(72.0, 9.0, 22.0, 2.0),
                 color: theme.line_on_paper,
                 z: 0,
             },
             DrawCmd::FillRect {
-                rect: Rect::new(28.0, 9.0, 44.0, 1.5),
+                rect: Rect::new(28.0, 9.0, 44.0, 2.0),
                 color: theme.ink,
                 z: 0,
             },
@@ -3271,17 +3271,17 @@ fn test_range_slider_visual_hover_upper_thumb() {
         &cmds[..],
         &[
             DrawCmd::FillRect {
-                rect: Rect::new(6.0, 9.0, 22.0, 1.5),
+                rect: Rect::new(6.0, 9.0, 22.0, 2.0),
                 color: theme.line_on_paper,
                 z: 0,
             },
             DrawCmd::FillRect {
-                rect: Rect::new(72.0, 9.0, 22.0, 1.5),
+                rect: Rect::new(72.0, 9.0, 22.0, 2.0),
                 color: theme.line_on_paper,
                 z: 0,
             },
             DrawCmd::FillRect {
-                rect: Rect::new(28.0, 9.0, 44.0, 1.5),
+                rect: Rect::new(28.0, 9.0, 44.0, 2.0),
                 color: theme.ink,
                 z: 0,
             },
@@ -3383,18 +3383,18 @@ fn test_range_slider_visual_hover_segment() {
         &cmds[..],
         &[
             DrawCmd::FillRect {
-                rect: Rect::new(6.0, 9.0, 22.0, 1.5),
+                rect: Rect::new(6.0, 9.0, 22.0, 2.0),
                 color: theme.line_on_paper,
                 z: 0,
             },
             DrawCmd::FillRect {
-                rect: Rect::new(72.0, 9.0, 22.0, 1.5),
+                rect: Rect::new(72.0, 9.0, 22.0, 2.0),
                 color: theme.line_on_paper,
                 z: 0,
             },
             // Segment is hovered
             DrawCmd::FillRect {
-                rect: Rect::new(28.0, 9.0, 44.0, 1.5),
+                rect: Rect::new(28.0, 9.0, 44.0, 2.0),
                 color: Color::BLACK,
                 z: 0,
             },
@@ -3479,17 +3479,17 @@ fn test_range_slider_visual_drag_lower_thumb() {
         &cmds[..],
         &[
             DrawCmd::FillRect {
-                rect: Rect::new(6.0, 9.0, 22.0, 1.5),
+                rect: Rect::new(6.0, 9.0, 22.0, 2.0),
                 color: theme.line_on_paper,
                 z: 0,
             },
             DrawCmd::FillRect {
-                rect: Rect::new(72.0, 9.0, 22.0, 1.5),
+                rect: Rect::new(72.0, 9.0, 22.0, 2.0),
                 color: theme.line_on_paper,
                 z: 0,
             },
             DrawCmd::FillRect {
-                rect: Rect::new(28.0, 9.0, 44.0, 1.5),
+                rect: Rect::new(28.0, 9.0, 44.0, 2.0),
                 color: theme.ink,
                 z: 0,
             },
@@ -3575,17 +3575,17 @@ fn test_range_slider_visual_drag_upper_thumb() {
         &cmds[..],
         &[
             DrawCmd::FillRect {
-                rect: Rect::new(6.0, 9.0, 22.0, 1.5),
+                rect: Rect::new(6.0, 9.0, 22.0, 2.0),
                 color: theme.line_on_paper,
                 z: 0,
             },
             DrawCmd::FillRect {
-                rect: Rect::new(72.0, 9.0, 22.0, 1.5),
+                rect: Rect::new(72.0, 9.0, 22.0, 2.0),
                 color: theme.line_on_paper,
                 z: 0,
             },
             DrawCmd::FillRect {
-                rect: Rect::new(28.0, 9.0, 44.0, 1.5),
+                rect: Rect::new(28.0, 9.0, 44.0, 2.0),
                 color: theme.ink,
                 z: 0,
             },
@@ -3671,18 +3671,18 @@ fn test_range_slider_visual_drag_segment() {
         &cmds[..],
         &[
             DrawCmd::FillRect {
-                rect: Rect::new(6.0, 9.0, 22.0, 1.5),
+                rect: Rect::new(6.0, 9.0, 22.0, 2.0),
                 color: theme.line_on_paper,
                 z: 0,
             },
             DrawCmd::FillRect {
-                rect: Rect::new(72.0, 9.0, 22.0, 1.5),
+                rect: Rect::new(72.0, 9.0, 22.0, 2.0),
                 color: theme.line_on_paper,
                 z: 0,
             },
             // Segment is dragged
             DrawCmd::FillRect {
-                rect: Rect::new(28.0, 9.0, 44.0, 1.5),
+                rect: Rect::new(28.0, 9.0, 44.0, 2.0),
                 color: theme.rust,
                 z: 0,
             },
@@ -3765,17 +3765,17 @@ fn test_range_slider_visual_focused() {
         &cmds[..],
         &[
             DrawCmd::FillRect {
-                rect: Rect::new(6.0, 9.0, 22.0, 1.5),
+                rect: Rect::new(6.0, 9.0, 22.0, 2.0),
                 color: theme.line_on_paper,
                 z: 0,
             },
             DrawCmd::FillRect {
-                rect: Rect::new(72.0, 9.0, 22.0, 1.5),
+                rect: Rect::new(72.0, 9.0, 22.0, 2.0),
                 color: theme.line_on_paper,
                 z: 0,
             },
             DrawCmd::FillRect {
-                rect: Rect::new(28.0, 9.0, 44.0, 1.5),
+                rect: Rect::new(28.0, 9.0, 44.0, 2.0),
                 color: theme.ink,
                 z: 0,
             },
@@ -4407,8 +4407,8 @@ fn test_range_slider_overlap_partial() {
     // Filter to only find lower and upper thumb fills (their heights are 12.0)
     let thumb_fills: Vec<Rect> = fill_rects.into_iter().filter(|r| r.h == 12.0).collect();
     assert_eq!(thumb_fills.len(), 2);
-    assert_eq!(thumb_fills[0], Rect::new(40.0, 4.0, 11.5, 12.0));
-    assert_eq!(thumb_fills[1], Rect::new(50.5, 4.0, 11.5, 12.0));
+    assert_eq!(thumb_fills[0], Rect::new(40.0, 4.0, 12.0, 12.0));
+    assert_eq!(thumb_fills[1], Rect::from_ltrb(51.0, 4.0, 62.0, 16.0));
 
     assert_eq!(stroke_rects.len(), 1);
     assert_eq!(stroke_rects[0], Rect::new(40.0, 4.0, 22.0, 12.0));
@@ -4550,8 +4550,8 @@ fn test_range_slider_overlap_full() {
 
     let thumb_fills: Vec<Rect> = fill_rects.into_iter().filter(|r| r.h == 12.0).collect();
     assert_eq!(thumb_fills.len(), 2);
-    assert_eq!(thumb_fills[0], Rect::new(50.0, 4.0, 6.5, 12.0));
-    assert_eq!(thumb_fills[1], Rect::new(55.5, 4.0, 6.5, 12.0));
+    assert_eq!(thumb_fills[0], Rect::from_ltrb(50.0, 4.0, 57.0, 16.0));
+    assert_eq!(thumb_fills[1], Rect::from_ltrb(56.0, 4.0, 62.0, 16.0));
 
     assert_eq!(stroke_rects.len(), 1);
     assert_eq!(stroke_rects[0], Rect::new(50.0, 4.0, 12.0, 12.0));

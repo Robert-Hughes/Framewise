@@ -834,7 +834,6 @@ impl Renderer {
         encoder: &mut wgpu::CommandEncoder,
         draw_commands: &DrawCommands,
         physical_size: (u32, u32),
-        physical_pixels_per_logical_pixel: f32,
         text_backend: &mut crate::text::SampleTextBackend,
     ) {
         if text_backend.atlas_dirty {
@@ -864,7 +863,7 @@ impl Renderer {
             draw_commands.commands(),
             draw_commands.glyphs(),
             physical_size,
-            physical_pixels_per_logical_pixel,
+            draw_commands.physical_pixels_per_logical_pixel(),
             text_backend,
             &mut self.quad_verts,
             &mut self.text_instances,
@@ -1003,6 +1002,8 @@ impl Renderer {
                     pass.draw(0..6, range.clone());
                 }
                 RenderCommand::SetScissor(r) => {
+                    let physical_pixels_per_logical_pixel =
+                        draw_commands.physical_pixels_per_logical_pixel();
                     let (x, y, w, h) = logical_scissor_to_physical(
                         *r,
                         physical_size,

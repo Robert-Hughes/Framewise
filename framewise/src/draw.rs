@@ -375,11 +375,7 @@ impl DrawCommands {
     }
 
     pub fn push_crisp_fill_rect(&mut self, rect: Rect, color: Color, z: u32) -> usize {
-        let rect = if self.should_snap_crisp_helpers() {
-            self.snap_rect_edges_to_physical_pixel(rect)
-        } else {
-            rect
-        };
+        let rect = self.snap_rect_edges_to_physical_pixel(rect);
         self.push(DrawCmd::FillRect { rect, color, z })
     }
 
@@ -395,14 +391,8 @@ impl DrawCommands {
             return None;
         }
 
-        let (rect, width) = if self.should_snap_crisp_helpers() {
-            (
-                self.snap_rect_edges_to_physical_pixel(rect),
-                self.snap_length_to_physical_pixels(s.width),
-            )
-        } else {
-            (rect, s.width)
-        };
+        let rect = self.snap_rect_edges_to_physical_pixel(rect);
+        let width = self.snap_length_to_physical_pixels(s.width);
 
         Some(self.push(DrawCmd::BorderRect {
             rect,
@@ -435,10 +425,6 @@ impl DrawCommands {
             color,
             z,
         }))
-    }
-
-    fn should_snap_crisp_helpers(&self) -> bool {
-        (self.physical_pixels_per_logical_pixel - 1.0).abs() > 0.001
     }
 
     pub fn push_device_hairline_v(
@@ -860,5 +846,90 @@ mod tests {
         assert_eq!(cmds.push_v_rule(10.0, 20.0, 0.0, Some(s_valid), 2), None);
         assert_eq!(cmds.push_v_rule(10.0, 20.0, -10.0, Some(s_valid), 2), None);
         assert_eq!(cmds.len(), 2);
+    }
+
+    #[test]
+    fn crisp_fill_rect_snaps_at_one_x() {
+        let mut cmds = DrawCommands::new();
+
+        cmds.push_crisp_fill_rect(Rect::from_ltrb(0.25, 0.5, 10.49, 5.51), color(), 1);
+
+        assert_eq!(
+            cmds.commands(),
+            &[DrawCmd::FillRect {
+                rect: Rect::from_ltrb(0.0, 1.0, 10.0, 6.0),
+                color: color(),
+                z: 1,
+            }]
+        );
+    }
+
+    #[test]
+    fn crisp_border_rect_snaps_at_one_x() {
+        let mut cmds = DrawCommands::new();
+
+        cmds.push_crisp_border_rect(
+            Rect::from_ltrb(0.25, 0.5, 10.49, 5.51),
+            Some(Stroke::new(color(), 1.4)),
+            BorderPlacement::Inside,
+            2,
+        );
+
+        assert_eq!(
+            cmds.commands(),
+            &[DrawCmd::BorderRect {
+                rect: Rect::from_ltrb(0.0, 1.0, 10.0, 6.0),
+                color: color(),
+                width: 1.0,
+                placement: BorderPlacement::Inside,
+                z: 2,
+            }]
+        );
+    }
+
+    #[test]
+    fn crisp_fill_rect_snaps_at_two_x() {
+        let mut cmds = DrawCommands::with_physical_pixels_per_logical_pixel(2.0);
+
+        // 0.25 * 2 = 0.5 → rounds to 0 → 0.0 (banker's round, but f32 round() rounds half away from zero)
+        // Actually 0.5.round() = 1.0 in Rust, so 0.25 * 2 = 0.5 → 1 → 0.5 logical
+        // Let's use unambiguous values: 0.24 → 0.48 → rounds to 0 → 0.0
+        // 0.26 → 0.52 → rounds to 1 → 0.5
+        // 10.49 → 20.98 → rounds to 21 → 10.5
+        // 5.51 → 11.02 → rounds to 11 → 5.5
+        cmds.push_crisp_fill_rect(Rect::from_ltrb(0.24, 0.26, 10.49, 5.51), color(), 1);
+
+        assert_eq!(
+            cmds.commands(),
+            &[DrawCmd::FillRect {
+                rect: Rect::from_ltrb(0.0, 0.5, 10.5, 5.5),
+                color: color(),
+                z: 1,
+            }]
+        );
+    }
+
+    #[test]
+    fn crisp_border_rect_snaps_at_two_x() {
+        let mut cmds = DrawCommands::with_physical_pixels_per_logical_pixel(2.0);
+
+        cmds.push_crisp_border_rect(
+            Rect::from_ltrb(0.24, 0.26, 10.49, 5.51),
+            Some(Stroke::new(color(), 1.4)),
+            BorderPlacement::Outside,
+            3,
+        );
+
+        // 1.4 * 2 = 2.8 → round → 3 physical px → 1.5 logical
+        assert_eq!(
+            cmds.commands(),
+            &[DrawCmd::BorderRect {
+                rect: Rect::from_ltrb(0.0, 0.5, 10.5, 5.5),
+                color: color(),
+                width: 1.5,
+                placement: BorderPlacement::Outside,
+                z: 3,
+            }]
+        );
     }
 }

@@ -72,7 +72,6 @@ pub async fn render_commands_to_rgba(
     let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
         label: Some("golden_test_encoder"),
     });
-    let physical_pixels_per_logical_pixel = draw_commands.physical_pixels_per_logical_pixel();
     renderer.render(
         &device,
         &queue,
@@ -80,7 +79,6 @@ pub async fn render_commands_to_rgba(
         &mut encoder,
         &draw_commands,
         (width, height),
-        physical_pixels_per_logical_pixel,
         &mut text_backend,
     );
 

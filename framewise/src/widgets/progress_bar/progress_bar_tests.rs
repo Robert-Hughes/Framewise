@@ -28,12 +28,12 @@ fn test_progress_bar_visual_normal() {
         cmds,
         DrawCommands::from_vec(vec![
             DrawCmd::FillRect {
-                rect: Rect::new(10.0, 13.5, 100.0, 3.0),
+                rect: Rect::new(10.0, 14.0, 100.0, 3.0),
                 color: style.track_color,
                 z: 0,
             },
             DrawCmd::FillRect {
-                rect: Rect::new(10.0, 13.5, 50.0, 3.0),
+                rect: Rect::new(10.0, 14.0, 50.0, 3.0),
                 color: style.fill_color,
                 z: 0,
             },
@@ -65,12 +65,12 @@ fn test_progress_bar_visual_active() {
         cmds,
         DrawCommands::from_vec(vec![
             DrawCmd::FillRect {
-                rect: Rect::new(10.0, 13.5, 100.0, 3.0),
+                rect: Rect::new(10.0, 14.0, 100.0, 3.0),
                 color: style.track_color,
                 z: 0,
             },
             DrawCmd::FillRect {
-                rect: Rect::new(10.0, 13.5, 50.0, 3.0),
+                rect: Rect::new(10.0, 14.0, 50.0, 3.0),
                 color: style.active_fill_color,
                 z: 0,
             },
@@ -102,12 +102,12 @@ fn test_progress_bar_visual_indeterminate() {
         cmds,
         DrawCommands::from_vec(vec![
             DrawCmd::FillRect {
-                rect: Rect::new(10.0, 13.5, 100.0, 3.0),
+                rect: Rect::new(10.0, 14.0, 100.0, 3.0),
                 color: style.track_color,
                 z: 0,
             },
             DrawCmd::FillRect {
-                rect: Rect::new(60.0, 13.5, 30.000002, 3.0),
+                rect: Rect::new(60.0, 14.0, 30.0, 3.0),
                 color: style.fill_color,
                 z: 0,
             },

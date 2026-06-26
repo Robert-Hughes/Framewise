@@ -1055,7 +1055,7 @@ fn test_regression_custom_style_no_theme_lookup() {
             DrawCmd::BorderRect {
                 rect: Rect::new(5.0, 15.0, 120.0, 45.0),
                 color: custom_style.border.unwrap().color,
-                width: custom_style.border.unwrap().width,
+                width: 5.0, // snap_length_to_physical_pixels(4.5) at 1× = round(4.5).max(1) * 1.0 = 5.0
                 placement: crate::BorderPlacement::Inside,
                 z: 0,
             },
