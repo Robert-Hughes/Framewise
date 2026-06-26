@@ -136,19 +136,19 @@ pub mod raw {
 
         let (main_start_padding, main_end_padding) = if !state.value.is_range() {
             if let Some(lower_style) = spec.style.lower_thumb_style {
-                let len = main_axis_len(lower_style.cross_axis_size, track_outer_rect, is_vert);
+                let len = lower_style.main_axis_length;
                 (len * 0.5, len * 0.5)
             } else {
                 (0.0, 0.0)
             }
         } else {
             let start_pad = if let Some(lower_style) = spec.style.lower_thumb_style {
-                main_axis_len(lower_style.cross_axis_size, track_outer_rect, is_vert) * 0.5
+                lower_style.main_axis_length * 0.5
             } else {
                 0.0
             };
             let end_pad = if let Some(upper_style) = spec.style.upper_thumb_style {
-                main_axis_len(upper_style.cross_axis_size, track_outer_rect, is_vert) * 0.5
+                upper_style.main_axis_length * 0.5
             } else {
                 0.0
             };
@@ -925,16 +925,6 @@ fn coord_to_value(coord: f32, min: f32, range: f32, track_start: f32, track_len:
         min + ((coord - track_start) / track_len).clamp(0.0, 1.0) * range
     } else {
         min
-    }
-}
-
-fn main_axis_len(cross_axis_size: CrossAxisSize, track_rect: Rect, is_vert: bool) -> f32 {
-    match cross_axis_size {
-        CrossAxisSize::FixedCentered(len) => len,
-        CrossAxisSize::FillTrack { margin } => {
-            let cross = if is_vert { track_rect.w } else { track_rect.h };
-            (cross - margin * 2.0).max(1.0)
-        }
     }
 }
 
@@ -1740,6 +1730,7 @@ pub struct SegmentStyle {
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct ThumbStyle {
     pub cross_axis_size: CrossAxisSize,
+    pub main_axis_length: f32,
     pub fill: InteractiveColor,
     pub border: Option<Stroke>,
 }
@@ -1761,6 +1752,7 @@ impl SliderStyle {
     pub fn from_theme(theme: &crate::theme::Theme) -> Self {
         let default_thumb = ThumbStyle {
             cross_axis_size: CrossAxisSize::FixedCentered(12.0),
+            main_axis_length: 12.0,
             fill: InteractiveColor {
                 idle: theme.paper_elev,
                 hovered: theme.paper_elev_hover,
@@ -1790,6 +1782,7 @@ impl SliderStyle {
     pub fn range_from_theme(theme: &crate::theme::Theme) -> Self {
         let default_thumb = ThumbStyle {
             cross_axis_size: CrossAxisSize::FixedCentered(12.0),
+            main_axis_length: 12.0,
             fill: InteractiveColor {
                 idle: theme.paper_elev,
                 hovered: theme.paper_elev_hover,
