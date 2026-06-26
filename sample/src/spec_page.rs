@@ -2100,20 +2100,23 @@ fn section_02_text_inputs<CF>(
         {
             let layout_params = Rect::new(pf_x, y + 18.0, 24.0, b.theme.h_md);
             let rect = b.layout(layout_params, SizeRequest::UNKNOWN);
-            let cmds = DrawCommands::from_vec(vec![
-                DrawCmd::FillRect {
-                    rect,
-                    color: b.theme.ink,
-                    z: 0,
-                },
-                DrawCmd::BorderRect {
-                    rect,
-                    color: b.theme.line_on_paper,
-                    width: 1.0,
-                    placement: framewise::BorderPlacement::Inside,
-                    z: 0,
-                },
-            ]);
+            let cmds = DrawCommands::from_vec(
+                vec![
+                    DrawCmd::FillRect {
+                        rect,
+                        color: b.theme.ink,
+                        z: 0,
+                    },
+                    DrawCmd::BorderRect {
+                        rect,
+                        color: b.theme.line_on_paper,
+                        width: 1.0,
+                        placement: framewise::BorderPlacement::Inside,
+                        z: 0,
+                    },
+                ],
+                b.cmds.physical_pixels_per_logical_pixel(),
+            );
             b.append_cmds(cmds);
         };
         {
@@ -2151,11 +2154,14 @@ fn section_02_text_inputs<CF>(
         {
             let badge_rect = Rect::new(pf_x, err_y + 1.0, 12.0, 12.0);
             let rect = b.layout(badge_rect, SizeRequest::UNKNOWN);
-            let cmds = DrawCommands::from_vec(vec![DrawCmd::FillRect {
-                rect,
-                color: b.theme.rust,
-                z: 0,
-            }]);
+            let cmds = DrawCommands::from_vec(
+                vec![DrawCmd::FillRect {
+                    rect,
+                    color: b.theme.rust,
+                    z: 0,
+                }],
+                b.cmds.physical_pixels_per_logical_pixel(),
+            );
             b.append_cmds(cmds);
 
             let spec_builder = LabelSpecBuilder::new().text("!").style(LabelStyle {
@@ -2677,68 +2683,71 @@ fn section_04_sliders<CF>(
         let stepper_x = 0.0;
         let origin = b.layout(Rect::new(0.0, 0.0, 0.0, 0.0), SizeRequest::UNKNOWN);
         let rect = |x: f32, y: f32, w: f32, h: f32| Rect::new(origin.x + x, origin.y + y, w, h);
-        b.append_cmds(DrawCommands::from_vec(vec![
-            DrawCmd::FillRect {
-                rect: rect(stepper_x, 0.0, 64.0, b.theme.h_md),
-                color: b.theme.paper_hover,
-                z: 0,
-            },
-            DrawCmd::BorderRect {
-                rect: rect(stepper_x, 0.0, 64.0, b.theme.h_md),
-                color: b.theme.line_on_paper,
-                width: 1.0,
-                placement: framewise::BorderPlacement::Inside,
-                z: 0,
-            },
-            DrawCmd::FillRect {
-                rect: rect(stepper_x + 64.0, 0.0, 40.0, b.theme.h_md),
-                color: b.theme.paper_elev,
-                z: 0,
-            },
-            DrawCmd::BorderRect {
-                rect: rect(stepper_x + 64.0, 0.0, 40.0, b.theme.h_md),
-                color: b.theme.line_on_paper,
-                width: 1.0,
-                placement: framewise::BorderPlacement::Inside,
-                z: 0,
-            },
-            DrawCmd::FillRect {
-                rect: rect(120.0, 0.0, 22.0, b.theme.h_sm),
-                color: b.theme.paper_elev,
-                z: 0,
-            },
-            DrawCmd::BorderRect {
-                rect: rect(120.0, 0.0, 22.0, b.theme.h_sm),
-                color: b.theme.line_on_paper,
-                width: 1.0,
-                placement: framewise::BorderPlacement::Inside,
-                z: 0,
-            },
-            DrawCmd::FillRect {
-                rect: rect(142.0, 0.0, 40.0, b.theme.h_sm),
-                color: b.theme.paper_elev,
-                z: 0,
-            },
-            DrawCmd::BorderRect {
-                rect: rect(142.0, 0.0, 40.0, b.theme.h_sm),
-                color: b.theme.line_on_paper,
-                width: 1.0,
-                placement: framewise::BorderPlacement::Inside,
-                z: 0,
-            },
-            DrawCmd::FillRect {
-                rect: rect(182.0, 0.0, 22.0, b.theme.h_sm),
-                color: b.theme.paper_elev,
-                z: 0,
-            },
-            DrawCmd::BorderRect {
-                rect: rect(182.0, 0.0, 22.0, b.theme.h_sm),
-                color: b.theme.line_on_paper,
-                width: 1.0,
-                placement: framewise::BorderPlacement::Inside,
-                z: 0,
-            },
-        ]));
+        b.append_cmds(DrawCommands::from_vec(
+            vec![
+                DrawCmd::FillRect {
+                    rect: rect(stepper_x, 0.0, 64.0, b.theme.h_md),
+                    color: b.theme.paper_hover,
+                    z: 0,
+                },
+                DrawCmd::BorderRect {
+                    rect: rect(stepper_x, 0.0, 64.0, b.theme.h_md),
+                    color: b.theme.line_on_paper,
+                    width: 1.0,
+                    placement: framewise::BorderPlacement::Inside,
+                    z: 0,
+                },
+                DrawCmd::FillRect {
+                    rect: rect(stepper_x + 64.0, 0.0, 40.0, b.theme.h_md),
+                    color: b.theme.paper_elev,
+                    z: 0,
+                },
+                DrawCmd::BorderRect {
+                    rect: rect(stepper_x + 64.0, 0.0, 40.0, b.theme.h_md),
+                    color: b.theme.line_on_paper,
+                    width: 1.0,
+                    placement: framewise::BorderPlacement::Inside,
+                    z: 0,
+                },
+                DrawCmd::FillRect {
+                    rect: rect(120.0, 0.0, 22.0, b.theme.h_sm),
+                    color: b.theme.paper_elev,
+                    z: 0,
+                },
+                DrawCmd::BorderRect {
+                    rect: rect(120.0, 0.0, 22.0, b.theme.h_sm),
+                    color: b.theme.line_on_paper,
+                    width: 1.0,
+                    placement: framewise::BorderPlacement::Inside,
+                    z: 0,
+                },
+                DrawCmd::FillRect {
+                    rect: rect(142.0, 0.0, 40.0, b.theme.h_sm),
+                    color: b.theme.paper_elev,
+                    z: 0,
+                },
+                DrawCmd::BorderRect {
+                    rect: rect(142.0, 0.0, 40.0, b.theme.h_sm),
+                    color: b.theme.line_on_paper,
+                    width: 1.0,
+                    placement: framewise::BorderPlacement::Inside,
+                    z: 0,
+                },
+                DrawCmd::FillRect {
+                    rect: rect(182.0, 0.0, 22.0, b.theme.h_sm),
+                    color: b.theme.paper_elev,
+                    z: 0,
+                },
+                DrawCmd::BorderRect {
+                    rect: rect(182.0, 0.0, 22.0, b.theme.h_sm),
+                    color: b.theme.line_on_paper,
+                    width: 1.0,
+                    placement: framewise::BorderPlacement::Inside,
+                    z: 0,
+                },
+            ],
+            b.cmds.physical_pixels_per_logical_pixel(),
+        ));
         for (text, rect, color) in [
             ("padding", Rect::new(6.0, 7.0, 56.0, 14.0), b.theme.muted),
             ("12", Rect::new(72.0, 7.0, 24.0, 14.0), b.theme.ink),
@@ -3004,13 +3013,16 @@ fn section_06_scrollbars<CF>(
         let b1_content = Vec2::new(180.0, 320.0);
         {
             let rect = b.layout(b1, SizeRequest::UNKNOWN);
-            let cmds = DrawCommands::from_vec(vec![DrawCmd::BorderRect {
-                rect,
-                color: b.theme.line_on_paper,
-                width: 1.0,
-                placement: framewise::BorderPlacement::Inside,
-                z: 0,
-            }]);
+            let cmds = DrawCommands::from_vec(
+                vec![DrawCmd::BorderRect {
+                    rect,
+                    color: b.theme.line_on_paper,
+                    width: 1.0,
+                    placement: framewise::BorderPlacement::Inside,
+                    z: 0,
+                }],
+                b.cmds.physical_pixels_per_logical_pixel(),
+            );
 
             b.append_cmds(cmds);
         };
@@ -3083,13 +3095,16 @@ fn section_06_scrollbars<CF>(
         let b2_content = Vec2::new(180.0, 300.0);
         {
             let rect = b.layout(b2, SizeRequest::UNKNOWN);
-            let cmds = DrawCommands::from_vec(vec![DrawCmd::BorderRect {
-                rect,
-                color: b.theme.line_on_paper,
-                width: 1.0,
-                placement: framewise::BorderPlacement::Inside,
-                z: 0,
-            }]);
+            let cmds = DrawCommands::from_vec(
+                vec![DrawCmd::BorderRect {
+                    rect,
+                    color: b.theme.line_on_paper,
+                    width: 1.0,
+                    placement: framewise::BorderPlacement::Inside,
+                    z: 0,
+                }],
+                b.cmds.physical_pixels_per_logical_pixel(),
+            );
             b.append_cmds(cmds);
         };
         {
@@ -3148,13 +3163,16 @@ fn section_06_scrollbars<CF>(
         let b3_content = Vec2::new(700.0, 100.0);
         {
             let rect = b.layout(b3, SizeRequest::UNKNOWN);
-            let cmds = DrawCommands::from_vec(vec![DrawCmd::BorderRect {
-                rect,
-                color: b.theme.line_on_paper,
-                width: 1.0,
-                placement: framewise::BorderPlacement::Inside,
-                z: 0,
-            }]);
+            let cmds = DrawCommands::from_vec(
+                vec![DrawCmd::BorderRect {
+                    rect,
+                    color: b.theme.line_on_paper,
+                    width: 1.0,
+                    placement: framewise::BorderPlacement::Inside,
+                    z: 0,
+                }],
+                b.cmds.physical_pixels_per_logical_pixel(),
+            );
             b.append_cmds(cmds);
         };
         {
@@ -3210,13 +3228,16 @@ fn section_06_scrollbars<CF>(
         let b4_content = Vec2::new(320.0, 240.0);
         {
             let rect = b.layout(b4, SizeRequest::UNKNOWN);
-            let cmds = DrawCommands::from_vec(vec![DrawCmd::BorderRect {
-                rect,
-                color: b.theme.line_on_paper,
-                width: 1.0,
-                placement: framewise::BorderPlacement::Inside,
-                z: 0,
-            }]);
+            let cmds = DrawCommands::from_vec(
+                vec![DrawCmd::BorderRect {
+                    rect,
+                    color: b.theme.line_on_paper,
+                    width: 1.0,
+                    placement: framewise::BorderPlacement::Inside,
+                    z: 0,
+                }],
+                b.cmds.physical_pixels_per_logical_pixel(),
+            );
             b.append_cmds(cmds);
         };
         {
@@ -3800,25 +3821,28 @@ fn section_11_window<CF>(
 
         {
             let rect = b.layout(dw, SizeRequest::UNKNOWN);
-            let cmds = DrawCommands::from_vec(vec![
-                DrawCmd::FillRect {
-                    rect,
-                    color: dark_bg,
-                    z: 0,
-                },
-                DrawCmd::BorderRect {
-                    rect,
-                    color: dark_bdr,
-                    width: 1.0,
-                    placement: framewise::BorderPlacement::Inside,
-                    z: 0,
-                },
-                DrawCmd::FillRect {
-                    rect: Rect::new(rect.x, rect.y, rect.w, 26.0),
-                    color: darker,
-                    z: 0,
-                },
-            ]);
+            let cmds = DrawCommands::from_vec(
+                vec![
+                    DrawCmd::FillRect {
+                        rect,
+                        color: dark_bg,
+                        z: 0,
+                    },
+                    DrawCmd::BorderRect {
+                        rect,
+                        color: dark_bdr,
+                        width: 1.0,
+                        placement: framewise::BorderPlacement::Inside,
+                        z: 0,
+                    },
+                    DrawCmd::FillRect {
+                        rect: Rect::new(rect.x, rect.y, rect.w, 26.0),
+                        color: darker,
+                        z: 0,
+                    },
+                ],
+                b.cmds.physical_pixels_per_logical_pixel(),
+            );
             b.append_cmds(cmds);
         };
         {
@@ -3855,32 +3879,35 @@ fn section_11_window<CF>(
         {
             let layout_params = Rect::new(cx, cyw, 50.0, 22.0);
             let rect = b.layout(layout_params, SizeRequest::UNKNOWN);
-            let cmds = DrawCommands::from_vec(vec![
-                DrawCmd::FillRect {
-                    rect: Rect::new(rect.x, rect.y, 24.0, 22.0),
-                    color: Color::from_srgb_u8(42, 37, 32, 255),
-                    z: 0,
-                },
-                DrawCmd::BorderRect {
-                    rect: Rect::new(rect.x, rect.y, 24.0, 22.0),
-                    color: dark_bdr,
-                    width: 1.0,
-                    placement: framewise::BorderPlacement::Inside,
-                    z: 0,
-                },
-                DrawCmd::FillRect {
-                    rect: Rect::new(rect.x + 28.0, rect.y, 22.0, 22.0),
-                    color: Color::from_srgb_u8(42, 37, 32, 255),
-                    z: 0,
-                },
-                DrawCmd::BorderRect {
-                    rect: Rect::new(rect.x + 28.0, rect.y, 22.0, 22.0),
-                    color: dark_bdr,
-                    width: 1.0,
-                    placement: framewise::BorderPlacement::Inside,
-                    z: 0,
-                },
-            ]);
+            let cmds = DrawCommands::from_vec(
+                vec![
+                    DrawCmd::FillRect {
+                        rect: Rect::new(rect.x, rect.y, 24.0, 22.0),
+                        color: Color::from_srgb_u8(42, 37, 32, 255),
+                        z: 0,
+                    },
+                    DrawCmd::BorderRect {
+                        rect: Rect::new(rect.x, rect.y, 24.0, 22.0),
+                        color: dark_bdr,
+                        width: 1.0,
+                        placement: framewise::BorderPlacement::Inside,
+                        z: 0,
+                    },
+                    DrawCmd::FillRect {
+                        rect: Rect::new(rect.x + 28.0, rect.y, 22.0, 22.0),
+                        color: Color::from_srgb_u8(42, 37, 32, 255),
+                        z: 0,
+                    },
+                    DrawCmd::BorderRect {
+                        rect: Rect::new(rect.x + 28.0, rect.y, 22.0, 22.0),
+                        color: dark_bdr,
+                        width: 1.0,
+                        placement: framewise::BorderPlacement::Inside,
+                        z: 0,
+                    },
+                ],
+                b.cmds.physical_pixels_per_logical_pixel(),
+            );
 
             b.append_cmds(cmds);
         };
@@ -3932,20 +3959,23 @@ fn section_11_window<CF>(
         {
             let layout_params = Rect::new(cx, inp_y, dw.w - 32.0, 26.0);
             let rect = b.layout(layout_params, SizeRequest::UNKNOWN);
-            let cmds = DrawCommands::from_vec(vec![
-                DrawCmd::FillRect {
-                    rect,
-                    color: darker,
-                    z: 0,
-                },
-                DrawCmd::BorderRect {
-                    rect,
-                    color: dark_bdr,
-                    width: 1.0,
-                    placement: framewise::BorderPlacement::Inside,
-                    z: 0,
-                },
-            ]);
+            let cmds = DrawCommands::from_vec(
+                vec![
+                    DrawCmd::FillRect {
+                        rect,
+                        color: darker,
+                        z: 0,
+                    },
+                    DrawCmd::BorderRect {
+                        rect,
+                        color: dark_bdr,
+                        width: 1.0,
+                        placement: framewise::BorderPlacement::Inside,
+                        z: 0,
+                    },
+                ],
+                b.cmds.physical_pixels_per_logical_pixel(),
+            );
             b.append_cmds(cmds);
         };
         {
@@ -3969,11 +3999,14 @@ fn section_11_window<CF>(
         {
             let layout_params = Rect::new(cx, tab_y + 26.0, dw.w - 16.0, 1.0);
             let rect = b.layout(layout_params, SizeRequest::UNKNOWN);
-            let cmds = DrawCommands::from_vec(vec![DrawCmd::FillRect {
-                rect: Rect::new(rect.x, rect.y - 0.5, rect.w, 1.0),
-                color: dark_bdr,
-                z: 0,
-            }]);
+            let cmds = DrawCommands::from_vec(
+                vec![DrawCmd::FillRect {
+                    rect: Rect::new(rect.x, rect.y - 0.5, rect.w, 1.0),
+                    color: dark_bdr,
+                    z: 0,
+                }],
+                b.cmds.physical_pixels_per_logical_pixel(),
+            );
             b.append_cmds(cmds);
         };
         let tab_items = ["Files", "Symbols", "Frames"];
@@ -3997,11 +4030,14 @@ fn section_11_window<CF>(
                 {
                     let layout_params = Rect::new(tab_x, tab_y + 24.0, 40.0, 2.0);
                     let rect = b.layout(layout_params, SizeRequest::UNKNOWN);
-                    let cmds = DrawCommands::from_vec(vec![DrawCmd::FillRect {
-                        rect,
-                        color: b.theme.rust,
-                        z: 0,
-                    }]);
+                    let cmds = DrawCommands::from_vec(
+                        vec![DrawCmd::FillRect {
+                            rect,
+                            color: b.theme.rust,
+                            z: 0,
+                        }],
+                        b.cmds.physical_pixels_per_logical_pixel(),
+                    );
 
                     b.append_cmds(cmds);
                 };

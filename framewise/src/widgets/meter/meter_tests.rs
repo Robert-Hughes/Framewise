@@ -33,7 +33,7 @@ fn test_meter_visual_normal() {
             z: 0,
         });
     }
-    assert_eq!(cmds, DrawCommands::from_vec(expected));
+    assert_eq!(cmds, DrawCommands::from_vec(expected, 1.0));
 }
 
 #[test]
@@ -71,7 +71,7 @@ fn test_meter_visual_peak() {
             z: 0,
         });
     }
-    assert_eq!(cmds, DrawCommands::from_vec(expected));
+    assert_eq!(cmds, DrawCommands::from_vec(expected, 1.0));
 }
 
 #[test]

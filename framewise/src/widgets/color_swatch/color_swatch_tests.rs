@@ -28,20 +28,23 @@ fn test_color_swatch_visual_normal() {
     );
     assert_eq!(
         cmds,
-        DrawCommands::from_vec(vec![
-            DrawCmd::FillRect {
-                rect: Rect::new(0.0, 0.0, 16.0, 16.0),
-                color: default_color,
-                z: 0,
-            },
-            DrawCmd::BorderRect {
-                rect: Rect::new(0.0, 0.0, 16.0, 16.0),
-                color: default_border,
-                width: 1.0,
-                placement: crate::BorderPlacement::Inside,
-                z: 0,
-            },
-        ])
+        DrawCommands::from_vec(
+            vec![
+                DrawCmd::FillRect {
+                    rect: Rect::new(0.0, 0.0, 16.0, 16.0),
+                    color: default_color,
+                    z: 0,
+                },
+                DrawCmd::BorderRect {
+                    rect: Rect::new(0.0, 0.0, 16.0, 16.0),
+                    color: default_border,
+                    width: 1.0,
+                    placement: crate::BorderPlacement::Inside,
+                    z: 0,
+                },
+            ],
+            1.0
+        )
     );
 }
 
@@ -70,20 +73,23 @@ fn test_color_swatch_visual_custom() {
     );
     assert_eq!(
         cmds,
-        DrawCommands::from_vec(vec![
-            DrawCmd::FillRect {
-                rect: Rect::new(0.0, 0.0, 20.0, 20.0),
-                color: custom_color,
-                z: 0,
-            },
-            DrawCmd::BorderRect {
-                rect: Rect::new(0.0, 0.0, 20.0, 20.0),
-                color: custom_border,
-                width: 1.0,
-                placement: crate::BorderPlacement::Inside,
-                z: 0,
-            },
-        ])
+        DrawCommands::from_vec(
+            vec![
+                DrawCmd::FillRect {
+                    rect: Rect::new(0.0, 0.0, 20.0, 20.0),
+                    color: custom_color,
+                    z: 0,
+                },
+                DrawCmd::BorderRect {
+                    rect: Rect::new(0.0, 0.0, 20.0, 20.0),
+                    color: custom_border,
+                    width: 1.0,
+                    placement: crate::BorderPlacement::Inside,
+                    z: 0,
+                },
+            ],
+            1.0
+        )
     );
 }
 

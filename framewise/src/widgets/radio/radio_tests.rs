@@ -204,21 +204,24 @@ fn test_radio_visual_unselected() {
     );
     assert_eq!(
         cmds,
-        DrawCommands::from_vec(vec![
-            DrawCmd::FillCircle {
-                center,
-                radius: s.radius,
-                color: s.background,
-                z: 0,
-            },
-            DrawCmd::StrokeCircle {
-                center,
-                radius: s.radius,
-                color: s.border.unwrap().color,
-                width: s.border.unwrap().width,
-                z: 0,
-            },
-        ])
+        DrawCommands::from_vec(
+            vec![
+                DrawCmd::FillCircle {
+                    center,
+                    radius: s.radius,
+                    color: s.background,
+                    z: 0,
+                },
+                DrawCmd::StrokeCircle {
+                    center,
+                    radius: s.radius,
+                    color: s.border.unwrap().color,
+                    width: s.border.unwrap().width,
+                    z: 0,
+                },
+            ],
+            1.0
+        )
     );
 }
 
@@ -269,21 +272,24 @@ fn test_radio_visual_hovered() {
 
     assert_eq!(
         cmds,
-        DrawCommands::from_vec(vec![
-            DrawCmd::FillCircle {
-                center,
-                radius: s.radius,
-                color: s.hovered,
-                z: 0,
-            },
-            DrawCmd::StrokeCircle {
-                center,
-                radius: s.radius,
-                color: s.border.unwrap().color,
-                width: s.border.unwrap().width,
-                z: 0,
-            },
-        ])
+        DrawCommands::from_vec(
+            vec![
+                DrawCmd::FillCircle {
+                    center,
+                    radius: s.radius,
+                    color: s.hovered,
+                    z: 0,
+                },
+                DrawCmd::StrokeCircle {
+                    center,
+                    radius: s.radius,
+                    color: s.border.unwrap().color,
+                    width: s.border.unwrap().width,
+                    z: 0,
+                },
+            ],
+            1.0
+        )
     );
 }
 
@@ -336,21 +342,24 @@ fn test_radio_visual_pressed() {
 
     assert_eq!(
         cmds,
-        DrawCommands::from_vec(vec![
-            DrawCmd::FillCircle {
-                center,
-                radius: s.radius,
-                color: s.pressed,
-                z: 0,
-            },
-            DrawCmd::StrokeCircle {
-                center,
-                radius: s.radius,
-                color: s.border.unwrap().color,
-                width: s.border.unwrap().width,
-                z: 0,
-            },
-        ])
+        DrawCommands::from_vec(
+            vec![
+                DrawCmd::FillCircle {
+                    center,
+                    radius: s.radius,
+                    color: s.pressed,
+                    z: 0,
+                },
+                DrawCmd::StrokeCircle {
+                    center,
+                    radius: s.radius,
+                    color: s.border.unwrap().color,
+                    width: s.border.unwrap().width,
+                    z: 0,
+                },
+            ],
+            1.0
+        )
     );
 }
 
@@ -375,27 +384,30 @@ fn test_radio_visual_selected() {
     );
     assert_eq!(
         cmds,
-        DrawCommands::from_vec(vec![
-            DrawCmd::FillCircle {
-                center,
-                radius: s.radius,
-                color: s.background,
-                z: 0,
-            },
-            DrawCmd::StrokeCircle {
-                center,
-                radius: s.radius,
-                color: s.border.unwrap().color,
-                width: s.border.unwrap().width,
-                z: 0,
-            },
-            DrawCmd::FillCircle {
-                center,
-                radius: s.dot_radius,
-                color: s.dot,
-                z: 0,
-            },
-        ])
+        DrawCommands::from_vec(
+            vec![
+                DrawCmd::FillCircle {
+                    center,
+                    radius: s.radius,
+                    color: s.background,
+                    z: 0,
+                },
+                DrawCmd::StrokeCircle {
+                    center,
+                    radius: s.radius,
+                    color: s.border.unwrap().color,
+                    width: s.border.unwrap().width,
+                    z: 0,
+                },
+                DrawCmd::FillCircle {
+                    center,
+                    radius: s.dot_radius,
+                    color: s.dot,
+                    z: 0,
+                },
+            ],
+            1.0
+        )
     );
 }
 
@@ -446,27 +458,30 @@ fn test_radio_visual_selected_hovered() {
 
     assert_eq!(
         cmds,
-        DrawCommands::from_vec(vec![
-            DrawCmd::FillCircle {
-                center,
-                radius: s.radius,
-                color: s.selected_hovered,
-                z: 0,
-            },
-            DrawCmd::StrokeCircle {
-                center,
-                radius: s.radius,
-                color: s.border.unwrap().color,
-                width: s.border.unwrap().width,
-                z: 0,
-            },
-            DrawCmd::FillCircle {
-                center,
-                radius: s.dot_radius,
-                color: s.dot,
-                z: 0,
-            },
-        ])
+        DrawCommands::from_vec(
+            vec![
+                DrawCmd::FillCircle {
+                    center,
+                    radius: s.radius,
+                    color: s.selected_hovered,
+                    z: 0,
+                },
+                DrawCmd::StrokeCircle {
+                    center,
+                    radius: s.radius,
+                    color: s.border.unwrap().color,
+                    width: s.border.unwrap().width,
+                    z: 0,
+                },
+                DrawCmd::FillCircle {
+                    center,
+                    radius: s.dot_radius,
+                    color: s.dot,
+                    z: 0,
+                },
+            ],
+            1.0
+        )
     );
 }
 
@@ -494,28 +509,33 @@ fn test_radio_visual_focused() {
     focus_system.end_frame();
     assert_eq!(
         cmds,
-        DrawCommands::from_vec(vec![
-            DrawCmd::StrokeCircle {
-                center,
-                radius: s.radius + s.focus.unwrap().offset + s.focus.unwrap().stroke.width * 0.5,
-                color: s.focus.unwrap().stroke.color,
-                width: s.focus.unwrap().stroke.width,
-                z: 1,
-            },
-            DrawCmd::FillCircle {
-                center,
-                radius: s.radius,
-                color: s.background,
-                z: 0,
-            },
-            DrawCmd::StrokeCircle {
-                center,
-                radius: s.radius,
-                color: s.border.unwrap().color,
-                width: s.border.unwrap().width,
-                z: 0,
-            },
-        ])
+        DrawCommands::from_vec(
+            vec![
+                DrawCmd::StrokeCircle {
+                    center,
+                    radius: s.radius
+                        + s.focus.unwrap().offset
+                        + s.focus.unwrap().stroke.width * 0.5,
+                    color: s.focus.unwrap().stroke.color,
+                    width: s.focus.unwrap().stroke.width,
+                    z: 1,
+                },
+                DrawCmd::FillCircle {
+                    center,
+                    radius: s.radius,
+                    color: s.background,
+                    z: 0,
+                },
+                DrawCmd::StrokeCircle {
+                    center,
+                    radius: s.radius,
+                    color: s.border.unwrap().color,
+                    width: s.border.unwrap().width,
+                    z: 0,
+                },
+            ],
+            1.0
+        )
     );
 }
 
@@ -542,21 +562,24 @@ fn test_radio_visual_disabled() {
     );
     assert_eq!(
         cmds,
-        DrawCommands::from_vec(vec![
-            DrawCmd::FillCircle {
-                center,
-                radius: s.radius,
-                color: tint(s.background),
-                z: 0,
-            },
-            DrawCmd::StrokeCircle {
-                center,
-                radius: s.radius,
-                color: tint(s.border.unwrap().color),
-                width: s.border.unwrap().width,
-                z: 0,
-            },
-        ])
+        DrawCommands::from_vec(
+            vec![
+                DrawCmd::FillCircle {
+                    center,
+                    radius: s.radius,
+                    color: tint(s.background),
+                    z: 0,
+                },
+                DrawCmd::StrokeCircle {
+                    center,
+                    radius: s.radius,
+                    color: tint(s.border.unwrap().color),
+                    width: s.border.unwrap().width,
+                    z: 0,
+                },
+            ],
+            1.0
+        )
     );
 }
 
@@ -944,21 +967,24 @@ fn test_radio_visual_vertically_centered() {
     let center = Vec2::new(17.0, 20.0);
     assert_eq!(
         cmds,
-        DrawCommands::from_vec(vec![
-            DrawCmd::FillCircle {
-                center,
-                radius: s.radius,
-                color: s.background,
-                z: 0,
-            },
-            DrawCmd::StrokeCircle {
-                center,
-                radius: s.radius,
-                color: s.border.unwrap().color,
-                width: s.border.unwrap().width,
-                z: 0,
-            },
-        ])
+        DrawCommands::from_vec(
+            vec![
+                DrawCmd::FillCircle {
+                    center,
+                    radius: s.radius,
+                    color: s.background,
+                    z: 0,
+                },
+                DrawCmd::StrokeCircle {
+                    center,
+                    radius: s.radius,
+                    color: s.border.unwrap().color,
+                    width: s.border.unwrap().width,
+                    z: 0,
+                },
+            ],
+            1.0
+        )
     );
 }
 

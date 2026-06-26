@@ -162,11 +162,7 @@ impl DrawCommands {
     ///
     /// `GlyphRun` commands should be created with [`push_glyph_run`](Self::push_glyph_run)
     /// so their ranges point at this command list's glyph arena.
-    pub fn from_vec(cmds: Vec<DrawCmd>) -> Self {
-        Self::from_vec_new(cmds, 1.0)
-    }
-
-    pub fn from_vec_new(cmds: Vec<DrawCmd>, physical_pixels_per_logical_pixel: f32) -> Self {
+    pub fn from_vec(cmds: Vec<DrawCmd>, physical_pixels_per_logical_pixel: f32) -> Self {
         Self {
             cmds,
             glyphs: Vec::new(),
@@ -581,7 +577,7 @@ mod tests {
             1.0
         );
         assert_eq!(
-            DrawCommands::from_vec_new(Vec::new(), 1.5).physical_pixels_per_logical_pixel(),
+            DrawCommands::from_vec(Vec::new(), 1.5).physical_pixels_per_logical_pixel(),
             1.5
         );
     }

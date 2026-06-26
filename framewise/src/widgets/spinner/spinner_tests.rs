@@ -23,58 +23,61 @@ fn test_spinner_visual_normal() {
 
     assert_eq!(
         cmds,
-        DrawCommands::from_vec(vec![
-            // Top-left
-            DrawCmd::FillRect {
-                rect: Rect::new(0.0, 0.0, 1.5, 5.0),
-                color: style.stroke.color,
-                z: 0,
-            },
-            DrawCmd::FillRect {
-                rect: Rect::new(0.0, 0.0, 5.0, 1.5),
-                color: style.stroke.color,
-                z: 0,
-            },
-            // Top-right
-            DrawCmd::FillRect {
-                rect: Rect::new(11.0, 0.0, 5.0, 1.5),
-                color: style.stroke.color,
-                z: 0,
-            },
-            DrawCmd::FillRect {
-                rect: Rect::new(14.5, 0.0, 1.5, 5.0),
-                color: style.stroke.color,
-                z: 0,
-            },
-            // Bottom-right
-            DrawCmd::FillRect {
-                rect: Rect::new(14.5, 11.0, 1.5, 5.0),
-                color: style.stroke.color,
-                z: 0,
-            },
-            DrawCmd::FillRect {
-                rect: Rect::new(11.0, 14.5, 5.0, 1.5),
-                color: style.stroke.color,
-                z: 0,
-            },
-            // Bottom-left
-            DrawCmd::FillRect {
-                rect: Rect::new(0.0, 14.5, 5.0, 1.5),
-                color: style.stroke.color,
-                z: 0,
-            },
-            DrawCmd::FillRect {
-                rect: Rect::new(0.0, 11.0, 1.5, 5.0),
-                color: style.stroke.color,
-                z: 0,
-            },
-            // Highlight
-            DrawCmd::FillRect {
-                rect: Rect::new(1.6, 0.0, 6.4, 1.5),
-                color: style.highlight_stroke.color,
-                z: 0,
-            },
-        ])
+        DrawCommands::from_vec(
+            vec![
+                // Top-left
+                DrawCmd::FillRect {
+                    rect: Rect::new(0.0, 0.0, 1.5, 5.0),
+                    color: style.stroke.color,
+                    z: 0,
+                },
+                DrawCmd::FillRect {
+                    rect: Rect::new(0.0, 0.0, 5.0, 1.5),
+                    color: style.stroke.color,
+                    z: 0,
+                },
+                // Top-right
+                DrawCmd::FillRect {
+                    rect: Rect::new(11.0, 0.0, 5.0, 1.5),
+                    color: style.stroke.color,
+                    z: 0,
+                },
+                DrawCmd::FillRect {
+                    rect: Rect::new(14.5, 0.0, 1.5, 5.0),
+                    color: style.stroke.color,
+                    z: 0,
+                },
+                // Bottom-right
+                DrawCmd::FillRect {
+                    rect: Rect::new(14.5, 11.0, 1.5, 5.0),
+                    color: style.stroke.color,
+                    z: 0,
+                },
+                DrawCmd::FillRect {
+                    rect: Rect::new(11.0, 14.5, 5.0, 1.5),
+                    color: style.stroke.color,
+                    z: 0,
+                },
+                // Bottom-left
+                DrawCmd::FillRect {
+                    rect: Rect::new(0.0, 14.5, 5.0, 1.5),
+                    color: style.stroke.color,
+                    z: 0,
+                },
+                DrawCmd::FillRect {
+                    rect: Rect::new(0.0, 11.0, 1.5, 5.0),
+                    color: style.stroke.color,
+                    z: 0,
+                },
+                // Highlight
+                DrawCmd::FillRect {
+                    rect: Rect::new(1.6, 0.0, 6.4, 1.5),
+                    color: style.highlight_stroke.color,
+                    z: 0,
+                },
+            ],
+            1.0
+        )
     );
 }
 
@@ -98,58 +101,61 @@ fn test_spinner_visual_large() {
 
     assert_eq!(
         cmds,
-        DrawCommands::from_vec(vec![
-            // Top-left
-            DrawCmd::FillRect {
-                rect: Rect::new(0.0, 0.0, 1.5, 7.0),
-                color: style.stroke.color,
-                z: 0,
-            },
-            DrawCmd::FillRect {
-                rect: Rect::new(0.0, 0.0, 7.0, 1.5),
-                color: style.stroke.color,
-                z: 0,
-            },
-            // Top-right
-            DrawCmd::FillRect {
-                rect: Rect::new(17.0, 0.0, 7.0, 1.5),
-                color: style.stroke.color,
-                z: 0,
-            },
-            DrawCmd::FillRect {
-                rect: Rect::new(22.5, 0.0, 1.5, 7.0),
-                color: style.stroke.color,
-                z: 0,
-            },
-            // Bottom-right
-            DrawCmd::FillRect {
-                rect: Rect::new(22.5, 17.0, 1.5, 7.0),
-                color: style.stroke.color,
-                z: 0,
-            },
-            DrawCmd::FillRect {
-                rect: Rect::new(17.0, 22.5, 7.0, 1.5),
-                color: style.stroke.color,
-                z: 0,
-            },
-            // Bottom-left
-            DrawCmd::FillRect {
-                rect: Rect::new(0.0, 22.5, 7.0, 1.5),
-                color: style.stroke.color,
-                z: 0,
-            },
-            DrawCmd::FillRect {
-                rect: Rect::new(0.0, 17.0, 1.5, 7.0),
-                color: style.stroke.color,
-                z: 0,
-            },
-            // Highlight
-            DrawCmd::FillRect {
-                rect: Rect::new(2.4, 0.0, 9.6, 1.5),
-                color: style.highlight_stroke.color,
-                z: 0,
-            },
-        ])
+        DrawCommands::from_vec(
+            vec![
+                // Top-left
+                DrawCmd::FillRect {
+                    rect: Rect::new(0.0, 0.0, 1.5, 7.0),
+                    color: style.stroke.color,
+                    z: 0,
+                },
+                DrawCmd::FillRect {
+                    rect: Rect::new(0.0, 0.0, 7.0, 1.5),
+                    color: style.stroke.color,
+                    z: 0,
+                },
+                // Top-right
+                DrawCmd::FillRect {
+                    rect: Rect::new(17.0, 0.0, 7.0, 1.5),
+                    color: style.stroke.color,
+                    z: 0,
+                },
+                DrawCmd::FillRect {
+                    rect: Rect::new(22.5, 0.0, 1.5, 7.0),
+                    color: style.stroke.color,
+                    z: 0,
+                },
+                // Bottom-right
+                DrawCmd::FillRect {
+                    rect: Rect::new(22.5, 17.0, 1.5, 7.0),
+                    color: style.stroke.color,
+                    z: 0,
+                },
+                DrawCmd::FillRect {
+                    rect: Rect::new(17.0, 22.5, 7.0, 1.5),
+                    color: style.stroke.color,
+                    z: 0,
+                },
+                // Bottom-left
+                DrawCmd::FillRect {
+                    rect: Rect::new(0.0, 22.5, 7.0, 1.5),
+                    color: style.stroke.color,
+                    z: 0,
+                },
+                DrawCmd::FillRect {
+                    rect: Rect::new(0.0, 17.0, 1.5, 7.0),
+                    color: style.stroke.color,
+                    z: 0,
+                },
+                // Highlight
+                DrawCmd::FillRect {
+                    rect: Rect::new(2.4, 0.0, 9.6, 1.5),
+                    color: style.highlight_stroke.color,
+                    z: 0,
+                },
+            ],
+            1.0
+        )
     );
 }
 

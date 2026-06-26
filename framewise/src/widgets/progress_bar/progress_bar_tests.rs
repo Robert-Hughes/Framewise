@@ -26,18 +26,21 @@ fn test_progress_bar_visual_normal() {
 
     assert_eq!(
         cmds,
-        DrawCommands::from_vec(vec![
-            DrawCmd::FillRect {
-                rect: Rect::new(10.0, 14.0, 100.0, 3.0),
-                color: style.track_color,
-                z: 0,
-            },
-            DrawCmd::FillRect {
-                rect: Rect::new(10.0, 14.0, 50.0, 3.0),
-                color: style.fill_color,
-                z: 0,
-            },
-        ])
+        DrawCommands::from_vec(
+            vec![
+                DrawCmd::FillRect {
+                    rect: Rect::new(10.0, 14.0, 100.0, 3.0),
+                    color: style.track_color,
+                    z: 0,
+                },
+                DrawCmd::FillRect {
+                    rect: Rect::new(10.0, 14.0, 50.0, 3.0),
+                    color: style.fill_color,
+                    z: 0,
+                },
+            ],
+            1.0
+        )
     );
 }
 
@@ -63,18 +66,21 @@ fn test_progress_bar_visual_active() {
 
     assert_eq!(
         cmds,
-        DrawCommands::from_vec(vec![
-            DrawCmd::FillRect {
-                rect: Rect::new(10.0, 14.0, 100.0, 3.0),
-                color: style.track_color,
-                z: 0,
-            },
-            DrawCmd::FillRect {
-                rect: Rect::new(10.0, 14.0, 50.0, 3.0),
-                color: style.active_fill_color,
-                z: 0,
-            },
-        ])
+        DrawCommands::from_vec(
+            vec![
+                DrawCmd::FillRect {
+                    rect: Rect::new(10.0, 14.0, 100.0, 3.0),
+                    color: style.track_color,
+                    z: 0,
+                },
+                DrawCmd::FillRect {
+                    rect: Rect::new(10.0, 14.0, 50.0, 3.0),
+                    color: style.active_fill_color,
+                    z: 0,
+                },
+            ],
+            1.0
+        )
     );
 }
 
@@ -100,18 +106,21 @@ fn test_progress_bar_visual_indeterminate() {
 
     assert_eq!(
         cmds,
-        DrawCommands::from_vec(vec![
-            DrawCmd::FillRect {
-                rect: Rect::new(10.0, 14.0, 100.0, 3.0),
-                color: style.track_color,
-                z: 0,
-            },
-            DrawCmd::FillRect {
-                rect: Rect::new(60.0, 14.0, 30.0, 3.0),
-                color: style.fill_color,
-                z: 0,
-            },
-        ])
+        DrawCommands::from_vec(
+            vec![
+                DrawCmd::FillRect {
+                    rect: Rect::new(10.0, 14.0, 100.0, 3.0),
+                    color: style.track_color,
+                    z: 0,
+                },
+                DrawCmd::FillRect {
+                    rect: Rect::new(60.0, 14.0, 30.0, 3.0),
+                    color: style.fill_color,
+                    z: 0,
+                },
+            ],
+            1.0
+        )
     );
 }
 

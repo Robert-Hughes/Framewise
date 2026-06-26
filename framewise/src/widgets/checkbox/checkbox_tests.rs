@@ -212,20 +212,23 @@ fn test_checkbox_visual_off() {
     );
     assert_eq!(
         cmds,
-        DrawCommands::from_vec(vec![
-            DrawCmd::FillRect {
-                rect: Rect::new(10.0, 10.0, 14.0, 14.0),
-                color: s.background,
-                z: 0,
-            },
-            DrawCmd::BorderRect {
-                rect: Rect::new(10.0, 10.0, 14.0, 14.0),
-                color: s.border.unwrap().color,
-                width: s.border.unwrap().width,
-                placement: crate::BorderPlacement::Inside,
-                z: 0,
-            },
-        ])
+        DrawCommands::from_vec(
+            vec![
+                DrawCmd::FillRect {
+                    rect: Rect::new(10.0, 10.0, 14.0, 14.0),
+                    color: s.background,
+                    z: 0,
+                },
+                DrawCmd::BorderRect {
+                    rect: Rect::new(10.0, 10.0, 14.0, 14.0),
+                    color: s.border.unwrap().color,
+                    width: s.border.unwrap().width,
+                    placement: crate::BorderPlacement::Inside,
+                    z: 0,
+                },
+            ],
+            1.0
+        )
     );
 }
 
@@ -248,20 +251,23 @@ fn test_checkbox_visual_vertically_centered() {
     let expected_rect = Rect::new(10.0, 13.0, 14.0, 14.0);
     assert_eq!(
         cmds,
-        DrawCommands::from_vec(vec![
-            DrawCmd::FillRect {
-                rect: expected_rect,
-                color: s.background,
-                z: 0,
-            },
-            DrawCmd::BorderRect {
-                rect: expected_rect,
-                color: s.border.unwrap().color,
-                width: s.border.unwrap().width,
-                placement: crate::BorderPlacement::Inside,
-                z: 0,
-            },
-        ])
+        DrawCommands::from_vec(
+            vec![
+                DrawCmd::FillRect {
+                    rect: expected_rect,
+                    color: s.background,
+                    z: 0,
+                },
+                DrawCmd::BorderRect {
+                    rect: expected_rect,
+                    color: s.border.unwrap().color,
+                    width: s.border.unwrap().width,
+                    placement: crate::BorderPlacement::Inside,
+                    z: 0,
+                },
+            ],
+            1.0
+        )
     );
 }
 
@@ -309,20 +315,23 @@ fn test_checkbox_visual_hovered() {
 
     assert_eq!(
         cmds,
-        DrawCommands::from_vec(vec![
-            DrawCmd::FillRect {
-                rect: r,
-                color: s.hovered,
-                z: 0,
-            },
-            DrawCmd::BorderRect {
-                rect: r,
-                color: s.border.unwrap().color,
-                width: s.border.unwrap().width,
-                placement: crate::BorderPlacement::Inside,
-                z: 0,
-            },
-        ])
+        DrawCommands::from_vec(
+            vec![
+                DrawCmd::FillRect {
+                    rect: r,
+                    color: s.hovered,
+                    z: 0,
+                },
+                DrawCmd::BorderRect {
+                    rect: r,
+                    color: s.border.unwrap().color,
+                    width: s.border.unwrap().width,
+                    placement: crate::BorderPlacement::Inside,
+                    z: 0,
+                },
+            ],
+            1.0
+        )
     );
 }
 
@@ -372,20 +381,23 @@ fn test_checkbox_visual_pressed() {
 
     assert_eq!(
         cmds,
-        DrawCommands::from_vec(vec![
-            DrawCmd::FillRect {
-                rect: r,
-                color: s.pressed,
-                z: 0,
-            },
-            DrawCmd::BorderRect {
-                rect: r,
-                color: s.border.unwrap().color,
-                width: s.border.unwrap().width,
-                placement: crate::BorderPlacement::Inside,
-                z: 0,
-            },
-        ])
+        DrawCommands::from_vec(
+            vec![
+                DrawCmd::FillRect {
+                    rect: r,
+                    color: s.pressed,
+                    z: 0,
+                },
+                DrawCmd::BorderRect {
+                    rect: r,
+                    color: s.border.unwrap().color,
+                    width: s.border.unwrap().width,
+                    placement: crate::BorderPlacement::Inside,
+                    z: 0,
+                },
+            ],
+            1.0
+        )
     );
 }
 
@@ -413,34 +425,37 @@ fn test_checkbox_visual_on() {
     );
     assert_eq!(
         cmds,
-        DrawCommands::from_vec(vec![
-            DrawCmd::FillRect {
-                rect: r,
-                color: s.selected_fill,
-                z: 0,
-            },
-            DrawCmd::BorderRect {
-                rect: r,
-                color: s.border.unwrap().color,
-                width: s.border.unwrap().width,
-                placement: crate::BorderPlacement::Inside,
-                z: 0,
-            },
-            DrawCmd::StrokeLine {
-                p0,
-                p1,
-                color: s.mark.color,
-                width: s.mark.width,
-                z: 0,
-            },
-            DrawCmd::StrokeLine {
-                p0: p1,
-                p1: p2,
-                color: s.mark.color,
-                width: s.mark.width,
-                z: 0,
-            },
-        ])
+        DrawCommands::from_vec(
+            vec![
+                DrawCmd::FillRect {
+                    rect: r,
+                    color: s.selected_fill,
+                    z: 0,
+                },
+                DrawCmd::BorderRect {
+                    rect: r,
+                    color: s.border.unwrap().color,
+                    width: s.border.unwrap().width,
+                    placement: crate::BorderPlacement::Inside,
+                    z: 0,
+                },
+                DrawCmd::StrokeLine {
+                    p0,
+                    p1,
+                    color: s.mark.color,
+                    width: s.mark.width,
+                    z: 0,
+                },
+                DrawCmd::StrokeLine {
+                    p0: p1,
+                    p1: p2,
+                    color: s.mark.color,
+                    width: s.mark.width,
+                    z: 0,
+                },
+            ],
+            1.0
+        )
     );
 }
 
@@ -494,34 +509,37 @@ fn test_checkbox_visual_on_hovered() {
 
     assert_eq!(
         cmds,
-        DrawCommands::from_vec(vec![
-            DrawCmd::FillRect {
-                rect: r,
-                color: s.selected_hovered,
-                z: 0,
-            },
-            DrawCmd::BorderRect {
-                rect: r,
-                color: s.border.unwrap().color,
-                width: s.border.unwrap().width,
-                placement: crate::BorderPlacement::Inside,
-                z: 0,
-            },
-            DrawCmd::StrokeLine {
-                p0,
-                p1,
-                color: s.mark.color,
-                width: s.mark.width,
-                z: 0,
-            },
-            DrawCmd::StrokeLine {
-                p0: p1,
-                p1: p2,
-                color: s.mark.color,
-                width: s.mark.width,
-                z: 0,
-            },
-        ])
+        DrawCommands::from_vec(
+            vec![
+                DrawCmd::FillRect {
+                    rect: r,
+                    color: s.selected_hovered,
+                    z: 0,
+                },
+                DrawCmd::BorderRect {
+                    rect: r,
+                    color: s.border.unwrap().color,
+                    width: s.border.unwrap().width,
+                    placement: crate::BorderPlacement::Inside,
+                    z: 0,
+                },
+                DrawCmd::StrokeLine {
+                    p0,
+                    p1,
+                    color: s.mark.color,
+                    width: s.mark.width,
+                    z: 0,
+                },
+                DrawCmd::StrokeLine {
+                    p0: p1,
+                    p1: p2,
+                    color: s.mark.color,
+                    width: s.mark.width,
+                    z: 0,
+                },
+            ],
+            1.0
+        )
     );
 }
 
@@ -546,25 +564,28 @@ fn test_checkbox_visual_indeterminate() {
     );
     assert_eq!(
         cmds,
-        DrawCommands::from_vec(vec![
-            DrawCmd::FillRect {
-                rect: r,
-                color: s.selected_fill,
-                z: 0,
-            },
-            DrawCmd::BorderRect {
-                rect: r,
-                color: s.border.unwrap().color,
-                width: s.border.unwrap().width,
-                placement: crate::BorderPlacement::Inside,
-                z: 0,
-            },
-            DrawCmd::FillRect {
-                rect: Rect::new(r.x + 2.0, r.y + 6.0, 10.0, 2.0),
-                color: s.mark.color,
-                z: 0,
-            },
-        ])
+        DrawCommands::from_vec(
+            vec![
+                DrawCmd::FillRect {
+                    rect: r,
+                    color: s.selected_fill,
+                    z: 0,
+                },
+                DrawCmd::BorderRect {
+                    rect: r,
+                    color: s.border.unwrap().color,
+                    width: s.border.unwrap().width,
+                    placement: crate::BorderPlacement::Inside,
+                    z: 0,
+                },
+                DrawCmd::FillRect {
+                    rect: Rect::new(r.x + 2.0, r.y + 6.0, 10.0, 2.0),
+                    color: s.mark.color,
+                    z: 0,
+                },
+            ],
+            1.0
+        )
     );
 }
 
@@ -617,25 +638,28 @@ fn test_checkbox_visual_indeterminate_pressed() {
 
     assert_eq!(
         cmds,
-        DrawCommands::from_vec(vec![
-            DrawCmd::FillRect {
-                rect: r,
-                color: s.selected_pressed,
-                z: 0,
-            },
-            DrawCmd::BorderRect {
-                rect: r,
-                color: s.border.unwrap().color,
-                width: s.border.unwrap().width,
-                placement: crate::BorderPlacement::Inside,
-                z: 0,
-            },
-            DrawCmd::FillRect {
-                rect: Rect::new(r.x + 2.0, r.y + 6.0, 10.0, 2.0),
-                color: s.mark.color,
-                z: 0,
-            },
-        ])
+        DrawCommands::from_vec(
+            vec![
+                DrawCmd::FillRect {
+                    rect: r,
+                    color: s.selected_pressed,
+                    z: 0,
+                },
+                DrawCmd::BorderRect {
+                    rect: r,
+                    color: s.border.unwrap().color,
+                    width: s.border.unwrap().width,
+                    placement: crate::BorderPlacement::Inside,
+                    z: 0,
+                },
+                DrawCmd::FillRect {
+                    rect: Rect::new(r.x + 2.0, r.y + 6.0, 10.0, 2.0),
+                    color: s.mark.color,
+                    z: 0,
+                },
+            ],
+            1.0
+        )
     );
 }
 
@@ -773,27 +797,30 @@ fn test_checkbox_visual_focused() {
     focus_system.end_frame();
     assert_eq!(
         cmds,
-        DrawCommands::from_vec(vec![
-            DrawCmd::BorderRect {
-                rect: r.inset(-s.focus.unwrap().offset),
-                color: s.focus.unwrap().stroke.color,
-                width: s.focus.unwrap().stroke.width,
-                placement: crate::BorderPlacement::Outside,
-                z: 1,
-            },
-            DrawCmd::FillRect {
-                rect: r,
-                color: s.background,
-                z: 0,
-            },
-            DrawCmd::BorderRect {
-                rect: r,
-                color: s.border.unwrap().color,
-                width: s.border.unwrap().width,
-                placement: crate::BorderPlacement::Inside,
-                z: 0,
-            },
-        ])
+        DrawCommands::from_vec(
+            vec![
+                DrawCmd::BorderRect {
+                    rect: r.inset(-s.focus.unwrap().offset),
+                    color: s.focus.unwrap().stroke.color,
+                    width: s.focus.unwrap().stroke.width,
+                    placement: crate::BorderPlacement::Outside,
+                    z: 1,
+                },
+                DrawCmd::FillRect {
+                    rect: r,
+                    color: s.background,
+                    z: 0,
+                },
+                DrawCmd::BorderRect {
+                    rect: r,
+                    color: s.border.unwrap().color,
+                    width: s.border.unwrap().width,
+                    placement: crate::BorderPlacement::Inside,
+                    z: 0,
+                },
+            ],
+            1.0
+        )
     );
 }
 
@@ -820,20 +847,23 @@ fn test_checkbox_visual_disabled() {
     );
     assert_eq!(
         cmds,
-        DrawCommands::from_vec(vec![
-            DrawCmd::FillRect {
-                rect: r,
-                color: tint(s.background),
-                z: 0,
-            },
-            DrawCmd::BorderRect {
-                rect: r,
-                color: tint(s.border.unwrap().color),
-                width: s.border.unwrap().width,
-                placement: crate::BorderPlacement::Inside,
-                z: 0,
-            },
-        ])
+        DrawCommands::from_vec(
+            vec![
+                DrawCmd::FillRect {
+                    rect: r,
+                    color: tint(s.background),
+                    z: 0,
+                },
+                DrawCmd::BorderRect {
+                    rect: r,
+                    color: tint(s.border.unwrap().color),
+                    width: s.border.unwrap().width,
+                    placement: crate::BorderPlacement::Inside,
+                    z: 0,
+                },
+            ],
+            1.0
+        )
     );
 }
 
