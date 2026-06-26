@@ -3073,7 +3073,7 @@ fn test_range_slider_visual_normal() {
             },
             // After track
             DrawCmd::FillRect {
-                rect: Rect::new(72.0, 9.0, 22.0, 2.0),
+                rect: Rect::new(72.0, 9.0, 23.0, 2.0),
                 color: theme.line_on_paper,
                 z: 0,
             },
@@ -3085,13 +3085,13 @@ fn test_range_slider_visual_normal() {
             },
             // Lower thumb fill
             DrawCmd::FillRect {
-                rect: Rect::new(22.0, 4.0, 12.0, 12.0),
+                rect: Rect::new(22.0, 4.0, 11.0, 12.0),
                 color: theme.paper_elev,
                 z: 0,
             },
             // Lower thumb border
             DrawCmd::BorderRect {
-                rect: Rect::new(22.0, 4.0, 12.0, 12.0),
+                rect: Rect::new(22.0, 4.0, 11.0, 12.0),
                 color: theme.ink,
                 width: 1.0,
                 placement: crate::BorderPlacement::Inside,
@@ -3099,13 +3099,13 @@ fn test_range_slider_visual_normal() {
             },
             // Upper thumb fill
             DrawCmd::FillRect {
-                rect: Rect::new(6.0 + 60.0, 4.0, 12.0, 12.0),
+                rect: Rect::new(67.0, 4.0, 11.0, 12.0),
                 color: theme.paper_elev,
                 z: 0,
             },
             // Upper thumb border
             DrawCmd::BorderRect {
-                rect: Rect::new(6.0 + 60.0, 4.0, 12.0, 12.0),
+                rect: Rect::new(67.0, 4.0, 11.0, 12.0),
                 color: theme.ink,
                 width: 1.0,
                 placement: crate::BorderPlacement::Inside,
@@ -3190,7 +3190,7 @@ fn test_range_slider_visual_hover_lower_thumb() {
                 z: 0,
             },
             DrawCmd::FillRect {
-                rect: Rect::new(72.0, 9.0, 22.0, 2.0),
+                rect: Rect::new(72.0, 9.0, 23.0, 2.0),
                 color: theme.line_on_paper,
                 z: 0,
             },
@@ -3201,24 +3201,24 @@ fn test_range_slider_visual_hover_lower_thumb() {
             },
             // Lower thumb fill is now hovered
             DrawCmd::FillRect {
-                rect: Rect::new(22.0, 4.0, 12.0, 12.0),
+                rect: Rect::new(22.0, 4.0, 11.0, 12.0),
                 color: theme.paper_elev_hover,
                 z: 0,
             },
             DrawCmd::BorderRect {
-                rect: Rect::new(22.0, 4.0, 12.0, 12.0),
+                rect: Rect::new(22.0, 4.0, 11.0, 12.0),
                 color: theme.ink,
                 width: 1.0,
                 placement: crate::BorderPlacement::Inside,
                 z: 0,
             },
             DrawCmd::FillRect {
-                rect: Rect::new(66.0, 4.0, 12.0, 12.0),
+                rect: Rect::new(67.0, 4.0, 11.0, 12.0),
                 color: theme.paper_elev,
                 z: 0,
             },
             DrawCmd::BorderRect {
-                rect: Rect::new(66.0, 4.0, 12.0, 12.0),
+                rect: Rect::new(67.0, 4.0, 11.0, 12.0),
                 color: theme.ink,
                 width: 1.0,
                 placement: crate::BorderPlacement::Inside,
@@ -3303,7 +3303,7 @@ fn test_range_slider_visual_hover_upper_thumb() {
                 z: 0,
             },
             DrawCmd::FillRect {
-                rect: Rect::new(72.0, 9.0, 22.0, 2.0),
+                rect: Rect::new(72.0, 9.0, 23.0, 2.0),
                 color: theme.line_on_paper,
                 z: 0,
             },
@@ -3313,12 +3313,12 @@ fn test_range_slider_visual_hover_upper_thumb() {
                 z: 0,
             },
             DrawCmd::FillRect {
-                rect: Rect::new(22.0, 4.0, 12.0, 12.0),
+                rect: Rect::new(22.0, 4.0, 11.0, 12.0),
                 color: theme.paper_elev,
                 z: 0,
             },
             DrawCmd::BorderRect {
-                rect: Rect::new(22.0, 4.0, 12.0, 12.0),
+                rect: Rect::new(22.0, 4.0, 11.0, 12.0),
                 color: theme.ink,
                 width: 1.0,
                 placement: crate::BorderPlacement::Inside,
@@ -3326,12 +3326,12 @@ fn test_range_slider_visual_hover_upper_thumb() {
             },
             // Upper thumb fill is hovered
             DrawCmd::FillRect {
-                rect: Rect::new(66.0, 4.0, 12.0, 12.0),
+                rect: Rect::new(67.0, 4.0, 11.0, 12.0),
                 color: theme.paper_elev_hover,
                 z: 0,
             },
             DrawCmd::BorderRect {
-                rect: Rect::new(66.0, 4.0, 12.0, 12.0),
+                rect: Rect::new(67.0, 4.0, 11.0, 12.0),
                 color: theme.ink,
                 width: 1.0,
                 placement: crate::BorderPlacement::Inside,
@@ -3416,7 +3416,7 @@ fn test_range_slider_visual_hover_segment() {
                 z: 0,
             },
             DrawCmd::FillRect {
-                rect: Rect::new(72.0, 9.0, 22.0, 2.0),
+                rect: Rect::new(72.0, 9.0, 23.0, 2.0),
                 color: theme.line_on_paper,
                 z: 0,
             },
@@ -3427,24 +3427,24 @@ fn test_range_slider_visual_hover_segment() {
                 z: 0,
             },
             DrawCmd::FillRect {
-                rect: Rect::new(22.0, 4.0, 12.0, 12.0),
+                rect: Rect::new(22.0, 4.0, 11.0, 12.0),
                 color: theme.paper_elev,
                 z: 0,
             },
             DrawCmd::BorderRect {
-                rect: Rect::new(22.0, 4.0, 12.0, 12.0),
+                rect: Rect::new(22.0, 4.0, 11.0, 12.0),
                 color: theme.ink,
                 width: 1.0,
                 placement: crate::BorderPlacement::Inside,
                 z: 0,
             },
             DrawCmd::FillRect {
-                rect: Rect::new(66.0, 4.0, 12.0, 12.0),
+                rect: Rect::new(67.0, 4.0, 11.0, 12.0),
                 color: theme.paper_elev,
                 z: 0,
             },
             DrawCmd::BorderRect {
-                rect: Rect::new(66.0, 4.0, 12.0, 12.0),
+                rect: Rect::new(67.0, 4.0, 11.0, 12.0),
                 color: theme.ink,
                 width: 1.0,
                 placement: crate::BorderPlacement::Inside,
@@ -3513,7 +3513,7 @@ fn test_range_slider_visual_drag_lower_thumb() {
                 z: 0,
             },
             DrawCmd::FillRect {
-                rect: Rect::new(72.0, 9.0, 22.0, 2.0),
+                rect: Rect::new(72.0, 9.0, 23.0, 2.0),
                 color: theme.line_on_paper,
                 z: 0,
             },
@@ -3524,24 +3524,24 @@ fn test_range_slider_visual_drag_lower_thumb() {
             },
             // Lower thumb fill is now dragged, and border is active/dragged
             DrawCmd::FillRect {
-                rect: Rect::new(22.0, 4.0, 12.0, 12.0),
+                rect: Rect::new(22.0, 4.0, 11.0, 12.0),
                 color: theme.rust,
                 z: 0,
             },
             DrawCmd::BorderRect {
-                rect: Rect::new(22.0, 4.0, 12.0, 12.0),
+                rect: Rect::new(22.0, 4.0, 11.0, 12.0),
                 color: theme.rust,
                 width: 1.0,
                 placement: crate::BorderPlacement::Inside,
                 z: 0,
             },
             DrawCmd::FillRect {
-                rect: Rect::new(66.0, 4.0, 12.0, 12.0),
+                rect: Rect::new(67.0, 4.0, 11.0, 12.0),
                 color: theme.paper_elev,
                 z: 0,
             },
             DrawCmd::BorderRect {
-                rect: Rect::new(66.0, 4.0, 12.0, 12.0),
+                rect: Rect::new(67.0, 4.0, 11.0, 12.0),
                 color: theme.ink,
                 width: 1.0,
                 placement: crate::BorderPlacement::Inside,
@@ -3610,7 +3610,7 @@ fn test_range_slider_visual_drag_upper_thumb() {
                 z: 0,
             },
             DrawCmd::FillRect {
-                rect: Rect::new(72.0, 9.0, 22.0, 2.0),
+                rect: Rect::new(72.0, 9.0, 23.0, 2.0),
                 color: theme.line_on_paper,
                 z: 0,
             },
@@ -3620,12 +3620,12 @@ fn test_range_slider_visual_drag_upper_thumb() {
                 z: 0,
             },
             DrawCmd::FillRect {
-                rect: Rect::new(22.0, 4.0, 12.0, 12.0),
+                rect: Rect::new(22.0, 4.0, 11.0, 12.0),
                 color: theme.paper_elev,
                 z: 0,
             },
             DrawCmd::BorderRect {
-                rect: Rect::new(22.0, 4.0, 12.0, 12.0),
+                rect: Rect::new(22.0, 4.0, 11.0, 12.0),
                 color: theme.ink,
                 width: 1.0,
                 placement: crate::BorderPlacement::Inside,
@@ -3633,12 +3633,12 @@ fn test_range_slider_visual_drag_upper_thumb() {
             },
             // Upper thumb fill is now dragged, and border is active/dragged
             DrawCmd::FillRect {
-                rect: Rect::new(66.0, 4.0, 12.0, 12.0),
+                rect: Rect::new(67.0, 4.0, 11.0, 12.0),
                 color: theme.rust,
                 z: 0,
             },
             DrawCmd::BorderRect {
-                rect: Rect::new(66.0, 4.0, 12.0, 12.0),
+                rect: Rect::new(67.0, 4.0, 11.0, 12.0),
                 color: theme.rust,
                 width: 1.0,
                 placement: crate::BorderPlacement::Inside,
@@ -3707,7 +3707,7 @@ fn test_range_slider_visual_drag_segment() {
                 z: 0,
             },
             DrawCmd::FillRect {
-                rect: Rect::new(72.0, 9.0, 22.0, 2.0),
+                rect: Rect::new(72.0, 9.0, 23.0, 2.0),
                 color: theme.line_on_paper,
                 z: 0,
             },
@@ -3718,24 +3718,24 @@ fn test_range_slider_visual_drag_segment() {
                 z: 0,
             },
             DrawCmd::FillRect {
-                rect: Rect::new(22.0, 4.0, 12.0, 12.0),
+                rect: Rect::new(22.0, 4.0, 11.0, 12.0),
                 color: theme.paper_elev,
                 z: 0,
             },
             DrawCmd::BorderRect {
-                rect: Rect::new(22.0, 4.0, 12.0, 12.0),
+                rect: Rect::new(22.0, 4.0, 11.0, 12.0),
                 color: theme.ink,
                 width: 1.0,
                 placement: crate::BorderPlacement::Inside,
                 z: 0,
             },
             DrawCmd::FillRect {
-                rect: Rect::new(66.0, 4.0, 12.0, 12.0),
+                rect: Rect::new(67.0, 4.0, 11.0, 12.0),
                 color: theme.paper_elev,
                 z: 0,
             },
             DrawCmd::BorderRect {
-                rect: Rect::new(66.0, 4.0, 12.0, 12.0),
+                rect: Rect::new(67.0, 4.0, 11.0, 12.0),
                 color: theme.ink,
                 width: 1.0,
                 placement: crate::BorderPlacement::Inside,
@@ -3802,7 +3802,7 @@ fn test_range_slider_visual_focused() {
                 z: 0,
             },
             DrawCmd::FillRect {
-                rect: Rect::new(72.0, 9.0, 22.0, 2.0),
+                rect: Rect::new(72.0, 9.0, 23.0, 2.0),
                 color: theme.line_on_paper,
                 z: 0,
             },
@@ -3812,24 +3812,24 @@ fn test_range_slider_visual_focused() {
                 z: 0,
             },
             DrawCmd::FillRect {
-                rect: Rect::new(22.0, 4.0, 12.0, 12.0),
+                rect: Rect::new(22.0, 4.0, 11.0, 12.0),
                 color: theme.paper_elev,
                 z: 0,
             },
             DrawCmd::BorderRect {
-                rect: Rect::new(22.0, 4.0, 12.0, 12.0),
+                rect: Rect::new(22.0, 4.0, 11.0, 12.0),
                 color: theme.ink,
                 width: 1.0,
                 placement: crate::BorderPlacement::Inside,
                 z: 0,
             },
             DrawCmd::FillRect {
-                rect: Rect::new(66.0, 4.0, 12.0, 12.0),
+                rect: Rect::new(67.0, 4.0, 11.0, 12.0),
                 color: theme.paper_elev,
                 z: 0,
             },
             DrawCmd::BorderRect {
-                rect: Rect::new(66.0, 4.0, 12.0, 12.0),
+                rect: Rect::new(67.0, 4.0, 11.0, 12.0),
                 color: theme.ink,
                 width: 1.0,
                 placement: crate::BorderPlacement::Inside,
@@ -4027,11 +4027,11 @@ fn test_range_slider_segment_drag() {
         assert_eq!(state.active_part, Some(SliderPart::Segment));
 
         // Move the mouse right by 10 value units.
-        // track_len is 88px for range 100.
-        // So 10 value units is 8.8 pixels.
-        // Let's move the mouse by 8.8 pixels: x = 48.8.
+        // track_len is 89px for range 100.
+        // So 10 value units is 8.9 pixels.
+        // Let's move the mouse by 8.9 pixels: x = 48.9.
         let input_drag = Input {
-            mouse_pos: Vec2::new(48.8, 10.0),
+            mouse_pos: Vec2::new(48.9, 10.0),
             mouse_down: true,
             mouse_pressed: false,
             ..Default::default()
@@ -4444,14 +4444,14 @@ fn test_range_slider_overlap_partial() {
     // Filter to only find lower and upper thumb fills (their heights are 12.0)
     let thumb_fills: Vec<Rect> = fill_rects.into_iter().filter(|r| r.h == 12.0).collect();
     assert_eq!(thumb_fills.len(), 2);
-    assert_eq!(thumb_fills[0], Rect::new(40.0, 4.0, 12.0, 12.0));
-    assert_eq!(thumb_fills[1], Rect::from_ltrb(51.0, 4.0, 62.0, 16.0));
+    assert_eq!(thumb_fills[0], Rect::new(40.0, 4.0, 5.0, 12.0));
+    assert_eq!(thumb_fills[1], Rect::from_ltrb(45.0, 4.0, 62.0, 16.0));
 
     assert_eq!(stroke_rects.len(), 1);
     assert_eq!(stroke_rects[0], Rect::new(40.0, 4.0, 22.0, 12.0));
 
     assert_eq!(marker_rects.len(), 2);
-    assert_eq!(marker_rects[0], Rect::new(46.0, 4.0, 1.0, 12.0));
+    assert_eq!(marker_rects[0], Rect::new(45.0, 4.0, 1.0, 12.0));
     assert_eq!(marker_rects[1], Rect::new(56.0, 4.0, 1.0, 12.0));
 
     // Verify hit-testing: click left of midpoint (51.0)
@@ -4587,11 +4587,11 @@ fn test_range_slider_overlap_full() {
 
     let thumb_fills: Vec<Rect> = fill_rects.into_iter().filter(|r| r.h == 12.0).collect();
     assert_eq!(thumb_fills.len(), 2);
-    assert_eq!(thumb_fills[0], Rect::from_ltrb(50.0, 4.0, 57.0, 16.0));
+    assert_eq!(thumb_fills[0], Rect::from_ltrb(51.0, 4.0, 56.0, 16.0));
     assert_eq!(thumb_fills[1], Rect::from_ltrb(56.0, 4.0, 62.0, 16.0));
 
     assert_eq!(stroke_rects.len(), 1);
-    assert_eq!(stroke_rects[0], Rect::new(50.0, 4.0, 12.0, 12.0));
+    assert_eq!(stroke_rects[0], Rect::new(51.0, 4.0, 11.0, 12.0));
 
     assert_eq!(marker_rects.len(), 2);
     assert_eq!(marker_rects[0], Rect::new(56.0, 4.0, 1.0, 12.0));

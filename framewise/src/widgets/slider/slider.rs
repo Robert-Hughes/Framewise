@@ -787,36 +787,44 @@ pub mod raw {
             && is_visible
             && is_hover_active;
 
-        draw_thumb(
-            cmds,
-            spec.layer,
-            lower_thumb_rect,
-            lower_style,
-            state.active_part == Some(SliderPart::LowerThumb),
-            spec.disabled,
-            lower_hovered,
-            &tint,
-        );
-
         let upper_hovered = !spec.disabled
             && upper_thumb_rect.is_some_and(is_over_part_zone)
             && is_visible
             && is_hover_active;
 
-        draw_thumb(
-            cmds,
-            spec.layer,
-            upper_thumb_rect,
-            upper_style,
-            state.active_part == Some(SliderPart::UpperThumb),
-            spec.disabled,
-            upper_hovered,
-            &tint,
-        );
-
         if thumbs_touch {
-            if let Some(upper_coord_val) = upper_coord {
-                let combined_rect = cross_axis_rect(
+            // Note that the crisp pixel rounding logic here needs to be careful
+            // to avoid lines jumping around due as the user drags the thumbs closer together
+            if upper_coord.is_some() {
+                let scale = cmds.physical_pixels_per_logical_pixel();
+
+                let combined_start = lower_start;
+                let combined_end = upper_end.unwrap_or(lower_start);
+
+                let start_phys = (combined_start * scale).round();
+                let end_phys = (combined_end * scale).round();
+
+                let gap_lower_phys = (spec
+                    .style
+                    .lower_thumb_style
+                    .map_or(0.0, |s| s.main_axis_length * 0.5)
+                    * scale)
+                    .floor();
+                let gap_upper_phys = (spec
+                    .style
+                    .upper_thumb_style
+                    .map_or(0.0, |s| s.main_axis_length * 0.5)
+                    * scale)
+                    .floor();
+
+                let lower_marker_phys = start_phys + gap_lower_phys;
+                let upper_marker_phys = end_phys - gap_upper_phys - 1.0;
+
+                let snapped_start = start_phys / scale;
+                let snapped_end = end_phys / scale;
+                let snapped_midpoint = lower_marker_phys / scale;
+
+                let cross_rect = cross_axis_rect(
                     track_rect,
                     is_vert,
                     lower_start,
@@ -824,6 +832,77 @@ pub mod raw {
                     spec.style.lower_thumb_style.unwrap().cross_axis_size,
                 );
 
+                let combined_rect = if is_vert {
+                    Rect::new(
+                        cross_rect.x,
+                        snapped_start,
+                        cross_rect.w,
+                        snapped_end - snapped_start,
+                    )
+                } else {
+                    Rect::new(
+                        snapped_start,
+                        cross_rect.y,
+                        snapped_end - snapped_start,
+                        cross_rect.h,
+                    )
+                };
+
+                let lower_rect = if is_vert {
+                    Rect::new(
+                        cross_rect.x,
+                        snapped_start,
+                        cross_rect.w,
+                        snapped_midpoint - snapped_start,
+                    )
+                } else {
+                    Rect::new(
+                        snapped_start,
+                        cross_rect.y,
+                        snapped_midpoint - snapped_start,
+                        cross_rect.h,
+                    )
+                };
+
+                let upper_rect = if is_vert {
+                    Rect::new(
+                        cross_rect.x,
+                        snapped_midpoint,
+                        cross_rect.w,
+                        snapped_end - snapped_midpoint,
+                    )
+                } else {
+                    Rect::new(
+                        snapped_midpoint,
+                        cross_rect.y,
+                        snapped_end - snapped_midpoint,
+                        cross_rect.h,
+                    )
+                };
+
+                // Draw lower thumb fill
+                if let Some(lower_style) = spec.style.lower_thumb_style {
+                    let fill = effective_fill(
+                        lower_style.fill,
+                        spec.disabled,
+                        state.active_part == Some(SliderPart::LowerThumb),
+                        lower_hovered,
+                    );
+                    cmds.push_crisp_fill_rect(lower_rect, tint(fill), spec.layer.get_z());
+                }
+
+                // Draw upper thumb fill
+                if let Some(upper_style) = spec.style.upper_thumb_style {
+                    let fill = effective_fill(
+                        upper_style.fill,
+                        spec.disabled,
+                        state.active_part == Some(SliderPart::UpperThumb),
+                        upper_hovered,
+                    );
+                    cmds.push_crisp_fill_rect(upper_rect, tint(fill), spec.layer.get_z());
+                }
+
+                // Draw combined outline/border
                 if let Some(lower_style) = spec.style.lower_thumb_style {
                     if let Some(border) = lower_style.border {
                         let tint_stroke = |st: Stroke| Stroke::new(tint(st.color), st.width);
@@ -836,45 +915,71 @@ pub mod raw {
                     }
                 }
 
-                let mut draw_marker = |coord: f32, style: Option<ThumbStyle>, active: bool| {
-                    if let Some(style) = style {
-                        let marker_color = if !spec.disabled && active {
-                            style.fill.idle
-                        } else {
-                            style.border.map_or(Color::BLACK, |b| b.color)
-                        };
-                        let color = tint(marker_color);
-                        if is_vert {
-                            cmds.push_device_hairline_h(
-                                combined_rect.x,
-                                coord,
-                                combined_rect.w,
-                                color,
-                                spec.layer.get_z(),
-                            );
-                        } else {
-                            cmds.push_device_hairline_v(
-                                coord,
-                                combined_rect.y,
-                                combined_rect.h,
-                                color,
-                                spec.layer.get_z(),
-                            );
-                        }
-                    }
-                };
+                // Draw marker lines
+                let mut draw_marker_constant_gap =
+                    |marker_coord_phys: f32, style: Option<ThumbStyle>, active: bool| {
+                        if let Some(style) = style {
+                            let marker_color = if !spec.disabled && active {
+                                style.fill.idle
+                            } else {
+                                style.border.map_or(Color::BLACK, |b| b.color)
+                            };
+                            let color = tint(marker_color);
+                            let marker_coord = marker_coord_phys / scale;
 
-                draw_marker(
-                    lower_coord,
+                            if is_vert {
+                                cmds.push_device_hairline_h(
+                                    combined_rect.x,
+                                    marker_coord,
+                                    combined_rect.w,
+                                    color,
+                                    spec.layer.get_z(),
+                                );
+                            } else {
+                                cmds.push_device_hairline_v(
+                                    marker_coord,
+                                    combined_rect.y,
+                                    combined_rect.h,
+                                    color,
+                                    spec.layer.get_z(),
+                                );
+                            }
+                        }
+                    };
+
+                draw_marker_constant_gap(
+                    lower_marker_phys,
                     spec.style.lower_thumb_style,
                     state.active_part == Some(SliderPart::LowerThumb),
                 );
-                draw_marker(
-                    upper_coord_val,
+                draw_marker_constant_gap(
+                    upper_marker_phys,
                     spec.style.upper_thumb_style,
                     state.active_part == Some(SliderPart::UpperThumb),
                 );
             }
+        } else {
+            draw_thumb(
+                cmds,
+                spec.layer,
+                lower_thumb_rect,
+                lower_style,
+                state.active_part == Some(SliderPart::LowerThumb),
+                spec.disabled,
+                lower_hovered,
+                &tint,
+            );
+
+            draw_thumb(
+                cmds,
+                spec.layer,
+                upper_thumb_rect,
+                upper_style,
+                state.active_part == Some(SliderPart::UpperThumb),
+                spec.disabled,
+                upper_hovered,
+                &tint,
+            );
         }
 
         draw_separator_line(
@@ -1782,7 +1887,7 @@ impl SliderStyle {
     pub fn range_from_theme(theme: &crate::theme::Theme) -> Self {
         let default_thumb = ThumbStyle {
             cross_axis_size: CrossAxisSize::FixedCentered(12.0),
-            main_axis_length: 12.0,
+            main_axis_length: 11.0, // Odd so that there's a symmetrical single-pixel centreline to use for a marker when min == max
             fill: InteractiveColor {
                 idle: theme.paper_elev,
                 hovered: theme.paper_elev_hover,
