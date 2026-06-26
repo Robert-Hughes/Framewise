@@ -849,21 +849,6 @@ pub mod raw {
             );
         }
 
-        // Border
-        let border = if spec.error {
-            spec.style.error_border
-        } else if focused {
-            spec.style.focus_border
-        } else {
-            spec.style.border
-        };
-        cmds.push_crisp_border_rect(
-            spec.rect,
-            border,
-            BorderPlacement::Inside,
-            spec.layer.get_z(),
-        );
-
         let scroll_spec = raw::ScrollAreaSpec {
             rect: scroll_outer_rect,
             horizontal: ScrollAxis {
@@ -1228,6 +1213,21 @@ pub mod raw {
             input,
             focus_system,
             cmds,
+        );
+
+        // Border - must be drawn after the scroll bars as the focus border can overlap them slightly.
+        let border = if spec.error {
+            spec.style.error_border
+        } else if focused {
+            spec.style.focus_border
+        } else {
+            spec.style.border
+        };
+        cmds.push_crisp_border_rect(
+            spec.rect,
+            border,
+            BorderPlacement::Inside,
+            spec.layer.get_z(),
         );
 
         // Text edit owns all arrow keys (caret movement via TextEvent); only Tab navigates focus.

@@ -4,14 +4,7 @@ Working notes, TODOs, open questions, and half-baked ideas.
 
 ## Current Work
 
-- Sliders!
-  - thumbs are not odd pixel size, so the centre 'value marker' line (collapsed range slider) is off-centre slightly. Fix with new renderer semantics?
-  - are we using the widget helpers and or test helpers?
-  - logarithmic (or otherwise custom) scales?
-
-- Focus outline for text box with scrollbars isn't quite right (thinner around scrollbar)
-
-- Try to speed up cargo test for faster iteration
+- Clicking and dragging a text_edit scrollbar doesn't focus the text_edit!
 
 - Go through the spec_page, check/implement/test each widget/aspect to make better match the mock-up and add interactivity as we go (https://claude.ai/design/p/1aab4e86-cbf2-497e-b379-44cf41de2b12?file=Framewise+Widgets.html)
   - Done 01-03
@@ -366,6 +359,7 @@ The "App-Managed State" option would require either a trait layer (so the widget
   - Some concept of a 'group', such that only one is selected at a time. Bind to a value/int/enum and handle the individual radios automatically?
 - Slider
   - In 'scrollbar form', if the bar becomes too small it may be impossible to grab! Maybe need to figure out a minimum size somehow
+  - Logarithmic (or otherwise custom) scales? Perhaps a user-defined 'value to linear' mapping function (and reverse), and everything else can be figured out automatically?
 
 
 - Button group seams

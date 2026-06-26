@@ -1808,13 +1808,6 @@ fn test_text_edit_visual_normal() {
                 color: spec().style.background,
                 z: 0,
             },
-            DrawCmd::BorderRect {
-                rect: Rect::new(0.0, 0.0, 200.0, 30.0),
-                color: spec().style.border.unwrap().color,
-                width: spec().style.border.map_or(0.0, |b| b.width),
-                placement: crate::BorderPlacement::Inside,
-                z: 0,
-            },
             DrawCmd::PushClip {
                 rect: Rect::new(1.0, 1.0, 198.0, 28.0),
             },
@@ -1824,6 +1817,13 @@ fn test_text_edit_visual_normal() {
                 z: 0,
             },
             DrawCmd::PopClip,
+            DrawCmd::BorderRect {
+                rect: Rect::new(0.0, 0.0, 200.0, 30.0),
+                color: spec().style.border.unwrap().color,
+                width: spec().style.border.map_or(0.0, |b| b.width),
+                placement: crate::BorderPlacement::Inside,
+                z: 0,
+            },
         ]
     );
     assert_eq!(
@@ -1977,13 +1977,6 @@ fn test_text_edit_visual_focused_caret() {
                 color: spec().style.background,
                 z: 0,
             },
-            DrawCmd::BorderRect {
-                rect: Rect::new(0.0, 0.0, 200.0, 30.0),
-                color: spec().style.focus_border.unwrap().color,
-                width: spec().style.focus_border.unwrap().width,
-                placement: crate::BorderPlacement::Inside,
-                z: 0,
-            },
             DrawCmd::PushClip {
                 rect: Rect::new(1.0, 1.0, 198.0, 28.0),
             },
@@ -1998,6 +1991,13 @@ fn test_text_edit_visual_focused_caret() {
                 z: 0,
             },
             DrawCmd::PopClip,
+            DrawCmd::BorderRect {
+                rect: Rect::new(0.0, 0.0, 200.0, 30.0),
+                color: spec().style.focus_border.unwrap().color,
+                width: spec().style.focus_border.unwrap().width,
+                placement: crate::BorderPlacement::Inside,
+                z: 0,
+            },
         ]
     );
     assert_eq!(
@@ -2045,13 +2045,6 @@ fn test_text_edit_visual_focused_selection() {
                 color: spec().style.background,
                 z: 0,
             },
-            DrawCmd::BorderRect {
-                rect: Rect::new(0.0, 0.0, 200.0, 30.0),
-                color: spec().style.focus_border.unwrap().color,
-                width: spec().style.focus_border.unwrap().width,
-                placement: crate::BorderPlacement::Inside,
-                z: 0,
-            },
             DrawCmd::PushClip {
                 rect: Rect::new(1.0, 1.0, 198.0, 28.0),
             },
@@ -2071,6 +2064,13 @@ fn test_text_edit_visual_focused_selection() {
                 z: 0,
             },
             DrawCmd::PopClip,
+            DrawCmd::BorderRect {
+                rect: Rect::new(0.0, 0.0, 200.0, 30.0),
+                color: spec().style.focus_border.unwrap().color,
+                width: spec().style.focus_border.unwrap().width,
+                placement: crate::BorderPlacement::Inside,
+                z: 0,
+            },
         ]
     );
     assert_eq!(
@@ -2246,13 +2246,6 @@ fn test_text_edit_visual_error() {
                 color: sp.style.error_border.unwrap().color,
                 z: 0,
             },
-            DrawCmd::BorderRect {
-                rect: Rect::new(0.0, 0.0, 200.0, 30.0),
-                color: sp.style.error_border.unwrap().color,
-                width: spec().style.border.map_or(0.0, |b| b.width),
-                placement: crate::BorderPlacement::Inside,
-                z: 0,
-            },
             DrawCmd::PushClip {
                 rect: Rect::new(5.0, 1.0, 194.0, 28.0),
             },
@@ -2262,6 +2255,13 @@ fn test_text_edit_visual_error() {
                 z: 0,
             },
             DrawCmd::PopClip,
+            DrawCmd::BorderRect {
+                rect: Rect::new(0.0, 0.0, 200.0, 30.0),
+                color: sp.style.error_border.unwrap().color,
+                width: spec().style.border.map_or(0.0, |b| b.width),
+                placement: crate::BorderPlacement::Inside,
+                z: 0,
+            },
         ]
     );
     assert_eq!(
@@ -4698,13 +4698,6 @@ fn test_text_edit_visual_multiline_selection() {
                 color: spec().style.background,
                 z: 0,
             },
-            DrawCmd::BorderRect {
-                rect: Rect::new(0.0, 0.0, 200.0, 100.0),
-                color: spec().style.focus_border.unwrap().color,
-                width: spec().style.focus_border.unwrap().width,
-                placement: crate::BorderPlacement::Inside,
-                z: 0,
-            },
             DrawCmd::PushClip {
                 rect: Rect::new(1.0, 1.0, 198.0, 98.0),
             },
@@ -4731,6 +4724,13 @@ fn test_text_edit_visual_multiline_selection() {
                 z: 0,
             },
             DrawCmd::PopClip,
+            DrawCmd::BorderRect {
+                rect: Rect::new(0.0, 0.0, 200.0, 100.0),
+                color: spec().style.focus_border.unwrap().color,
+                width: spec().style.focus_border.unwrap().width,
+                placement: crate::BorderPlacement::Inside,
+                z: 0,
+            },
         ]
     );
     assert_eq!(
@@ -4836,13 +4836,6 @@ fn test_text_edit_visual_multiline_selection_three_lines() {
                 color: spec().style.background,
                 z: 0,
             },
-            DrawCmd::BorderRect {
-                rect: Rect::new(0.0, 0.0, 200.0, 100.0),
-                color: spec().style.focus_border.unwrap().color,
-                width: spec().style.focus_border.unwrap().width,
-                placement: crate::BorderPlacement::Inside,
-                z: 0,
-            },
             DrawCmd::PushClip {
                 rect: Rect::new(1.0, 1.0, 198.0, 98.0),
             },
@@ -4875,6 +4868,13 @@ fn test_text_edit_visual_multiline_selection_three_lines() {
                 z: 0,
             },
             DrawCmd::PopClip,
+            DrawCmd::BorderRect {
+                rect: Rect::new(0.0, 0.0, 200.0, 100.0),
+                color: spec().style.focus_border.unwrap().color,
+                width: spec().style.focus_border.unwrap().width,
+                placement: crate::BorderPlacement::Inside,
+                z: 0,
+            },
         ]
     );
     assert_eq!(
