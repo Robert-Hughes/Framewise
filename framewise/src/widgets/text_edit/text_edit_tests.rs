@@ -75,8 +75,8 @@ fn test_text_edit_style_scroll_area_defaults() {
             .scrollbar_style
             .segment_style
             .unwrap()
-            .cross_axis,
-        crate::widgets::slider::ThumbCrossAxis::FillTrack { margin: 0.0 }
+            .cross_axis_size,
+        crate::widgets::slider::CrossAxisSize::FillTrack { margin: 0.0 }
     );
 }
 

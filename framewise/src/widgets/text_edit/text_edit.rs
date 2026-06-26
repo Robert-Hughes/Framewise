@@ -1734,8 +1734,8 @@ impl TextEditStyle {
         scroll_area_style.scrollbar_style.separator_line =
             Some(Stroke::new(theme.line_soft_on_paper_elev, 1.0));
         if let Some(segment_style) = &mut scroll_area_style.scrollbar_style.segment_style {
-            segment_style.cross_axis =
-                crate::widgets::slider::ThumbCrossAxis::FillTrack { margin: 0.0 };
+            segment_style.cross_axis_size =
+                crate::widgets::slider::CrossAxisSize::FillTrack { margin: 0.0 };
         }
 
         Self {

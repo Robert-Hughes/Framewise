@@ -180,7 +180,7 @@ fn test_slider_drag() {
         ..Default::default()
     };
     let mut style = SliderStyle::from_theme(&crate::theme::Theme::framewise());
-    style.lower_thumb_style.as_mut().unwrap().cross_axis = ThumbCrossAxis::FixedCentered(20.0);
+    style.lower_thumb_style.as_mut().unwrap().cross_axis_size = CrossAxisSize::FixedCentered(20.0);
     let spec = SliderSpec {
         min_gap: None,
         max_gap: None,
@@ -725,7 +725,7 @@ fn test_slider_wheel_over_overhanging_thumb() {
         ..Default::default()
     };
     let mut style = SliderStyle::from_theme(&crate::theme::Theme::framewise());
-    style.lower_thumb_style.as_mut().unwrap().cross_axis = ThumbCrossAxis::FixedCentered(20.0);
+    style.lower_thumb_style.as_mut().unwrap().cross_axis_size = CrossAxisSize::FixedCentered(20.0);
     let spec = SliderSpec {
         min_gap: None,
         max_gap: None,
@@ -826,7 +826,7 @@ fn test_slider_wheel_over_overhanging_thumb() {
 fn test_track_click_snaps_and_drags() {
     let mut state = SliderState::default();
     let mut style = SliderStyle::from_theme(&crate::theme::Theme::framewise());
-    style.lower_thumb_style.as_mut().unwrap().cross_axis = ThumbCrossAxis::FixedCentered(20.0);
+    style.lower_thumb_style.as_mut().unwrap().cross_axis_size = CrossAxisSize::FixedCentered(20.0);
     let spec = SliderSpec {
         min_gap: None,
         max_gap: None,
@@ -929,7 +929,7 @@ fn test_track_click_cross_axis_drag_captures_pointer_outside_widget() {
     let mut state = SliderState::default();
 
     let mut style = SliderStyle::from_theme(&crate::theme::Theme::framewise());
-    style.lower_thumb_style.as_mut().unwrap().cross_axis = ThumbCrossAxis::FixedCentered(20.0);
+    style.lower_thumb_style.as_mut().unwrap().cross_axis_size = CrossAxisSize::FixedCentered(20.0);
 
     let spec = SliderSpec {
         orientation: Orientation::Horizontal,
@@ -1131,7 +1131,7 @@ fn test_track_click_cross_axis_drag_captures_pointer_outside_widget() {
 fn test_track_click_repeat_does_not_overshoot_cursor() {
     let mut state = SliderState::default();
     let mut style = SliderStyle::from_theme(&crate::theme::Theme::framewise());
-    style.lower_thumb_style.as_mut().unwrap().cross_axis = ThumbCrossAxis::FixedCentered(20.0);
+    style.lower_thumb_style.as_mut().unwrap().cross_axis_size = CrossAxisSize::FixedCentered(20.0);
     let spec = SliderSpec {
         page_step: 60.0,
         min_gap: None,
@@ -2240,7 +2240,7 @@ fn test_size_slider() {
 fn test_track_click_overshoot_first_page_no_jump_back() {
     let mut state = SliderState::default();
     let mut style = SliderStyle::from_theme(&crate::theme::Theme::framewise());
-    style.lower_thumb_style.as_mut().unwrap().cross_axis = ThumbCrossAxis::FixedCentered(20.0);
+    style.lower_thumb_style.as_mut().unwrap().cross_axis_size = CrossAxisSize::FixedCentered(20.0);
     let spec = SliderSpec {
         page_step: 60.0,
         min_gap: None,
@@ -4703,7 +4703,7 @@ fn track_mark_style(
 fn horizontal_mark_spec(value_spacing: f32) -> SliderSpec {
     let mark_color = Color::from_srgb_u8(1, 2, 3, 255);
     let mut style = SliderStyle::from_theme(&crate::theme::Theme::framewise());
-    style.lower_thumb_style.as_mut().unwrap().cross_axis = ThumbCrossAxis::FixedCentered(10.0);
+    style.lower_thumb_style.as_mut().unwrap().cross_axis_size = CrossAxisSize::FixedCentered(10.0);
     style.track_marks = Some(track_mark_style(value_spacing, mark_color, 1.0, 4.0, 2.0));
     SliderSpec {
         orientation: Orientation::Horizontal,
@@ -4813,7 +4813,7 @@ fn test_slider_track_marks_draw_max_endpoint_when_spacing_does_not_divide_range(
 fn test_slider_track_marks_draw_vertical() {
     let mark_color = Color::from_srgb_u8(1, 2, 3, 255);
     let mut style = SliderStyle::from_theme(&crate::theme::Theme::framewise());
-    style.lower_thumb_style.as_mut().unwrap().cross_axis = ThumbCrossAxis::FixedCentered(10.0);
+    style.lower_thumb_style.as_mut().unwrap().cross_axis_size = CrossAxisSize::FixedCentered(10.0);
     style.track_marks = Some(track_mark_style(2.5, mark_color, 1.0, 4.0, 2.0));
 
     let spec = SliderSpec {
@@ -4880,7 +4880,7 @@ fn test_slider_track_marks_draw_vertical() {
 fn test_horizontal_track_marks_fit_inside_requested_height() {
     let mark_color = Color::from_srgb_u8(1, 2, 3, 255);
     let mut style = SliderStyle::from_theme(&crate::theme::Theme::framewise());
-    style.lower_thumb_style.as_mut().unwrap().cross_axis = ThumbCrossAxis::FixedCentered(10.0);
+    style.lower_thumb_style.as_mut().unwrap().cross_axis_size = CrossAxisSize::FixedCentered(10.0);
     style.track_marks = Some(track_mark_style(2.5, mark_color, 1.0, 4.0, 2.0));
 
     let pre = raw::pre_layout_slider(
@@ -4926,7 +4926,7 @@ fn test_horizontal_track_marks_fit_inside_requested_height() {
 fn test_vertical_track_marks_fit_inside_requested_width() {
     let mark_color = Color::from_srgb_u8(1, 2, 3, 255);
     let mut style = SliderStyle::from_theme(&crate::theme::Theme::framewise());
-    style.lower_thumb_style.as_mut().unwrap().cross_axis = ThumbCrossAxis::FixedCentered(10.0);
+    style.lower_thumb_style.as_mut().unwrap().cross_axis_size = CrossAxisSize::FixedCentered(10.0);
     style.track_marks = Some(track_mark_style(2.5, mark_color, 1.0, 4.0, 2.0));
 
     let pre = raw::pre_layout_slider(
@@ -5177,7 +5177,7 @@ fn test_slider_value_snap_repairs_initial_single_value() {
 #[test]
 fn test_slider_value_snap_applies_during_drag() {
     let mut style = SliderStyle::from_theme(&crate::theme::Theme::framewise());
-    style.lower_thumb_style.as_mut().unwrap().cross_axis = ThumbCrossAxis::FixedCentered(20.0);
+    style.lower_thumb_style.as_mut().unwrap().cross_axis_size = CrossAxisSize::FixedCentered(20.0);
     let spec = SliderSpec {
         orientation: Orientation::Horizontal,
         rect: Rect::new(0.0, 0.0, 120.0, 20.0),

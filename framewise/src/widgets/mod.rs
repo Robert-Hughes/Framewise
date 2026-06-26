@@ -121,9 +121,8 @@ pub use segmented::{
 pub use select::{select, SelectResult, SelectSpecBuilder, SelectState, SelectStyle};
 #[cfg(feature = "slider")]
 pub use slider::{
-    slider, InteractiveColor, Orientation, ScrollClaimPolicy, SegmentStyle, SliderPart,
-    SliderResult, SliderSpecBuilder, SliderState, SliderStyle, SliderValue, ThumbCrossAxis,
-    ThumbStyle,
+    slider, CrossAxisSize, InteractiveColor, Orientation, ScrollClaimPolicy, SegmentStyle,
+    SliderPart, SliderResult, SliderSpecBuilder, SliderState, SliderStyle, SliderValue, ThumbStyle,
 };
 #[cfg(feature = "spinner")]
 pub use spinner::{spinner, SpinnerResult, SpinnerSpecBuilder, SpinnerStyle};

@@ -136,19 +136,19 @@ pub mod raw {
 
         let (main_start_padding, main_end_padding) = if !state.value.is_range() {
             if let Some(lower_style) = spec.style.lower_thumb_style {
-                let len = main_axis_len(lower_style.cross_axis, track_outer_rect, is_vert);
+                let len = main_axis_len(lower_style.cross_axis_size, track_outer_rect, is_vert);
                 (len * 0.5, len * 0.5)
             } else {
                 (0.0, 0.0)
             }
         } else {
             let start_pad = if let Some(lower_style) = spec.style.lower_thumb_style {
-                main_axis_len(lower_style.cross_axis, track_outer_rect, is_vert) * 0.5
+                main_axis_len(lower_style.cross_axis_size, track_outer_rect, is_vert) * 0.5
             } else {
                 0.0
             };
             let end_pad = if let Some(upper_style) = spec.style.upper_thumb_style {
-                main_axis_len(upper_style.cross_axis, track_outer_rect, is_vert) * 0.5
+                main_axis_len(upper_style.cross_axis_size, track_outer_rect, is_vert) * 0.5
             } else {
                 0.0
             };
@@ -194,7 +194,7 @@ pub mod raw {
                 is_vert,
                 lower_start,
                 (lower_end - lower_start).max(0.0),
-                style.cross_axis,
+                style.cross_axis_size,
             )
         });
         let upper_thumb_rect = spec
@@ -208,7 +208,7 @@ pub mod raw {
                     is_vert,
                     u_start,
                     (u_end - u_start).max(0.0),
-                    style.cross_axis,
+                    style.cross_axis_size,
                 )
             });
         let segment_rect = spec
@@ -821,7 +821,7 @@ pub mod raw {
                     is_vert,
                     lower_start,
                     (upper_end.unwrap_or(lower_start) - lower_start).max(0.0),
-                    spec.style.lower_thumb_style.unwrap().cross_axis,
+                    spec.style.lower_thumb_style.unwrap().cross_axis_size,
                 );
 
                 if let Some(lower_style) = spec.style.lower_thumb_style {
@@ -928,10 +928,10 @@ fn coord_to_value(coord: f32, min: f32, range: f32, track_start: f32, track_len:
     }
 }
 
-fn main_axis_len(cross_axis: ThumbCrossAxis, track_rect: Rect, is_vert: bool) -> f32 {
-    match cross_axis {
-        ThumbCrossAxis::FixedCentered(len) => len,
-        ThumbCrossAxis::FillTrack { margin } => {
+fn main_axis_len(cross_axis_size: CrossAxisSize, track_rect: Rect, is_vert: bool) -> f32 {
+    match cross_axis_size {
+        CrossAxisSize::FixedCentered(len) => len,
+        CrossAxisSize::FillTrack { margin } => {
             let cross = if is_vert { track_rect.w } else { track_rect.h };
             (cross - margin * 2.0).max(1.0)
         }
@@ -953,21 +953,21 @@ fn slider_base_cross_axis_request(style: SliderStyle) -> f32 {
         }
     }
     if let Some(style) = style.lower_thumb_style {
-        if let ThumbCrossAxis::FixedCentered(len) = style.cross_axis {
+        if let CrossAxisSize::FixedCentered(len) = style.cross_axis_size {
             if len.is_finite() && len > 0.0 {
                 cross = cross.max(len);
             }
         }
     }
     if let Some(style) = style.upper_thumb_style {
-        if let ThumbCrossAxis::FixedCentered(len) = style.cross_axis {
+        if let CrossAxisSize::FixedCentered(len) = style.cross_axis_size {
             if len.is_finite() && len > 0.0 {
                 cross = cross.max(len);
             }
         }
     }
     if let Some(style) = style.segment_style {
-        if let ThumbCrossAxis::FixedCentered(len) = style.cross_axis {
+        if let CrossAxisSize::FixedCentered(len) = style.cross_axis_size {
             if len.is_finite() && len > 0.0 {
                 cross = cross.max(len);
             }
@@ -981,11 +981,11 @@ fn cross_axis_rect(
     is_vert: bool,
     main_start: f32,
     main_len: f32,
-    cross_axis: ThumbCrossAxis,
+    cross_axis_size: CrossAxisSize,
 ) -> Rect {
     let track_cross_size = if is_vert { track_rect.w } else { track_rect.h };
-    match cross_axis {
-        ThumbCrossAxis::FixedCentered(cross_len) => {
+    match cross_axis_size {
+        CrossAxisSize::FixedCentered(cross_len) => {
             if is_vert {
                 let x = (track_rect.x + (track_rect.w - cross_len) * 0.5).round();
                 Rect::new(x, main_start, cross_len, main_len)
@@ -994,7 +994,7 @@ fn cross_axis_rect(
                 Rect::new(main_start, y, main_len, cross_len)
             }
         }
-        ThumbCrossAxis::FillTrack { margin } => {
+        CrossAxisSize::FillTrack { margin } => {
             let cross = (track_cross_size - margin * 2.0).max(1.0);
             if is_vert {
                 Rect::new(track_rect.x + margin, main_start, cross, main_len)
@@ -1014,7 +1014,7 @@ fn segment_rect(
 ) -> Rect {
     let start = lower_coord.min(upper_coord);
     let len = (upper_coord - lower_coord).abs().max(1.0);
-    cross_axis_rect(track_rect, is_vert, start, len, style.cross_axis)
+    cross_axis_rect(track_rect, is_vert, start, len, style.cross_axis_size)
 }
 
 fn effective_gaps(min: f32, max: f32, min_gap: Option<f32>, max_gap: Option<f32>) -> (f32, f32) {
@@ -1732,20 +1732,20 @@ impl TrackMarksStyle {
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct SegmentStyle {
-    pub cross_axis: ThumbCrossAxis,
+    pub cross_axis_size: CrossAxisSize,
     pub fill: InteractiveColor,
     pub border: Option<Stroke>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct ThumbStyle {
-    pub cross_axis: ThumbCrossAxis,
+    pub cross_axis_size: CrossAxisSize,
     pub fill: InteractiveColor,
     pub border: Option<Stroke>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub enum ThumbCrossAxis {
+pub enum CrossAxisSize {
     FixedCentered(f32),
     FillTrack { margin: f32 },
 }
@@ -1760,7 +1760,7 @@ pub struct InteractiveColor {
 impl SliderStyle {
     pub fn from_theme(theme: &crate::theme::Theme) -> Self {
         let default_thumb = ThumbStyle {
-            cross_axis: ThumbCrossAxis::FixedCentered(12.0),
+            cross_axis_size: CrossAxisSize::FixedCentered(12.0),
             fill: InteractiveColor {
                 idle: theme.paper_elev,
                 hovered: theme.paper_elev_hover,
@@ -1789,7 +1789,7 @@ impl SliderStyle {
 
     pub fn range_from_theme(theme: &crate::theme::Theme) -> Self {
         let default_thumb = ThumbStyle {
-            cross_axis: ThumbCrossAxis::FixedCentered(12.0),
+            cross_axis_size: CrossAxisSize::FixedCentered(12.0),
             fill: InteractiveColor {
                 idle: theme.paper_elev,
                 hovered: theme.paper_elev_hover,
@@ -1803,7 +1803,7 @@ impl SliderStyle {
             before_stroke: Some(Stroke::new(theme.line_on_paper, 1.5)),
             after_stroke: Some(Stroke::new(theme.line_on_paper, 1.5)),
             segment_style: Some(SegmentStyle {
-                cross_axis: ThumbCrossAxis::FixedCentered(1.5),
+                cross_axis_size: CrossAxisSize::FixedCentered(1.5),
                 fill: InteractiveColor {
                     idle: theme.ink,
                     hovered: Color::BLACK,
@@ -1830,7 +1830,7 @@ impl SliderStyle {
             before_stroke: None,
             after_stroke: None,
             segment_style: Some(SegmentStyle {
-                cross_axis: ThumbCrossAxis::FillTrack { margin: 1.0 },
+                cross_axis_size: CrossAxisSize::FillTrack { margin: 1.0 },
                 fill: InteractiveColor {
                     idle: theme.ink,
                     hovered: Color::BLACK,
