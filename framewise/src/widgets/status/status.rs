@@ -166,6 +166,12 @@ impl StatusStyle {
     }
 }
 
+impl Default for StatusStyle {
+    fn default() -> Self {
+        Self::from_theme(&crate::theme::Theme::minimal())
+    }
+}
+
 // ── Result ───────────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, PartialEq)]
@@ -182,50 +188,41 @@ pub struct StatusSpec<'a> {
     pub style: StatusStyle,
 }
 
-// ── Spec Builder ─────────────────────────────────────────────────────────────
+impl<'a> StatusSpec<'a> {
+    pub fn new(text: &'a str, variant: StatusVariant) -> Self {
+        Self {
+            text,
+            variant,
+            style: StatusStyle::default(),
+        }
+    }
 
-#[derive(Debug, Clone, PartialEq, Default)]
-pub struct StatusSpecBuilder<'a> {
-    pub text: Option<&'a str>,
-    pub variant: Option<StatusVariant>,
-    pub style: Option<StatusStyle>,
-}
+    pub fn new_from_theme(
+        text: &'a str,
+        variant: StatusVariant,
+        theme: &crate::theme::Theme,
+    ) -> Self {
+        Self::new(text, variant).theme(theme)
+    }
 
-impl<'a> StatusSpecBuilder<'a> {
-    pub fn new() -> Self {
-        Self::default()
+    pub fn theme(mut self, theme: &crate::theme::Theme) -> Self {
+        self.style = StatusStyle::from_theme(theme);
+        self
     }
 
     pub fn text(mut self, text: &'a str) -> Self {
-        self.text = Some(text);
+        self.text = text;
         self
     }
-    pub fn style(mut self, style: StatusStyle) -> Self {
-        self.style = Some(style);
-        self
-    }
+
     pub fn variant(mut self, variant: StatusVariant) -> Self {
-        self.variant = Some(variant);
+        self.variant = variant;
         self
     }
 
-    /// Fills unset fields from `theme`. Called automatically by high-level
-    /// context functions.
-    pub fn defaults_from_theme(mut self, theme: &crate::theme::Theme) -> Self {
-        if self.style.is_none() {
-            self.style = Some(StatusStyle::from_theme(theme));
-        }
+    pub fn style(mut self, style: StatusStyle) -> Self {
+        self.style = style;
         self
-    }
-
-    pub fn build(self) -> StatusSpec<'a> {
-        StatusSpec {
-            text: self.text.expect("text not set — call .text()"),
-            variant: self.variant.expect("variant not set — call .variant()"),
-            style: self
-                .style
-                .expect("style not set — call .style() or defaults_from_theme()"),
-        }
     }
 }
 
@@ -233,14 +230,14 @@ impl<'a> StatusSpecBuilder<'a> {
 
 /// High-level status widget function using `WidgetContext`.
 ///
-/// Resolves defaults, runs the raw pre-layout phase to obtain a `SizeRequest`,
-/// resolves the final rect with layout, then runs the raw post-layout phase.
+/// Consumes a complete `StatusSpec`, runs the raw pre-layout phase to obtain a
+/// `SizeRequest`, resolves the final rect with layout, then runs the raw
+/// post-layout phase.
 pub fn status<'a, T: TextBackend, S: LayoutState, CF>(
-    ctx: &mut WidgetContext<T, S, CF>,
-    builder: StatusSpecBuilder<'a>,
+    spec: StatusSpec<'a>,
     layout_params: S::Params,
+    ctx: &mut WidgetContext<T, S, CF>,
 ) -> StatusResult {
-    let spec = builder.defaults_from_theme(&ctx.theme).build();
     let pre_layout_spec = raw::StatusPreLayoutSpec {
         text: spec.text,
         style: spec.style,

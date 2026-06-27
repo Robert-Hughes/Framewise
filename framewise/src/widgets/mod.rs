@@ -98,9 +98,9 @@ pub use drag_number::{
 #[cfg(feature = "frame")]
 pub use frame::{begin_frame, FrameResult, FrameSpecBuilder, FrameStyle};
 #[cfg(feature = "keycap")]
-pub use keycap::{keycap, KeycapResult, KeycapSpecBuilder, KeycapStyle};
+pub use keycap::{keycap, KeycapResult, KeycapSpec, KeycapStyle};
 #[cfg(feature = "label")]
-pub use label::{label, LabelResult, LabelSpecBuilder, LabelStyle};
+pub use label::{label, LabelResult, LabelSpec, LabelStyle};
 #[cfg(feature = "menu")]
 pub use menu::{menu, MenuItem, MenuResult, MenuSpecBuilder, MenuStyle};
 #[cfg(feature = "meter")]
@@ -125,9 +125,9 @@ pub use slider::{
     SliderPart, SliderResult, SliderSpec, SliderState, SliderStyle, SliderValue, ThumbStyle,
 };
 #[cfg(feature = "spinner")]
-pub use spinner::{spinner, SpinnerResult, SpinnerSpecBuilder, SpinnerStyle};
+pub use spinner::{spinner, SpinnerResult, SpinnerSpec, SpinnerStyle};
 #[cfg(feature = "status")]
-pub use status::{status, StatusResult, StatusSpecBuilder, StatusStyle, StatusVariant};
+pub use status::{status, StatusResult, StatusSpec, StatusStyle, StatusVariant};
 #[cfg(feature = "switch")]
 pub use switch::{
     labelled_switch, switch, SwitchResult, SwitchSpecBuilder, SwitchState, SwitchStyle,

@@ -42,7 +42,7 @@ use framewise::{
         raw::{pre_layout_button, ButtonPreLayoutSpec},
         ButtonSpec, ButtonState, ButtonStyle,
     },
-    widgets::label::{label, LabelSpecBuilder},
+    widgets::label::{label, LabelSpec},
     Color, TextContentPlacement,
 };
 
@@ -771,9 +771,9 @@ fn label_row<
     height: f32,
 ) {
     label(
-        col,
-        LabelSpecBuilder::new().text(text),
+        LabelSpec::new_from_theme(text, &col.theme),
         ColumnLayoutParams::auto().fill_x().fixed_y(height),
+        col,
     );
 }
 

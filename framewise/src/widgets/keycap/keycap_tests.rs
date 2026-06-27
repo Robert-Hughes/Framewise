@@ -1,4 +1,4 @@
-use super::raw::KeycapSpec;
+use super::raw::KeycapSpec as RawKeycapSpec;
 use super::*;
 use crate::{
     focus::FocusSystem, test_utils::TestTextBackend, text::FontId, DrawGlyph, PreparedGlyphToken,
@@ -12,7 +12,7 @@ fn test_keycap_visual() {
     let custom_shadow = Color::from_srgb_u8(10, 10, 10, 255);
     let custom_border = Color::from_srgb_u8(10, 10, 10, 255);
     let custom_text = Color::from_srgb_u8(50, 50, 50, 255);
-    let spec = KeycapSpec {
+    let spec = RawKeycapSpec {
         layer: Layer::default(),
         rect: Rect::new(0.0, 0.0, 30.0, 30.0),
         text: "K",
@@ -83,38 +83,6 @@ fn test_keycap_visual() {
 }
 
 #[test]
-fn test_builder_defaults_from_theme_fills_unset_style() {
-    let theme = crate::theme::Theme::framewise();
-    let builder = KeycapSpecBuilder::new();
-    assert!(builder.style.is_none());
-    let builder = builder.defaults_from_theme(&theme);
-    assert_eq!(builder.style.unwrap().text_style.font, theme.mono_font);
-}
-
-#[test]
-fn test_builder_defaults_from_theme_preserves_explicit_style() {
-    let theme = crate::theme::Theme::framewise();
-    let explicit_style = KeycapStyle {
-        background: Color::WHITE,
-        shadow: Color::BLACK,
-        shadow_offset: 1.0,
-        shadow_height: 2.0,
-        border: Some(Stroke::new(Color::WHITE, 1.0)),
-        text_color: Color::WHITE,
-        text_style: crate::text::TextStyle::new(
-            FontId(99),
-            14.0,
-            400,
-            crate::text::TextFlow::single_line(),
-        ),
-        content_placement: crate::text::TextContentPlacement::CENTER,
-    };
-    let builder = KeycapSpecBuilder::new().style(explicit_style);
-    let builder = builder.defaults_from_theme(&theme);
-    assert_eq!(builder.style, Some(explicit_style));
-}
-
-#[test]
 fn test_high_level_explicit_placement_via_manual_layout() {
     use crate::layouts::ManualLayout;
     use crate::test_utils::TestTextBackend;
@@ -134,7 +102,11 @@ fn test_high_level_explicit_placement_via_manual_layout() {
         Rect::new(0.0, 0.0, 800.0, 600.0),
         &mut cmds,
     );
-    let result = super::keycap(&mut ctx, KeycapSpecBuilder::new().text("X"), placement);
+    let result = super::keycap(
+        KeycapSpec::new_from_theme("X", &ctx.theme),
+        placement,
+        &mut ctx,
+    );
     assert_eq!(result.layout.bounds, placement);
 }
 
@@ -160,8 +132,7 @@ fn test_keycap_bounds_and_content_bounds() {
     );
     let custom_border_width = 3.5;
     let result = super::keycap(
-        &mut ctx,
-        KeycapSpecBuilder::new().text("X").style(KeycapStyle {
+        KeycapSpec::new("X").style(KeycapStyle {
             background: Color::WHITE,
             shadow: Color::BLACK,
             shadow_offset: 1.0,
@@ -177,6 +148,7 @@ fn test_keycap_bounds_and_content_bounds() {
             content_placement: crate::text::TextContentPlacement::CENTER,
         }),
         layout_rect,
+        &mut ctx,
     );
     assert_eq!(result.layout.bounds, layout_rect);
     assert_eq!(

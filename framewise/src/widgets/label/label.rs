@@ -151,6 +151,12 @@ impl LabelStyle {
     }
 }
 
+impl Default for LabelStyle {
+    fn default() -> Self {
+        Self::from_theme(&crate::theme::Theme::minimal())
+    }
+}
+
 // ── Result ───────────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, PartialEq)]
@@ -166,41 +172,31 @@ pub struct LabelSpec<'a> {
     pub style: LabelStyle,
 }
 
-// ── Spec Builder ─────────────────────────────────────────────────────────────
-
-#[derive(Debug, Clone, PartialEq, Default)]
-pub struct LabelSpecBuilder<'a> {
-    pub text: Option<&'a str>,
-    pub style: Option<LabelStyle>,
-}
-
-impl<'a> LabelSpecBuilder<'a> {
-    pub fn new() -> Self {
-        Self::default()
+impl<'a> LabelSpec<'a> {
+    pub fn new(text: &'a str) -> Self {
+        Self {
+            text,
+            style: LabelStyle::default(),
+        }
     }
+
+    pub fn new_from_theme(text: &'a str, theme: &crate::theme::Theme) -> Self {
+        Self::new(text).theme(theme)
+    }
+
+    pub fn theme(mut self, theme: &crate::theme::Theme) -> Self {
+        self.style = LabelStyle::from_theme(theme);
+        self
+    }
+
     pub fn text(mut self, text: &'a str) -> Self {
-        self.text = Some(text);
+        self.text = text;
         self
     }
+
     pub fn style(mut self, style: LabelStyle) -> Self {
-        self.style = Some(style);
+        self.style = style;
         self
-    }
-    /// Fills unset fields from `theme`. Called automatically by high-level
-    /// context functions.
-    pub fn defaults_from_theme(mut self, theme: &crate::theme::Theme) -> Self {
-        if self.style.is_none() {
-            self.style = Some(LabelStyle::from_theme(theme));
-        }
-        self
-    }
-    pub fn build(self) -> LabelSpec<'a> {
-        LabelSpec {
-            text: self.text.expect("text not set — call .text()"),
-            style: self
-                .style
-                .expect("style not set — call .style() or defaults_from_theme()"),
-        }
     }
 }
 
@@ -208,14 +204,14 @@ impl<'a> LabelSpecBuilder<'a> {
 
 /// High-level label widget function using `WidgetContext`.
 ///
-/// Resolves defaults, runs the raw pre-layout phase to obtain a `SizeRequest`,
-/// resolves the final rect with layout, then runs the raw post-layout phase.
+/// Consumes a complete `LabelSpec`, runs the raw pre-layout phase to obtain a
+/// `SizeRequest`, resolves the final rect with layout, then runs the raw
+/// post-layout phase.
 pub fn label<'a, T: TextBackend, S: LayoutState, CF>(
-    ctx: &mut WidgetContext<T, S, CF>,
-    builder: LabelSpecBuilder<'a>,
+    spec: LabelSpec<'a>,
     layout_params: S::Params,
+    ctx: &mut WidgetContext<T, S, CF>,
 ) -> LabelResult {
-    let spec = builder.defaults_from_theme(&ctx.theme).build();
     let pre_layout_spec = raw::LabelPreLayoutSpec {
         text: spec.text,
         style: spec.style,

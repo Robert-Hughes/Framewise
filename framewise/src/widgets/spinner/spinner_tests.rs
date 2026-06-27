@@ -1,4 +1,4 @@
-use super::raw::SpinnerSpec;
+use super::raw::SpinnerSpec as RawSpinnerSpec;
 use super::*;
 use crate::draw::DrawCmd;
 use crate::focus::FocusSystem;
@@ -6,7 +6,7 @@ use crate::focus::FocusSystem;
 #[test]
 fn test_spinner_visual_normal() {
     let style = SpinnerStyle::from_theme(&crate::theme::Theme::framewise());
-    let spec = SpinnerSpec {
+    let spec = RawSpinnerSpec {
         rect: Rect::new(0.0, 0.0, 16.0, 16.0),
         large: false,
         style,
@@ -84,7 +84,7 @@ fn test_spinner_visual_normal() {
 #[test]
 fn test_spinner_visual_large() {
     let style = SpinnerStyle::from_theme(&crate::theme::Theme::framewise());
-    let spec = SpinnerSpec {
+    let spec = RawSpinnerSpec {
         rect: Rect::new(0.0, 0.0, 24.0, 24.0),
         large: true,
         style,
@@ -160,25 +160,6 @@ fn test_spinner_visual_large() {
 }
 
 #[test]
-fn test_builder_defaults_from_theme_fills_unset_style() {
-    let theme = crate::theme::Theme::framewise();
-    let builder = SpinnerSpecBuilder::new();
-    assert!(builder.style.is_none());
-    let builder = builder.defaults_from_theme(&theme);
-    assert_eq!(builder.style, Some(SpinnerStyle::from_theme(&theme)));
-}
-
-#[test]
-fn test_builder_defaults_from_theme_preserves_explicit_style() {
-    let theme = crate::theme::Theme::framewise();
-    let mut custom_style = SpinnerStyle::from_theme(&theme);
-    custom_style.stroke.width = 99.0;
-    let builder = SpinnerSpecBuilder::new().style(custom_style);
-    let builder = builder.defaults_from_theme(&theme);
-    assert_eq!(builder.style.unwrap().stroke.width, 99.0);
-}
-
-#[test]
 fn test_high_level_explicit_placement_via_manual_layout() {
     use crate::layouts::ManualLayout;
     use crate::test_utils::TestTextBackend;
@@ -198,6 +179,10 @@ fn test_high_level_explicit_placement_via_manual_layout() {
         Rect::new(0.0, 0.0, 800.0, 600.0),
         &mut cmds,
     );
-    let result = super::spinner(&mut ctx, SpinnerSpecBuilder::new(), placement);
+    let result = super::spinner(
+        SpinnerSpec::default_from_theme(&ctx.theme),
+        placement,
+        &mut ctx,
+    );
     assert_eq!(result.layout.bounds, placement);
 }

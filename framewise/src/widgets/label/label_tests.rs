@@ -1,4 +1,4 @@
-use super::raw::LabelSpec;
+use super::raw::LabelSpec as RawLabelSpec;
 use super::*;
 use crate::{
     draw::DrawCmd, test_utils::TestTextBackend, text::FontId, theme, DrawGlyph, Input,
@@ -16,7 +16,7 @@ fn placement_text_backend() -> TestTextBackend {
 #[test]
 fn test_label_draws_text() {
     let mut sys = TestTextBackend::default();
-    let spec = LabelSpec {
+    let spec = RawLabelSpec {
         layer: Layer::default(),
         rect: Rect::new(0.0, 0.0, 100.0, 50.0),
         text: "Hello",
@@ -81,7 +81,7 @@ fn test_label_draws_text() {
 #[test]
 fn test_label_rule() {
     let mut sys = TestTextBackend::default();
-    let spec = LabelSpec {
+    let spec = RawLabelSpec {
         layer: Layer::default(),
         rect: Rect::new(0.0, 0.0, 100.0, 20.0),
         text: "Section",
@@ -160,7 +160,7 @@ fn test_label_rule() {
 #[test]
 fn test_label_logical_content_placement_bottom_right() {
     let mut sys = TestTextBackend::default();
-    let spec = LabelSpec {
+    let spec = RawLabelSpec {
         layer: Layer::default(),
         rect: Rect::new(10.0, 20.0, 100.0, 50.0),
         text: "Hello",
@@ -220,7 +220,7 @@ fn test_label_logical_content_placement_bottom_right() {
 #[test]
 fn test_label_ink_content_placement_uses_ink_bounds() {
     let mut sys = placement_text_backend();
-    let spec = LabelSpec {
+    let spec = RawLabelSpec {
         layer: Layer::default(),
         rect: Rect::new(10.0, 20.0, 100.0, 50.0),
         text: "◎",
@@ -249,7 +249,7 @@ fn test_label_ink_content_placement_uses_ink_bounds() {
 fn test_label_passes_spec_font_to_text_backend() {
     let mut sys = TestTextBackend::default().with_default_advance(1.0);
     let expected = FontId(42);
-    let spec = LabelSpec {
+    let spec = RawLabelSpec {
         layer: Layer::default(),
         rect: Rect::new(0.0, 0.0, 100.0, 20.0),
         text: "font",
@@ -286,34 +286,6 @@ fn test_label_passes_spec_font_to_text_backend() {
 }
 
 #[test]
-fn test_builder_defaults_from_theme_fills_unset_fields() {
-    let theme = crate::theme::Theme::framewise();
-    let builder = LabelSpecBuilder::new().text("test");
-    assert!(builder.style.is_none());
-    let builder = builder.defaults_from_theme(&theme);
-    assert_eq!(builder.style, Some(LabelStyle::from_theme(&theme)));
-}
-
-#[test]
-fn test_builder_defaults_from_theme_preserves_explicit_fields() {
-    let theme = crate::theme::Theme::framewise();
-    let custom_style = LabelStyle {
-        text_style: crate::text::TextStyle::new(
-            FontId(99),
-            99.0,
-            400,
-            crate::text::TextFlow::single_line(),
-        ),
-        content_placement: crate::text::TextContentPlacement::TOP_LEFT,
-        text_color: Color::from_srgb_u8(1, 2, 3, 255),
-        rule: Some(Stroke::new(Color::from_srgb_u8(4, 5, 6, 255), 1.0)),
-    };
-    let builder = LabelSpecBuilder::new().text("test").style(custom_style);
-    let builder = builder.defaults_from_theme(&theme);
-    assert_eq!(builder.style, Some(custom_style));
-}
-
-#[test]
 fn test_high_level_explicit_placement_via_manual_layout() {
     use crate::layouts::ManualLayout;
     let mut text_backend = TestTextBackend::default();
@@ -332,7 +304,11 @@ fn test_high_level_explicit_placement_via_manual_layout() {
         Rect::new(0.0, 0.0, 800.0, 600.0),
         &mut cmds,
     );
-    let result = super::label(&mut ctx, LabelSpecBuilder::new().text("X"), placement);
+    let result = super::label(
+        LabelSpec::new_from_theme("X", &ctx.theme),
+        placement,
+        &mut ctx,
+    );
     assert_eq!(result.layout.bounds, placement);
 }
 
@@ -360,9 +336,9 @@ fn test_high_level_honors_user_style() {
         ..LabelStyle::from_theme(&theme)
     };
     super::label(
-        &mut ctx,
-        LabelSpecBuilder::new().text("X").style(custom),
+        LabelSpec::new("X").style(custom),
         Rect::new(100.0, 100.0, 40.0, 28.0),
+        &mut ctx,
     );
     let has_custom_color = cmds
         .commands()
@@ -505,7 +481,7 @@ fn test_label_peeks_offer_before_layout() {
         &mut cmds,
     );
 
-    let result = super::label(&mut ctx, LabelSpecBuilder::new().text("Hello"), ());
+    let result = super::label(LabelSpec::new_from_theme("Hello", &ctx.theme), (), &mut ctx);
 
     assert_eq!(&*calls.borrow(), &["peek_offer", "layout"]);
     assert_eq!(result.layout.bounds, Rect::new(10.0, 20.0, 30.0, 40.0));
@@ -531,9 +507,9 @@ fn test_label_auto_layout_uses_size_request() {
     );
     let mut col = ctx.child_with_layout(Rect::new(10.0, 10.0, 300.0, 400.0), ColumnLayout);
     let r = super::label(
-        &mut col,
-        LabelSpecBuilder::new().text("Hello"),
+        LabelSpec::new_from_theme("Hello", &col.theme),
         ColumnLayoutParams::auto(),
+        &mut col,
     );
     assert_eq!(r.layout.bounds, Rect::new(10.0, 10.0, 40.0, 16.0));
 }
@@ -587,9 +563,9 @@ fn test_label_with_custom_flow() {
     let mut style = LabelStyle::from_theme(&crate::theme::Theme::framewise());
     style.text_style.flow = flow;
     let result = super::label(
-        &mut ctx,
-        LabelSpecBuilder::new().text("Hello").style(style),
+        LabelSpec::new("Hello").style(style),
         Rect::new(10.0, 20.0, 200.0, 50.0),
+        &mut ctx,
     );
 
     assert_eq!(result.layout.bounds, Rect::new(10.0, 20.0, 200.0, 50.0));

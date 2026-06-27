@@ -11,7 +11,7 @@ use framewise::{
     types::Rect,
     widget::WidgetContext,
     widgets::button::{button, ButtonSpec, ButtonState, ButtonStyle},
-    widgets::label::{label, LabelSpecBuilder, LabelStyle},
+    widgets::label::{label, LabelSpec, LabelStyle},
 };
 
 // ── State ──────────────────────────────────────────────────────────────────────
@@ -211,9 +211,9 @@ pub(crate) fn draw_button_page_content<'a, 'b, CF>(
             outer.child_with_layout(ColumnLayoutParams::auto().fill_x().fixed_y(96.0), RowLayout);
 
         label(
-            &mut outer_row,
-            LabelSpecBuilder::new().text("Counter"),
+            LabelSpec::new_from_theme("Counter", &outer_row.theme),
             RowLayoutParams::fixed(100.0, 96.0),
+            &mut outer_row,
         );
         outer_row.spacer(10.0);
 
@@ -238,9 +238,9 @@ pub(crate) fn draw_button_page_content<'a, 'b, CF>(
 
                 let count_text = state.counter.to_string();
                 label(
-                    &mut inner_row,
-                    LabelSpecBuilder::new().text(&count_text),
+                    LabelSpec::new_from_theme(&count_text, &inner_row.theme),
                     RowLayoutParams::fixed(120.0, 48.0),
+                    &mut inner_row,
                 );
                 inner_row.spacer(12.0);
 
@@ -584,11 +584,9 @@ pub(crate) fn draw_button_page_content<'a, 'b, CF>(
             ..LabelStyle::from_theme(&theme)
         };
         label(
-            &mut row,
-            LabelSpecBuilder::new()
-                .text("logical center:")
-                .style(comparison_label),
+            LabelSpec::new("logical center:").style(comparison_label),
             RowLayoutParams::fixed(92.0, 29.0),
+            &mut row,
         );
         row.spacer(6.0);
         button(
@@ -599,11 +597,9 @@ pub(crate) fn draw_button_page_content<'a, 'b, CF>(
         );
         row.spacer(18.0);
         label(
-            &mut row,
-            LabelSpecBuilder::new()
-                .text("approx ink center:")
-                .style(comparison_label),
+            LabelSpec::new("approx ink center:").style(comparison_label),
             RowLayoutParams::fixed(72.0, 29.0),
+            &mut row,
         );
         row.spacer(6.0);
         button(

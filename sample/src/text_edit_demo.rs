@@ -8,7 +8,7 @@ use framewise::{
     types::{Color, Rect, Stroke},
     widget::WidgetContext,
     widgets::checkbox::{labelled_checkbox, CheckboxSpec, CheckboxState, CheckedState},
-    widgets::label::{label, LabelSpecBuilder, LabelStyle},
+    widgets::label::{label, LabelSpec, LabelStyle},
     widgets::radio::{labelled_radio, RadioSpecBuilder, RadioState},
     widgets::text_edit::{text_edit, NewlinePolicy, TextEditSpec, TextEditState, TextEditStyle},
     Align, LineHeight, TextLineAlign,
@@ -222,28 +222,23 @@ pub(crate) fn draw_text_edit_demo_content<'a, 'b, CF>(
     let ctx = &mut left;
 
     label(
-        ctx,
-        LabelSpecBuilder::new()
-            .text("1. Standard Presets")
-            .style(section_header_style),
+        LabelSpec::new("1. Standard Presets").style(section_header_style),
         ColumnLayoutParams::auto(),
+        ctx,
     );
     ctx.spacer(8.0);
 
     label(
-        ctx,
-        LabelSpecBuilder::new()
-            .text("Single-line field")
-            .style(desc_style),
+        LabelSpec::new("Single-line field").style(desc_style),
         ColumnLayoutParams::auto(),
+        ctx,
     );
     ctx.spacer(4.0);
     label(
-        ctx,
-        LabelSpecBuilder::new()
-            .text("Newlines are replaced with spaces. Pressing Enter inserts a space.")
+        LabelSpec::new("Newlines are replaced with spaces. Pressing Enter inserts a space.")
             .style(desc_style),
         ColumnLayoutParams::auto(),
+        ctx,
     );
     ctx.spacer(6.0);
     text_edit(
@@ -255,19 +250,16 @@ pub(crate) fn draw_text_edit_demo_content<'a, 'b, CF>(
 
     ctx.spacer(18.0);
     label(
-        ctx,
-        LabelSpecBuilder::new()
-            .text("Multiline unwrapped")
-            .style(desc_style),
+        LabelSpec::new("Multiline unwrapped").style(desc_style),
         ColumnLayoutParams::auto(),
+        ctx,
     );
     ctx.spacer(4.0);
     label(
-        ctx,
-        LabelSpecBuilder::new()
-            .text("Hard newlines are preserved and long lines do not soft-wrap.")
+        LabelSpec::new("Hard newlines are preserved and long lines do not soft-wrap.")
             .style(desc_style),
         ColumnLayoutParams::auto(),
+        ctx,
     );
     ctx.spacer(6.0);
     text_edit(
@@ -281,19 +273,15 @@ pub(crate) fn draw_text_edit_demo_content<'a, 'b, CF>(
 
     ctx.spacer(18.0);
     label(
-        ctx,
-        LabelSpecBuilder::new()
-            .text("Multiline wrapped")
-            .style(desc_style),
+        LabelSpec::new("Multiline wrapped").style(desc_style),
         ColumnLayoutParams::auto(),
+        ctx,
     );
     ctx.spacer(4.0);
     label(
-        ctx,
-        LabelSpecBuilder::new()
-            .text("Hard newlines are preserved and long lines soft-wrap.")
-            .style(desc_style),
+        LabelSpec::new("Hard newlines are preserved and long lines soft-wrap.").style(desc_style),
         ColumnLayoutParams::auto(),
+        ctx,
     );
     ctx.spacer(6.0);
     text_edit(
@@ -307,20 +295,12 @@ pub(crate) fn draw_text_edit_demo_content<'a, 'b, CF>(
 
     ctx.spacer(24.0);
     label(
-        ctx,
-        LabelSpecBuilder::new()
-            .text("2. Configuration Playground")
-            .style(section_header_style),
+        LabelSpec::new("2. Configuration Playground").style(section_header_style),
         ColumnLayoutParams::auto(),
+        ctx,
     );
     ctx.spacer(4.0);
-    label(
-        ctx,
-        LabelSpecBuilder::new()
-            .text("Exposes the raw configuration axes, including combinations that are unusual but supported.")
-            .style(desc_style),
-        ColumnLayoutParams::auto(),
-    );
+    label(LabelSpec::new("Exposes the raw configuration axes, including combinations that are unusual but supported.").style(desc_style), ColumnLayoutParams::auto(), ctx);
     ctx.spacer(10.0);
 
     {
@@ -328,11 +308,9 @@ pub(crate) fn draw_text_edit_demo_content<'a, 'b, CF>(
         let mut col_a =
             controls.child_with_layout(RowLayoutParams::auto().fixed_x(205.0), ColumnLayout);
         label(
-            &mut col_a,
-            LabelSpecBuilder::new()
-                .text("Newline policy")
-                .style(desc_style),
+            LabelSpec::new("Newline policy").style(desc_style),
             ColumnLayoutParams::auto(),
+            &mut col_a,
         );
         state.playground_newline_radios[0].checked =
             state.playground_newline_policy == PlaygroundNewlinePolicy::Preserve;
@@ -389,11 +367,9 @@ pub(crate) fn draw_text_edit_demo_content<'a, 'b, CF>(
         controls.spacer(16.0);
         let mut col_b = controls.child_with_layout(RowLayoutParams::auto(), ColumnLayout);
         label(
-            &mut col_b,
-            LabelSpecBuilder::new()
-                .text("Horizontal alignment")
-                .style(desc_style),
+            LabelSpec::new("Horizontal alignment").style(desc_style),
             ColumnLayoutParams::auto(),
+            &mut col_b,
         );
         state.playground_line_align_radios[0].checked =
             state.playground_line_align == TextLineAlign::Start;
@@ -447,11 +423,9 @@ pub(crate) fn draw_text_edit_demo_content<'a, 'b, CF>(
         let mut col_a =
             controls.child_with_layout(RowLayoutParams::auto().fixed_x(205.0), ColumnLayout);
         label(
-            &mut col_a,
-            LabelSpecBuilder::new()
-                .text("Vertical alignment")
-                .style(desc_style),
+            LabelSpec::new("Vertical alignment").style(desc_style),
             ColumnLayoutParams::auto(),
+            &mut col_a,
         );
         state.playground_vertical_align_radios[0].checked =
             state.playground_vertical_align == Align::Start;
@@ -500,9 +474,9 @@ pub(crate) fn draw_text_edit_demo_content<'a, 'b, CF>(
         controls.spacer(16.0);
         let mut col_b = controls.child_with_layout(RowLayoutParams::auto(), ColumnLayout);
         label(
-            &mut col_b,
-            LabelSpecBuilder::new().text("Size mode").style(desc_style),
+            LabelSpec::new("Size mode").style(desc_style),
             ColumnLayoutParams::auto(),
+            &mut col_b,
         );
         state.playground_width_radios[0].checked =
             state.playground_width_mode == PlaygroundSizeMode::Auto;
@@ -615,20 +589,12 @@ pub(crate) fn draw_text_edit_demo_content<'a, 'b, CF>(
 
     ctx.spacer(24.0);
     label(
-        ctx,
-        LabelSpecBuilder::new()
-            .text("3. Alignment Showcase")
-            .style(section_header_style),
+        LabelSpec::new("3. Alignment Showcase").style(section_header_style),
         ColumnLayoutParams::auto(),
+        ctx,
     );
     ctx.spacer(4.0);
-    label(
-        ctx,
-        LabelSpecBuilder::new()
-            .text("Vertical alignment is visible when the text content fits inside the viewport. Once content overflows, scrolling takes over.")
-            .style(desc_style),
-        ColumnLayoutParams::auto(),
-    );
+    label(LabelSpec::new("Vertical alignment is visible when the text content fits inside the viewport. Once content overflows, scrolling takes over.").style(desc_style), ColumnLayoutParams::auto(), ctx);
     ctx.spacer(10.0);
 
     let vertical_options = [Align::Start, Align::Center, Align::End];
@@ -670,20 +636,12 @@ pub(crate) fn draw_text_edit_demo_content<'a, 'b, CF>(
             page_row.child_with_layout(RowLayoutParams::auto().fixed_x(560.0), ColumnLayout);
 
         label(
-            &mut right,
-            LabelSpecBuilder::new()
-                .text("4. Styled Text Edit")
-                .style(section_header_style),
+            LabelSpec::new("4. Styled Text Edit").style(section_header_style),
             ColumnLayoutParams::auto(),
+            &mut right,
         );
         right.spacer(4.0);
-        label(
-            &mut right,
-            LabelSpecBuilder::new()
-                .text("Exercises text edit typography, spacing, colours, padding, caret, selection, and borders.")
-                .style(desc_style),
-            ColumnLayoutParams::auto(),
-        );
+        label(LabelSpec::new("Exercises text edit typography, spacing, colours, padding, caret, selection, and borders.").style(desc_style), ColumnLayoutParams::auto(), &mut right);
         right.spacer(10.0);
 
         let styled_text_edit_style = TextEditStyle {
@@ -725,11 +683,9 @@ pub(crate) fn draw_text_edit_demo_content<'a, 'b, CF>(
 
         right.spacer(24.0);
         label(
-            &mut right,
-            LabelSpecBuilder::new()
-                .text("5. Large Editing Area")
-                .style(section_header_style),
+            LabelSpec::new("5. Large Editing Area").style(section_header_style),
             ColumnLayoutParams::auto(),
+            &mut right,
         );
         right.spacer(8.0);
         labelled_checkbox(

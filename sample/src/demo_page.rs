@@ -3,7 +3,7 @@ use framewise::{
     focus::FocusSystem,
     layout::{Layout, LayoutState, SizeOffer},
     layouts::linear::ColumnState,
-    widgets::label::{raw::LabelSpec as RawLabelSpec, LabelSpecBuilder, LabelStyle},
+    widgets::label::{raw::LabelSpec as RawLabelSpec, LabelSpec, LabelStyle},
     ColumnLayoutParams, LayoutViolationPolicy, Rect, Stroke, TextBackend, WidgetContext,
 };
 
@@ -87,8 +87,7 @@ pub fn begin_demo_page<'a, 'b, T: TextBackend, L: Layout, CF>(
         content_placement: framewise::TextContentPlacement::TOP_LEFT,
     };
 
-    let label_spec = LabelSpecBuilder::new().text(title).style(title_style);
-    let label_spec = label_spec.build();
+    let label_spec = LabelSpec::new(title).style(title_style);
     let label_pre_layout_spec = framewise::widgets::label::raw::LabelPreLayoutSpec {
         text: label_spec.text,
         style: label_spec.style,
@@ -233,9 +232,9 @@ pub fn begin_demo_page_no_scroll<'a, 'b, T: TextBackend, L: Layout, CF>(
 
     // 1. Draw the title inside the parent column
     framewise::widgets::label::label(
-        parent_ctx,
-        LabelSpecBuilder::new().text(title).style(title_style),
+        LabelSpec::new(title).style(title_style),
         ColumnLayoutParams::auto().fill_x(),
+        parent_ctx,
     );
 
     // 2. Add spacer

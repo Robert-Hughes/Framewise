@@ -155,6 +155,12 @@ impl KeycapStyle {
     }
 }
 
+impl Default for KeycapStyle {
+    fn default() -> Self {
+        Self::from_theme(&crate::theme::Theme::minimal())
+    }
+}
+
 // ── Result ───────────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, PartialEq)]
@@ -170,44 +176,31 @@ pub struct KeycapSpec<'a> {
     pub style: KeycapStyle,
 }
 
-// ── Spec Builder ─────────────────────────────────────────────────────────────
+impl<'a> KeycapSpec<'a> {
+    pub fn new(text: &'a str) -> Self {
+        Self {
+            text,
+            style: KeycapStyle::default(),
+        }
+    }
 
-#[derive(Debug, Clone, PartialEq, Default)]
-pub struct KeycapSpecBuilder<'a> {
-    pub text: Option<&'a str>,
-    pub style: Option<KeycapStyle>,
-}
+    pub fn new_from_theme(text: &'a str, theme: &crate::theme::Theme) -> Self {
+        Self::new(text).theme(theme)
+    }
 
-impl<'a> KeycapSpecBuilder<'a> {
-    pub fn new() -> Self {
-        Self::default()
+    pub fn theme(mut self, theme: &crate::theme::Theme) -> Self {
+        self.style = KeycapStyle::from_theme(theme);
+        self
     }
 
     pub fn text(mut self, text: &'a str) -> Self {
-        self.text = Some(text);
+        self.text = text;
         self
     }
+
     pub fn style(mut self, style: KeycapStyle) -> Self {
-        self.style = Some(style);
+        self.style = style;
         self
-    }
-
-    /// Fills unset fields from `theme`. Called automatically by high-level
-    /// context functions.
-    pub fn defaults_from_theme(mut self, theme: &crate::theme::Theme) -> Self {
-        if self.style.is_none() {
-            self.style = Some(KeycapStyle::from_theme(theme));
-        }
-        self
-    }
-
-    pub fn build(self) -> KeycapSpec<'a> {
-        KeycapSpec {
-            text: self.text.expect("text not set — call .text()"),
-            style: self
-                .style
-                .expect("style not set — call .style() or defaults_from_theme()"),
-        }
     }
 }
 
@@ -215,14 +208,14 @@ impl<'a> KeycapSpecBuilder<'a> {
 
 /// High-level keycap widget function using `WidgetContext`.
 ///
-/// Resolves defaults, runs the raw pre-layout phase to obtain a `SizeRequest`,
-/// resolves the final rect with layout, then runs the raw post-layout phase.
+/// Consumes a complete `KeycapSpec`, runs the raw pre-layout phase to obtain a
+/// `SizeRequest`, resolves the final rect with layout, then runs the raw
+/// post-layout phase.
 pub fn keycap<'a, T: TextBackend, S: LayoutState, CF>(
-    ctx: &mut WidgetContext<T, S, CF>,
-    builder: KeycapSpecBuilder<'a>,
+    spec: KeycapSpec<'a>,
     layout_params: S::Params,
+    ctx: &mut WidgetContext<T, S, CF>,
 ) -> KeycapResult {
-    let spec = builder.defaults_from_theme(&ctx.theme).build();
     let pre_layout_spec = raw::KeycapPreLayoutSpec {
         text: spec.text,
         style: spec.style,

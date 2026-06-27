@@ -12,7 +12,7 @@ use framewise::{
     types::{Color, Rect, Stroke},
     widget::WidgetContext,
     widgets::frame::{begin_frame, FrameSpecBuilder, FrameStyle},
-    widgets::label::{label, LabelSpecBuilder, LabelStyle},
+    widgets::label::{label, LabelSpec, LabelStyle},
 };
 
 #[derive(Default)]
@@ -109,11 +109,9 @@ pub(crate) fn draw_label_page_content<'a, 'b, CF>(
             rule: Some(Stroke::new(theme.line_on_paper, 1.0)),
         };
         label(
-            ctx,
-            LabelSpecBuilder::new()
-                .text("1. Font Families & Sizes")
-                .style(section_header),
+            LabelSpec::new("1. Font Families & Sizes").style(section_header),
             ColumnLayoutParams::auto(),
+            ctx,
         );
 
         let mut row = ctx.child_with_layout(ColumnLayoutParams::auto().fill_x(), RowLayout);
@@ -122,21 +120,19 @@ pub(crate) fn draw_label_page_content<'a, 'b, CF>(
         {
             let mut col = row.child_with_layout(RowLayoutParams::auto(), ColumnLayout);
             label(
-                &mut col,
-                LabelSpecBuilder::new()
-                    .text("Sans Serif (Inter Tight)")
-                    .style(LabelStyle {
-                        text_style: framewise::TextStyle::new(
-                            theme.sans_font,
-                            16.0,
-                            theme.sans_weight_regular,
-                            framewise::text::TextFlow::single_line(),
-                        ),
-                        content_placement: framewise::TextContentPlacement::TOP_LEFT,
-                        text_color: theme.rust,
-                        rule: None,
-                    }),
+                LabelSpec::new("Sans Serif (Inter Tight)").style(LabelStyle {
+                    text_style: framewise::TextStyle::new(
+                        theme.sans_font,
+                        16.0,
+                        theme.sans_weight_regular,
+                        framewise::text::TextFlow::single_line(),
+                    ),
+                    content_placement: framewise::TextContentPlacement::TOP_LEFT,
+                    text_color: theme.rust,
+                    rule: None,
+                }),
                 ColumnLayoutParams::auto(),
+                &mut col,
             );
 
             let sizes = [12.0, 16.0, 24.0, 36.0, 48.0];
@@ -149,8 +145,7 @@ pub(crate) fn draw_label_page_content<'a, 'b, CF>(
             ];
             for i in 0..5 {
                 label(
-                    &mut col,
-                    LabelSpecBuilder::new().text(labels[i]).style(LabelStyle {
+                    LabelSpec::new(labels[i]).style(LabelStyle {
                         text_style: framewise::TextStyle::new(
                             theme.sans_font,
                             sizes[i],
@@ -162,6 +157,7 @@ pub(crate) fn draw_label_page_content<'a, 'b, CF>(
                         rule: None,
                     }),
                     ColumnLayoutParams::auto(),
+                    &mut col,
                 );
                 col.spacer(12.0);
             }
@@ -173,21 +169,19 @@ pub(crate) fn draw_label_page_content<'a, 'b, CF>(
         {
             let mut col = row.child_with_layout(RowLayoutParams::fixed(350.0, 260.0), ColumnLayout);
             label(
-                &mut col,
-                LabelSpecBuilder::new()
-                    .text("Monospace (JetBrains Mono)")
-                    .style(LabelStyle {
-                        text_style: framewise::TextStyle::new(
-                            theme.mono_font,
-                            16.0,
-                            theme.sans_weight_regular,
-                            framewise::text::TextFlow::single_line(),
-                        ),
-                        content_placement: framewise::TextContentPlacement::TOP_LEFT,
-                        text_color: theme.rust,
-                        rule: None,
-                    }),
+                LabelSpec::new("Monospace (JetBrains Mono)").style(LabelStyle {
+                    text_style: framewise::TextStyle::new(
+                        theme.mono_font,
+                        16.0,
+                        theme.sans_weight_regular,
+                        framewise::text::TextFlow::single_line(),
+                    ),
+                    content_placement: framewise::TextContentPlacement::TOP_LEFT,
+                    text_color: theme.rust,
+                    rule: None,
+                }),
                 ColumnLayoutParams::auto(),
+                &mut col,
             );
 
             let sizes = [12.0, 16.0, 24.0, 36.0, 48.0];
@@ -200,8 +194,7 @@ pub(crate) fn draw_label_page_content<'a, 'b, CF>(
             ];
             for i in 0..5 {
                 label(
-                    &mut col,
-                    LabelSpecBuilder::new().text(labels[i]).style(LabelStyle {
+                    LabelSpec::new(labels[i]).style(LabelStyle {
                         text_style: framewise::TextStyle::new(
                             theme.mono_font,
                             sizes[i],
@@ -213,6 +206,7 @@ pub(crate) fn draw_label_page_content<'a, 'b, CF>(
                         rule: None,
                     }),
                     ColumnLayoutParams::auto(),
+                    &mut col,
                 );
                 col.spacer(12.0);
             }
@@ -237,11 +231,9 @@ pub(crate) fn draw_label_page_content<'a, 'b, CF>(
             rule: Some(Stroke::new(theme.line_on_paper, 1.0)),
         };
         label(
-            ctx,
-            LabelSpecBuilder::new()
-                .text("2. Color and Horizontal Rules")
-                .style(section_header),
+            LabelSpec::new("2. Color and Horizontal Rules").style(section_header),
             ColumnLayoutParams::auto(),
+            ctx,
         );
 
         let mut row = ctx.child_with_layout(ColumnLayoutParams::auto().fill_x(), RowLayout);
@@ -264,8 +256,7 @@ pub(crate) fn draw_label_page_content<'a, 'b, CF>(
             ];
             for (text, color) in colors {
                 label(
-                    &mut col,
-                    LabelSpecBuilder::new().text(text).style(LabelStyle {
+                    LabelSpec::new(text).style(LabelStyle {
                         text_style: framewise::TextStyle::new(
                             theme.sans_font,
                             16.0,
@@ -277,6 +268,7 @@ pub(crate) fn draw_label_page_content<'a, 'b, CF>(
                         rule: None,
                     }),
                     ColumnLayoutParams::auto(),
+                    &mut col,
                 );
                 col.spacer(10.0);
             }
@@ -301,8 +293,7 @@ pub(crate) fn draw_label_page_content<'a, 'b, CF>(
 
             for (text, text_col, rule_col) in rule_styles {
                 label(
-                    &mut col,
-                    LabelSpecBuilder::new().text(text).style(LabelStyle {
+                    LabelSpec::new(text).style(LabelStyle {
                         text_style: framewise::TextStyle::new(
                             theme.sans_font,
                             16.0,
@@ -314,6 +305,7 @@ pub(crate) fn draw_label_page_content<'a, 'b, CF>(
                         rule: Some(Stroke::new(rule_col, 1.0)),
                     }),
                     ColumnLayoutParams::auto(),
+                    &mut col,
                 );
                 col.spacer(18.0);
             }
@@ -338,16 +330,14 @@ pub(crate) fn draw_label_page_content<'a, 'b, CF>(
             rule: Some(Stroke::new(theme.line_on_paper, 1.0)),
         };
         label(
-            ctx,
-            LabelSpecBuilder::new()
-                .text("4. Overflow (non-wrapping)")
-                .style(section_header),
+            LabelSpec::new("4. Overflow (non-wrapping)").style(section_header),
             ColumnLayoutParams::auto(),
+            ctx,
         );
         label(
-            ctx,
-            LabelSpecBuilder::new().text(r#"All text is the same "hello\nhello" string"#),
+            LabelSpec::new_from_theme(r#"All text is the same "hello\nhello" string"#, &ctx.theme),
             ColumnLayoutParams::auto(),
+            ctx,
         );
 
         let clip_test_box_style = FrameStyle {
@@ -370,19 +360,17 @@ pub(crate) fn draw_label_page_content<'a, 'b, CF>(
                     ColumnLayout,
                 );
                 label(
-                    &mut container.ctx,
-                    LabelSpecBuilder::new()
-                        .text("1. X: Drop, Y: Drop")
-                        .style(LabelStyle {
-                            text_style: framewise::TextStyle {
-                                font: theme.mono_font,
-                                size: 13.0,
-                                ..(LabelStyle::from_theme(&theme)).text_style
-                            },
-                            text_color: theme.rust,
-                            ..LabelStyle::from_theme(&theme)
-                        }),
+                    LabelSpec::new("1. X: Drop, Y: Drop").style(LabelStyle {
+                        text_style: framewise::TextStyle {
+                            font: theme.mono_font,
+                            size: 13.0,
+                            ..(LabelStyle::from_theme(&theme)).text_style
+                        },
+                        text_color: theme.rust,
+                        ..LabelStyle::from_theme(&theme)
+                    }),
                     ColumnLayoutParams::auto(),
+                    &mut container.ctx,
                 );
                 container.ctx.spacer(8.0);
                 {
@@ -393,24 +381,22 @@ pub(crate) fn draw_label_page_content<'a, 'b, CF>(
                         ColumnLayout,
                     );
                     label(
-                        &mut clip_box.ctx,
-                        LabelSpecBuilder::new()
-                            .text("hello\nhello")
-                            .style(LabelStyle {
-                                text_style: framewise::TextStyle {
-                                    flow: TextFlow {
-                                        overflow_x: OverflowX::Drop,
-                                        overflow_y: OverflowY::Drop,
-                                        line_align: TextLineAlign::Start,
-                                    },
-                                    font: theme.sans_font,
-                                    size: 14.0,
-                                    ..(LabelStyle::from_theme(&theme)).text_style
+                        LabelSpec::new("hello\nhello").style(LabelStyle {
+                            text_style: framewise::TextStyle {
+                                flow: TextFlow {
+                                    overflow_x: OverflowX::Drop,
+                                    overflow_y: OverflowY::Drop,
+                                    line_align: TextLineAlign::Start,
                                 },
-                                text_color: theme.ink,
-                                ..LabelStyle::from_theme(&theme)
-                            }),
+                                font: theme.sans_font,
+                                size: 14.0,
+                                ..(LabelStyle::from_theme(&theme)).text_style
+                            },
+                            text_color: theme.ink,
+                            ..LabelStyle::from_theme(&theme)
+                        }),
                         ColumnLayoutParams::auto().fill_x().fill_y(),
+                        &mut clip_box.ctx,
                     );
                     clip_box.ctx.finish();
                 }
@@ -428,19 +414,17 @@ pub(crate) fn draw_label_page_content<'a, 'b, CF>(
                     ColumnLayout,
                 );
                 label(
-                    &mut container.ctx,
-                    LabelSpecBuilder::new()
-                        .text("2. X: Keep, Y: Keep")
-                        .style(LabelStyle {
-                            text_style: framewise::TextStyle {
-                                font: theme.mono_font,
-                                size: 13.0,
-                                ..(LabelStyle::from_theme(&theme)).text_style
-                            },
-                            text_color: theme.rust,
-                            ..LabelStyle::from_theme(&theme)
-                        }),
+                    LabelSpec::new("2. X: Keep, Y: Keep").style(LabelStyle {
+                        text_style: framewise::TextStyle {
+                            font: theme.mono_font,
+                            size: 13.0,
+                            ..(LabelStyle::from_theme(&theme)).text_style
+                        },
+                        text_color: theme.rust,
+                        ..LabelStyle::from_theme(&theme)
+                    }),
                     ColumnLayoutParams::auto(),
+                    &mut container.ctx,
                 );
                 container.ctx.spacer(8.0);
                 {
@@ -451,24 +435,22 @@ pub(crate) fn draw_label_page_content<'a, 'b, CF>(
                         ColumnLayout,
                     );
                     label(
-                        &mut clip_box.ctx,
-                        LabelSpecBuilder::new()
-                            .text("hello\nhello")
-                            .style(LabelStyle {
-                                text_style: framewise::TextStyle {
-                                    flow: TextFlow {
-                                        overflow_x: OverflowX::Keep,
-                                        overflow_y: OverflowY::Keep,
-                                        line_align: TextLineAlign::Start,
-                                    },
-                                    font: theme.sans_font,
-                                    size: 14.0,
-                                    ..(LabelStyle::from_theme(&theme)).text_style
+                        LabelSpec::new("hello\nhello").style(LabelStyle {
+                            text_style: framewise::TextStyle {
+                                flow: TextFlow {
+                                    overflow_x: OverflowX::Keep,
+                                    overflow_y: OverflowY::Keep,
+                                    line_align: TextLineAlign::Start,
                                 },
-                                text_color: theme.ink,
-                                ..LabelStyle::from_theme(&theme)
-                            }),
+                                font: theme.sans_font,
+                                size: 14.0,
+                                ..(LabelStyle::from_theme(&theme)).text_style
+                            },
+                            text_color: theme.ink,
+                            ..LabelStyle::from_theme(&theme)
+                        }),
                         ColumnLayoutParams::auto().fill_x().fill_y(),
+                        &mut clip_box.ctx,
                     );
                     clip_box.ctx.finish();
                 }
@@ -486,19 +468,17 @@ pub(crate) fn draw_label_page_content<'a, 'b, CF>(
                     ColumnLayout,
                 );
                 label(
-                    &mut container.ctx,
-                    LabelSpecBuilder::new()
-                        .text("3. X: Keep, Y: Ellipsis")
-                        .style(LabelStyle {
-                            text_style: framewise::TextStyle {
-                                font: theme.mono_font,
-                                size: 13.0,
-                                ..(LabelStyle::from_theme(&theme)).text_style
-                            },
-                            text_color: theme.rust,
-                            ..LabelStyle::from_theme(&theme)
-                        }),
+                    LabelSpec::new("3. X: Keep, Y: Ellipsis").style(LabelStyle {
+                        text_style: framewise::TextStyle {
+                            font: theme.mono_font,
+                            size: 13.0,
+                            ..(LabelStyle::from_theme(&theme)).text_style
+                        },
+                        text_color: theme.rust,
+                        ..LabelStyle::from_theme(&theme)
+                    }),
                     ColumnLayoutParams::auto(),
+                    &mut container.ctx,
                 );
                 container.ctx.spacer(8.0);
                 {
@@ -509,26 +489,24 @@ pub(crate) fn draw_label_page_content<'a, 'b, CF>(
                         ColumnLayout,
                     );
                     label(
-                        &mut clip_box.ctx,
-                        LabelSpecBuilder::new()
-                            .text("hello\nhello")
-                            .style(LabelStyle {
-                                text_style: framewise::TextStyle {
-                                    flow: TextFlow {
-                                        overflow_x: OverflowX::Keep,
-                                        overflow_y: OverflowY::Ellipsis {
-                                            fallback: EllipsisFallback::Drop,
-                                        },
-                                        line_align: TextLineAlign::Start,
+                        LabelSpec::new("hello\nhello").style(LabelStyle {
+                            text_style: framewise::TextStyle {
+                                flow: TextFlow {
+                                    overflow_x: OverflowX::Keep,
+                                    overflow_y: OverflowY::Ellipsis {
+                                        fallback: EllipsisFallback::Drop,
                                     },
-                                    font: theme.sans_font,
-                                    size: 14.0,
-                                    ..(LabelStyle::from_theme(&theme)).text_style
+                                    line_align: TextLineAlign::Start,
                                 },
-                                text_color: theme.ink,
-                                ..LabelStyle::from_theme(&theme)
-                            }),
+                                font: theme.sans_font,
+                                size: 14.0,
+                                ..(LabelStyle::from_theme(&theme)).text_style
+                            },
+                            text_color: theme.ink,
+                            ..LabelStyle::from_theme(&theme)
+                        }),
                         ColumnLayoutParams::auto().fill_x().fill_y(),
+                        &mut clip_box.ctx,
                     );
                     clip_box.ctx.finish();
                 }
@@ -546,19 +524,17 @@ pub(crate) fn draw_label_page_content<'a, 'b, CF>(
                     ColumnLayout,
                 );
                 label(
-                    &mut container.ctx,
-                    LabelSpecBuilder::new()
-                        .text("4. X: Keep, Y: Ell(F:Drop)")
-                        .style(LabelStyle {
-                            text_style: framewise::TextStyle {
-                                font: theme.mono_font,
-                                size: 13.0,
-                                ..(LabelStyle::from_theme(&theme)).text_style
-                            },
-                            text_color: theme.rust,
-                            ..LabelStyle::from_theme(&theme)
-                        }),
+                    LabelSpec::new("4. X: Keep, Y: Ell(F:Drop)").style(LabelStyle {
+                        text_style: framewise::TextStyle {
+                            font: theme.mono_font,
+                            size: 13.0,
+                            ..(LabelStyle::from_theme(&theme)).text_style
+                        },
+                        text_color: theme.rust,
+                        ..LabelStyle::from_theme(&theme)
+                    }),
                     ColumnLayoutParams::auto(),
+                    &mut container.ctx,
                 );
                 container.ctx.spacer(8.0);
                 {
@@ -569,26 +545,24 @@ pub(crate) fn draw_label_page_content<'a, 'b, CF>(
                         ColumnLayout,
                     );
                     label(
-                        &mut clip_box.ctx,
-                        LabelSpecBuilder::new()
-                            .text("hello\nhello")
-                            .style(LabelStyle {
-                                text_style: framewise::TextStyle {
-                                    flow: TextFlow {
-                                        overflow_x: OverflowX::Keep,
-                                        overflow_y: OverflowY::Ellipsis {
-                                            fallback: EllipsisFallback::Drop,
-                                        },
-                                        line_align: TextLineAlign::Start,
+                        LabelSpec::new("hello\nhello").style(LabelStyle {
+                            text_style: framewise::TextStyle {
+                                flow: TextFlow {
+                                    overflow_x: OverflowX::Keep,
+                                    overflow_y: OverflowY::Ellipsis {
+                                        fallback: EllipsisFallback::Drop,
                                     },
-                                    font: theme.sans_font,
-                                    size: 14.0,
-                                    ..(LabelStyle::from_theme(&theme)).text_style
+                                    line_align: TextLineAlign::Start,
                                 },
-                                text_color: theme.ink,
-                                ..LabelStyle::from_theme(&theme)
-                            }),
+                                font: theme.sans_font,
+                                size: 14.0,
+                                ..(LabelStyle::from_theme(&theme)).text_style
+                            },
+                            text_color: theme.ink,
+                            ..LabelStyle::from_theme(&theme)
+                        }),
                         ColumnLayoutParams::auto().fill_x().fill_y(),
+                        &mut clip_box.ctx,
                     );
                     clip_box.ctx.finish();
                 }
@@ -612,19 +586,17 @@ pub(crate) fn draw_label_page_content<'a, 'b, CF>(
                     ColumnLayout,
                 );
                 label(
-                    &mut container.ctx,
-                    LabelSpecBuilder::new()
-                        .text("5. X: Keep, Y: Ell(F:Keep)")
-                        .style(LabelStyle {
-                            text_style: framewise::TextStyle {
-                                font: theme.mono_font,
-                                size: 13.0,
-                                ..(LabelStyle::from_theme(&theme)).text_style
-                            },
-                            text_color: theme.rust,
-                            ..LabelStyle::from_theme(&theme)
-                        }),
+                    LabelSpec::new("5. X: Keep, Y: Ell(F:Keep)").style(LabelStyle {
+                        text_style: framewise::TextStyle {
+                            font: theme.mono_font,
+                            size: 13.0,
+                            ..(LabelStyle::from_theme(&theme)).text_style
+                        },
+                        text_color: theme.rust,
+                        ..LabelStyle::from_theme(&theme)
+                    }),
                     ColumnLayoutParams::auto(),
+                    &mut container.ctx,
                 );
                 container.ctx.spacer(8.0);
                 {
@@ -635,26 +607,24 @@ pub(crate) fn draw_label_page_content<'a, 'b, CF>(
                         ColumnLayout,
                     );
                     label(
-                        &mut clip_box.ctx,
-                        LabelSpecBuilder::new()
-                            .text("hello\nhello")
-                            .style(LabelStyle {
-                                text_style: framewise::TextStyle {
-                                    flow: TextFlow {
-                                        overflow_x: OverflowX::Keep,
-                                        overflow_y: OverflowY::Ellipsis {
-                                            fallback: EllipsisFallback::Keep,
-                                        },
-                                        line_align: TextLineAlign::Start,
+                        LabelSpec::new("hello\nhello").style(LabelStyle {
+                            text_style: framewise::TextStyle {
+                                flow: TextFlow {
+                                    overflow_x: OverflowX::Keep,
+                                    overflow_y: OverflowY::Ellipsis {
+                                        fallback: EllipsisFallback::Keep,
                                     },
-                                    font: theme.sans_font,
-                                    size: 14.0,
-                                    ..(LabelStyle::from_theme(&theme)).text_style
+                                    line_align: TextLineAlign::Start,
                                 },
-                                text_color: theme.ink,
-                                ..LabelStyle::from_theme(&theme)
-                            }),
+                                font: theme.sans_font,
+                                size: 14.0,
+                                ..(LabelStyle::from_theme(&theme)).text_style
+                            },
+                            text_color: theme.ink,
+                            ..LabelStyle::from_theme(&theme)
+                        }),
                         ColumnLayoutParams::auto().fill_x().fill_y(),
+                        &mut clip_box.ctx,
                     );
                     clip_box.ctx.finish();
                 }
@@ -672,19 +642,17 @@ pub(crate) fn draw_label_page_content<'a, 'b, CF>(
                     ColumnLayout,
                 );
                 label(
-                    &mut container.ctx,
-                    LabelSpecBuilder::new()
-                        .text("6. X: Ellipsis, Y: Keep")
-                        .style(LabelStyle {
-                            text_style: framewise::TextStyle {
-                                font: theme.mono_font,
-                                size: 13.0,
-                                ..(LabelStyle::from_theme(&theme)).text_style
-                            },
-                            text_color: theme.rust,
-                            ..LabelStyle::from_theme(&theme)
-                        }),
+                    LabelSpec::new("6. X: Ellipsis, Y: Keep").style(LabelStyle {
+                        text_style: framewise::TextStyle {
+                            font: theme.mono_font,
+                            size: 13.0,
+                            ..(LabelStyle::from_theme(&theme)).text_style
+                        },
+                        text_color: theme.rust,
+                        ..LabelStyle::from_theme(&theme)
+                    }),
                     ColumnLayoutParams::auto(),
+                    &mut container.ctx,
                 );
                 container.ctx.spacer(8.0);
                 {
@@ -695,26 +663,24 @@ pub(crate) fn draw_label_page_content<'a, 'b, CF>(
                         ColumnLayout,
                     );
                     label(
-                        &mut clip_box.ctx,
-                        LabelSpecBuilder::new()
-                            .text("hello\nhello")
-                            .style(LabelStyle {
-                                text_style: framewise::TextStyle {
-                                    flow: TextFlow {
-                                        overflow_x: OverflowX::Ellipsis {
-                                            fallback: EllipsisFallback::Drop,
-                                        },
-                                        overflow_y: OverflowY::Keep,
-                                        line_align: TextLineAlign::Start,
+                        LabelSpec::new("hello\nhello").style(LabelStyle {
+                            text_style: framewise::TextStyle {
+                                flow: TextFlow {
+                                    overflow_x: OverflowX::Ellipsis {
+                                        fallback: EllipsisFallback::Drop,
                                     },
-                                    font: theme.sans_font,
-                                    size: 14.0,
-                                    ..(LabelStyle::from_theme(&theme)).text_style
+                                    overflow_y: OverflowY::Keep,
+                                    line_align: TextLineAlign::Start,
                                 },
-                                text_color: theme.ink,
-                                ..LabelStyle::from_theme(&theme)
-                            }),
+                                font: theme.sans_font,
+                                size: 14.0,
+                                ..(LabelStyle::from_theme(&theme)).text_style
+                            },
+                            text_color: theme.ink,
+                            ..LabelStyle::from_theme(&theme)
+                        }),
                         ColumnLayoutParams::auto().fill_x().fill_y(),
+                        &mut clip_box.ctx,
                     );
                     clip_box.ctx.finish();
                 }
@@ -732,19 +698,17 @@ pub(crate) fn draw_label_page_content<'a, 'b, CF>(
                     ColumnLayout,
                 );
                 label(
-                    &mut container.ctx,
-                    LabelSpecBuilder::new()
-                        .text("7. X: Ell(F:Drop), Y: Keep")
-                        .style(LabelStyle {
-                            text_style: framewise::TextStyle {
-                                font: theme.mono_font,
-                                size: 13.0,
-                                ..(LabelStyle::from_theme(&theme)).text_style
-                            },
-                            text_color: theme.rust,
-                            ..LabelStyle::from_theme(&theme)
-                        }),
+                    LabelSpec::new("7. X: Ell(F:Drop), Y: Keep").style(LabelStyle {
+                        text_style: framewise::TextStyle {
+                            font: theme.mono_font,
+                            size: 13.0,
+                            ..(LabelStyle::from_theme(&theme)).text_style
+                        },
+                        text_color: theme.rust,
+                        ..LabelStyle::from_theme(&theme)
+                    }),
                     ColumnLayoutParams::auto(),
+                    &mut container.ctx,
                 );
                 container.ctx.spacer(8.0);
                 {
@@ -755,26 +719,24 @@ pub(crate) fn draw_label_page_content<'a, 'b, CF>(
                         ColumnLayout,
                     );
                     label(
-                        &mut clip_box.ctx,
-                        LabelSpecBuilder::new()
-                            .text("hello\nhello")
-                            .style(LabelStyle {
-                                text_style: framewise::TextStyle {
-                                    flow: TextFlow {
-                                        overflow_x: OverflowX::Ellipsis {
-                                            fallback: EllipsisFallback::Drop,
-                                        },
-                                        overflow_y: OverflowY::Keep,
-                                        line_align: TextLineAlign::Start,
+                        LabelSpec::new("hello\nhello").style(LabelStyle {
+                            text_style: framewise::TextStyle {
+                                flow: TextFlow {
+                                    overflow_x: OverflowX::Ellipsis {
+                                        fallback: EllipsisFallback::Drop,
                                     },
-                                    font: theme.sans_font,
-                                    size: 14.0,
-                                    ..(LabelStyle::from_theme(&theme)).text_style
+                                    overflow_y: OverflowY::Keep,
+                                    line_align: TextLineAlign::Start,
                                 },
-                                text_color: theme.ink,
-                                ..LabelStyle::from_theme(&theme)
-                            }),
+                                font: theme.sans_font,
+                                size: 14.0,
+                                ..(LabelStyle::from_theme(&theme)).text_style
+                            },
+                            text_color: theme.ink,
+                            ..LabelStyle::from_theme(&theme)
+                        }),
                         ColumnLayoutParams::auto().fill_x().fill_y(),
+                        &mut clip_box.ctx,
                     );
                     clip_box.ctx.finish();
                 }
@@ -792,19 +754,17 @@ pub(crate) fn draw_label_page_content<'a, 'b, CF>(
                     ColumnLayout,
                 );
                 label(
-                    &mut container.ctx,
-                    LabelSpecBuilder::new()
-                        .text("8. X: Ell(F:Keep), Y: Keep")
-                        .style(LabelStyle {
-                            text_style: framewise::TextStyle {
-                                font: theme.mono_font,
-                                size: 13.0,
-                                ..(LabelStyle::from_theme(&theme)).text_style
-                            },
-                            text_color: theme.rust,
-                            ..LabelStyle::from_theme(&theme)
-                        }),
+                    LabelSpec::new("8. X: Ell(F:Keep), Y: Keep").style(LabelStyle {
+                        text_style: framewise::TextStyle {
+                            font: theme.mono_font,
+                            size: 13.0,
+                            ..(LabelStyle::from_theme(&theme)).text_style
+                        },
+                        text_color: theme.rust,
+                        ..LabelStyle::from_theme(&theme)
+                    }),
                     ColumnLayoutParams::auto(),
+                    &mut container.ctx,
                 );
                 container.ctx.spacer(8.0);
                 {
@@ -815,26 +775,24 @@ pub(crate) fn draw_label_page_content<'a, 'b, CF>(
                         ColumnLayout,
                     );
                     label(
-                        &mut clip_box.ctx,
-                        LabelSpecBuilder::new()
-                            .text("hello\nhello")
-                            .style(LabelStyle {
-                                text_style: framewise::TextStyle {
-                                    flow: TextFlow {
-                                        overflow_x: OverflowX::Ellipsis {
-                                            fallback: EllipsisFallback::Keep,
-                                        },
-                                        overflow_y: OverflowY::Keep,
-                                        line_align: TextLineAlign::Start,
+                        LabelSpec::new("hello\nhello").style(LabelStyle {
+                            text_style: framewise::TextStyle {
+                                flow: TextFlow {
+                                    overflow_x: OverflowX::Ellipsis {
+                                        fallback: EllipsisFallback::Keep,
                                     },
-                                    font: theme.sans_font,
-                                    size: 14.0,
-                                    ..(LabelStyle::from_theme(&theme)).text_style
+                                    overflow_y: OverflowY::Keep,
+                                    line_align: TextLineAlign::Start,
                                 },
-                                text_color: theme.ink,
-                                ..LabelStyle::from_theme(&theme)
-                            }),
+                                font: theme.sans_font,
+                                size: 14.0,
+                                ..(LabelStyle::from_theme(&theme)).text_style
+                            },
+                            text_color: theme.ink,
+                            ..LabelStyle::from_theme(&theme)
+                        }),
                         ColumnLayoutParams::auto().fill_x().fill_y(),
+                        &mut clip_box.ctx,
                     );
                     clip_box.ctx.finish();
                 }
@@ -860,17 +818,17 @@ pub(crate) fn draw_label_page_content<'a, 'b, CF>(
             rule: Some(Stroke::new(theme.line_on_paper, 1.0)),
         };
         label(
-            ctx,
-            LabelSpecBuilder::new()
-                .text("4.1 Overflow (wrapping)")
-                .style(section_header),
+            LabelSpec::new("4.1 Overflow (wrapping)").style(section_header),
             ColumnLayoutParams::auto(),
+            ctx,
         );
         label(
-            ctx,
-            LabelSpecBuilder::new()
-                .text(r#"First row: all text is the same "hello\nhello" string"#),
+            LabelSpec::new_from_theme(
+                r#"First row: all text is the same "hello\nhello" string"#,
+                &ctx.theme,
+            ),
             ColumnLayoutParams::auto(),
+            ctx,
         );
 
         let clip_test_box_style = FrameStyle {
@@ -893,19 +851,17 @@ pub(crate) fn draw_label_page_content<'a, 'b, CF>(
                     ColumnLayout,
                 );
                 label(
-                    &mut container.ctx,
-                    LabelSpecBuilder::new()
-                        .text("1. X: WrapCluster, Y: Keep")
-                        .style(LabelStyle {
-                            text_style: framewise::TextStyle {
-                                font: theme.mono_font,
-                                size: 13.0,
-                                ..(LabelStyle::from_theme(&theme)).text_style
-                            },
-                            text_color: theme.rust,
-                            ..LabelStyle::from_theme(&theme)
-                        }),
+                    LabelSpec::new("1. X: WrapCluster, Y: Keep").style(LabelStyle {
+                        text_style: framewise::TextStyle {
+                            font: theme.mono_font,
+                            size: 13.0,
+                            ..(LabelStyle::from_theme(&theme)).text_style
+                        },
+                        text_color: theme.rust,
+                        ..LabelStyle::from_theme(&theme)
+                    }),
                     ColumnLayoutParams::auto(),
+                    &mut container.ctx,
                 );
                 container.ctx.spacer(8.0);
                 {
@@ -916,26 +872,24 @@ pub(crate) fn draw_label_page_content<'a, 'b, CF>(
                         ColumnLayout,
                     );
                     label(
-                        &mut clip_box.ctx,
-                        LabelSpecBuilder::new()
-                            .text("hello\nhello")
-                            .style(LabelStyle {
-                                text_style: framewise::TextStyle {
-                                    flow: TextFlow {
-                                        overflow_x: OverflowX::WrapCluster {
-                                            fallback: WrapClusterFallback::Drop,
-                                        },
-                                        overflow_y: OverflowY::Keep,
-                                        line_align: TextLineAlign::Start,
+                        LabelSpec::new("hello\nhello").style(LabelStyle {
+                            text_style: framewise::TextStyle {
+                                flow: TextFlow {
+                                    overflow_x: OverflowX::WrapCluster {
+                                        fallback: WrapClusterFallback::Drop,
                                     },
-                                    font: theme.sans_font,
-                                    size: 14.0,
-                                    ..(LabelStyle::from_theme(&theme)).text_style
+                                    overflow_y: OverflowY::Keep,
+                                    line_align: TextLineAlign::Start,
                                 },
-                                text_color: theme.ink,
-                                ..LabelStyle::from_theme(&theme)
-                            }),
+                                font: theme.sans_font,
+                                size: 14.0,
+                                ..(LabelStyle::from_theme(&theme)).text_style
+                            },
+                            text_color: theme.ink,
+                            ..LabelStyle::from_theme(&theme)
+                        }),
                         ColumnLayoutParams::auto().fill_x().fill_y(),
+                        &mut clip_box.ctx,
                     );
                     clip_box.ctx.finish();
                 }
@@ -953,19 +907,17 @@ pub(crate) fn draw_label_page_content<'a, 'b, CF>(
                     ColumnLayout,
                 );
                 label(
-                    &mut container.ctx,
-                    LabelSpecBuilder::new()
-                        .text("2. X: WrapCluster(F:Drop)")
-                        .style(LabelStyle {
-                            text_style: framewise::TextStyle {
-                                font: theme.mono_font,
-                                size: 13.0,
-                                ..(LabelStyle::from_theme(&theme)).text_style
-                            },
-                            text_color: theme.rust,
-                            ..LabelStyle::from_theme(&theme)
-                        }),
+                    LabelSpec::new("2. X: WrapCluster(F:Drop)").style(LabelStyle {
+                        text_style: framewise::TextStyle {
+                            font: theme.mono_font,
+                            size: 13.0,
+                            ..(LabelStyle::from_theme(&theme)).text_style
+                        },
+                        text_color: theme.rust,
+                        ..LabelStyle::from_theme(&theme)
+                    }),
                     ColumnLayoutParams::auto(),
+                    &mut container.ctx,
                 );
                 container.ctx.spacer(8.0);
                 {
@@ -976,26 +928,24 @@ pub(crate) fn draw_label_page_content<'a, 'b, CF>(
                         ColumnLayout,
                     );
                     label(
-                        &mut clip_box.ctx,
-                        LabelSpecBuilder::new()
-                            .text("hello\nhello")
-                            .style(LabelStyle {
-                                text_style: framewise::TextStyle {
-                                    flow: TextFlow {
-                                        overflow_x: OverflowX::WrapCluster {
-                                            fallback: WrapClusterFallback::Drop,
-                                        },
-                                        overflow_y: OverflowY::Keep,
-                                        line_align: TextLineAlign::Start,
+                        LabelSpec::new("hello\nhello").style(LabelStyle {
+                            text_style: framewise::TextStyle {
+                                flow: TextFlow {
+                                    overflow_x: OverflowX::WrapCluster {
+                                        fallback: WrapClusterFallback::Drop,
                                     },
-                                    font: theme.sans_font,
-                                    size: 14.0,
-                                    ..(LabelStyle::from_theme(&theme)).text_style
+                                    overflow_y: OverflowY::Keep,
+                                    line_align: TextLineAlign::Start,
                                 },
-                                text_color: theme.ink,
-                                ..LabelStyle::from_theme(&theme)
-                            }),
+                                font: theme.sans_font,
+                                size: 14.0,
+                                ..(LabelStyle::from_theme(&theme)).text_style
+                            },
+                            text_color: theme.ink,
+                            ..LabelStyle::from_theme(&theme)
+                        }),
                         ColumnLayoutParams::auto().fill_x().fill_y(),
+                        &mut clip_box.ctx,
                     );
                     clip_box.ctx.finish();
                 }
@@ -1013,19 +963,17 @@ pub(crate) fn draw_label_page_content<'a, 'b, CF>(
                     ColumnLayout,
                 );
                 label(
-                    &mut container.ctx,
-                    LabelSpecBuilder::new()
-                        .text("3. X: WrapCluster(F:Keep)")
-                        .style(LabelStyle {
-                            text_style: framewise::TextStyle {
-                                font: theme.mono_font,
-                                size: 13.0,
-                                ..(LabelStyle::from_theme(&theme)).text_style
-                            },
-                            text_color: theme.rust,
-                            ..LabelStyle::from_theme(&theme)
-                        }),
+                    LabelSpec::new("3. X: WrapCluster(F:Keep)").style(LabelStyle {
+                        text_style: framewise::TextStyle {
+                            font: theme.mono_font,
+                            size: 13.0,
+                            ..(LabelStyle::from_theme(&theme)).text_style
+                        },
+                        text_color: theme.rust,
+                        ..LabelStyle::from_theme(&theme)
+                    }),
                     ColumnLayoutParams::auto(),
+                    &mut container.ctx,
                 );
                 container.ctx.spacer(8.0);
                 {
@@ -1036,26 +984,24 @@ pub(crate) fn draw_label_page_content<'a, 'b, CF>(
                         ColumnLayout,
                     );
                     label(
-                        &mut clip_box.ctx,
-                        LabelSpecBuilder::new()
-                            .text("hello\nhello")
-                            .style(LabelStyle {
-                                text_style: framewise::TextStyle {
-                                    flow: TextFlow {
-                                        overflow_x: OverflowX::WrapCluster {
-                                            fallback: WrapClusterFallback::Keep,
-                                        },
-                                        overflow_y: OverflowY::Keep,
-                                        line_align: TextLineAlign::Start,
+                        LabelSpec::new("hello\nhello").style(LabelStyle {
+                            text_style: framewise::TextStyle {
+                                flow: TextFlow {
+                                    overflow_x: OverflowX::WrapCluster {
+                                        fallback: WrapClusterFallback::Keep,
                                     },
-                                    font: theme.sans_font,
-                                    size: 14.0,
-                                    ..(LabelStyle::from_theme(&theme)).text_style
+                                    overflow_y: OverflowY::Keep,
+                                    line_align: TextLineAlign::Start,
                                 },
-                                text_color: theme.ink,
-                                ..LabelStyle::from_theme(&theme)
-                            }),
+                                font: theme.sans_font,
+                                size: 14.0,
+                                ..(LabelStyle::from_theme(&theme)).text_style
+                            },
+                            text_color: theme.ink,
+                            ..LabelStyle::from_theme(&theme)
+                        }),
                         ColumnLayoutParams::auto().fill_x().fill_y(),
+                        &mut clip_box.ctx,
                     );
                     clip_box.ctx.finish();
                 }
@@ -1067,10 +1013,12 @@ pub(crate) fn draw_label_page_content<'a, 'b, CF>(
 
         // Row 2: Cards 4 - 6
         label(
-            ctx,
-            LabelSpecBuilder::new()
-                .text(r#"Remaining rows: all text is the same "hello there\nhello there" string"#),
+            LabelSpec::new_from_theme(
+                r#"Remaining rows: all text is the same "hello there\nhello there" string"#,
+                &ctx.theme,
+            ),
             ColumnLayoutParams::auto(),
+            ctx,
         );
         {
             let mut row = ctx.child_with_layout(ColumnLayoutParams::auto().fill_x(), RowLayout);
@@ -1085,19 +1033,17 @@ pub(crate) fn draw_label_page_content<'a, 'b, CF>(
                     ColumnLayout,
                 );
                 label(
-                    &mut container.ctx,
-                    LabelSpecBuilder::new()
-                        .text("4. X: WrapWord, Y: Keep")
-                        .style(LabelStyle {
-                            text_style: framewise::TextStyle {
-                                font: theme.mono_font,
-                                size: 13.0,
-                                ..(LabelStyle::from_theme(&theme)).text_style
-                            },
-                            text_color: theme.rust,
-                            ..LabelStyle::from_theme(&theme)
-                        }),
+                    LabelSpec::new("4. X: WrapWord, Y: Keep").style(LabelStyle {
+                        text_style: framewise::TextStyle {
+                            font: theme.mono_font,
+                            size: 13.0,
+                            ..(LabelStyle::from_theme(&theme)).text_style
+                        },
+                        text_color: theme.rust,
+                        ..LabelStyle::from_theme(&theme)
+                    }),
                     ColumnLayoutParams::auto(),
+                    &mut container.ctx,
                 );
                 container.ctx.spacer(8.0);
                 {
@@ -1108,26 +1054,24 @@ pub(crate) fn draw_label_page_content<'a, 'b, CF>(
                         ColumnLayout,
                     );
                     label(
-                        &mut clip_box.ctx,
-                        LabelSpecBuilder::new()
-                            .text("hello there\nhello there")
-                            .style(LabelStyle {
-                                text_style: framewise::TextStyle {
-                                    flow: TextFlow {
-                                        overflow_x: OverflowX::WrapWord {
-                                            fallback: WrapWordFallback::Drop,
-                                        },
-                                        overflow_y: OverflowY::Keep,
-                                        line_align: TextLineAlign::Start,
+                        LabelSpec::new("hello there\nhello there").style(LabelStyle {
+                            text_style: framewise::TextStyle {
+                                flow: TextFlow {
+                                    overflow_x: OverflowX::WrapWord {
+                                        fallback: WrapWordFallback::Drop,
                                     },
-                                    font: theme.sans_font,
-                                    size: 14.0,
-                                    ..(LabelStyle::from_theme(&theme)).text_style
+                                    overflow_y: OverflowY::Keep,
+                                    line_align: TextLineAlign::Start,
                                 },
-                                text_color: theme.ink,
-                                ..LabelStyle::from_theme(&theme)
-                            }),
+                                font: theme.sans_font,
+                                size: 14.0,
+                                ..(LabelStyle::from_theme(&theme)).text_style
+                            },
+                            text_color: theme.ink,
+                            ..LabelStyle::from_theme(&theme)
+                        }),
                         ColumnLayoutParams::auto().fill_x().fill_y(),
+                        &mut clip_box.ctx,
                     );
                     clip_box.ctx.finish();
                 }
@@ -1145,19 +1089,17 @@ pub(crate) fn draw_label_page_content<'a, 'b, CF>(
                     ColumnLayout,
                 );
                 label(
-                    &mut container.ctx,
-                    LabelSpecBuilder::new()
-                        .text("5. X: WrapWord(F:WrapC)")
-                        .style(LabelStyle {
-                            text_style: framewise::TextStyle {
-                                font: theme.mono_font,
-                                size: 13.0,
-                                ..(LabelStyle::from_theme(&theme)).text_style
-                            },
-                            text_color: theme.rust,
-                            ..LabelStyle::from_theme(&theme)
-                        }),
+                    LabelSpec::new("5. X: WrapWord(F:WrapC)").style(LabelStyle {
+                        text_style: framewise::TextStyle {
+                            font: theme.mono_font,
+                            size: 13.0,
+                            ..(LabelStyle::from_theme(&theme)).text_style
+                        },
+                        text_color: theme.rust,
+                        ..LabelStyle::from_theme(&theme)
+                    }),
                     ColumnLayoutParams::auto(),
+                    &mut container.ctx,
                 );
                 container.ctx.spacer(8.0);
                 {
@@ -1168,28 +1110,26 @@ pub(crate) fn draw_label_page_content<'a, 'b, CF>(
                         ColumnLayout,
                     );
                     label(
-                        &mut clip_box.ctx,
-                        LabelSpecBuilder::new()
-                            .text("hello there\nhello there")
-                            .style(LabelStyle {
-                                text_style: framewise::TextStyle {
-                                    flow: TextFlow {
-                                        overflow_x: OverflowX::WrapWord {
-                                            fallback: WrapWordFallback::WrapCluster {
-                                                fallback: WrapClusterFallback::Drop,
-                                            },
+                        LabelSpec::new("hello there\nhello there").style(LabelStyle {
+                            text_style: framewise::TextStyle {
+                                flow: TextFlow {
+                                    overflow_x: OverflowX::WrapWord {
+                                        fallback: WrapWordFallback::WrapCluster {
+                                            fallback: WrapClusterFallback::Drop,
                                         },
-                                        overflow_y: OverflowY::Keep,
-                                        line_align: TextLineAlign::Start,
                                     },
-                                    font: theme.sans_font,
-                                    size: 14.0,
-                                    ..(LabelStyle::from_theme(&theme)).text_style
+                                    overflow_y: OverflowY::Keep,
+                                    line_align: TextLineAlign::Start,
                                 },
-                                text_color: theme.ink,
-                                ..LabelStyle::from_theme(&theme)
-                            }),
+                                font: theme.sans_font,
+                                size: 14.0,
+                                ..(LabelStyle::from_theme(&theme)).text_style
+                            },
+                            text_color: theme.ink,
+                            ..LabelStyle::from_theme(&theme)
+                        }),
                         ColumnLayoutParams::auto().fill_x().fill_y(),
+                        &mut clip_box.ctx,
                     );
                     clip_box.ctx.finish();
                 }
@@ -1207,19 +1147,17 @@ pub(crate) fn draw_label_page_content<'a, 'b, CF>(
                     ColumnLayout,
                 );
                 label(
-                    &mut container.ctx,
-                    LabelSpecBuilder::new()
-                        .text("6. X: WrapWord(F:WC F:Dr)")
-                        .style(LabelStyle {
-                            text_style: framewise::TextStyle {
-                                font: theme.mono_font,
-                                size: 13.0,
-                                ..(LabelStyle::from_theme(&theme)).text_style
-                            },
-                            text_color: theme.rust,
-                            ..LabelStyle::from_theme(&theme)
-                        }),
+                    LabelSpec::new("6. X: WrapWord(F:WC F:Dr)").style(LabelStyle {
+                        text_style: framewise::TextStyle {
+                            font: theme.mono_font,
+                            size: 13.0,
+                            ..(LabelStyle::from_theme(&theme)).text_style
+                        },
+                        text_color: theme.rust,
+                        ..LabelStyle::from_theme(&theme)
+                    }),
                     ColumnLayoutParams::auto(),
+                    &mut container.ctx,
                 );
                 container.ctx.spacer(8.0);
                 {
@@ -1230,28 +1168,26 @@ pub(crate) fn draw_label_page_content<'a, 'b, CF>(
                         ColumnLayout,
                     );
                     label(
-                        &mut clip_box.ctx,
-                        LabelSpecBuilder::new()
-                            .text("hello there\nhello there")
-                            .style(LabelStyle {
-                                text_style: framewise::TextStyle {
-                                    flow: TextFlow {
-                                        overflow_x: OverflowX::WrapWord {
-                                            fallback: WrapWordFallback::WrapCluster {
-                                                fallback: WrapClusterFallback::Drop,
-                                            },
+                        LabelSpec::new("hello there\nhello there").style(LabelStyle {
+                            text_style: framewise::TextStyle {
+                                flow: TextFlow {
+                                    overflow_x: OverflowX::WrapWord {
+                                        fallback: WrapWordFallback::WrapCluster {
+                                            fallback: WrapClusterFallback::Drop,
                                         },
-                                        overflow_y: OverflowY::Keep,
-                                        line_align: TextLineAlign::Start,
                                     },
-                                    font: theme.sans_font,
-                                    size: 14.0,
-                                    ..(LabelStyle::from_theme(&theme)).text_style
+                                    overflow_y: OverflowY::Keep,
+                                    line_align: TextLineAlign::Start,
                                 },
-                                text_color: theme.ink,
-                                ..LabelStyle::from_theme(&theme)
-                            }),
+                                font: theme.sans_font,
+                                size: 14.0,
+                                ..(LabelStyle::from_theme(&theme)).text_style
+                            },
+                            text_color: theme.ink,
+                            ..LabelStyle::from_theme(&theme)
+                        }),
                         ColumnLayoutParams::auto().fill_x().fill_y(),
+                        &mut clip_box.ctx,
                     );
                     clip_box.ctx.finish();
                 }
@@ -1275,19 +1211,17 @@ pub(crate) fn draw_label_page_content<'a, 'b, CF>(
                     ColumnLayout,
                 );
                 label(
-                    &mut container.ctx,
-                    LabelSpecBuilder::new()
-                        .text("7. X: WrapWord(F:WC F:Kp)")
-                        .style(LabelStyle {
-                            text_style: framewise::TextStyle {
-                                font: theme.mono_font,
-                                size: 13.0,
-                                ..(LabelStyle::from_theme(&theme)).text_style
-                            },
-                            text_color: theme.rust,
-                            ..LabelStyle::from_theme(&theme)
-                        }),
+                    LabelSpec::new("7. X: WrapWord(F:WC F:Kp)").style(LabelStyle {
+                        text_style: framewise::TextStyle {
+                            font: theme.mono_font,
+                            size: 13.0,
+                            ..(LabelStyle::from_theme(&theme)).text_style
+                        },
+                        text_color: theme.rust,
+                        ..LabelStyle::from_theme(&theme)
+                    }),
                     ColumnLayoutParams::auto(),
+                    &mut container.ctx,
                 );
                 container.ctx.spacer(8.0);
                 {
@@ -1298,28 +1232,26 @@ pub(crate) fn draw_label_page_content<'a, 'b, CF>(
                         ColumnLayout,
                     );
                     label(
-                        &mut clip_box.ctx,
-                        LabelSpecBuilder::new()
-                            .text("hello there\nhello there")
-                            .style(LabelStyle {
-                                text_style: framewise::TextStyle {
-                                    flow: TextFlow {
-                                        overflow_x: OverflowX::WrapWord {
-                                            fallback: WrapWordFallback::WrapCluster {
-                                                fallback: WrapClusterFallback::Keep,
-                                            },
+                        LabelSpec::new("hello there\nhello there").style(LabelStyle {
+                            text_style: framewise::TextStyle {
+                                flow: TextFlow {
+                                    overflow_x: OverflowX::WrapWord {
+                                        fallback: WrapWordFallback::WrapCluster {
+                                            fallback: WrapClusterFallback::Keep,
                                         },
-                                        overflow_y: OverflowY::Keep,
-                                        line_align: TextLineAlign::Start,
                                     },
-                                    font: theme.sans_font,
-                                    size: 14.0,
-                                    ..(LabelStyle::from_theme(&theme)).text_style
+                                    overflow_y: OverflowY::Keep,
+                                    line_align: TextLineAlign::Start,
                                 },
-                                text_color: theme.ink,
-                                ..LabelStyle::from_theme(&theme)
-                            }),
+                                font: theme.sans_font,
+                                size: 14.0,
+                                ..(LabelStyle::from_theme(&theme)).text_style
+                            },
+                            text_color: theme.ink,
+                            ..LabelStyle::from_theme(&theme)
+                        }),
                         ColumnLayoutParams::auto().fill_x().fill_y(),
+                        &mut clip_box.ctx,
                     );
                     clip_box.ctx.finish();
                 }
@@ -1337,19 +1269,17 @@ pub(crate) fn draw_label_page_content<'a, 'b, CF>(
                     ColumnLayout,
                 );
                 label(
-                    &mut container.ctx,
-                    LabelSpecBuilder::new()
-                        .text("8. X: WrapWord(F:Drop)")
-                        .style(LabelStyle {
-                            text_style: framewise::TextStyle {
-                                font: theme.mono_font,
-                                size: 13.0,
-                                ..(LabelStyle::from_theme(&theme)).text_style
-                            },
-                            text_color: theme.rust,
-                            ..LabelStyle::from_theme(&theme)
-                        }),
+                    LabelSpec::new("8. X: WrapWord(F:Drop)").style(LabelStyle {
+                        text_style: framewise::TextStyle {
+                            font: theme.mono_font,
+                            size: 13.0,
+                            ..(LabelStyle::from_theme(&theme)).text_style
+                        },
+                        text_color: theme.rust,
+                        ..LabelStyle::from_theme(&theme)
+                    }),
                     ColumnLayoutParams::auto(),
+                    &mut container.ctx,
                 );
                 container.ctx.spacer(8.0);
                 {
@@ -1360,26 +1290,24 @@ pub(crate) fn draw_label_page_content<'a, 'b, CF>(
                         ColumnLayout,
                     );
                     label(
-                        &mut clip_box.ctx,
-                        LabelSpecBuilder::new()
-                            .text("hello there\nhello there")
-                            .style(LabelStyle {
-                                text_style: framewise::TextStyle {
-                                    flow: TextFlow {
-                                        overflow_x: OverflowX::WrapWord {
-                                            fallback: WrapWordFallback::Drop,
-                                        },
-                                        overflow_y: OverflowY::Keep,
-                                        line_align: TextLineAlign::Start,
+                        LabelSpec::new("hello there\nhello there").style(LabelStyle {
+                            text_style: framewise::TextStyle {
+                                flow: TextFlow {
+                                    overflow_x: OverflowX::WrapWord {
+                                        fallback: WrapWordFallback::Drop,
                                     },
-                                    font: theme.sans_font,
-                                    size: 14.0,
-                                    ..(LabelStyle::from_theme(&theme)).text_style
+                                    overflow_y: OverflowY::Keep,
+                                    line_align: TextLineAlign::Start,
                                 },
-                                text_color: theme.ink,
-                                ..LabelStyle::from_theme(&theme)
-                            }),
+                                font: theme.sans_font,
+                                size: 14.0,
+                                ..(LabelStyle::from_theme(&theme)).text_style
+                            },
+                            text_color: theme.ink,
+                            ..LabelStyle::from_theme(&theme)
+                        }),
                         ColumnLayoutParams::auto().fill_x().fill_y(),
+                        &mut clip_box.ctx,
                     );
                     clip_box.ctx.finish();
                 }
@@ -1397,19 +1325,17 @@ pub(crate) fn draw_label_page_content<'a, 'b, CF>(
                     ColumnLayout,
                 );
                 label(
-                    &mut container.ctx,
-                    LabelSpecBuilder::new()
-                        .text("9. X: WrapWord(F:Keep)")
-                        .style(LabelStyle {
-                            text_style: framewise::TextStyle {
-                                font: theme.mono_font,
-                                size: 13.0,
-                                ..(LabelStyle::from_theme(&theme)).text_style
-                            },
-                            text_color: theme.rust,
-                            ..LabelStyle::from_theme(&theme)
-                        }),
+                    LabelSpec::new("9. X: WrapWord(F:Keep)").style(LabelStyle {
+                        text_style: framewise::TextStyle {
+                            font: theme.mono_font,
+                            size: 13.0,
+                            ..(LabelStyle::from_theme(&theme)).text_style
+                        },
+                        text_color: theme.rust,
+                        ..LabelStyle::from_theme(&theme)
+                    }),
                     ColumnLayoutParams::auto(),
+                    &mut container.ctx,
                 );
                 container.ctx.spacer(8.0);
                 {
@@ -1420,26 +1346,24 @@ pub(crate) fn draw_label_page_content<'a, 'b, CF>(
                         ColumnLayout,
                     );
                     label(
-                        &mut clip_box.ctx,
-                        LabelSpecBuilder::new()
-                            .text("hello there\nhello there")
-                            .style(LabelStyle {
-                                text_style: framewise::TextStyle {
-                                    flow: TextFlow {
-                                        overflow_x: OverflowX::WrapWord {
-                                            fallback: WrapWordFallback::Keep,
-                                        },
-                                        overflow_y: OverflowY::Keep,
-                                        line_align: TextLineAlign::Start,
+                        LabelSpec::new("hello there\nhello there").style(LabelStyle {
+                            text_style: framewise::TextStyle {
+                                flow: TextFlow {
+                                    overflow_x: OverflowX::WrapWord {
+                                        fallback: WrapWordFallback::Keep,
                                     },
-                                    font: theme.sans_font,
-                                    size: 14.0,
-                                    ..(LabelStyle::from_theme(&theme)).text_style
+                                    overflow_y: OverflowY::Keep,
+                                    line_align: TextLineAlign::Start,
                                 },
-                                text_color: theme.ink,
-                                ..LabelStyle::from_theme(&theme)
-                            }),
+                                font: theme.sans_font,
+                                size: 14.0,
+                                ..(LabelStyle::from_theme(&theme)).text_style
+                            },
+                            text_color: theme.ink,
+                            ..LabelStyle::from_theme(&theme)
+                        }),
                         ColumnLayoutParams::auto().fill_x().fill_y(),
+                        &mut clip_box.ctx,
                     );
                     clip_box.ctx.finish();
                 }
@@ -1465,11 +1389,9 @@ pub(crate) fn draw_label_page_content<'a, 'b, CF>(
             rule: Some(Stroke::new(theme.line_on_paper, 1.0)),
         };
         label(
-            ctx,
-            LabelSpecBuilder::new()
-                .text("5. Internal Text Alignment (Fixed-Width)")
-                .style(section_header),
+            LabelSpec::new("5. Internal Text Alignment (Fixed-Width)").style(section_header),
             ColumnLayoutParams::auto(),
+            ctx,
         );
 
         let mut row = ctx.child_with_layout(ColumnLayoutParams::auto().fill_x(), RowLayout);
@@ -1489,30 +1411,28 @@ pub(crate) fn draw_label_page_content<'a, 'b, CF>(
             );
 
             label(
-                &mut container.ctx,
-                LabelSpecBuilder::new()
-                    .text(match text_align {
-                        TextLineAlign::Start => "TextFlow::line_align(Start)",
-                        TextLineAlign::Center => "TextFlow::line_align(Center)",
-                        TextLineAlign::End => "TextFlow::line_align(End)",
-                    })
-                    .style(LabelStyle {
-                        text_style: framewise::TextStyle::new(
-                            theme.mono_font,
-                            11.0,
-                            theme.sans_weight_regular,
-                            framewise::text::TextFlow::single_line(),
-                        ),
-                        text_color: theme.rust,
-                        ..LabelStyle::from_theme(&theme)
-                    }),
+                LabelSpec::new(match text_align {
+                    TextLineAlign::Start => "TextFlow::line_align(Start)",
+                    TextLineAlign::Center => "TextFlow::line_align(Center)",
+                    TextLineAlign::End => "TextFlow::line_align(End)",
+                })
+                .style(LabelStyle {
+                    text_style: framewise::TextStyle::new(
+                        theme.mono_font,
+                        11.0,
+                        theme.sans_weight_regular,
+                        framewise::text::TextFlow::single_line(),
+                    ),
+                    text_color: theme.rust,
+                    ..LabelStyle::from_theme(&theme)
+                }),
                 ColumnLayoutParams::auto(),
+                &mut container.ctx,
             );
             container.ctx.spacer(6.0);
 
             label(
-                &mut container.ctx,
-                LabelSpecBuilder::new().text(text).style(LabelStyle {
+                LabelSpec::new(text).style(LabelStyle {
                     text_style: framewise::TextStyle::new(
                         theme.sans_font,
                         14.0,
@@ -1527,6 +1447,7 @@ pub(crate) fn draw_label_page_content<'a, 'b, CF>(
                     ..LabelStyle::from_theme(&theme)
                 }),
                 ColumnLayoutParams::auto().fill_x(),
+                &mut container.ctx,
             );
 
             container.ctx.finish();
@@ -1550,11 +1471,9 @@ pub(crate) fn draw_label_page_content<'a, 'b, CF>(
             rule: Some(Stroke::new(theme.line_on_paper, 1.0)),
         };
         label(
-            ctx,
-            LabelSpecBuilder::new()
-                .text("6. Widget Content Placement")
-                .style(section_header),
+            LabelSpec::new("6. Widget Content Placement").style(section_header),
             ColumnLayoutParams::auto(),
+            ctx,
         );
 
         let positions = [
@@ -1584,8 +1503,7 @@ pub(crate) fn draw_label_page_content<'a, 'b, CF>(
                     ColumnLayout,
                 );
                 label(
-                    &mut cell.ctx,
-                    LabelSpecBuilder::new().text(text).style(LabelStyle {
+                    LabelSpec::new(text).style(LabelStyle {
                         content_placement: framewise::TextContentPlacement::logical(
                             framewise::ContentPlacement::Align(*x),
                             framewise::ContentPlacement::Align(*y),
@@ -1594,6 +1512,7 @@ pub(crate) fn draw_label_page_content<'a, 'b, CF>(
                         ..LabelStyle::from_theme(&theme)
                     }),
                     ColumnLayoutParams::auto().fill_x().fill_y(),
+                    &mut cell.ctx,
                 );
                 cell.ctx.finish();
             }
@@ -1628,11 +1547,9 @@ pub(crate) fn draw_label_page_content<'a, 'b, CF>(
         };
 
         label(
-            &mut row,
-            LabelSpecBuilder::new()
-                .text("logical center:")
-                .style(comparison_label),
+            LabelSpec::new("logical center:").style(comparison_label),
             RowLayoutParams::fixed(92.0, 29.0),
+            &mut row,
         );
         row.spacer(6.0);
         {
@@ -1643,22 +1560,20 @@ pub(crate) fn draw_label_page_content<'a, 'b, CF>(
                 ColumnLayout,
             );
             label(
-                &mut cell.ctx,
-                LabelSpecBuilder::new().text("×").style(LabelStyle {
+                LabelSpec::new("×").style(LabelStyle {
                     content_placement: framewise::TextContentPlacement::CENTER,
                     ..icon_label
                 }),
                 ColumnLayoutParams::auto().fill_x().fill_y(),
+                &mut cell.ctx,
             );
             cell.ctx.finish();
         }
         row.spacer(18.0);
         label(
-            &mut row,
-            LabelSpecBuilder::new()
-                .text("approx ink center:")
-                .style(comparison_label),
+            LabelSpec::new("approx ink center:").style(comparison_label),
             RowLayoutParams::fixed(72.0, 29.0),
+            &mut row,
         );
         row.spacer(6.0);
         {
@@ -1669,12 +1584,12 @@ pub(crate) fn draw_label_page_content<'a, 'b, CF>(
                 ColumnLayout,
             );
             label(
-                &mut cell.ctx,
-                LabelSpecBuilder::new().text("×").style(LabelStyle {
+                LabelSpec::new("×").style(LabelStyle {
                     content_placement: framewise::TextContentPlacement::INK_CENTER,
                     ..icon_label
                 }),
                 ColumnLayoutParams::auto().fill_x().fill_y(),
+                &mut cell.ctx,
             );
             cell.ctx.finish();
         }
@@ -1683,10 +1598,8 @@ pub(crate) fn draw_label_page_content<'a, 'b, CF>(
 
     // Footer info
     label(
-        ctx,
-        LabelSpecBuilder::new()
-            .text("Press F1-F5 to navigate to other showcase pages. (F6 for Labels)")
-            .style(LabelStyle {
+        LabelSpec::new("Press F1-F5 to navigate to other showcase pages. (F6 for Labels)").style(
+            LabelStyle {
                 text_style: framewise::TextStyle::new(
                     theme.mono_font,
                     12.0,
@@ -1696,7 +1609,9 @@ pub(crate) fn draw_label_page_content<'a, 'b, CF>(
                 content_placement: framewise::TextContentPlacement::TOP_LEFT,
                 text_color: Color::from_srgb_u8(120, 120, 130, 255),
                 rule: None,
-            }),
+            },
+        ),
         ColumnLayoutParams::auto(),
+        ctx,
     );
 }

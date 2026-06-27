@@ -1,4 +1,4 @@
-use super::raw::StatusSpec;
+use super::raw::StatusSpec as RawStatusSpec;
 use super::*;
 use crate::types::Vec2;
 use crate::{focus::FocusSystem, test_utils::TestTextBackend, DrawGlyph, PreparedGlyphToken};
@@ -6,7 +6,7 @@ use crate::{focus::FocusSystem, test_utils::TestTextBackend, DrawGlyph, Prepared
 #[test]
 fn test_status_visual_ok() {
     let mut text_backend = TestTextBackend::default();
-    let spec = StatusSpec {
+    let spec = RawStatusSpec {
         rect: Rect::new(0.0, 0.0, 100.0, 20.0),
         text: "Online",
         variant: StatusVariant::Ok,
@@ -73,7 +73,7 @@ fn test_status_visual_ok() {
 #[test]
 fn test_status_visual_warn() {
     let mut text_backend = TestTextBackend::default();
-    let spec = StatusSpec {
+    let spec = RawStatusSpec {
         rect: Rect::new(0.0, 0.0, 100.0, 20.0),
         text: "Warning",
         variant: StatusVariant::Warn,
@@ -142,25 +142,6 @@ fn test_status_visual_warn() {
 }
 
 #[test]
-fn test_builder_defaults_from_theme_fills_unset_fields() {
-    let theme = crate::theme::Theme::framewise();
-    let builder = StatusSpecBuilder::new();
-    assert!(builder.style.is_none());
-    let builder = builder.defaults_from_theme(&theme);
-    assert_eq!(builder.style, Some(StatusStyle::from_theme(&theme)));
-}
-
-#[test]
-fn test_builder_defaults_from_theme_preserves_explicit_fields() {
-    let theme = crate::theme::Theme::framewise();
-    let mut custom_style = StatusStyle::from_theme(&theme);
-    custom_style.text_style.size = 99.0;
-    let builder = StatusSpecBuilder::new().style(custom_style);
-    let builder = builder.defaults_from_theme(&theme);
-    assert_eq!(builder.style.unwrap().text_style.size, 99.0);
-}
-
-#[test]
 fn test_high_level_explicit_placement_via_manual_layout() {
     use crate::layouts::ManualLayout;
     let mut text_backend = TestTextBackend::default();
@@ -180,11 +161,9 @@ fn test_high_level_explicit_placement_via_manual_layout() {
         &mut cmds,
     );
     let result = super::status(
-        &mut ctx,
-        StatusSpecBuilder::new()
-            .text("ok")
-            .variant(StatusVariant::Ok),
+        StatusSpec::new_from_theme("ok", StatusVariant::Ok, &ctx.theme),
         placement,
+        &mut ctx,
     );
     assert_eq!(result.layout.bounds, placement);
 }

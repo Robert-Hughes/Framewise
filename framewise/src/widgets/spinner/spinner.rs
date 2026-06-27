@@ -162,6 +162,12 @@ impl SpinnerStyle {
     }
 }
 
+impl Default for SpinnerStyle {
+    fn default() -> Self {
+        Self::from_theme(&crate::theme::Theme::minimal())
+    }
+}
+
 // ── Result ───────────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, PartialEq)]
@@ -171,51 +177,30 @@ pub struct SpinnerResult {
 
 // ── Spec ─────────────────────────────────────────────────────────────────────
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Default, PartialEq)]
 pub struct SpinnerSpec {
     pub large: bool,
     pub style: SpinnerStyle,
 }
 
-// ── Spec Builder ─────────────────────────────────────────────────────────────
+impl SpinnerSpec {
+    pub fn default_from_theme(theme: &crate::theme::Theme) -> Self {
+        Self::default().theme(theme)
+    }
 
-#[derive(Debug, Clone, PartialEq, Default)]
-pub struct SpinnerSpecBuilder {
-    pub large: Option<bool>,
-    pub style: Option<SpinnerStyle>,
-}
-
-impl SpinnerSpecBuilder {
-    pub fn new() -> Self {
-        Self::default()
+    pub fn theme(mut self, theme: &crate::theme::Theme) -> Self {
+        self.style = SpinnerStyle::from_theme(theme);
+        self
     }
 
     pub fn large(mut self, large: bool) -> Self {
-        self.large = Some(large);
+        self.large = large;
         self
     }
 
     pub fn style(mut self, style: SpinnerStyle) -> Self {
-        self.style = Some(style);
+        self.style = style;
         self
-    }
-
-    /// Fills unset fields from `theme`. Called automatically by high-level
-    /// context functions.
-    pub fn defaults_from_theme(mut self, theme: &crate::theme::Theme) -> Self {
-        if self.style.is_none() {
-            self.style = Some(SpinnerStyle::from_theme(theme));
-        }
-        self
-    }
-
-    pub fn build(self) -> SpinnerSpec {
-        SpinnerSpec {
-            large: self.large.unwrap_or(false),
-            style: self
-                .style
-                .expect("style not set — call .style() or defaults_from_theme()"),
-        }
     }
 }
 
@@ -223,14 +208,14 @@ impl SpinnerSpecBuilder {
 
 /// High-level spinner widget function using `WidgetContext`.
 ///
-/// Resolves defaults, runs the raw pre-layout phase to obtain a `SizeRequest`,
-/// resolves the final rect with layout, then runs the raw post-layout phase.
+/// Consumes a complete `SpinnerSpec`, runs the raw pre-layout phase to obtain a
+/// `SizeRequest`, resolves the final rect with layout, then runs the raw
+/// post-layout phase (which appends draw commands even though the raw result is empty).
 pub fn spinner<T: TextBackend, S: LayoutState, CF>(
-    ctx: &mut WidgetContext<T, S, CF>,
-    builder: SpinnerSpecBuilder,
+    spec: SpinnerSpec,
     layout_params: S::Params,
+    ctx: &mut WidgetContext<T, S, CF>,
 ) -> SpinnerResult {
-    let spec = builder.defaults_from_theme(&ctx.theme).build();
     let pre_layout_spec = raw::SpinnerPreLayoutSpec {};
     let offer = ctx.peek_offer(layout_params.clone());
     let pre_layout = raw::pre_layout_spinner(&pre_layout_spec, offer);

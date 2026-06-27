@@ -9,7 +9,7 @@ use framewise::{
     widget::WidgetContext,
     widgets::button::{button, ButtonSpec, ButtonState, ButtonStyle},
     widgets::frame::{begin_frame, FrameResult, FrameSpecBuilder, FrameStyle},
-    widgets::label::{label, LabelSpecBuilder},
+    widgets::label::{label, LabelSpec},
 };
 
 // ── State ──────────────────────────────────────────────────────────────────────
@@ -181,9 +181,9 @@ pub(crate) fn draw_frame_page_content<'a, 'b, CF>(
 
         // Heading: Left Column Title
         label(
-            &mut left_col,
-            LabelSpecBuilder::new().text("1. Dynamic & Axis Sizing Showcase"),
+            LabelSpec::new_from_theme("1. Dynamic & Axis Sizing Showcase", &left_col.theme),
             ColumnLayoutParams::auto().fill_x().fixed_y(30.0),
+            &mut left_col,
         );
         left_col.spacer(20.0);
 
@@ -220,9 +220,9 @@ pub(crate) fn draw_frame_page_content<'a, 'b, CF>(
         // Subheading: Dynamic Frame
         let label_style = format!("Auto-Sizing Frame (Current Items: {})", state.item_count);
         label(
-            &mut left_col,
-            LabelSpecBuilder::new().text(&label_style),
+            LabelSpec::new_from_theme(&label_style, &left_col.theme),
             ColumnLayoutParams::auto().fill_x().fixed_y(24.0),
+            &mut left_col,
         );
         left_col.spacer(20.0);
 
@@ -240,9 +240,12 @@ pub(crate) fn draw_frame_page_content<'a, 'b, CF>(
 
             if state.item_count == 0 {
                 label(
-                    &mut dynamic_frame,
-                    LabelSpecBuilder::new().text("Frame is empty! Use buttons above to add items."),
+                    LabelSpec::new_from_theme(
+                        "Frame is empty! Use buttons above to add items.",
+                        &dynamic_frame.theme,
+                    ),
                     ColumnLayoutParams::auto().fill_x().fixed_y(32.0),
+                    &mut dynamic_frame,
                 );
             } else {
                 for i in 0..state.item_count {
@@ -270,9 +273,9 @@ pub(crate) fn draw_frame_page_content<'a, 'b, CF>(
 
         // Subheading: Axis Sizing Dimensions
         label(
-            &mut left_col,
-            LabelSpecBuilder::new().text("Comparison of Sizing Dimensions"),
+            LabelSpec::new_from_theme("Comparison of Sizing Dimensions", &left_col.theme),
             ColumnLayoutParams::auto().fill_x().fixed_y(24.0),
+            &mut left_col,
         );
         left_col.spacer(20.0);
 
@@ -293,9 +296,9 @@ pub(crate) fn draw_frame_page_content<'a, 'b, CF>(
                 );
 
                 label(
-                    &mut sub_frame,
-                    LabelSpecBuilder::new().text("Fixed frame"),
+                    LabelSpec::new_from_theme("Fixed frame", &sub_frame.theme),
                     ColumnLayoutParams::auto().fill_x().fixed_y(20.0),
+                    &mut sub_frame,
                 );
                 sub_frame.spacer(4.0);
 
@@ -324,9 +327,9 @@ pub(crate) fn draw_frame_page_content<'a, 'b, CF>(
                 );
 
                 label(
-                    &mut sub_frame,
-                    LabelSpecBuilder::new().text("Auto Width"),
+                    LabelSpec::new_from_theme("Auto Width", &sub_frame.theme),
                     ColumnLayoutParams::auto().fixed_y(20.0),
+                    &mut sub_frame,
                 );
                 sub_frame.spacer(4.0);
 
@@ -355,9 +358,9 @@ pub(crate) fn draw_frame_page_content<'a, 'b, CF>(
                 );
 
                 label(
-                    &mut sub_frame,
-                    LabelSpecBuilder::new().text("Auto Height"),
+                    LabelSpec::new_from_theme("Auto Height", &sub_frame.theme),
                     ColumnLayoutParams::auto().fill_x().fixed_y(20.0),
+                    &mut sub_frame,
                 );
                 sub_frame.spacer(4.0);
 
@@ -394,9 +397,9 @@ pub(crate) fn draw_frame_page_content<'a, 'b, CF>(
                 );
 
                 label(
-                    &mut sub_frame,
-                    LabelSpecBuilder::new().text("Fully Auto"),
+                    LabelSpec::new_from_theme("Fully Auto", &sub_frame.theme),
                     ColumnLayoutParams::auto().fixed_y(20.0),
+                    &mut sub_frame,
                 );
                 sub_frame.spacer(4.0);
 
@@ -431,17 +434,20 @@ pub(crate) fn draw_frame_page_content<'a, 'b, CF>(
 
         // Heading: Right Column Title
         label(
-            &mut right_col,
-            LabelSpecBuilder::new().text("2. Complex Nesting & Cross-Alignments"),
+            LabelSpec::new_from_theme("2. Complex Nesting & Cross-Alignments", &right_col.theme),
             ColumnLayoutParams::auto().fill_x().fixed_y(30.0),
+            &mut right_col,
         );
         right_col.spacer(20.0);
 
         // Showcase 1: Symmetrical Nesting Cases (Fixed Panel centered in Fixed Outer)
         label(
-            &mut right_col,
-            LabelSpecBuilder::new().text("Nesting Showcase (Fixed Panel centered in Fixed Outer)"),
+            LabelSpec::new_from_theme(
+                "Nesting Showcase (Fixed Panel centered in Fixed Outer)",
+                &right_col.theme,
+            ),
             ColumnLayoutParams::auto().fill_x().fixed_y(24.0),
+            &mut right_col,
         );
         right_col.spacer(20.0);
 
@@ -516,10 +522,12 @@ pub(crate) fn draw_frame_page_content<'a, 'b, CF>(
 
         // Showcase 2: Cross-Axis Alignment Demonstration inside a Fit Frame
         label(
-            &mut right_col,
-            LabelSpecBuilder::new()
-                .text("Cross-Axis Alignment within Fit Frame (Auto height, Centered)"),
+            LabelSpec::new_from_theme(
+                "Cross-Axis Alignment within Fit Frame (Auto height, Centered)",
+                &right_col.theme,
+            ),
             ColumnLayoutParams::auto().fill_x().fixed_y(24.0),
+            &mut right_col,
         );
         right_col.spacer(20.0);
 
