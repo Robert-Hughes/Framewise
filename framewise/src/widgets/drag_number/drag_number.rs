@@ -14,7 +14,10 @@ pub mod raw {
     use super::*;
 
     #[derive(Debug, Clone, PartialEq)]
-    pub struct DragNumberSpec<'a> {
+    pub struct DragNumberSpec<'a, F = super::DefaultDragNumberValueFormatter>
+    where
+        F: Fn(f32) -> String,
+    {
         pub layer: Layer,
         /// Full bounding rect (height typically h_md = 28).
         pub rect: Rect,
@@ -24,16 +27,21 @@ pub mod raw {
         pub max: f32,
         pub step: f32,
         pub page_step: f32,
+        pub value_formatter: F,
         pub disabled: bool,
         pub clip_rect: ClipRect,
     }
 
     #[derive(Debug, Clone, PartialEq)]
-    pub struct DragNumberPreLayoutSpec<'a> {
+    pub struct DragNumberPreLayoutSpec<'a, 'f, F>
+    where
+        F: Fn(f32) -> String,
+    {
         pub text: &'a str,
         pub style: super::DragNumberStyle,
         pub min: f32,
         pub max: f32,
+        pub value_formatter: &'f F,
     }
 
     #[derive(Debug, Clone, PartialEq)]
@@ -53,21 +61,27 @@ pub mod raw {
     ///
     /// This currently measures text with unbounded bounds; offer-sensitive
     /// wrapping is future work.
-    pub fn pre_layout_drag_number<T: TextBackend>(
-        spec: &DragNumberPreLayoutSpec,
+    pub fn pre_layout_drag_number<T: TextBackend, F>(
+        spec: &DragNumberPreLayoutSpec<'_, '_, F>,
         offer: SizeOffer,
         text_backend: &mut T,
-    ) -> DragNumberPreLayoutResult {
+    ) -> DragNumberPreLayoutResult
+    where
+        F: Fn(f32) -> String,
+    {
         DragNumberPreLayoutResult {
             size_request: drag_number_size_request(spec, offer, text_backend),
         }
     }
 
-    fn drag_number_size_request<T: TextBackend>(
-        spec: &DragNumberPreLayoutSpec,
+    fn drag_number_size_request<T: TextBackend, F>(
+        spec: &DragNumberPreLayoutSpec<'_, '_, F>,
         _offer: SizeOffer,
         text_backend: &mut T,
-    ) -> crate::layout::SizeRequest {
+    ) -> crate::layout::SizeRequest
+    where
+        F: Fn(f32) -> String,
+    {
         let s = spec.style;
         let label_layout = layout_text(
             text_backend,
@@ -76,8 +90,8 @@ pub mod raw {
             crate::text::TextBounds::UNBOUNDED,
         );
         let label_metrics = label_layout.metrics();
-        let min_text = format!("{:.2}", spec.min);
-        let max_text = format!("{:.2}", spec.max);
+        let min_text = (spec.value_formatter)(spec.min);
+        let max_text = (spec.value_formatter)(spec.max);
         let min_layout = layout_text(
             text_backend,
             &min_text,
@@ -102,15 +116,18 @@ pub mod raw {
     ///
     /// This is the raw implementation that takes all parameters explicitly.
     /// High-level wrappers should use this internally.
-    pub fn post_layout_drag_number<'a, T: TextBackend>(
-        spec: DragNumberSpec<'a>,
+    pub fn post_layout_drag_number<'a, T: TextBackend, F>(
+        spec: DragNumberSpec<'a, F>,
         _pre_layout: DragNumberPreLayoutResult,
         state: &mut DragNumberState,
         input: &Input,
         focus_system: &mut FocusSystem,
         text_backend: &mut T,
         cmds: &mut DrawCommands,
-    ) -> DragNumberResult {
+    ) -> DragNumberResult
+    where
+        F: Fn(f32) -> String,
+    {
         if spec.disabled {
             state.is_dragging = false;
         }
@@ -277,7 +294,7 @@ pub mod raw {
             );
         }
 
-        let value_text = format!("{:.2}", state.value);
+        let value_text = (spec.value_formatter)(state.value);
         let value_layout = layout_text(
             text_backend,
             &value_text,
@@ -408,18 +425,28 @@ pub struct DragNumberResult {
 
 // ── Spec ─────────────────────────────────────────────────────────────────────
 
+pub type DefaultDragNumberValueFormatter = fn(f32) -> String;
+
+pub fn default_drag_number_value_formatter(value: f32) -> String {
+    format!("{value:.2}")
+}
+
 #[derive(Debug, Clone, PartialEq)]
-pub struct DragNumberSpec<'a> {
+pub struct DragNumberSpec<'a, F = DefaultDragNumberValueFormatter>
+where
+    F: Fn(f32) -> String,
+{
     pub text: &'a str,
     pub style: DragNumberStyle,
     pub min: f32,
     pub max: f32,
     pub step: f32,
     pub page_step: f32,
+    pub value_formatter: F,
     pub disabled: bool,
 }
 
-impl<'a> Default for DragNumberSpec<'a> {
+impl<'a> Default for DragNumberSpec<'a, DefaultDragNumberValueFormatter> {
     fn default() -> Self {
         Self {
             text: "",
@@ -428,12 +455,13 @@ impl<'a> Default for DragNumberSpec<'a> {
             max: 100.0,
             step: 1.0,
             page_step: 10.0,
+            value_formatter: default_drag_number_value_formatter,
             disabled: false,
         }
     }
 }
 
-impl<'a> DragNumberSpec<'a> {
+impl<'a> DragNumberSpec<'a, DefaultDragNumberValueFormatter> {
     pub fn new(text: &'a str) -> Self {
         Self {
             text,
@@ -448,7 +476,12 @@ impl<'a> DragNumberSpec<'a> {
     pub fn default_from_theme(theme: &crate::theme::Theme) -> Self {
         Self::default().theme(theme)
     }
+}
 
+impl<'a, F> DragNumberSpec<'a, F>
+where
+    F: Fn(f32) -> String,
+{
     pub fn theme(mut self, theme: &crate::theme::Theme) -> Self {
         self.style = DragNumberStyle::from_theme(theme);
         self
@@ -484,6 +517,22 @@ impl<'a> DragNumberSpec<'a> {
         self
     }
 
+    pub fn value_formatter<G>(self, value_formatter: G) -> DragNumberSpec<'a, G>
+    where
+        G: Fn(f32) -> String,
+    {
+        DragNumberSpec {
+            text: self.text,
+            style: self.style,
+            min: self.min,
+            max: self.max,
+            step: self.step,
+            page_step: self.page_step,
+            value_formatter,
+            disabled: self.disabled,
+        }
+    }
+
     pub fn disabled(mut self, disabled: bool) -> Self {
         self.disabled = disabled;
         self
@@ -496,17 +545,21 @@ impl<'a> DragNumberSpec<'a> {
 ///
 /// Runs the raw pre-layout phase to obtain a `SizeRequest`, resolves the final
 /// rect with layout, then runs the raw post-layout phase.
-pub fn drag_number<'a, T: TextBackend, S: LayoutState, CF>(
-    spec: DragNumberSpec<'a>,
+pub fn drag_number<'a, T: TextBackend, S: LayoutState, CF, F>(
+    spec: DragNumberSpec<'a, F>,
     layout_params: S::Params,
     state: &mut DragNumberState,
     ctx: &mut WidgetContext<T, S, CF>,
-) -> DragNumberResult {
+) -> DragNumberResult
+where
+    F: Fn(f32) -> String,
+{
     let pre_layout_spec = raw::DragNumberPreLayoutSpec {
         text: spec.text,
         style: spec.style,
         min: spec.min,
         max: spec.max,
+        value_formatter: &spec.value_formatter,
     };
     let offer = ctx.peek_offer(layout_params.clone());
     let pre_layout = raw::pre_layout_drag_number(&pre_layout_spec, offer, ctx.text_backend);
@@ -520,6 +573,7 @@ pub fn drag_number<'a, T: TextBackend, S: LayoutState, CF>(
         max: spec.max,
         step: spec.step,
         page_step: spec.page_step,
+        value_formatter: spec.value_formatter,
         disabled: spec.disabled,
         clip_rect: ctx.clip_rect,
     };

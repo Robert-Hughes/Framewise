@@ -333,6 +333,7 @@ fn draw_drag_number_fake_state<T: TextBackend, LS: LayoutState, CF>(
         max,
         step: 1.0,
         page_step: 10.0,
+        value_formatter: framewise::widgets::drag_number::default_drag_number_value_formatter,
         disabled,
         style: DragNumberStyle::from_theme(&b.theme),
         clip_rect: b.clip_rect,
@@ -351,6 +352,7 @@ fn draw_drag_number_fake_state<T: TextBackend, LS: LayoutState, CF>(
             style: spec.style,
             min: spec.min,
             max: spec.max,
+            value_formatter: &spec.value_formatter,
         },
         framewise::layout::SizeOffer::UNBOUNDED,
         b.text_backend,
@@ -4360,7 +4362,8 @@ fn section_12_in_use<CF>(
             let layout_params = Rect::new(widget_x, fy, (widget_w / 2.0) - 4.0, row_h);
             let spec = DragNumberSpec::default_from_theme(&win.theme)
                 .text("W")
-                .max(7680.0);
+                .max(7680.0)
+                .value_formatter(|v: f32| format!("{v:.0}"));
             drag_number(spec, layout_params, state, &mut win)
         };
 
@@ -4374,7 +4377,8 @@ fn section_12_in_use<CF>(
             );
             let spec = DragNumberSpec::default_from_theme(&win.theme)
                 .text("H")
-                .max(7680.0);
+                .max(7680.0)
+                .value_formatter(|v: f32| format!("{v:.0}"));
             drag_number(spec, layout_params, state, &mut win)
         };
         fy += row_h + row_gap;

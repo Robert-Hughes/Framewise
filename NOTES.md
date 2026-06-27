@@ -4,6 +4,8 @@ Working notes, TODOs, open questions, and half-baked ideas.
 
 ## Current Work
 
+- migrate all widgets to new Spec pattern (remove builder etc.)
+
 - drag_number
   - formatting logic for display value?
   - hover styling with little arrow icons shown on mockup. Can these be clickable (with hold-repeat) to increment/decrement by step?
@@ -367,8 +369,10 @@ The "App-Managed State" option would require either a trait layer (so the widget
 - Slider
   - In 'scrollbar form', if the bar becomes too small it may be impossible to grab! Maybe need to figure out a minimum size somehow
   - Logarithmic (or otherwise custom) scales? Perhaps a user-defined 'value to linear' mapping function (and reverse), and everything else can be figured out automatically?
+  - For horirzontal orientation up/down pg up/down seems the wrong way round? Up makes lower?
 - Drag number
   - Logarithmic (or otherwise custom) scales? Perhaps a user-defined 'value to linear' mapping function (and reverse), and everything else can be figured out automatically?
+  - up/down pg up/down seems the wrong way round? Up makes lower?
 
 - Button group seams
 - HTML removes inner right borders in .fw-btngroup. Rust draws adjacent full buttons, so once groups are switched to secondary/default, internal seams will likely look 2px thick unless the rects overlap by 1px or the button API gains per-side borders.

@@ -17,20 +17,24 @@ fn default_spec(rect: Rect) -> raw::DragNumberSpec<'static> {
         max: 100.0,
         step: 1.0,
         page_step: 10.0,
+        value_formatter: default_drag_number_value_formatter,
         disabled: false,
         style: default_style(),
         clip_rect: None,
     }
 }
 
-fn run_raw(
-    spec: raw::DragNumberSpec<'_>,
+fn run_raw<F>(
+    spec: raw::DragNumberSpec<'_, F>,
     state: &mut DragNumberState,
     input: &Input,
     focus_system: &mut FocusSystem,
     text_backend: &mut TestTextBackend,
     cmds: &mut DrawCommands,
-) -> raw::DragNumberResult {
+) -> raw::DragNumberResult
+where
+    F: Fn(f32) -> String,
+{
     raw::post_layout_drag_number(
         spec,
         raw::DragNumberPreLayoutResult {
@@ -44,12 +48,14 @@ fn run_raw(
     )
 }
 
-fn run_key(
-    spec: raw::DragNumberSpec<'_>,
+fn run_key<F>(
+    spec: raw::DragNumberSpec<'_, F>,
     state: &mut DragNumberState,
     focus_system: &mut FocusSystem,
     set_key: impl FnOnce(&mut Input),
-) {
+) where
+    F: Fn(f32) -> String,
+{
     let mut input = Input::default();
     set_key(&mut input);
     let mut text_backend = TestTextBackend::default();
@@ -83,7 +89,10 @@ fn value_area_pos(rect: Rect, label: &str) -> Vec2 {
     Vec2::new(value_x + value_w / 2.0, rect.y + rect.h / 2.0)
 }
 
-fn drag_num<'a>(spec: DragNumberSpec<'a>, value: f32) -> (raw::DragNumberResult, DrawCommands) {
+fn drag_num<'a, F>(spec: DragNumberSpec<'a, F>, value: f32) -> (raw::DragNumberResult, DrawCommands)
+where
+    F: Fn(f32) -> String,
+{
     let mut cmds = DrawCommands::new(1.0);
     let mut text_backend = TestTextBackend::default();
     let res = raw::post_layout_drag_number(
@@ -104,6 +113,74 @@ fn drag_num<'a>(spec: DragNumberSpec<'a>, value: f32) -> (raw::DragNumberResult,
 }
 
 #[test]
+fn test_drag_number_custom_formatter_affects_measurement_and_rendering() {
+    let style = DragNumberStyle::from_theme(&crate::theme::Theme::framewise());
+    let default_formatter = default_drag_number_value_formatter;
+    let integer_formatter = |v: f32| format!("{v:.0}");
+    let default_spec = raw::DragNumberPreLayoutSpec {
+        text: "X",
+        style,
+        min: 0.0,
+        max: 100.0,
+        value_formatter: &default_formatter,
+    };
+    let integer_spec = raw::DragNumberPreLayoutSpec {
+        text: "X",
+        style,
+        min: 0.0,
+        max: 100.0,
+        value_formatter: &integer_formatter,
+    };
+    let mut text_backend = TestTextBackend::default();
+    let default_size = raw::pre_layout_drag_number(
+        &default_spec,
+        crate::layout::SizeOffer::UNBOUNDED,
+        &mut text_backend,
+    )
+    .size_request;
+    let integer_size = raw::pre_layout_drag_number(
+        &integer_spec,
+        crate::layout::SizeOffer::UNBOUNDED,
+        &mut text_backend,
+    )
+    .size_request;
+
+    assert!(
+        integer_size.preferred.unwrap().x < default_size.preferred.unwrap().x,
+        "integer formatter should request less width than 2dp formatter"
+    );
+
+    let spec = raw::DragNumberSpec {
+        layer: Layer::default(),
+        rect: Rect::new(10.0, 10.0, 100.0, 28.0),
+        text: "X",
+        min: 0.0,
+        max: 100.0,
+        step: 1.0,
+        page_step: 10.0,
+        value_formatter: integer_formatter,
+        disabled: false,
+        style,
+        clip_rect: None,
+    };
+    let (_res, cmds) = drag_num(spec, 50.0);
+
+    assert_eq!(
+        cmds.glyphs()[1..],
+        [
+            DrawGlyph {
+                token: PreparedGlyphToken(53),
+                top_left: Vec2 { x: 66.0, y: 28.0 },
+            },
+            DrawGlyph {
+                token: PreparedGlyphToken(48),
+                top_left: Vec2 { x: 74.0, y: 28.0 },
+            },
+        ]
+    );
+}
+
+#[test]
 fn test_drag_number_visual_normal() {
     let spec = DragNumberSpec {
         layer: Layer::default(),
@@ -113,6 +190,7 @@ fn test_drag_number_visual_normal() {
         max: 100.0,
         step: 1.0,
         page_step: 10.0,
+        value_formatter: default_drag_number_value_formatter,
         disabled: false,
         style: DragNumberStyle::from_theme(&crate::theme::Theme::framewise()),
         clip_rect: None,
@@ -207,6 +285,7 @@ fn test_drag_number_visual_active() {
         max: 100.0,
         step: 1.0,
         page_step: 10.0,
+        value_formatter: default_drag_number_value_formatter,
         disabled: false,
         style: DragNumberStyle::from_theme(&crate::theme::Theme::framewise()),
         clip_rect: None,
@@ -347,6 +426,7 @@ fn test_drag_number_visual_min_value() {
         max: 100.0,
         step: 1.0,
         page_step: 10.0,
+        value_formatter: default_drag_number_value_formatter,
         disabled: false,
         style: DragNumberStyle::from_theme(&crate::theme::Theme::framewise()),
         clip_rect: None,
@@ -447,6 +527,7 @@ fn test_drag_number_click_takes_focus() {
         max: 100.0,
         step: 1.0,
         page_step: 10.0,
+        value_formatter: default_drag_number_value_formatter,
         disabled: false,
         style: DragNumberStyle::from_theme(&crate::theme::Theme::framewise()),
         clip_rect: None,
@@ -501,6 +582,7 @@ fn test_drag_number_clipped_click_does_not_take_focus() {
         max: 100.0,
         step: 1.0,
         page_step: 10.0,
+        value_formatter: default_drag_number_value_formatter,
         disabled: false,
         style: DragNumberStyle::from_theme(&crate::theme::Theme::framewise()),
         clip_rect: Some(Rect::new(500.0, 500.0, 100.0, 28.0)),
@@ -1029,6 +1111,7 @@ fn test_drag_number_min_greater_than_max_keyboard_does_not_panic() {
         max: 0.0,
         step: 1.0,
         page_step: 10.0,
+        value_formatter: default_drag_number_value_formatter,
         disabled: false,
         style: default_style(),
         clip_rect: None,
