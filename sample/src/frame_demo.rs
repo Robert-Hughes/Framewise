@@ -8,7 +8,7 @@ use framewise::{
     types::Rect,
     widget::WidgetContext,
     widgets::button::{button, ButtonSpec, ButtonState, ButtonStyle},
-    widgets::frame::{begin_frame, FrameResult, FrameSpecBuilder, FrameStyle},
+    widgets::frame::{begin_frame, FrameResult, FrameSpec, FrameStyle},
     widgets::label::{label, LabelSpec},
 };
 
@@ -232,10 +232,10 @@ pub(crate) fn draw_frame_page_content<'a, 'b, CF>(
             let FrameResult {
                 ctx: mut dynamic_frame,
             } = begin_frame(
-                &mut left_col,
-                FrameSpecBuilder::new().style(frame_style),
+                FrameSpec::default().style(frame_style),
                 ColumnLayoutParams::auto().fill_x(),
                 ColumnLayout,
+                &mut left_col,
             );
 
             if state.item_count == 0 {
@@ -289,10 +289,10 @@ pub(crate) fn draw_frame_page_content<'a, 'b, CF>(
             // 1. Fixed-Size Frame (200x120)
             {
                 let FrameResult { ctx: mut sub_frame } = begin_frame(
-                    &mut dimensions_row,
-                    FrameSpecBuilder::new().style(frame_style),
+                    FrameSpec::default().style(frame_style),
                     RowLayoutParams::fixed(120.0, 120.0),
                     ColumnLayout,
+                    &mut dimensions_row,
                 );
 
                 label(
@@ -320,10 +320,10 @@ pub(crate) fn draw_frame_page_content<'a, 'b, CF>(
             // 2. Width Auto, Height Fixed (Auto width wraps to child text width request!)
             {
                 let FrameResult { ctx: mut sub_frame } = begin_frame(
-                    &mut dimensions_row,
-                    FrameSpecBuilder::new().style(frame_style),
+                    FrameSpec::default().style(frame_style),
                     RowLayoutParams::auto().fixed_y(120.0),
                     ColumnLayout,
+                    &mut dimensions_row,
                 );
 
                 label(
@@ -351,10 +351,10 @@ pub(crate) fn draw_frame_page_content<'a, 'b, CF>(
             // 3. Width Fixed, Height Auto
             {
                 let FrameResult { ctx: mut sub_frame } = begin_frame(
-                    &mut dimensions_row,
-                    FrameSpecBuilder::new().style(frame_style),
+                    FrameSpec::default().style(frame_style),
                     RowLayoutParams::auto().fixed_x(130.0),
                     ColumnLayout,
+                    &mut dimensions_row,
                 );
 
                 label(
@@ -390,10 +390,10 @@ pub(crate) fn draw_frame_page_content<'a, 'b, CF>(
             // 4. Fully Auto (Both Width & Height Auto)
             {
                 let FrameResult { ctx: mut sub_frame } = begin_frame(
-                    &mut dimensions_row,
-                    FrameSpecBuilder::new().style(frame_style),
+                    FrameSpec::default().style(frame_style),
                     RowLayoutParams::auto(),
                     ColumnLayout,
+                    &mut dimensions_row,
                 );
 
                 label(
@@ -456,10 +456,10 @@ pub(crate) fn draw_frame_page_content<'a, 'b, CF>(
             let FrameResult {
                 ctx: mut outer_fixed,
             } = begin_frame(
-                &mut right_col,
-                FrameSpecBuilder::new().style(frame_style),
+                FrameSpec::default().style(frame_style),
                 ColumnLayoutParams::fixed(450.0, 180.0),
                 ColumnLayout,
+                &mut right_col,
             );
 
             let text = format!("Outer Fixed Frame (Clicks: {})", state.nested_clicks[0]);
@@ -479,8 +479,7 @@ pub(crate) fn draw_frame_page_content<'a, 'b, CF>(
                 let FrameResult {
                     ctx: mut inner_auto,
                 } = begin_frame(
-                    &mut outer_fixed,
-                    FrameSpecBuilder::new().style(FrameStyle {
+                    FrameSpec::default().style(FrameStyle {
                         background: theme.paper, // distinct dark background
                         ..frame_style
                     }),
@@ -488,6 +487,7 @@ pub(crate) fn draw_frame_page_content<'a, 'b, CF>(
                         .fixed_x(350.0)
                         .align_x(Align::Center),
                     RowLayout,
+                    &mut outer_fixed,
                 );
 
                 let text_c = format!("Inner Center (Clicks: {})", state.nested_clicks[1]);
@@ -536,10 +536,10 @@ pub(crate) fn draw_frame_page_content<'a, 'b, CF>(
             let FrameResult {
                 ctx: mut fit_centered,
             } = begin_frame(
-                &mut right_col,
-                FrameSpecBuilder::new().style(frame_style),
+                FrameSpec::default().style(frame_style),
                 ColumnLayoutParams::auto().fill_x(),
                 ColumnLayout,
+                &mut right_col,
             );
 
             // Three buttons of varying widths visually demonstrating centered alignment within dynamic frame

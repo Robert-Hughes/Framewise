@@ -168,6 +168,12 @@ impl FrameStyle {
     }
 }
 
+impl Default for FrameStyle {
+    fn default() -> Self {
+        Self::from_theme(&crate::theme::Theme::minimal())
+    }
+}
+
 // ── Result ───────────────────────────────────────────────────────────────────
 
 pub struct FrameResult<'b, T: TextBackend, LS: LayoutState, CF> {
@@ -181,47 +187,39 @@ pub struct FrameSpec {
     pub style: FrameStyle,
 }
 
-// ── Spec Builder ─────────────────────────────────────────────────────────────
-
-#[derive(Debug, Clone, PartialEq, Default)]
-pub struct FrameSpecBuilder {
-    pub style: Option<FrameStyle>,
+#[allow(clippy::derivable_impls)]
+impl Default for FrameSpec {
+    fn default() -> Self {
+        Self {
+            style: FrameStyle::default(),
+        }
+    }
 }
 
-impl FrameSpecBuilder {
-    pub fn new() -> Self {
-        Self::default()
+impl FrameSpec {
+    pub fn default_from_theme(theme: &crate::theme::Theme) -> Self {
+        Self::default().theme(theme)
     }
-    pub fn style(mut self, style: FrameStyle) -> Self {
-        self.style = Some(style);
-        self
-    }
-    /// Fills unset fields from `theme`. Called automatically by high-level
-    /// context functions.
-    pub fn defaults_from_theme(mut self, theme: &crate::theme::Theme) -> Self {
-        if self.style.is_none() {
-            self.style = Some(FrameStyle::from_theme(theme));
-        }
+
+    pub fn theme(mut self, theme: &crate::theme::Theme) -> Self {
+        self.style = FrameStyle::from_theme(theme);
         self
     }
 
-    pub fn build(self) -> FrameSpec {
-        FrameSpec {
-            style: self
-                .style
-                .expect("style not set — call .style() or defaults_from_theme()"),
-        }
+    pub fn style(mut self, style: FrameStyle) -> Self {
+        self.style = style;
+        self
     }
 }
 
 // ── High-level container widget function ───────────────────────────────────────────
 
-/// High-level frame container widget function using WidgetContext.
+/// High-level frame container widget function using `WidgetContext`.
 ///
-/// Resolves defaults and runs the raw pre-layout phase for lifecycle consistency,
-/// then uses deferred layout because the final frame size depends on child extent.
-/// The raw begin phase emits provisional placeholder commands and raw end patches
-/// them once final bounds are known.
+/// Consumes a complete `FrameSpec` and runs the raw pre-layout phase for
+/// lifecycle consistency, then uses deferred layout because the final frame size
+/// depends on child extent. The raw begin phase emits provisional placeholder
+/// commands and raw end patches them once final bounds are known.
 ///
 /// ### Sizing and fitting
 /// Whether the frame fits to its children or respects a fixed/filled footprint is determined
@@ -239,17 +237,16 @@ impl FrameSpecBuilder {
 /// compile-safe cursor-advance deferral.
 #[allow(clippy::type_complexity)]
 pub fn begin_frame<'a, 'b, T: TextBackend, S: LayoutState, L: Layout, CF>(
-    ctx: &'b mut WidgetContext<'a, T, S, CF>,
-    builder: FrameSpecBuilder,
+    spec: FrameSpec,
     layout_params: S::Params,
     inner_layout: L,
+    ctx: &'b mut WidgetContext<'a, T, S, CF>,
 ) -> FrameResult<
     'b,
     T,
     L::State,
     impl FnOnce(&mut FocusSystem, &mut T, &mut DrawCommands, &mut crate::output::Output, Rect) + 'b,
 > {
-    let spec = builder.defaults_from_theme(&ctx.theme).build();
     let border_width = spec.style.border.map_or(0.0, |b| b.width);
     let inset = border_width + spec.style.padding;
 

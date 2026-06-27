@@ -96,7 +96,7 @@ pub use drag_number::{
     drag_number, DragNumberResult, DragNumberSpec, DragNumberState, DragNumberStyle,
 };
 #[cfg(feature = "frame")]
-pub use frame::{begin_frame, FrameResult, FrameSpecBuilder, FrameStyle};
+pub use frame::{begin_frame, FrameResult, FrameSpec, FrameStyle};
 #[cfg(feature = "keycap")]
 pub use keycap::{keycap, KeycapResult, KeycapSpec, KeycapStyle};
 #[cfg(feature = "label")]
@@ -138,6 +138,6 @@ pub use text_edit::{
 #[cfg(feature = "tooltip")]
 pub use tooltip::{tooltip, TooltipResult, TooltipSpec, TooltipStyle, TooltipVariant};
 #[cfg(feature = "tree")]
-pub use tree::{tree, TreeResult, TreeRow, TreeSpecBuilder, TreeStyle};
+pub use tree::{tree, TreeResult, TreeRow, TreeSpec, TreeStyle};
 #[cfg(feature = "window")]
 pub use window::{begin_window, WindowButton, WindowResult, WindowSpec, WindowStyle};

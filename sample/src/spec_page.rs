@@ -104,7 +104,7 @@ use framewise::widgets::text_edit::{
 use framewise::widgets::tooltip::{tooltip, TooltipSpec, TooltipVariant};
 #[cfg(feature = "tree")]
 #[allow(unused_imports)]
-use framewise::widgets::tree::{tree, TreeRow, TreeSpecBuilder};
+use framewise::widgets::tree::{tree, TreeRow, TreeSpec};
 #[cfg(feature = "window")]
 #[allow(unused_imports)]
 use framewise::widgets::window::{begin_window, WindowButton, WindowSpec};
@@ -3603,11 +3603,8 @@ fn section_09_tree<CF>(b: &mut WidgetContext<SampleTextBackend, ColumnState, CF>
                 selected: false,
             },
         ];
-        tree(
-            &mut b,
-            TreeSpecBuilder::new().items(WIDGET_TREE),
-            Rect::new(0.0, 0.0, 320.0, 0.0),
-        );
+        let tree_spec = TreeSpec::new_from_theme(WIDGET_TREE, &b.theme);
+        tree(tree_spec, Rect::new(0.0, 0.0, 320.0, 0.0), &mut b);
 
         static FILE_LIST: &[TreeRow<'static>] = &[
             TreeRow {
@@ -3660,10 +3657,11 @@ fn section_09_tree<CF>(b: &mut WidgetContext<SampleTextBackend, ColumnState, CF>
                 selected: false,
             },
         ];
+        let file_tree_spec = TreeSpec::new_from_theme(FILE_LIST, &b.theme);
         tree(
-            &mut b,
-            TreeSpecBuilder::new().items(FILE_LIST),
+            file_tree_spec,
             Rect::new(320.0 + 20.0, 0.0, 240.0, 0.0),
+            &mut b,
         );
 
         b.finish();

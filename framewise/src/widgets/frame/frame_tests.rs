@@ -86,31 +86,27 @@ fn test_size_frame() {
 }
 
 #[test]
-fn test_builder_defaults_from_theme_fills_unset_style() {
+fn test_frame_spec_default_from_theme_uses_theme_style() {
     let theme = crate::theme::Theme::framewise();
-    let builder = FrameSpecBuilder::new();
-    assert!(builder.style.is_none());
-    let builder = builder.defaults_from_theme(&theme);
-    assert!(builder.style.is_some());
+    let spec = FrameSpec::default_from_theme(&theme);
     let expected = FrameStyle::from_theme(&theme);
     assert_eq!(
-        builder.style.unwrap().border.unwrap().width,
+        spec.style.border.unwrap().width,
         expected.border.unwrap().width
     );
-    assert_eq!(builder.style.unwrap().padding, expected.padding);
+    assert_eq!(spec.style.padding, expected.padding);
 }
 
 #[test]
-fn test_builder_defaults_from_theme_preserves_explicit_style() {
+fn test_frame_spec_custom_style_can_override_themed_style() {
     let theme = crate::theme::Theme::framewise();
     let custom_style = FrameStyle {
         background: Color::TRANSPARENT,
         border: Some(Stroke::new(Color::BLACK, 99.0)),
         padding: 0.0,
     };
-    let builder = FrameSpecBuilder::new().style(custom_style);
-    let builder = builder.defaults_from_theme(&theme);
-    assert_eq!(builder.style.unwrap().border.unwrap().width, 99.0);
+    let spec = FrameSpec::default_from_theme(&theme).style(custom_style);
+    assert_eq!(spec.style.border.unwrap().width, 99.0);
 }
 
 #[test]
@@ -140,10 +136,10 @@ fn test_high_level_container_fit_to_children() {
         padding: 8.0,
     };
     let FrameResult { ctx: mut f_ctx } = begin_frame(
-        &mut ctx,
-        FrameSpecBuilder::new().style(style),
+        FrameSpec::default().style(style),
         ColumnLayoutParams::auto().fill_x(),
         ColumnLayout,
+        &mut ctx,
     );
 
     // 2. Place some children inside the frame context

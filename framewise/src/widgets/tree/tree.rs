@@ -241,6 +241,12 @@ impl TreeStyle {
     }
 }
 
+impl Default for TreeStyle {
+    fn default() -> Self {
+        Self::from_theme(&crate::theme::Theme::minimal())
+    }
+}
+
 // ── Result ───────────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, PartialEq)]
@@ -256,44 +262,31 @@ pub struct TreeSpec<'a> {
     pub style: TreeStyle,
 }
 
-// ── Spec Builder ─────────────────────────────────────────────────────────────
+impl<'a> TreeSpec<'a> {
+    pub fn new(items: &'a [TreeRow<'a>]) -> Self {
+        Self {
+            items,
+            style: TreeStyle::default(),
+        }
+    }
 
-#[derive(Debug, Clone, PartialEq, Default)]
-pub struct TreeSpecBuilder<'a> {
-    pub items: Option<&'a [TreeRow<'a>]>,
-    pub style: Option<TreeStyle>,
-}
+    pub fn new_from_theme(items: &'a [TreeRow<'a>], theme: &crate::theme::Theme) -> Self {
+        Self::new(items).theme(theme)
+    }
 
-impl<'a> TreeSpecBuilder<'a> {
-    pub fn new() -> Self {
-        Self::default()
+    pub fn theme(mut self, theme: &crate::theme::Theme) -> Self {
+        self.style = TreeStyle::from_theme(theme);
+        self
     }
 
     pub fn items(mut self, items: &'a [TreeRow<'a>]) -> Self {
-        self.items = Some(items);
+        self.items = items;
         self
     }
+
     pub fn style(mut self, style: TreeStyle) -> Self {
-        self.style = Some(style);
+        self.style = style;
         self
-    }
-
-    /// Fills unset fields from `theme`. Called automatically by high-level
-    /// context functions.
-    pub fn defaults_from_theme(mut self, theme: &crate::theme::Theme) -> Self {
-        if self.style.is_none() {
-            self.style = Some(TreeStyle::from_theme(theme));
-        }
-        self
-    }
-
-    pub fn build(self) -> TreeSpec<'a> {
-        TreeSpec {
-            items: self.items.expect("items not set — call .items()"),
-            style: self
-                .style
-                .expect("style not set — call .style() or defaults_from_theme()"),
-        }
     }
 }
 
@@ -301,14 +294,14 @@ impl<'a> TreeSpecBuilder<'a> {
 
 /// High-level tree widget function using `WidgetContext`.
 ///
-/// Resolves defaults, runs the raw pre-layout phase to obtain a `SizeRequest`,
-/// resolves the final rect with layout, then runs the raw post-layout phase.
+/// Consumes a complete `TreeSpec`, runs the raw pre-layout phase to obtain a
+/// `SizeRequest`, resolves the final rect with layout, then runs the raw
+/// post-layout phase.
 pub fn tree<'a, T: TextBackend, S: LayoutState, CF>(
-    ctx: &mut WidgetContext<T, S, CF>,
-    builder: TreeSpecBuilder<'a>,
+    spec: TreeSpec<'a>,
     layout_params: S::Params,
+    ctx: &mut WidgetContext<T, S, CF>,
 ) -> TreeResult {
-    let spec = builder.defaults_from_theme(&ctx.theme).build();
     let pre_layout_spec = raw::TreePreLayoutSpec {
         items: spec.items,
         style: spec.style,

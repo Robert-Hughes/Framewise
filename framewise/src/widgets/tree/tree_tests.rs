@@ -2,22 +2,19 @@ use super::*;
 use crate::focus::FocusSystem;
 
 #[test]
-fn test_builder_defaults_from_theme_fills_unset_fields() {
+fn test_tree_spec_new_from_theme_uses_theme_style() {
     let theme = crate::theme::Theme::framewise();
-    let builder = TreeSpecBuilder::new();
-    assert!(builder.style.is_none());
-    let builder = builder.defaults_from_theme(&theme);
-    assert_eq!(builder.style, Some(TreeStyle::from_theme(&theme)));
+    let spec = TreeSpec::new_from_theme(&[], &theme);
+    assert_eq!(spec.style, TreeStyle::from_theme(&theme));
 }
 
 #[test]
-fn test_builder_defaults_from_theme_preserves_explicit_fields() {
+fn test_tree_spec_custom_style_can_override_themed_style() {
     let theme = crate::theme::Theme::framewise();
     let mut custom_style = TreeStyle::from_theme(&theme);
     custom_style.text_style.size = 99.0;
-    let builder = TreeSpecBuilder::new().style(custom_style);
-    let builder = builder.defaults_from_theme(&theme);
-    assert_eq!(builder.style.unwrap().text_style.size, 99.0);
+    let spec = TreeSpec::new_from_theme(&[], &theme).style(custom_style);
+    assert_eq!(spec.style.text_style.size, 99.0);
 }
 
 #[test]
@@ -40,7 +37,8 @@ fn test_explicit_placement_via_manual_layout() {
         Rect::new(0.0, 0.0, 800.0, 600.0),
         &mut cmds,
     );
-    let result = super::tree(&mut ctx, TreeSpecBuilder::new().items(&[]), placement);
+    let spec = TreeSpec::new_from_theme(&[], &ctx.theme);
+    let result = super::tree(spec, placement, &mut ctx);
     // With zero items, resolved bounds x/y should match the placement origin.
     assert_eq!(result.layout.bounds.x, placement.x);
     assert_eq!(result.layout.bounds.y, placement.y);
@@ -66,7 +64,8 @@ fn test_tree_bounds_and_content_bounds() {
         Rect::new(0.0, 0.0, 800.0, 600.0),
         &mut cmds,
     );
-    let res = super::tree(&mut ctx, TreeSpecBuilder::new().items(&[]), layout_rect);
+    let spec = TreeSpec::new_from_theme(&[], &ctx.theme);
+    let res = super::tree(spec, layout_rect, &mut ctx);
 
     let style = TreeStyle::from_theme(&ctx.theme);
     let expected_h = style.pad_y * 2.0;

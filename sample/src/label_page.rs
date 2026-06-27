@@ -11,7 +11,7 @@ use framewise::{
     theme::Theme,
     types::{Color, Rect, Stroke},
     widget::WidgetContext,
-    widgets::frame::{begin_frame, FrameSpecBuilder, FrameStyle},
+    widgets::frame::{begin_frame, FrameSpec, FrameStyle},
     widgets::label::{label, LabelSpec, LabelStyle},
 };
 
@@ -354,10 +354,10 @@ pub(crate) fn draw_label_page_content<'a, 'b, CF>(
             // Keep this card in sync with test_overflow_x_drop_y_drop in sample/src/text/tests.rs
             {
                 let mut container = begin_frame(
-                    &mut row,
-                    FrameSpecBuilder::new().style(box_style),
+                    FrameSpec::default().style(box_style),
                     RowLayoutParams::fixed(230.0, 140.0),
                     ColumnLayout,
+                    &mut row,
                 );
                 label(
                     LabelSpec::new("1. X: Drop, Y: Drop").style(LabelStyle {
@@ -375,10 +375,10 @@ pub(crate) fn draw_label_page_content<'a, 'b, CF>(
                 container.ctx.spacer(8.0);
                 {
                     let mut clip_box = begin_frame(
-                        &mut container.ctx,
-                        FrameSpecBuilder::new().style(clip_test_box_style),
+                        FrameSpec::default().style(clip_test_box_style),
                         ColumnLayoutParams::fixed(25.0, 28.0),
                         ColumnLayout,
+                        &mut container.ctx,
                     );
                     label(
                         LabelSpec::new("hello\nhello").style(LabelStyle {
@@ -408,10 +408,10 @@ pub(crate) fn draw_label_page_content<'a, 'b, CF>(
             // Keep this card in sync with test_overflow_x_keep_y_keep in sample/src/text/tests.rs
             {
                 let mut container = begin_frame(
-                    &mut row,
-                    FrameSpecBuilder::new().style(box_style),
+                    FrameSpec::default().style(box_style),
                     RowLayoutParams::fixed(230.0, 140.0),
                     ColumnLayout,
+                    &mut row,
                 );
                 label(
                     LabelSpec::new("2. X: Keep, Y: Keep").style(LabelStyle {
@@ -429,10 +429,10 @@ pub(crate) fn draw_label_page_content<'a, 'b, CF>(
                 container.ctx.spacer(8.0);
                 {
                     let mut clip_box = begin_frame(
-                        &mut container.ctx,
-                        FrameSpecBuilder::new().style(clip_test_box_style),
+                        FrameSpec::default().style(clip_test_box_style),
                         ColumnLayoutParams::fixed(25.0, 28.0),
                         ColumnLayout,
+                        &mut container.ctx,
                     );
                     label(
                         LabelSpec::new("hello\nhello").style(LabelStyle {
@@ -462,10 +462,10 @@ pub(crate) fn draw_label_page_content<'a, 'b, CF>(
             // Keep this card in sync with test_overflow_x_keep_y_ellipsis in sample/src/text/tests.rs
             {
                 let mut container = begin_frame(
-                    &mut row,
-                    FrameSpecBuilder::new().style(box_style),
+                    FrameSpec::default().style(box_style),
                     RowLayoutParams::fixed(230.0, 140.0),
                     ColumnLayout,
+                    &mut row,
                 );
                 label(
                     LabelSpec::new("3. X: Keep, Y: Ellipsis").style(LabelStyle {
@@ -483,10 +483,10 @@ pub(crate) fn draw_label_page_content<'a, 'b, CF>(
                 container.ctx.spacer(8.0);
                 {
                     let mut clip_box = begin_frame(
-                        &mut container.ctx,
-                        FrameSpecBuilder::new().style(clip_test_box_style),
+                        FrameSpec::default().style(clip_test_box_style),
                         ColumnLayoutParams::fixed(25.0, 28.0),
                         ColumnLayout,
+                        &mut container.ctx,
                     );
                     label(
                         LabelSpec::new("hello\nhello").style(LabelStyle {
@@ -518,10 +518,10 @@ pub(crate) fn draw_label_page_content<'a, 'b, CF>(
             // Keep this card in sync with test_overflow_x_keep_y_ellipsis_fallback_drop in sample/src/text/tests.rs
             {
                 let mut container = begin_frame(
-                    &mut row,
-                    FrameSpecBuilder::new().style(box_style),
+                    FrameSpec::default().style(box_style),
                     RowLayoutParams::fixed(230.0, 140.0),
                     ColumnLayout,
+                    &mut row,
                 );
                 label(
                     LabelSpec::new("4. X: Keep, Y: Ell(F:Drop)").style(LabelStyle {
@@ -539,10 +539,10 @@ pub(crate) fn draw_label_page_content<'a, 'b, CF>(
                 container.ctx.spacer(8.0);
                 {
                     let mut clip_box = begin_frame(
-                        &mut container.ctx,
-                        FrameSpecBuilder::new().style(clip_test_box_style),
+                        FrameSpec::default().style(clip_test_box_style),
                         ColumnLayoutParams::fixed(8.0, 28.0),
                         ColumnLayout,
+                        &mut container.ctx,
                     );
                     label(
                         LabelSpec::new("hello\nhello").style(LabelStyle {
@@ -580,10 +580,10 @@ pub(crate) fn draw_label_page_content<'a, 'b, CF>(
             // Keep this card in sync with test_overflow_x_keep_y_ellipsis_fallback_keep in sample/src/text/tests.rs
             {
                 let mut container = begin_frame(
-                    &mut row,
-                    FrameSpecBuilder::new().style(box_style),
+                    FrameSpec::default().style(box_style),
                     RowLayoutParams::fixed(230.0, 140.0),
                     ColumnLayout,
+                    &mut row,
                 );
                 label(
                     LabelSpec::new("5. X: Keep, Y: Ell(F:Keep)").style(LabelStyle {
@@ -601,10 +601,10 @@ pub(crate) fn draw_label_page_content<'a, 'b, CF>(
                 container.ctx.spacer(8.0);
                 {
                     let mut clip_box = begin_frame(
-                        &mut container.ctx,
-                        FrameSpecBuilder::new().style(clip_test_box_style),
+                        FrameSpec::default().style(clip_test_box_style),
                         ColumnLayoutParams::fixed(8.0, 28.0),
                         ColumnLayout,
+                        &mut container.ctx,
                     );
                     label(
                         LabelSpec::new("hello\nhello").style(LabelStyle {
@@ -636,10 +636,10 @@ pub(crate) fn draw_label_page_content<'a, 'b, CF>(
             // Keep this card in sync with test_overflow_x_ellipsis_y_keep in sample/src/text/tests.rs
             {
                 let mut container = begin_frame(
-                    &mut row,
-                    FrameSpecBuilder::new().style(box_style),
+                    FrameSpec::default().style(box_style),
                     RowLayoutParams::fixed(230.0, 140.0),
                     ColumnLayout,
+                    &mut row,
                 );
                 label(
                     LabelSpec::new("6. X: Ellipsis, Y: Keep").style(LabelStyle {
@@ -657,10 +657,10 @@ pub(crate) fn draw_label_page_content<'a, 'b, CF>(
                 container.ctx.spacer(8.0);
                 {
                     let mut clip_box = begin_frame(
-                        &mut container.ctx,
-                        FrameSpecBuilder::new().style(clip_test_box_style),
+                        FrameSpec::default().style(clip_test_box_style),
                         ColumnLayoutParams::fixed(23.0, 48.0),
                         ColumnLayout,
+                        &mut container.ctx,
                     );
                     label(
                         LabelSpec::new("hello\nhello").style(LabelStyle {
@@ -692,10 +692,10 @@ pub(crate) fn draw_label_page_content<'a, 'b, CF>(
             // Keep this card in sync with test_overflow_x_ellipsis_fallback_drop_y_keep in sample/src/text/tests.rs
             {
                 let mut container = begin_frame(
-                    &mut row,
-                    FrameSpecBuilder::new().style(box_style),
+                    FrameSpec::default().style(box_style),
                     RowLayoutParams::fixed(230.0, 140.0),
                     ColumnLayout,
+                    &mut row,
                 );
                 label(
                     LabelSpec::new("7. X: Ell(F:Drop), Y: Keep").style(LabelStyle {
@@ -713,10 +713,10 @@ pub(crate) fn draw_label_page_content<'a, 'b, CF>(
                 container.ctx.spacer(8.0);
                 {
                     let mut clip_box = begin_frame(
-                        &mut container.ctx,
-                        FrameSpecBuilder::new().style(clip_test_box_style),
+                        FrameSpec::default().style(clip_test_box_style),
                         ColumnLayoutParams::fixed(8.0, 48.0),
                         ColumnLayout,
+                        &mut container.ctx,
                     );
                     label(
                         LabelSpec::new("hello\nhello").style(LabelStyle {
@@ -748,10 +748,10 @@ pub(crate) fn draw_label_page_content<'a, 'b, CF>(
             // Keep this card in sync with test_overflow_x_ellipsis_fallback_keep_y_keep in sample/src/text/tests.rs
             {
                 let mut container = begin_frame(
-                    &mut row,
-                    FrameSpecBuilder::new().style(box_style),
+                    FrameSpec::default().style(box_style),
                     RowLayoutParams::fixed(230.0, 140.0),
                     ColumnLayout,
+                    &mut row,
                 );
                 label(
                     LabelSpec::new("8. X: Ell(F:Keep), Y: Keep").style(LabelStyle {
@@ -769,10 +769,10 @@ pub(crate) fn draw_label_page_content<'a, 'b, CF>(
                 container.ctx.spacer(8.0);
                 {
                     let mut clip_box = begin_frame(
-                        &mut container.ctx,
-                        FrameSpecBuilder::new().style(clip_test_box_style),
+                        FrameSpec::default().style(clip_test_box_style),
                         ColumnLayoutParams::fixed(8.0, 48.0),
                         ColumnLayout,
+                        &mut container.ctx,
                     );
                     label(
                         LabelSpec::new("hello\nhello").style(LabelStyle {
@@ -845,10 +845,10 @@ pub(crate) fn draw_label_page_content<'a, 'b, CF>(
             // Keep this card in sync with test_wrap_cluster_y_keep in sample/src/text/tests.rs
             {
                 let mut container = begin_frame(
-                    &mut row,
-                    FrameSpecBuilder::new().style(box_style),
+                    FrameSpec::default().style(box_style),
                     RowLayoutParams::fixed(230.0, 140.0),
                     ColumnLayout,
+                    &mut row,
                 );
                 label(
                     LabelSpec::new("1. X: WrapCluster, Y: Keep").style(LabelStyle {
@@ -866,10 +866,10 @@ pub(crate) fn draw_label_page_content<'a, 'b, CF>(
                 container.ctx.spacer(8.0);
                 {
                     let mut clip_box = begin_frame(
-                        &mut container.ctx,
-                        FrameSpecBuilder::new().style(clip_test_box_style),
+                        FrameSpec::default().style(clip_test_box_style),
                         ColumnLayoutParams::fixed(23.0, 63.0),
                         ColumnLayout,
+                        &mut container.ctx,
                     );
                     label(
                         LabelSpec::new("hello\nhello").style(LabelStyle {
@@ -901,10 +901,10 @@ pub(crate) fn draw_label_page_content<'a, 'b, CF>(
             // Keep this card in sync with test_wrap_cluster_fallback_drop_y_keep in sample/src/text/tests.rs
             {
                 let mut container = begin_frame(
-                    &mut row,
-                    FrameSpecBuilder::new().style(box_style),
+                    FrameSpec::default().style(box_style),
                     RowLayoutParams::fixed(230.0, 140.0),
                     ColumnLayout,
+                    &mut row,
                 );
                 label(
                     LabelSpec::new("2. X: WrapCluster(F:Drop)").style(LabelStyle {
@@ -922,10 +922,10 @@ pub(crate) fn draw_label_page_content<'a, 'b, CF>(
                 container.ctx.spacer(8.0);
                 {
                     let mut clip_box = begin_frame(
-                        &mut container.ctx,
-                        FrameSpecBuilder::new().style(clip_test_box_style),
+                        FrameSpec::default().style(clip_test_box_style),
                         ColumnLayoutParams::fixed(6.0, 68.0),
                         ColumnLayout,
+                        &mut container.ctx,
                     );
                     label(
                         LabelSpec::new("hello\nhello").style(LabelStyle {
@@ -957,10 +957,10 @@ pub(crate) fn draw_label_page_content<'a, 'b, CF>(
             // Keep this card in sync with test_wrap_cluster_fallback_keep_y_keep in sample/src/text/tests.rs
             {
                 let mut container = begin_frame(
-                    &mut row,
-                    FrameSpecBuilder::new().style(box_style),
+                    FrameSpec::default().style(box_style),
                     RowLayoutParams::fixed(230.0, 220.0),
                     ColumnLayout,
+                    &mut row,
                 );
                 label(
                     LabelSpec::new("3. X: WrapCluster(F:Keep)").style(LabelStyle {
@@ -978,10 +978,10 @@ pub(crate) fn draw_label_page_content<'a, 'b, CF>(
                 container.ctx.spacer(8.0);
                 {
                     let mut clip_box = begin_frame(
-                        &mut container.ctx,
-                        FrameSpecBuilder::new().style(clip_test_box_style),
+                        FrameSpec::default().style(clip_test_box_style),
                         ColumnLayoutParams::fixed(4.0, 162.0),
                         ColumnLayout,
+                        &mut container.ctx,
                     );
                     label(
                         LabelSpec::new("hello\nhello").style(LabelStyle {
@@ -1027,10 +1027,10 @@ pub(crate) fn draw_label_page_content<'a, 'b, CF>(
             // Keep this card in sync with test_wrap_word_y_keep in sample/src/text/tests.rs
             {
                 let mut container = begin_frame(
-                    &mut row,
-                    FrameSpecBuilder::new().style(box_style),
+                    FrameSpec::default().style(box_style),
                     RowLayoutParams::fixed(230.0, 140.0),
                     ColumnLayout,
+                    &mut row,
                 );
                 label(
                     LabelSpec::new("4. X: WrapWord, Y: Keep").style(LabelStyle {
@@ -1048,10 +1048,10 @@ pub(crate) fn draw_label_page_content<'a, 'b, CF>(
                 container.ctx.spacer(8.0);
                 {
                     let mut clip_box = begin_frame(
-                        &mut container.ctx,
-                        FrameSpecBuilder::new().style(clip_test_box_style),
+                        FrameSpec::default().style(clip_test_box_style),
                         ColumnLayoutParams::fixed(48.0, 68.0),
                         ColumnLayout,
+                        &mut container.ctx,
                     );
                     label(
                         LabelSpec::new("hello there\nhello there").style(LabelStyle {
@@ -1083,10 +1083,10 @@ pub(crate) fn draw_label_page_content<'a, 'b, CF>(
             // Keep this card in sync with test_wrap_word_fallback_wrap_cluster_y_keep in sample/src/text/tests.rs
             {
                 let mut container = begin_frame(
-                    &mut row,
-                    FrameSpecBuilder::new().style(box_style),
+                    FrameSpec::default().style(box_style),
                     RowLayoutParams::fixed(230.0, 200.0),
                     ColumnLayout,
+                    &mut row,
                 );
                 label(
                     LabelSpec::new("5. X: WrapWord(F:WrapC)").style(LabelStyle {
@@ -1104,10 +1104,10 @@ pub(crate) fn draw_label_page_content<'a, 'b, CF>(
                 container.ctx.spacer(8.0);
                 {
                     let mut clip_box = begin_frame(
-                        &mut container.ctx,
-                        FrameSpecBuilder::new().style(clip_test_box_style),
+                        FrameSpec::default().style(clip_test_box_style),
                         ColumnLayoutParams::fixed(23.0, 138.0),
                         ColumnLayout,
+                        &mut container.ctx,
                     );
                     label(
                         LabelSpec::new("hello there\nhello there").style(LabelStyle {
@@ -1141,10 +1141,10 @@ pub(crate) fn draw_label_page_content<'a, 'b, CF>(
             // Keep this card in sync with test_wrap_word_fallback_wrap_cluster_fallback_drop_y_keep in sample/src/text/tests.rs
             {
                 let mut container = begin_frame(
-                    &mut row,
-                    FrameSpecBuilder::new().style(box_style),
+                    FrameSpec::default().style(box_style),
                     RowLayoutParams::fixed(230.0, 200.0),
                     ColumnLayout,
+                    &mut row,
                 );
                 label(
                     LabelSpec::new("6. X: WrapWord(F:WC F:Dr)").style(LabelStyle {
@@ -1162,10 +1162,10 @@ pub(crate) fn draw_label_page_content<'a, 'b, CF>(
                 container.ctx.spacer(8.0);
                 {
                     let mut clip_box = begin_frame(
-                        &mut container.ctx,
-                        FrameSpecBuilder::new().style(clip_test_box_style),
+                        FrameSpec::default().style(clip_test_box_style),
                         ColumnLayoutParams::fixed(6.0, 138.0),
                         ColumnLayout,
+                        &mut container.ctx,
                     );
                     label(
                         LabelSpec::new("hello there\nhello there").style(LabelStyle {
@@ -1205,10 +1205,10 @@ pub(crate) fn draw_label_page_content<'a, 'b, CF>(
             // Keep this card in sync with test_wrap_word_fallback_wrap_cluster_fallback_keep_y_keep in sample/src/text/tests.rs
             {
                 let mut container = begin_frame(
-                    &mut row,
-                    FrameSpecBuilder::new().style(box_style),
+                    FrameSpec::default().style(box_style),
                     RowLayoutParams::fixed(230.0, 380.0),
                     ColumnLayout,
+                    &mut row,
                 );
                 label(
                     LabelSpec::new("7. X: WrapWord(F:WC F:Kp)").style(LabelStyle {
@@ -1226,10 +1226,10 @@ pub(crate) fn draw_label_page_content<'a, 'b, CF>(
                 container.ctx.spacer(8.0);
                 {
                     let mut clip_box = begin_frame(
-                        &mut container.ctx,
-                        FrameSpecBuilder::new().style(clip_test_box_style),
+                        FrameSpec::default().style(clip_test_box_style),
                         ColumnLayoutParams::fixed(4.0, 318.0),
                         ColumnLayout,
+                        &mut container.ctx,
                     );
                     label(
                         LabelSpec::new("hello there\nhello there").style(LabelStyle {
@@ -1263,10 +1263,10 @@ pub(crate) fn draw_label_page_content<'a, 'b, CF>(
             // Keep this card in sync with test_wrap_word_fallback_drop_y_keep in sample/src/text/tests.rs
             {
                 let mut container = begin_frame(
-                    &mut row,
-                    FrameSpecBuilder::new().style(box_style),
+                    FrameSpec::default().style(box_style),
                     RowLayoutParams::fixed(230.0, 140.0),
                     ColumnLayout,
+                    &mut row,
                 );
                 label(
                     LabelSpec::new("8. X: WrapWord(F:Drop)").style(LabelStyle {
@@ -1284,10 +1284,10 @@ pub(crate) fn draw_label_page_content<'a, 'b, CF>(
                 container.ctx.spacer(8.0);
                 {
                     let mut clip_box = begin_frame(
-                        &mut container.ctx,
-                        FrameSpecBuilder::new().style(clip_test_box_style),
+                        FrameSpec::default().style(clip_test_box_style),
                         ColumnLayoutParams::fixed(25.0, 68.0),
                         ColumnLayout,
+                        &mut container.ctx,
                     );
                     label(
                         LabelSpec::new("hello there\nhello there").style(LabelStyle {
@@ -1319,10 +1319,10 @@ pub(crate) fn draw_label_page_content<'a, 'b, CF>(
             // Keep this card in sync with test_wrap_word_fallback_keep_y_keep in sample/src/text/tests.rs
             {
                 let mut container = begin_frame(
-                    &mut row,
-                    FrameSpecBuilder::new().style(box_style),
+                    FrameSpec::default().style(box_style),
                     RowLayoutParams::fixed(230.0, 140.0),
                     ColumnLayout,
+                    &mut row,
                 );
                 label(
                     LabelSpec::new("9. X: WrapWord(F:Keep)").style(LabelStyle {
@@ -1340,10 +1340,10 @@ pub(crate) fn draw_label_page_content<'a, 'b, CF>(
                 container.ctx.spacer(8.0);
                 {
                     let mut clip_box = begin_frame(
-                        &mut container.ctx,
-                        FrameSpecBuilder::new().style(clip_test_box_style),
+                        FrameSpec::default().style(clip_test_box_style),
                         ColumnLayoutParams::fixed(25.0, 68.0),
                         ColumnLayout,
+                        &mut container.ctx,
                     );
                     label(
                         LabelSpec::new("hello there\nhello there").style(LabelStyle {
@@ -1404,10 +1404,10 @@ pub(crate) fn draw_label_page_content<'a, 'b, CF>(
 
         for (text, text_align) in alignments {
             let mut container = begin_frame(
-                &mut row,
-                FrameSpecBuilder::new().style(box_style),
+                FrameSpec::default().style(box_style),
                 RowLayoutParams::fixed(230.0, 80.0),
                 ColumnLayout,
+                &mut row,
             );
 
             label(
@@ -1493,14 +1493,14 @@ pub(crate) fn draw_label_page_content<'a, 'b, CF>(
 
             for (text, x, y) in row_positions {
                 let mut cell = begin_frame(
-                    &mut row,
-                    FrameSpecBuilder::new().style(FrameStyle {
+                    FrameSpec::default().style(FrameStyle {
                         background: Color::from_srgb_u8(255, 255, 255, 255),
                         border: Some(Stroke::new(theme.line_on_paper, 1.0)),
                         padding: 0.0,
                     }),
                     RowLayoutParams::fixed(150.0, 72.0),
                     ColumnLayout,
+                    &mut row,
                 );
                 label(
                     LabelSpec::new(text).style(LabelStyle {
@@ -1554,10 +1554,10 @@ pub(crate) fn draw_label_page_content<'a, 'b, CF>(
         row.spacer(6.0);
         {
             let mut cell = begin_frame(
-                &mut row,
-                FrameSpecBuilder::new().style(icon_frame),
+                FrameSpec::default().style(icon_frame),
                 RowLayoutParams::fixed(29.0, 29.0),
                 ColumnLayout,
+                &mut row,
             );
             label(
                 LabelSpec::new("×").style(LabelStyle {
@@ -1578,10 +1578,10 @@ pub(crate) fn draw_label_page_content<'a, 'b, CF>(
         row.spacer(6.0);
         {
             let mut cell = begin_frame(
-                &mut row,
-                FrameSpecBuilder::new().style(icon_frame),
+                FrameSpec::default().style(icon_frame),
                 RowLayoutParams::fixed(29.0, 29.0),
                 ColumnLayout,
+                &mut row,
             );
             label(
                 LabelSpec::new("×").style(LabelStyle {
