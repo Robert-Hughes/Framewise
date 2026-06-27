@@ -72,6 +72,58 @@ pub struct Theme {
 }
 
 impl Theme {
+    pub fn minimal() -> Self {
+        let ink = Color::from_srgb_u8(0, 0, 0, 255);
+        let paper = Color::from_srgb_u8(255, 255, 255, 255);
+        let paper_elev = paper;
+        let rust = ink;
+        Self {
+            sans_font: FontId(0),
+            sans_weight_regular: 400,
+            sans_weight_bold: 700,
+            heading_font: FontId(0),
+            heading_weight: 700,
+            mono_font: FontId(0),
+            overline_weight: 400,
+            ink,
+            paper,
+            paper_elev,
+            rust,
+            ok: ink,
+            err: ink,
+            muted: Color::from_srgb_u8(128, 128, 128, 255),
+            paper_hover: ink.with_srgb_alpha_over(paper, 0.06),
+            paper_press: ink.with_srgb_alpha_over(paper, 0.14),
+            paper_elev_hover: ink.with_srgb_alpha_over(paper_elev, 0.06),
+            paper_elev_press: ink.with_srgb_alpha_over(paper_elev, 0.14),
+            rust_soft_on_paper: rust.with_srgb_alpha_over(paper, 0.14),
+            rust_soft_on_paper_elev: rust.with_srgb_alpha_over(paper_elev, 0.14),
+            line_on_paper: ink.with_srgb_alpha_over(paper, 0.20),
+            line_soft_on_paper: ink.with_srgb_alpha_over(paper, 0.10),
+            line_on_paper_elev: ink.with_srgb_alpha_over(paper_elev, 0.20),
+            line_soft_on_paper_elev: ink.with_srgb_alpha_over(paper_elev, 0.10),
+            scrollbar_track_on_paper: ink.with_srgb_alpha_over(paper, 0.04),
+            scrollbar_track_on_paper_elev: ink.with_srgb_alpha_over(paper_elev, 0.04),
+            h_sm: 22.0,
+            h_md: 28.0,
+            h_lg: 36.0,
+            row_height: 26.0,
+            border: 1.0,
+            focus_width: 2.0,
+            focus_offset: 2.0,
+            focus_offset_tight: 1.0,
+            text_sm: 11.0,
+            text_md: 13.0,
+            text_mono: 12.0,
+            scrollbar_width: 10.0,
+            heading_letter_spacing: 0.0,
+            overline_letter_spacing: 0.0,
+            body_letter_spacing: 0.0,
+            heading_line_height: LineHeight::Normal,
+            body_line_height: LineHeight::Normal,
+        }
+    }
+
     pub fn framewise() -> Self {
         let ink = Color::from_srgb_u8(21, 19, 15, 255);
         let paper = Color::from_srgb_u8(244, 241, 234, 255);

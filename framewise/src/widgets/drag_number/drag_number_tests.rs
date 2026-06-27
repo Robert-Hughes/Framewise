@@ -677,22 +677,38 @@ fn test_drag_number_keyboard_adjustment_ignored_when_disabled() {
 }
 
 #[test]
-fn test_builder_defaults_from_theme_fills_unset_fields() {
+fn test_spec_default_from_theme_applies_theme_style() {
     let theme = crate::theme::Theme::framewise();
-    let builder = DragNumberSpecBuilder::new();
-    assert!(builder.style.is_none());
-    let builder = builder.defaults_from_theme(&theme);
-    assert_eq!(builder.style, Some(DragNumberStyle::from_theme(&theme)));
+    let spec = super::DragNumberSpec::default_from_theme(&theme);
+    assert_eq!(spec.style, DragNumberStyle::from_theme(&theme));
+    assert_eq!(spec.min, 0.0);
+    assert_eq!(spec.max, 100.0);
+    assert_eq!(spec.step, 1.0);
+    assert_eq!(spec.page_step, 10.0);
+    assert!(!spec.disabled);
 }
 
 #[test]
-fn test_builder_defaults_from_theme_preserves_explicit_fields() {
+fn test_spec_theme_overwrites_style_only() {
     let theme = crate::theme::Theme::framewise();
     let mut custom_style = DragNumberStyle::from_theme(&theme);
     custom_style.text_style.size = 99.0;
-    let builder = DragNumberSpecBuilder::new().style(custom_style);
-    let builder = builder.defaults_from_theme(&theme);
-    assert_eq!(builder.style.unwrap().text_style.size, 99.0);
+    let spec = super::DragNumberSpec::default()
+        .text("x")
+        .style(custom_style)
+        .min(5.0)
+        .max(10.0)
+        .step(2.0)
+        .page_step(7.0)
+        .disabled(true)
+        .theme(&theme);
+    assert_eq!(spec.style, DragNumberStyle::from_theme(&theme));
+    assert_eq!(spec.text, "x");
+    assert_eq!(spec.min, 5.0);
+    assert_eq!(spec.max, 10.0);
+    assert_eq!(spec.step, 2.0);
+    assert_eq!(spec.page_step, 7.0);
+    assert!(spec.disabled);
 }
 
 #[test]
@@ -716,10 +732,10 @@ fn test_high_level_explicit_placement_via_manual_layout() {
     );
     let mut dn_state = DragNumberState::default();
     let result = super::drag_number(
-        &mut ctx,
-        DragNumberSpecBuilder::new().text("x"),
+        super::DragNumberSpec::default_from_theme(&ctx.theme).text("x"),
         placement,
         &mut dn_state,
+        &mut ctx,
     );
     assert_eq!(result.layout.bounds, placement);
 }

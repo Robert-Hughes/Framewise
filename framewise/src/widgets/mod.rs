@@ -93,7 +93,7 @@ pub use color_swatch::{color_swatch, ColorSwatchResult, ColorSwatchSpecBuilder};
 pub use divider::{divider, DividerResult, DividerSpecBuilder};
 #[cfg(feature = "drag_number")]
 pub use drag_number::{
-    drag_number, DragNumberResult, DragNumberSpecBuilder, DragNumberState, DragNumberStyle,
+    drag_number, DragNumberResult, DragNumberSpec, DragNumberState, DragNumberStyle,
 };
 #[cfg(feature = "frame")]
 pub use frame::{begin_frame, FrameResult, FrameSpecBuilder, FrameStyle};

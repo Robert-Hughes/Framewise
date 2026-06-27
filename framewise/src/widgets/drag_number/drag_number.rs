@@ -380,6 +380,12 @@ impl DragNumberStyle {
     }
 }
 
+impl Default for DragNumberStyle {
+    fn default() -> Self {
+        Self::from_theme(&crate::theme::Theme::minimal())
+    }
+}
+
 // ── State ─────────────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, Default, PartialEq)]
@@ -413,74 +419,74 @@ pub struct DragNumberSpec<'a> {
     pub disabled: bool,
 }
 
-// ── Spec Builder ─────────────────────────────────────────────────────────────
-
-#[derive(Debug, Clone, PartialEq, Default)]
-pub struct DragNumberSpecBuilder<'a> {
-    pub text: Option<&'a str>,
-    pub style: Option<DragNumberStyle>,
-    pub min: Option<f32>,
-    pub max: Option<f32>,
-    pub step: Option<f32>,
-    pub page_step: Option<f32>,
-    pub disabled: Option<bool>,
+impl<'a> Default for DragNumberSpec<'a> {
+    fn default() -> Self {
+        Self {
+            text: "",
+            style: DragNumberStyle::default(),
+            min: 0.0,
+            max: 100.0,
+            step: 1.0,
+            page_step: 10.0,
+            disabled: false,
+        }
+    }
 }
 
-impl<'a> DragNumberSpecBuilder<'a> {
-    pub fn new() -> Self {
-        Self::default()
+impl<'a> DragNumberSpec<'a> {
+    pub fn new(text: &'a str) -> Self {
+        Self {
+            text,
+            ..Self::default()
+        }
+    }
+
+    pub fn new_from_theme(theme: &crate::theme::Theme, text: &'a str) -> Self {
+        Self::new(text).theme(theme)
+    }
+
+    pub fn default_from_theme(theme: &crate::theme::Theme) -> Self {
+        Self::default().theme(theme)
+    }
+
+    pub fn theme(mut self, theme: &crate::theme::Theme) -> Self {
+        self.style = DragNumberStyle::from_theme(theme);
+        self
     }
 
     pub fn text(mut self, text: &'a str) -> Self {
-        self.text = Some(text);
+        self.text = text;
         self
     }
+
     pub fn style(mut self, style: DragNumberStyle) -> Self {
-        self.style = Some(style);
+        self.style = style;
         self
     }
+
     pub fn min(mut self, min: f32) -> Self {
-        self.min = Some(min);
+        self.min = min;
         self
     }
+
     pub fn max(mut self, max: f32) -> Self {
-        self.max = Some(max);
+        self.max = max;
         self
     }
+
     pub fn step(mut self, step: f32) -> Self {
-        self.step = Some(step);
+        self.step = step;
         self
     }
+
     pub fn page_step(mut self, page_step: f32) -> Self {
-        self.page_step = Some(page_step);
+        self.page_step = page_step;
         self
     }
+
     pub fn disabled(mut self, disabled: bool) -> Self {
-        self.disabled = Some(disabled);
+        self.disabled = disabled;
         self
-    }
-
-    /// Fills unset fields from `theme`. Called automatically by high-level
-    /// context functions.
-    pub fn defaults_from_theme(mut self, theme: &crate::theme::Theme) -> Self {
-        if self.style.is_none() {
-            self.style = Some(DragNumberStyle::from_theme(theme));
-        }
-        self
-    }
-
-    pub fn build(self) -> DragNumberSpec<'a> {
-        DragNumberSpec {
-            text: self.text.expect("text not set — call .text()"),
-            style: self
-                .style
-                .expect("style not set — call .style() or defaults_from_theme()"),
-            min: self.min.unwrap_or(0.0),
-            max: self.max.unwrap_or(100.0),
-            step: self.step.unwrap_or(1.0),
-            page_step: self.page_step.unwrap_or(10.0),
-            disabled: self.disabled.unwrap_or(false),
-        }
     }
 }
 
@@ -488,15 +494,14 @@ impl<'a> DragNumberSpecBuilder<'a> {
 
 /// High-level drag number widget function using `WidgetContext`.
 ///
-/// Resolves defaults, runs the raw pre-layout phase to obtain a `SizeRequest`,
-/// resolves the final rect with layout, then runs the raw post-layout phase.
+/// Runs the raw pre-layout phase to obtain a `SizeRequest`, resolves the final
+/// rect with layout, then runs the raw post-layout phase.
 pub fn drag_number<'a, T: TextBackend, S: LayoutState, CF>(
-    ctx: &mut WidgetContext<T, S, CF>,
-    builder: DragNumberSpecBuilder<'a>,
+    spec: DragNumberSpec<'a>,
     layout_params: S::Params,
     state: &mut DragNumberState,
+    ctx: &mut WidgetContext<T, S, CF>,
 ) -> DragNumberResult {
-    let spec = builder.defaults_from_theme(&ctx.theme).build();
     let pre_layout_spec = raw::DragNumberPreLayoutSpec {
         text: spec.text,
         style: spec.style,

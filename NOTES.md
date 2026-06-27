@@ -367,10 +367,15 @@ The "App-Managed State" option would require either a trait layer (so the widget
 - Slider
   - In 'scrollbar form', if the bar becomes too small it may be impossible to grab! Maybe need to figure out a minimum size somehow
   - Logarithmic (or otherwise custom) scales? Perhaps a user-defined 'value to linear' mapping function (and reverse), and everything else can be figured out automatically?
-
+- Drag number
+  - Logarithmic (or otherwise custom) scales? Perhaps a user-defined 'value to linear' mapping function (and reverse), and everything else can be figured out automatically?
 
 - Button group seams
 - HTML removes inner right borders in .fw-btngroup. Rust draws adjacent full buttons, so once groups are switched to secondary/default, internal seams will likely look 2px thick unless the rects overlap by 1px or the button API gains per-side borders.
+
+- Try to refactor widgets into small composable functions so that they can be easily customised by users (e.g. you can re-use all the bits that you want to keep the same and change just one or two bits)
+
+- WidgetContext can have a disabled field, which when set is used by all of the high-level widget fns. Makes it easy to disable a whole set of widgets.
 
 ## Popups & Menus
 

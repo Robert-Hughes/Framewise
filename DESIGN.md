@@ -22,9 +22,9 @@ State structs are composed from shared sub-structs based on widget capability �
 The distinction between the two parameter types is about **who mutates what, and when**:
 
 - **`*State`** holds data that the widget function itself may modify as a direct result of user interaction — hover tracking, pressed flags, scroll position, text content, caret position, focus IDs. The caller passes `&mut *State`; the widget mutates it in place.
-- **`*Spec`** holds everything the caller provides as input to the widget for that frame. Spec fields can vary frame-to-frame (e.g. elapsed time, a label string, an enabled flag driven by app logic), but they are **never mutated by the widget function**. The spec is consumed, not updated.
+- **`*Spec`** holds everything the caller provides as input to the widget for that frame. Spec fields can vary frame-to-frame (e.g. elapsed time, a label string, an enabled flag driven by app logic), but they are **never mutated by the widget function**. The spec is consumed, not updated. High-level specs are complete values by the time they are passed to high-level widget functions: they do not represent partially-built intent waiting for the widget to fill missing fields.
 
-In short: if a value changes because the user clicked or typed, it belongs in `*State`. If it changes because the app decided something different this frame, it belongs in `*Spec`.
+In short: if a value changes because the user clicked or typed, it belongs in `*State`. If it changes because the app decided something different this frame, it belongs in `*Spec`. If a value is a piece of caller-supplied code that the widget calls back into for this frame, such as a value-formatting closure, it also belongs in `*Spec`.
 
 ---
 
@@ -446,9 +446,9 @@ Consistency applies across every dimension of the code:
 - **File structure** — ordering of structs, functions, and sections within the file
 - **Derived traits** — the same set of `#[derive(...)]` on equivalent structs (e.g. all `*Spec` structs derive the same traits)
 - **Visibility** — `pub`, `pub(crate)`, or private applied consistently to equivalent items
-- **Parameters** — order of parameters to raw functions and high-level context functions, including where `&Input`, `&mut *State`, and `*Spec` appear
+- **Parameters** — order of parameters to raw functions and high-level context functions. High-level widget functions take caller-supplied inputs first and `&mut WidgetContext` last; raw functions pass runtime systems explicitly, with `cmds: &mut DrawCommands` last.
 - **Return types** — if one widget's high-level function returns `layout: LayoutInfo`, all do; if one raw result includes `content_bounds`, equivalent raw results do too. (Exception: [deferred-own-size containers](#deferred-own-size-containers) omit `layout` — they do not know their bounds at `begin`. This is a principled deviation shared by all such containers, not per-widget drift.)
-- **Default value handling** — `unwrap_or` vs. `unwrap_or_default` vs. panic in `build()`, applied uniformly based on field semantics
+- **Default value handling** — `Default`, `new(...)`, `*_from_theme(...)`, and `theme(...)` methods applied uniformly based on field semantics. `Option<T>` is used only for real optional values, not for unset builder state.
 - **Composition patterns** — shared sub-structs (e.g. `FocusState`), shared helper functions (e.g. `handle_focus`), used consistently rather than re-implemented per widget
 - **Doc comments and inline comments** — same level of documentation for equivalent items; no widget's public API should be substantially better or worse documented than another's
 
@@ -717,7 +717,7 @@ Three key rules keep these bounds from leaking infinity into leaf widget geometr
 
 This keeps the type honest: pre-layout runs before layout, so the widget rect is not available and cannot appear in the pre-layout spec. Callers do not use placeholder rectangles to satisfy a broader raw widget spec; they construct the smaller pre-layout spec directly. Future widget work may allow pre-layout functions to take runtime systems or `&mut State` parameters explicitly for rect-independent state changes, but those dependencies still do not belong inside spec structs.
 
-**High-level flow.** The high-level widget function: (1) resolves defaults into the high-level `*Spec`; (2) constructs `raw::*PreLayoutSpec` from the pre-layout-relevant fields; (3) calls `raw::pre_layout_*(&pre_layout_spec, offer, ...)`; (4) calls `layout(params, pre_layout.size_request)` to get the real rect; (5) constructs `raw::*Spec` from the resolved high-level spec plus the layout rect and context clip; (6) calls `raw::post_layout_*(spec, pre_layout, ...)` for one-shot widgets, or `raw::begin_*` for scoped containers. Under `ManualLayout` the size request is computed but ignored - an accepted "double-shape" cost for now (the text is shaped in both pre-layout and raw draw); a later `Layout::WANTS_REQUEST` const can gate it.
+**High-level flow.** The high-level widget function consumes a complete high-level `*Spec` supplied by the caller: (1) constructs `raw::*PreLayoutSpec` from the pre-layout-relevant fields; (2) calls `raw::pre_layout_*(&pre_layout_spec, offer, ...)`; (3) calls `layout(params, pre_layout.size_request)` to get the real rect; (4) constructs `raw::*Spec` from the high-level spec plus the layout rect and context-managed fields such as clip and layer; (5) calls `raw::post_layout_*(spec, pre_layout, ...)` for one-shot widgets, or `raw::begin_*` for scoped containers. The high-level function does not fill missing high-level spec fields. Theme/default application has already happened explicitly during spec construction. Under `ManualLayout` the size request is computed but ignored - an accepted "double-shape" cost for now (the text is shaped in both pre-layout and raw draw); a later `Layout::WANTS_REQUEST` const can gate it.
 
 #### Deferred-own-size containers
 
@@ -757,15 +757,44 @@ To support variable spacing between children in sequential layouts (like `RowLay
 
 Framewise has two layers:
 
+1. **Raw widget functions** in each widget's `raw` submodule. These are explicit,
+   layout-agnostic, context-free functions that receive all runtime systems as
+   parameters.
+2. **High-level freestanding widget functions** that integrate raw widgets with
+   `WidgetContext`, layout, clipping, layering, theme-prepared specs, and output
+   accumulation.
+
+The high-level layer consumes complete public `*Spec` values. There is no
+`*SpecBuilder` layer. Specs are constructed directly by the caller, transformed
+imperatively through fluent methods, and then passed to the high-level widget
+function.
+
+This follows the immediate-mode model closely: the app decides what the widget
+should be this frame, creates a complete description of that input, and calls the
+widget. The widget mutates only its `*State` and writes output commands; it does
+not complete or mutate the spec.
+
+---
+
 ### Low-Level Raw Widget Functions
 
-Plain, low-level functions live in widget `raw` submodules. They are decoupled from `WidgetContext`, themes, hidden layout state, and retained widget trees. Every runtime dependency is passed explicitly. Some lifecycle phases may mutate widget state, but only through explicit `&mut *State` parameters.
+Plain, low-level functions live in widget `raw` submodules. They are decoupled
+from `WidgetContext`, themes, hidden layout state, and retained widget trees.
+Every runtime dependency is passed explicitly. Some lifecycle phases may mutate
+widget state, but only through explicit `&mut *State` parameters.
 
-Appending directly to a caller-supplied buffer avoids intermediate `Vec` allocation and copying, and gives callers stable index-based access to the command list. The `cmds: &mut DrawCommands` parameter is always last, after all other inputs.
+Appending directly to a caller-supplied buffer avoids intermediate `Vec`
+allocation and copying, and gives callers stable index-based access to the
+command list. The `cmds: &mut DrawCommands` parameter is always last, after all
+other inputs.
 
 Raw widgets fall into three lifecycle categories.
 
-**One-shot widgets** have no child `WidgetContext` or child-layout scope. Examples include button, label, text_edit, checkbox, slider, meter, menu, and select. Menu and select may draw popup-like content, but in the current implementation they are still one-shot raw widgets because they do not open a child context.
+**One-shot widgets** have no child `WidgetContext` or child-layout scope.
+Examples include button, label, text_edit, checkbox, slider, meter, menu, and
+select. Menu and select may draw popup-like content, but in the current
+implementation they are still one-shot raw widgets because they do not open a
+child context.
 
 The lifecycle is:
 
@@ -775,9 +804,16 @@ ctx.layout(params, pre_layout.size_request) -> Rect
 raw::post_layout_foo(spec_with_rect, pre_layout, ...) -> FooResult
 ```
 
-`pre_layout_*` runs before the final rect is known, returns a `*PreLayoutResult` that normally contains `size_request`, may eventually perform rect-independent stateful widget logic through explicit parameters, must not draw, must not hit-test against the final widget rect, and should not do geometry-dependent work.
+`pre_layout_*` runs before the final rect is known, returns a
+`*PreLayoutResult` that normally contains `size_request`, may eventually perform
+rect-independent stateful widget logic through explicit parameters, must not
+draw, must not hit-test against the final widget rect, and should not do
+geometry-dependent work.
 
-`post_layout_*` receives the final raw spec containing concrete geometry, consumes the matching pre-layout result, handles geometry-dependent interaction and drawing, and can mutate widget state through explicit `&mut State` parameters.
+`post_layout_*` receives the final raw spec containing concrete geometry,
+consumes the matching pre-layout result, handles geometry-dependent interaction
+and drawing, and can mutate widget state through explicit `&mut State`
+parameters.
 
 Example:
 
@@ -803,7 +839,9 @@ pub fn post_layout_button<T: TextBackend>(
 ) -> raw::ButtonResult;
 ```
 
-**Scoped containers with parent-resolved outer rects** resolve their own outer rect through the parent layout and then open a child scope. Examples include scroll_area and window.
+**Scoped containers with parent-resolved outer rects** resolve their own outer
+rect through the parent layout and then open a child scope. Examples include
+scroll_area and window.
 
 The lifecycle is:
 
@@ -815,7 +853,10 @@ children run in child WidgetContext
 raw::end_container(token, measured child extent, ...)
 ```
 
-`begin_*` opens the child drawing/layout scope, emits before-children commands, and computes inner space, clips, and tokens. `end_*` closes the scope after children are measured, clamps or resolves state, draws after-children chrome, pops clips, and performs equivalent cleanup.
+`begin_*` opens the child drawing/layout scope, emits before-children commands,
+and computes inner space, clips, and tokens. `end_*` closes the scope after
+children are measured, clamps or resolves state, draws after-children chrome,
+pops clips, and performs equivalent cleanup.
 
 Example:
 
@@ -844,7 +885,8 @@ pub fn end_scroll_area(
 );
 ```
 
-**Deferred-own-size containers** cannot know their final outer size until their children have been measured. The current example is frame.
+**Deferred-own-size containers** cannot know their final outer size until their
+children have been measured. The current example is frame.
 
 The lifecycle is:
 
@@ -856,169 +898,591 @@ children run
 raw::end_container(token, final_spec/final rect, ...)
 ```
 
-`FramePreLayoutResult { size_request }` currently exists for lifecycle consistency and future pre-layout widget logic, but the high-level deferred frame path does not feed that size request into `ctx.layout`. The actual parent placement is still resolved through `begin_deferred_layout` / `end_deferred_layout`.
+`FramePreLayoutResult { size_request }` currently exists for lifecycle
+consistency and future pre-layout widget logic, but the high-level deferred
+frame path does not feed that size request into `ctx.layout`. The actual parent
+placement is still resolved through `begin_deferred_layout` /
+`end_deferred_layout`.
 
-Each `raw::*Result` is a concrete struct with no trait requirements on callers, no metadata maps, and no dynamic type slots. It does **not** contain a `DrawCommands` field — commands are written directly to the caller's buffer. (Result structs may derive utility traits such as `Debug` for inspection, but callers need not implement any traits to receive or use them.)
+Each `raw::*Result` is a concrete struct with no trait requirements on callers,
+no metadata maps, and no dynamic type slots. It does **not** contain a
+`DrawCommands` field — commands are written directly to the caller's buffer.
+(Result structs may derive utility traits such as `Debug` for inspection, but
+callers need not implement any traits to receive or use them.)
+
+---
 
 ### High-Level Freestanding API: Context Integration
 
-A unified `WidgetContext<'a, T, S, CF>` carries style parameters (theme, current text size, colors, clip rectangles, time) and system resources (mutable references `&'a mut T` to the text backend and `&'a mut FocusSystem` to the focus manager). The `CF` parameter is a one-shot cleanup closure (`FnOnce(&mut FocusSystem, &mut DrawCommands, Rect)`) called when the context is finished; it receives the shared command buffer and the layout's resolved space (the `Rect` from `finish()` reading `resolve_space()`), so container cleanup can both emit post-commands and resolve geometry from how large the children turned out. Root contexts use a no-op function pointer, container widgets embed their cleanup in a move closure (see [Scroll Areas and Windows](#scroll-areas-windows-and-symmetrical-container-life-cycles)).
+A unified `WidgetContext<'a, T, S, CF>` carries style context (theme, clip
+rectangles, current layer, time, layout policy) and system resources (mutable
+references to the text backend, focus manager, draw command buffer, output, and
+layout state). The `CF` parameter is a one-shot cleanup closure called when the
+context is finished; it receives the shared systems and the layout's resolved
+space, so container cleanup can both emit post-commands and resolve geometry
+from how large the children turned out. Root contexts use a no-op cleanup,
+container widgets embed their cleanup in a move closure (see [Scroll Areas,
+Windows, and Symmetrical Container Life-Cycles](#scroll-areas-windows-and-symmetrical-container-life-cycles)).
 
-High-level widget APIs are freestanding, highly ergonomic functions that accept a mutable reference to `WidgetContext` along with a high-level spec/state:
+High-level widget APIs are freestanding, ergonomic functions that accept a
+complete high-level `*Spec`, layout parameters, optional widget state, and then
+`&mut WidgetContext` as the final argument:
 
 ```rust
 pub fn button<T, S, CF>(
-    ctx: &mut WidgetContext<T, S, CF>,
-    builder: ButtonSpecBuilder,
+    spec: ButtonSpec,
     layout_params: S::Params,
     state: &mut ButtonState,
+    ctx: &mut WidgetContext<T, S, CF>,
 ) -> ButtonResult;
 ```
 
-These freestanding functions automatically:
-1. Resolve layout geometries using the context's layout engine.
-2. Resolve styling parameters from the context's current settings.
-3. Call the low-level raw widget lifecycle functions.
-4. Accumulate draw commands inside the `WidgetContext`'s internal buffer.
-5. Return a `*Result` to the caller.
+Stateless widgets omit `state` but keep `ctx` last:
+
+```rust
+pub fn label<'a, T, S, CF>(
+    spec: LabelSpec<'a>,
+    layout_params: S::Params,
+    ctx: &mut WidgetContext<T, S, CF>,
+) -> LabelResult;
+```
+
+Scoped containers follow the same ordering principle:
+
+```rust
+pub fn begin_scroll_area<T, S, L, CF>(
+    spec: ScrollAreaSpec,
+    layout_params: S::Params,
+    state: &mut ScrollState,
+    inner_layout: L,
+    ctx: &mut WidgetContext<T, S, CF>,
+) -> ScrollAreaResult<...>;
+```
+
+The context is deliberately last. It is the largest and most exclusive borrow in
+the high-level API. Placing it last lets earlier arguments be constructed inline
+using short-lived borrows from the context, especially `&ctx.theme`, before the
+mutable context borrow is evaluated:
+
+```rust
+drag_number(
+    DragNumberSpec::new("Width")
+        .max(1920.0)
+        .theme(&ctx.theme)
+        .format_value(|v: f32| format!("{v:.0}px")),
+    rect,
+    &mut state,
+    &mut ctx,
+);
+```
+
+If `ctx` were first, `&mut ctx` would be evaluated before the spec argument and
+could overlap with the immutable `&ctx.theme` borrow used to construct the spec.
+With `ctx` last, the spec is built first, the temporary theme borrow ends, and
+then the mutable context borrow begins. This is a practical Rust ergonomics rule,
+not merely a style preference.
+
+High-level functions automatically:
+
+1. Query the layout offer when needed.
+2. Call the low-level pre-layout function to compute a size request.
+3. Resolve layout geometry using the context's layout state.
+4. Construct raw specs by adding context-managed values such as `rect`,
+   `clip_rect`, `layer`, and `time` to the high-level spec data.
+5. Call the low-level raw widget lifecycle functions.
+6. Accumulate draw commands inside the context's command buffer.
+7. Return a high-level `*Result` to the caller.
+
+High-level functions do **not** resolve missing spec defaults. Specs are already
+complete when passed in.
+
+---
 
 ### Output Types
 
 Each widget defines result structs reflecting lifecycle phase and API layer.
 
-**`raw::*PreLayoutResult`** is returned by `raw::pre_layout_*`. It contains `size_request`, may later carry explicit pre-layout bookkeeping, and is consumed by the matching `post_layout_*` or `begin_*` function.
+**`raw::*PreLayoutResult`** is returned by `raw::pre_layout_*`. It contains
+`size_request`, may later carry explicit pre-layout bookkeeping, and is consumed
+by the matching `post_layout_*` or `begin_*` function.
 
-**`raw::*Result`** is returned by post-layout or begin functions. It contains interaction and content outputs from the raw widget phase, such as `InputInfo`, `focused`, or `content_bounds: Rect` when the widget computes an inner area distinct from the input rect. It does not own draw commands, does not echo the input rect unless that is a real output, and does not contain `*State`; state is mutated in place through explicit `&mut *State` parameters.
+**`raw::*Result`** is returned by post-layout or begin functions. It contains
+interaction and content outputs from the raw widget phase, such as `InputInfo`,
+`focused`, or `content_bounds: Rect` when the widget computes an inner area
+distinct from the input rect. It does not own draw commands, does not echo the
+input rect unless that is a real output, and does not contain `*State`; state is
+mutated in place through explicit `&mut *State` parameters.
 
-**High-level `*Result`** is returned by context-integrated high-level functions. It usually contains `LayoutInfo` with the bounds resolved by the layout engine and content bounds reported by the raw phase. It may contain a child `WidgetContext` for scoped containers. It may omit `LayoutInfo` for deferred-own-size containers where no honest final bounds are known at begin; `FrameResult` carries only the child context.
+**High-level `*Result`** is returned by context-integrated high-level functions.
+It usually contains `LayoutInfo` with the bounds resolved by the layout engine
+and content bounds reported by the raw phase. It may contain a child
+`WidgetContext` for scoped containers. It may omit `LayoutInfo` for
+deferred-own-size containers where no honest final bounds are known at begin;
+`FrameResult` carries only the child context.
 
-The high-level function maps between them: it resolves builder defaults into a high-level `*Spec`, constructs the raw pre-layout spec, obtains a `SizeRequest` from `raw::pre_layout_*`, resolves the real rect when the lifecycle permits immediate placement, constructs the raw widget spec with resolved geometry and context-managed values, calls `raw::post_layout_*` or `raw::begin_*`, and then constructs the high-level `*Result`.
+The high-level function maps between API layers: it consumes a complete
+high-level `*Spec`, constructs the raw pre-layout spec, obtains a `SizeRequest`
+from `raw::pre_layout_*`, resolves the real rect when the lifecycle permits
+immediate placement, constructs the raw widget spec with resolved geometry and
+context-managed values, calls `raw::post_layout_*` or `raw::begin_*`, and then
+constructs the high-level `*Result`.
 
-Nesting a child layout is done with `ctx.child_with_layout(placement, inner_layout)`: it resolves `placement` against the *current* layout to get the child's bounds, begins `inner_layout` at those bounds, and returns a child `WidgetContext`. Container widgets that compute their own bounds, such as scroll areas and windows, instead use the `child_with_layout_and_on_finish[_and_clip_rect]` variants, which take an already-begun layout state plus a self-derived clip.
+Nesting a child layout is done with `ctx.child_with_layout(placement,
+inner_layout)`: it resolves `placement` against the current layout to get the
+child's bounds, begins `inner_layout` at those bounds, and returns a child
+`WidgetContext`. Container widgets that compute their own bounds, such as scroll
+areas and windows, instead use the
+`child_with_layout_and_on_finish[_and_clip_rect]` variants, which take an
+already-begun layout state plus a self-derived clip.
 
-### Spec, Pre-Layout Spec, Raw Spec, and Builder Pattern
+---
+
+### Spec, Pre-Layout Spec, and Raw Spec
 
 Every widget type follows a consistent layered configuration pattern:
 
-- **High-level `*Spec`**: The ergonomic user-facing configuration struct produced by the builder and used by the high-level context function. It contains only fields that are meaningful for high-level callers, such as content, style, and flags. It does not contain layout-resolved fields such as `rect`, or context-managed fields such as `clip_rect` and `layer`.
+- **High-level `*Spec`**: The ergonomic user-facing configuration struct passed
+  directly to the high-level context function. It contains only fields that are
+  meaningful for high-level callers, such as content, style, behaviour flags,
+  domain values, and caller-provided callbacks. It does not contain
+  layout-resolved fields such as `rect`, or context-managed fields such as
+  `clip_rect`, `layer`, and `time`.
 
-- **`*SpecBuilder`**: A builder struct used by high-level callers to construct the high-level `*Spec`. The builder holds optional fields and provides ergonomic setter methods. It applies theme defaults for user-facing values and panics only for required high-level inputs with no sensible default.
+- **`raw::*PreLayoutSpec`**: A low-level pre-layout specification struct used by
+  `raw::pre_layout_*`. It contains only value fields needed before final
+  geometry is known. For example, `raw::ButtonPreLayoutSpec` contains the button
+  text and style, but not `rect` or `clip_rect`.
 
-- **`raw::*PreLayoutSpec`**: A low-level pre-layout specification struct used by `raw::pre_layout_*`. It contains only value fields needed before final geometry is known. For example, `raw::ButtonPreLayoutSpec` contains the button text and style, but not `rect` or `clip_rect`.
+- **`raw::*Spec`**: A fully resolved low-level specification struct used by the
+  raw widget function. All fields are concrete values needed to draw and
+  interact with the widget, including geometry such as `rect` and
+  context-managed values such as `clip_rect` and `layer`. It is defined inside
+  the widget's `pub mod raw {}` submodule (e.g. `button::raw::ButtonSpec`),
+  co-located with the raw function that consumes it, and avoids cluttering the
+  normal module level with details high-level users do not need.
 
-- **`raw::*Spec`**: A fully resolved low-level specification struct used by the raw widget function. All fields are concrete values needed to draw and interact with the widget, including geometry such as `rect` and context-managed values such as `clip_rect` and `layer`. It is defined inside the widget's `pub mod raw {}` submodule (e.g. `button::raw::ButtonSpec`), co-located with the raw function that consumes it, and avoids cluttering the normal module level with details high-level users do not need.
+There are no `*SpecBuilder` structs. Builder-like ergonomics are provided by
+methods on the complete high-level `*Spec` itself.
 
 This pattern cleanly separates concerns:
-- **Low-level raw functions** are explicit and testable. They receive every runtime dependency as an explicit parameter and do not depend on `WidgetContext`, themes, hidden layout state, or retained widget trees. Some lifecycle phases may mutate widget state, but only through explicit `&mut *State` parameters.
-- **Pre-layout sizing** is type-safe - pre-layout specs cannot accidentally contain or read fields that are unavailable before layout.
-- **High-level functions** are ergonomic and integrated - they resolve defaults, handle layout, bridge from high-level specs to raw specs, and hide low-level geometry/context plumbing.
+
+- **High-level specs are complete frame input.** The app constructs exactly the
+  widget configuration it wants for the current frame. There is no hidden
+  partial state and no late high-level default injection inside the widget call.
+- **Low-level raw functions are explicit and testable.** They receive every
+  runtime dependency as an explicit parameter and do not depend on
+  `WidgetContext`, themes, hidden layout state, or retained widget trees. Some
+  lifecycle phases may mutate widget state, but only through explicit
+  `&mut *State` parameters.
+- **Pre-layout sizing is type-safe.** Pre-layout specs cannot accidentally
+  contain or read fields that are unavailable before layout.
+- **High-level functions are integrated.** They handle layout, bridge from
+  high-level specs to raw specs, and hide low-level geometry/context plumbing.
 
 > [!IMPORTANT]
-> **Spec and SpecBuilder Value-Type Rule:** High-level `*Spec`, `*SpecBuilder`, `raw::*PreLayoutSpec`, and `raw::*Spec` structs must contain only basic parameters (colors, fonts, rectangles, strings, numeric values, etc.). They must NOT include references to runtime resources like `Input`, `FocusSystem`, a text backend, or other external state. These structs should be value types with no external references, making them trivially copyable, serializable, and independent of any runtime context. The raw lifecycle functions themselves - `raw::pre_layout_*`, `raw::post_layout_*`, `raw::begin_*`, and `raw::end_*` - may take runtime systems as explicit parameters when needed.
+> **Spec Value-Type Rule:** High-level `*Spec`, `raw::*PreLayoutSpec`, and
+> `raw::*Spec` structs must not include references to runtime resources like
+> `Input`, `FocusSystem`, a text backend, `WidgetContext`, draw buffers, or
+> other external mutable state. These runtime systems are always passed to
+> lifecycle functions explicitly. Specs may contain value data such as colours,
+> fonts, rectangles, strings, numeric values, and caller-provided callback
+> fields. Callback fields are ordinary spec fields: they are frame input supplied
+> by the caller, and the widget may call them but must not store references to
+> runtime systems inside them.
 
 > [!IMPORTANT]
-> **Theme Must Not Appear in Specs:** A high-level `*Spec`, raw pre-layout spec, or raw widget spec must never hold a `Theme` field. `Theme` is a high-level convenience that maps semantic intent to concrete values; by the time a spec is constructed, that mapping is complete. The `*SpecBuilder` is the only place `Theme` is touched — its `defaults_from_theme()` method reads the theme and writes resolved colours, sizes, and font handles into the builder's fields. The resulting specs contain only those resolved primitives. This keeps every spec self-contained and renderer-agnostic, and prevents the low-level widget layer from having any dependency on the theme system.
+> **Theme Must Not Appear in Specs:** A high-level `*Spec`, raw pre-layout spec,
+> or raw widget spec must never hold a `Theme` field or references into a
+> `Theme`. `Theme` is a high-level convenience that maps semantic intent to
+> concrete values. A spec may be constructed from a theme, or have theme-derived
+> fields overwritten by `.theme(&theme)`, but it stores only the resolved
+> primitives such as colours, dimensions, and font handles. This keeps every spec
+> self-contained and renderer-agnostic, prevents long-lived borrows of
+> `ctx.theme` from conflicting with `&mut WidgetContext`, and keeps the raw layer
+> independent of the theme system.
 
-> [!IMPORTANT]
-> **Builder Construction Rule:** All `*SpecBuilder` structs use a no-args `new()` constructor. No field is singled out as a required constructor parameter — **every field, including bool flags like `disabled` and `large`, is `Option<T>`** and starts as `None`. `build()` applies defaults for fields that have an obvious, context-independent value (e.g. `disabled` → `unwrap_or(false)`) and panics with a clear message for fields with no sensible default; the message names the missing field and points to the fix (e.g. *"style not set — call .style() or defaults_from_theme()"*). Making every field `Option<T>` is essential: `None` means "the user did not set this", which lets both `defaults_from_theme` and the high-level widget function inject context-aware defaults — something impossible if bools silently default to `false` in `new()`.
+---
 
-### `defaults_from_theme` — Theme as Fallback
+### Complete Spec Construction
 
-Every `*SpecBuilder` exposes a `defaults_from_theme(theme: &Theme)` method. It fills only the fields that are **not already set** — theme values are fallbacks, not overrides. Explicitly set fields always win. This is the fallback rule applied by high-level functions internally:
+A high-level `*Spec` is complete immediately after construction. There are no
+unset fields, and there is no `build()` step. Fluent setter methods consume and
+return `Self` (or a new generic `Self` when changing a callback type), so method
+chains are normal imperative transformations on a complete value.
+
+Specs use these construction methods consistently:
+
+- **`Spec::default()`** is available when every field has a meaningful
+  context-independent default. It should not invent fake required content just
+  to satisfy the type system.
+- **`Spec::default_from_theme(&theme)`** is available when `Default` is
+  meaningful and the widget has theme-derived fields. It is equivalent to
+  `Spec::default().theme(&theme)`.
+- **`Spec::new(required_args...)`** is used when the widget has required
+  semantic inputs with no honest default, such as button text, label text, menu
+  items, or select values. Required inputs are constructor parameters, not
+  panics deferred to a later `build()`.
+- **`Spec::new_from_theme(&theme, required_args...)`** is the themed equivalent
+  of `new(...)`. It is equivalent to `Spec::new(required_args...).theme(&theme)`.
+
+Use `new_from_theme`, not `new_with_theme`, so the name pairs naturally with
+`default_from_theme`.
+
+Examples:
 
 ```rust
-// custom style is preserved — defaults_from_theme sees style.is_some() and skips it
-let spec = ButtonSpecBuilder::new()
-    .text("Save".into())
-    .style(my_brand_style)
-    .defaults_from_theme(&theme)
-    .build();
+let spec = ButtonSpec::new_from_theme(&ctx.theme, "Save")
+    .disabled(is_saving);
+
+let spec = LabelSpec::new("Ready")
+    .theme(&ctx.theme);
+
+let spec = ScrollAreaSpec::default_from_theme(&ctx.theme)
+    .vertical(ScrollAxis {
+        extent: ScrollExtent::SCROLL,
+        vis: ScrollbarVisibility::Auto,
+    });
 ```
 
-This is the only correct behaviour given the call order: the app sets fields on the builder before passing it to the high-level function, which then calls `defaults_from_theme` internally. If `defaults_from_theme` unconditionally overwrote fields, every explicit customisation would be silently discarded.
+`Option<T>` remains valid inside specs only when `None` is a real domain value:
+`border: Option<Stroke>` means no border, `peak: Option<f32>` means no peak
+marker, `value_snap: Option<f32>` means continuous values. `Option<T>` is not
+used to mean "the user has not set this field yet".
 
-**High-level API callers never call `defaults_from_theme` directly.** It is called automatically inside every high-level context function. App code just sets the fields it cares about and passes the builder in.
+---
 
-The high-level function calls `defaults_from_theme` internally before building its high-level `*Spec`. Low-level raw callers do not use high-level builders; they construct `raw::*PreLayoutSpec` and `raw::*Spec` directly, supplying already-resolved styles, size inputs, and geometry for the appropriate lifecycle phase. If a raw caller wants themed values, it calls the appropriate `*Style::from_theme` helper and places the resulting concrete style into the raw spec.
+### Theme Application as an Explicit Transformation
 
-Explicit high-level placement is expressed through the layout parameters, not the spec. Under `ManualLayout`, the layout parameter *is* the rect. Callers that want to bypass layout entirely use the low-level `raw::` function and set `rect` directly on `raw::*Spec`.
-
-### SpecBuilder Field Visibility
-
-`*SpecBuilder` fields are currently `pub`. This allows ergonomic struct-literal construction and direct field reads. Builder fields are limited to high-level configuration, so layout-resolved fields like `rect` and context-managed fields like `clip_rect` do not appear on high-level builders.
-
-The alternative is private fields with setter methods only (standard Rust builder pattern). This would make the public API narrower, but all operations are already covered by the existing setter methods.
-
-For now, fields remain `pub`. Framework-managed values are absent from the high-level builder and are introduced later by the high-level context function when it constructs raw specs.
-
-### Default Implementations — Spec, Style, and Builder
-
-None of `*Spec`, `*Style`, or `*SpecBuilder` structs implement `Default`. The reasons differ by type but share a common root: multiple sources of default values creates drift and obscures intent.
-
-**High-level `*Spec` and raw spec structs — no `Default`**
-
-Specs are resolved values for their layer; every field is a concrete value with no `Option<>` unless `None` is itself a meaningful widget value. A `Default` impl must invent values for required content, style, or raw geometry, producing instances that compile but render broken — silent failure instead of an explicit signal. Lifetime-parameterised specs (`MenuSpec<'a>`, `TabsSpec<'a>`, etc.) add a further constraint: they cannot implement `Default` without `'static` bounds, which would be unacceptable. The builder is the correct layer for partial high-level state; raw specs are constructed explicitly.
-
-**`*Style` structs — no `Default`**
-
-The only authoritative source of style defaults is the `*Style::from_theme()` (or `*Style::*_from_theme()` for multi-variant styles) methods defined directly on each style struct. A `*Style` struct is always either caller-supplied or theme-derived; there is no meaningful style independent of the theme. Hardcoded defaults on style structs duplicate the theme, diverge silently when the theme changes, and mask missing `defaults_from_theme()` calls with plausible-looking but wrong colors.
-
-**`*SpecBuilder` structs — `derive(Default)` + `new()` forwarding**
-
-Because every builder field is `Option<T>`, `derive(Default)` produces exactly an all-`None` struct — identical to a hand-written `new()`. All builder structs therefore `#[derive(Default)]` and keep a `new()` constructor that forwards to `Self::default()`. This gives callers both spellings (`ButtonSpecBuilder::new()` and `ButtonSpecBuilder::default()`) with zero drift risk: there is only one source of truth.
-
-**When a high-level `*Spec` field is itself `Option<T>`, the builder field is `Option<Option<T>>`**
-
-Some `*Spec` fields are `Option<T>` not because they are unresolved, but because `None` is a meaningful resolved value (e.g. `thumb_size_ratio: Option<f32>` where `None` means "no scrollbar thumb", or `peak: Option<f32>` where `None` means "no peak marker"). The builder must still distinguish "caller never set this" from "caller explicitly set this to `None`". The solution is `Option<Option<T>>` in the builder:
-
-- **Outer `None`** — field not yet set; `build()` or `defaults_from_theme` may supply a fallback.
-- **Inner `None`** — caller explicitly set the field to the "absent" semantic value.
-
-The setter follows the same convention as every other field: it takes `T` (here `Option<f32>`) and wraps it in `Some`:
+Every high-level spec with theme-derived fields provides a fluent
+`theme(&Theme) -> Self` method. This method applies theme-derived visual values
+to the spec by overwriting the relevant fields:
 
 ```rust
-pub fn peak(mut self, peak: Option<f32>) -> Self {
-    self.peak = Some(peak);  // outer Some = "was set"; inner Option = semantic value
+impl ButtonSpec {
+    pub fn theme(mut self, theme: &Theme) -> Self {
+        self.style = ButtonStyle::secondary_from_theme(theme);
+        self
+    }
+}
+```
+
+`theme()` is not a fallback and does not know what the user previously set.
+Without builder `Option` fields, there is no concept of "missing" values. It is
+an ordinary imperative transformation: it reads the current spec, computes the
+theme-derived fields, writes them, and returns the updated spec.
+
+The order of calls therefore matters and should be used deliberately:
+
+```rust
+// Semantic options first, then theme, then final visual overrides.
+let spec = TextEditSpec::new()
+    .multiline_wrapped()
+    .theme(&ctx.theme)
+    .placeholder("Notes");
+
+// This means something different: wrap changes after the theme-derived style
+// was computed, so any wrap-dependent style adjustment is not recomputed.
+let spec = TextEditSpec::new()
+    .theme(&ctx.theme)
+    .multiline_wrapped();
+```
+
+This is intentional. The API follows normal imperative programming semantics:
+later transformations see earlier transformations and may overwrite fields set
+by them. This is often clearer than a hidden delayed-default phase because the
+source order describes what happens.
+
+The recommended order is:
+
+```rust
+WidgetSpec::new(required_args...)
+    .semantic_options_that_theme_should_react_to(...)
+    .theme(&ctx.theme)
+    .visual_overrides(...)
+    .callback_overrides(...)
+```
+
+For most widgets, `theme()` simply replaces `style` with
+`*Style::from_theme(theme)` or a variant such as
+`ButtonStyle::secondary_from_theme(theme)`. Some widgets may make theme-derived
+style depend on existing semantic fields. For example, `TextEditSpec::theme`
+may inspect `wrap` and `newline_policy` before setting the default padding:
+
+```rust
+impl TextEditSpec {
+    pub fn theme(mut self, theme: &Theme) -> Self {
+        let multiline = self.newline_policy == NewlinePolicy::Preserve || self.wrap;
+
+        let mut style = TextEditStyle::from_theme(theme);
+        style.padding_y = if multiline { 8.0 } else { 0.0 };
+
+        self.style = style;
+        self
+    }
+}
+```
+
+A setter such as `.wrap(true)` should set only the `wrap` field. It should not
+silently modify padding or other style details. If the caller wants theme style
+to react to `wrap`, they call `.wrap(true)` before `.theme(&theme)`. If the
+caller wants to preserve the current style while changing only wrapping, they
+call `.wrap(true)` after `.theme(&theme)` or after a custom `.style(...)`.
+
+Theme-derived fields must be copied or cloned out of the theme into the spec.
+Specs must not store references into the theme. This is essential for both
+layering and borrow-checker ergonomics: inline spec construction may borrow
+`&ctx.theme` before passing `&mut ctx` to the widget, and that borrow must end
+when spec construction finishes.
+
+---
+
+### Callback Fields in Specs
+
+Caller-provided callbacks are frame input, so they belong directly in the
+high-level `*Spec` when a widget needs them. Do not create a separate callbacks
+bundle merely to avoid putting code fields in specs. A callback is still part of
+"what the caller provides for this frame"; the widget calls it but does not
+mutate or retain it.
+
+For example, a drag-number value formatter can be a direct generic field:
+
+```rust
+pub type DefaultDragNumberValueFormatter = fn(f32) -> String;
+
+pub fn default_drag_number_value_formatter(value: f32) -> String {
+    format!("{value:.2}")
+}
+
+pub struct DragNumberSpec<'a, F = DefaultDragNumberValueFormatter>
+where
+    F: Fn(f32) -> String,
+{
+    pub text: &'a str,
+    pub style: DragNumberStyle,
+    pub min: f32,
+    pub max: f32,
+    pub step: f32,
+    pub page_step: f32,
+    pub format_value: F,
+    pub disabled: bool,
+}
+```
+
+The default callback is a real function pointer value, not `None` and not a
+hidden fallback inside the widget:
+
+```rust
+impl<'a> DragNumberSpec<'a, DefaultDragNumberValueFormatter> {
+    pub fn new(text: &'a str) -> Self {
+        Self {
+            text,
+            style: DragNumberStyle::fallback(),
+            min: 0.0,
+            max: 100.0,
+            step: 1.0,
+            page_step: 10.0,
+            format_value: default_drag_number_value_formatter,
+            disabled: false,
+        }
+    }
+}
+```
+
+A callback setter may change the spec's generic callback type:
+
+```rust
+impl<'a, F> DragNumberSpec<'a, F>
+where
+    F: Fn(f32) -> String,
+{
+    pub fn format_value<G>(self, format_value: G) -> DragNumberSpec<'a, G>
+    where
+        G: Fn(f32) -> String,
+    {
+        DragNumberSpec {
+            text: self.text,
+            style: self.style,
+            min: self.min,
+            max: self.max,
+            step: self.step,
+            page_step: self.page_step,
+            format_value,
+            disabled: self.disabled,
+        }
+    }
+}
+```
+
+Call site:
+
+```rust
+drag_number(
+    DragNumberSpec::new("Width")
+        .max(1920.0)
+        .theme(&ctx.theme)
+        .format_value(|v: f32| format!("{v:.0}px")),
+    rect,
+    &mut state,
+    &mut ctx,
+);
+```
+
+Callbacks should be named as actions the widget performs, such as
+`format_value`, `map_drag_delta`, or `accessibility_label`, rather than vague
+names such as `formatter` or `callback`. The field name should read well at both
+the call site and the use site:
+
+```rust
+let value_text = (spec.format_value)(state.value);
+```
+
+A separate `*Callbacks` struct is appropriate only if a widget has enough code
+hooks that grouping them materially improves readability. Even then, the
+callbacks object should be a complete value with real defaults, not a bag of
+`Option` slots interpreted later by the widget.
+
+#### Derives and Generic Callback Fields
+
+A spec containing generic callback fields can derive traits only when the
+callback type also implements those traits. Function pointers normally support
+common traits such as `Copy`, `Clone`, `Debug`, and `PartialEq`; many closure
+types do not support `Debug` or `PartialEq`.
+
+This is an accepted consequence of making callbacks part of specs. Equivalent
+spec structs should still follow the same derive policy where the fields allow
+it, but generic callback specs may have conditional derives or manual impls with
+bounds. Avoid designing APIs that require custom closures to be `Debug` or
+`PartialEq` just to be usable as widget input.
+
+---
+
+### Spec Field Visibility and Fluent Methods
+
+High-level `*Spec` fields are public unless there is a specific invariant that
+requires private fields. Public fields allow ergonomic struct-literal
+construction, direct inspection in tests, and easy copying between specs.
+Fluent setter methods remain the preferred public construction style because
+they encode common transformations and keep call sites readable.
+
+The setter convention is:
+
+```rust
+pub fn disabled(mut self, disabled: bool) -> Self {
+    self.disabled = disabled;
     self
 }
 ```
 
-`build()` unwraps the outer layer with `.unwrap_or(<default>)` to recover the `Option<T>` the spec expects.
+Setters should set exactly the named field unless their name clearly describes a
+larger preset. For example, `wrap(true)` sets only `wrap`; `multiline_wrapped()`
+may set `newline_policy`, `wrap`, vertical alignment, and line alignment because
+it is explicitly a preset.
 
-**The asymmetry between high-level `*Spec` and `*SpecBuilder` is intentional**
+If a setter changes a generic callback field, it may return a new `Spec` type
+with a different generic parameter. Keep such setters explicit and rare.
 
-High-level `*Spec` is resolved for the high-level API — no partial state, no unresolved fields, no defaults of any kind. `*SpecBuilder` exists precisely to hold partial state: every field is `Option<T>` and `None` means "not yet set". This distinction enables a three-stage default precedence chain:
+Raw specs and pre-layout specs may also have public fields because they are
+plain explicit data passed to raw functions. They are lower-level APIs and do
+not provide theme/default conveniences.
 
-1. **User-specified** — fields set by the caller via builder setter methods. Always win.
-2. **High-level widget function default** — if a field is still `None` when the high-level function runs, it may inject a context-aware default before calling `build()`. Examples: style defaults derived from the context theme, or a container widget forcing `disabled = true` on all children while it is loading.
-3. **`build()` default or panic** — fields still `None` at `build()` time either get a context-independent default (`disabled` → `false`, `large` → `false`) via `unwrap_or`, or cause a panic with a descriptive message if no sensible default exists (`text`, `style`).
+---
 
-This means defaults are applied **as late as possible**, giving higher layers the opportunity to provide sensible context-aware values rather than being silently pre-empted by a `false` baked in at construction time.
+### Default Implementations — Spec and Style
+
+**High-level `*Spec` structs — complete defaults only when honest**
+
+A high-level `*Spec` may implement `Default` only if all fields have meaningful
+context-independent values. Do not invent fake required content just so every
+spec can be default-constructed. A label with empty text, a menu with no items,
+or a select with no value may be valid in some contexts, but if that is not the
+honest common default, the widget should use `new(required_args...)` instead.
+
+When `Default` is implemented, it returns a complete usable spec, including real
+callback defaults and non-theme fallback visuals where necessary. The fallback
+visuals should be simple and valid, not a duplicate of the theme. The themed
+constructor remains the preferred path for normal app UI:
+
+```rust
+let spec = SpinnerSpec::default_from_theme(&ctx.theme);
+```
+
+**`*Style` structs — theme is the source of normal styling**
+
+The authoritative source of normal style values is the `*Style::from_theme()`
+(or `*Style::*_from_theme()` for multi-variant styles) methods defined directly
+on each style struct. A `*Style` struct may implement `Default` only if there is
+a useful context-independent fallback. Such a fallback must not be treated as
+the normal app style and must not duplicate the theme. It exists so specs can be
+complete before `.theme(&theme)` is applied, not to replace theme-derived
+styling.
+
+**Theme constructors — no hidden fallback phase**
+
+`Spec::default_from_theme(&theme)` and `Spec::new_from_theme(&theme, ...)` are
+ordinary constructors. They call `theme()` explicitly as part of construction.
+The high-level widget function does not call `theme()` internally, because doing
+so would hide ordering, overwrite user visual overrides unexpectedly, and make
+callbacks/defaults harder to reason about.
+
+**Real optional fields stay optional**
+
+Some spec fields are `Option<T>` because `None` is a meaningful resolved value:
+no border, no focus outline, no peak marker, no value snapping. These fields do
+not need an extra `Option<Option<T>>` wrapper, because there is no builder layer
+that must distinguish "unset" from "explicitly set to None". The spec contains
+the actual semantic value directly.
+
+---
 
 ### Style Structs
 
-Some widget types group their styling fields into a dedicated `*Style` struct embedded inside `*Spec` and `*SpecBuilder`. The decision rule:
+Some widget types group their styling fields into a dedicated `*Style` struct
+embedded inside `*Spec`. The decision rule:
 
-- **Use a `*Style` struct** when the widget has interaction states (hover, press, focus, disabled) or several coordinated color/dimension roles. The style struct keeps the spec readable and lets callers pass a single `ButtonStyle` override rather than setting a dozen fields individually.
-- **Embed styling fields directly in `*Spec`** when the widget is purely display-only and has only a small number (roughly ≤ 3) of styling fields. A dedicated struct would be ceremony with no benefit for these simple cases.
+- **Use a `*Style` struct** when the widget has interaction states (hover,
+  press, focus, disabled) or several coordinated colour/dimension roles. The
+  style struct keeps the spec readable and lets callers pass a single
+  `ButtonStyle` override rather than setting a dozen fields individually.
+- **Embed styling fields directly in `*Spec`** when the widget is purely
+  display-only and has only a small number (roughly ≤ 3) of styling fields. A
+  dedicated struct would be ceremony with no benefit for these simple cases.
 
-The practical dividing line is interaction states: as soon as a widget needs distinct visuals for hover, focus, or disabled, the coordinated color roles naturally belong in a `*Style` struct. Pure display widgets without those states may keep their styling inline.
+The practical dividing line is interaction states: as soon as a widget needs
+distinct visuals for hover, focus, or disabled, the coordinated colour roles
+naturally belong in a `*Style` struct. Pure display widgets without those states
+may keep their styling inline.
+
+Style structs own resolved visual values. They do not store themes or borrow
+from themes. A style helper such as `ButtonStyle::secondary_from_theme(&theme)`
+translates theme tokens into concrete colours, dimensions, and font handles.
 
 Example:
+
 ```rust
-// Low-level: fully resolved, no defaults
-pub fn pre_layout_button<T: TextBackend>(spec: &raw::ButtonPreLayoutSpec, offer: SizeOffer, text_backend: &mut T) -> raw::ButtonPreLayoutResult;
+// Low-level: fully resolved, no theme/defaults.
+pub fn pre_layout_button<T: TextBackend>(
+    spec: &raw::ButtonPreLayoutSpec,
+    offer: SizeOffer,
+    text_backend: &mut T,
+) -> raw::ButtonPreLayoutResult;
 
-pub fn post_layout_button<T: TextBackend>(spec: raw::ButtonSpec, pre_layout: raw::ButtonPreLayoutResult, state: &mut ButtonState, input: &Input, focus_system: &mut FocusSystem, text_backend: &mut T, cmds: &mut DrawCommands) -> raw::ButtonResult;
+pub fn post_layout_button<T: TextBackend>(
+    spec: raw::ButtonSpec,
+    pre_layout: raw::ButtonPreLayoutResult,
+    state: &mut ButtonState,
+    input: &Input,
+    focus_system: &mut FocusSystem,
+    text_backend: &mut T,
+    cmds: &mut DrawCommands,
+) -> raw::ButtonResult;
 
-// High-level: uses builder to resolve defaults
+// High-level: consumes a complete ButtonSpec and integrates it with context.
 pub fn button<T, S, CF>(
-    ctx: &mut WidgetContext<T, S, CF>,
-    builder: ButtonSpecBuilder,
+    spec: ButtonSpec,
     layout_params: S::Params,
     state: &mut ButtonState,
+    ctx: &mut WidgetContext<T, S, CF>,
 ) -> ButtonResult {
-    let spec = builder.defaults_from_theme(&ctx.theme).build();
     let pre_layout_spec = raw::ButtonPreLayoutSpec {
         text: spec.text,
         style: spec.style,
@@ -1034,7 +1498,15 @@ pub fn button<T, S, CF>(
         disabled: spec.disabled,
         layer: ctx.layer,
     };
-    let r = raw::post_layout_button(raw_spec, pre_layout, state, ctx.input, ctx.focus_system, ctx.text_backend, ctx.cmds);
+    let r = raw::post_layout_button(
+        raw_spec,
+        pre_layout,
+        state,
+        ctx.input,
+        ctx.focus_system,
+        ctx.text_backend,
+        ctx.cmds,
+    );
     ButtonResult {
         layout: LayoutInfo::new(rect, r.content_bounds),
         input: r.input,
@@ -1043,35 +1515,82 @@ pub fn button<T, S, CF>(
 }
 ```
 
+---
+
 ### User-Defined Layouts Are First-Class
 
-Built-in layouts hold no privileged position. The two public traits — `Layout` and `LayoutState` — are the complete extension point:
+Built-in layouts hold no privileged position. The two public traits — `Layout`
+and `LayoutState` — are the complete extension point:
 
-- **`Layout`** defines the configuration type (`type Params`) and a `begin(space: impl Into<LayoutSpace>) -> Self::State` method that initialises the mutable state.
-- **`LayoutState`** is the mutable engine: `layout(params, request) -> Rect` for normal widgets, `begin_deferred_layout` / `end_deferred_layout` for fit-to-children containers, and `resolve_space() -> Rect` so scroll areas and `finish()` can read the accumulated content **resolved against the layout's own `LayoutSpace` bounds** (an `Exact` axis reports the exact extent, `AtMost` caps the measured size, `Unbounded` shrink-wraps to it).
+- **`Layout`** defines the configuration type (`type Params`) and a
+  `begin(space: impl Into<LayoutSpace>) -> Self::State` method that initialises
+  the mutable state.
+- **`LayoutState`** is the mutable engine: `layout(params, request) -> Rect` for
+  normal widgets, `begin_deferred_layout` / `end_deferred_layout` for
+  fit-to-children containers, and `resolve_space() -> Rect` so scroll areas and
+  `finish()` can read the accumulated content **resolved against the layout's
+  own `LayoutSpace` bounds** (an `Exact` axis reports the exact extent, `AtMost`
+  caps the measured size, `Unbounded` shrink-wraps to it).
 
-A user-defined layout implements both traits, passes its state type into `WidgetContext::child_with_layout`, and is otherwise identical to `ColumnLayout` or any other built-in. No library modification is required; no registration step exists. The built-ins are examples of the pattern, not gatekeepers of it.
+A user-defined layout implements both traits, passes its state type into
+`WidgetContext::child_with_layout`, and is otherwise identical to `ColumnLayout`
+or any other built-in. No library modification is required; no registration step
+exists. The built-ins are examples of the pattern, not gatekeepers of it.
+
+---
 
 ### User-Defined Widgets Are First-Class
 
-Built-in widgets hold no privileged position in the architecture. `Theme` is a library-defined struct — callers cannot add methods to it. If themed style defaults required a `theme.xxx_style()` method on `Theme`, only built-in widgets could participate; user-defined widgets would have no equivalent path.
+Built-in widgets hold no privileged position in the architecture. `Theme` is a
+library-defined struct — callers cannot add methods to it. If themed style
+defaults required a `theme.xxx_style()` method on `Theme`, only built-in widgets
+could participate; user-defined widgets would have no equivalent path.
 
-By placing the conversion on the style struct itself — `*Style::from_theme(&theme)` — the pattern is fully open to extension. A user-defined widget follows exactly the same design as a built-in one:
+By placing the conversion on the style/spec type itself — `*Style::from_theme`,
+`*Style::*_from_theme`, `*Spec::theme`, and `*Spec::*_from_theme` — the pattern
+is fully open to extension. A user-defined widget follows exactly the same
+design as a built-in one:
 
-1. Define a `*Style` struct with the widget's styling fields.
-2. Implement `from_theme` (or `*_from_theme` for multi-variant styles) on that struct.
-3. Call it from `*SpecBuilder::defaults_from_theme`.
+1. Define a high-level complete `*Spec` struct containing the caller-facing
+   fields.
+2. Define a `*Style` struct if the widget has enough coordinated visual fields
+   to justify one.
+3. Implement `*Style::from_theme(&theme)` or variant style constructors where
+   useful.
+4. Implement `*Spec::new(...)`, `*Spec::default()` where honest,
+   `*Spec::theme(&theme)`, and `*_from_theme` constructors.
+5. Define `raw::*PreLayoutSpec`, `raw::*Spec`, and raw lifecycle functions.
+6. Define a high-level freestanding widget function that consumes `*Spec`,
+   layout params, optional `&mut *State`, and finally `&mut WidgetContext`.
 
-No library modification required. No special registration. The library's own widgets are simply examples of the pattern, not gatekeepers of it.
+No library modification required. No special registration. The library's own
+widgets are simply examples of the pattern, not gatekeepers of it.
+
+---
 
 ### Theme and Font Boundaries
 
-`Theme` is part of the high-level API. The `WidgetContext` uses it to resolve ergonomic defaults such as colours, spacing, and semantic font choices, but low-level widget functions must not depend on a theme. A low-level `WidgetSpec` is already fully resolved by the time it is passed to the widget function.
+`Theme` is part of the high-level API. It maps semantic UI intent to concrete
+colours, spacing, sizes, and font handles. It must not leak into raw widget
+functions or be stored inside specs. A high-level spec can be produced from a
+theme, but by the time any widget lifecycle function receives the spec, the
+theme has already been translated into resolved primitives.
 
 > [!IMPORTANT]
-> **Static Check Rule:** Low-level raw widget functions must not import or depend on `theme::Theme`. The builder layer is the correct and only place `Theme` is consumed — `*SpecBuilder::defaults_from_theme` calls `*Style::from_theme` (or `*Style::*_from_theme`) on the widget's style struct, which translates the theme into resolved primitives before any raw function sees them. Because builders and style structs live in the same file as their raw functions, widget files do import `Theme`, but the import is confined to these higher-level layers. All `raw::*` functions in `framewise/src/widgets/*` must accept only fully resolved `*Spec`/`*Style` data and must not reference `Theme` directly.
+> **Static Check Rule:** Low-level raw widget functions must not import or
+> depend on `theme::Theme`. Raw functions accept only fully resolved
+> `raw::*PreLayoutSpec`, `raw::*Spec`, `*Style`, and runtime system parameters.
+> Theme is consumed only by high-level construction helpers such as
+> `*Style::from_theme`, `*Style::*_from_theme`, `*Spec::theme`,
+> `*Spec::default_from_theme`, and `*Spec::new_from_theme`. Widget files may
+> import `Theme` for these higher-level helpers, but the import must not be used
+> inside `raw` submodules.
 
-Fonts follow the same rule. A font is an application-owned handle independent of any theme. A theme references the two handles it wants to use for sans and mono text, but it does not own renderer-specific font data. The context may copy those handles from the theme into widget specs based on widget type; direct low-level callers choose fonts explicitly, often by copying a handle from a theme themselves.
+Fonts follow the same rule. A font is an application-owned handle independent of
+any theme. A theme references the handles it wants to use for sans and mono
+text, but it does not own renderer-specific font data. The spec or style copies
+font handles from the theme when theme helpers are called; direct raw callers
+choose fonts explicitly, often by copying a handle from a theme themselves.
 
 ---
 
