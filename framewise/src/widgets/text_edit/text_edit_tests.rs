@@ -2147,7 +2147,7 @@ fn test_text_edit_visual_focused_caret() {
                 color: spec().style.focus_border.unwrap().color,
                 width: spec().style.focus_border.unwrap().width,
                 placement: crate::BorderPlacement::Inside,
-                z: 0,
+                z: spec().layer.get_focus_z(),
             },
         ]
     );
@@ -2220,7 +2220,7 @@ fn test_text_edit_visual_focused_selection() {
                 color: spec().style.focus_border.unwrap().color,
                 width: spec().style.focus_border.unwrap().width,
                 placement: crate::BorderPlacement::Inside,
-                z: 0,
+                z: spec().layer.get_focus_z(),
             },
         ]
     );
@@ -2424,6 +2424,37 @@ fn test_text_edit_visual_error() {
             ('l', 33.0, 19.0),
             ('o', 41.0, 19.0),
         ])
+    );
+
+    let mut focus_system = FocusSystem::new();
+    let mut focused_state = focused_text_edit_state("hello", &mut focus_system);
+    focus_system.begin_frame();
+    let mut focused_cmds = DrawCommands::new(1.0);
+    raw::post_layout_text_edit(
+        sp.clone(),
+        raw::post_layout_only_pre_layout_result(&mut focused_state),
+        &mut focused_state,
+        &input,
+        &mut focus_system,
+        &mut text_backend,
+        &mut focused_cmds,
+    );
+
+    let focused_error_border = focused_cmds.iter().find(|cmd| {
+        matches!(
+            cmd,
+            DrawCmd::BorderRect {
+                color,
+                width,
+                placement: crate::BorderPlacement::Inside,
+                ..
+            } if *color == sp.style.error_border.unwrap().color
+                && *width == spec().style.border.map_or(0.0, |b| b.width)
+        )
+    });
+    assert!(
+        matches!(focused_error_border, Some(DrawCmd::BorderRect { z, .. }) if *z == sp.layer.get_z()),
+        "focused error border should keep the error border on the normal layer"
     );
 }
 
@@ -4880,7 +4911,7 @@ fn test_text_edit_visual_multiline_selection() {
                 color: spec().style.focus_border.unwrap().color,
                 width: spec().style.focus_border.unwrap().width,
                 placement: crate::BorderPlacement::Inside,
-                z: 0,
+                z: spec().layer.get_focus_z(),
             },
         ]
     );
@@ -5024,7 +5055,7 @@ fn test_text_edit_visual_multiline_selection_three_lines() {
                 color: spec().style.focus_border.unwrap().color,
                 width: spec().style.focus_border.unwrap().width,
                 placement: crate::BorderPlacement::Inside,
-                z: 0,
+                z: spec().layer.get_focus_z(),
             },
         ]
     );

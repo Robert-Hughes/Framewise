@@ -1227,12 +1227,12 @@ pub mod raw {
         } else {
             spec.style.border
         };
-        cmds.push_crisp_border_rect(
-            spec.rect,
-            border,
-            BorderPlacement::Inside,
-            spec.layer.get_z(),
-        );
+        let border_z = if focused && !spec.error {
+            spec.layer.get_focus_z()
+        } else {
+            spec.layer.get_z()
+        };
+        cmds.push_crisp_border_rect(spec.rect, border, BorderPlacement::Inside, border_z);
 
         // Text edit owns all arrow keys (caret movement via TextEvent); only Tab navigates focus.
         focus_system.handle_keyboard_traversal(
