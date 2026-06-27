@@ -136,7 +136,7 @@ pub use switch::{
 pub use tabs::{tabs, TabsResult, TabsSpecBuilder, TabsState, TabsStyle};
 #[cfg(feature = "text_edit")]
 pub use text_edit::{
-    text_edit, ClipboardAction, NewlinePolicy, TextEditResult, TextEditSpecBuilder, TextEditState,
+    text_edit, ClipboardAction, NewlinePolicy, TextEditResult, TextEditSpec, TextEditState,
     TextEditStyle,
 };
 #[cfg(feature = "tooltip")]

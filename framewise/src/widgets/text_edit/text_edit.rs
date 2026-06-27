@@ -1773,6 +1773,12 @@ impl TextEditStyle {
     }
 }
 
+impl Default for TextEditStyle {
+    fn default() -> Self {
+        Self::from_theme(&crate::theme::Theme::minimal())
+    }
+}
+
 // TextEdit invariant:
 // The prepared TextLayout for state.value must be source-complete.
 // Editable text may overflow, scroll, wrap, or be clipped by the widget
@@ -1981,55 +1987,71 @@ pub struct TextEditSpec {
     pub line_align: TextLineAlign,
 }
 
-// ── Spec Builder ─────────────────────────────────────────────────────────────
-
-#[derive(Debug, Clone, PartialEq, Default)]
-pub struct TextEditSpecBuilder {
-    pub style: Option<TextEditStyle>,
-    pub placeholder: Option<Option<String>>,
-    pub error: Option<bool>,
-    pub disabled: Option<bool>,
-    pub newline_policy: Option<NewlinePolicy>,
-    pub wrap: Option<bool>,
-    pub vertical_align: Option<Align>,
-    pub line_align: Option<TextLineAlign>,
+impl Default for TextEditSpec {
+    fn default() -> Self {
+        Self {
+            style: TextEditStyle::default(),
+            placeholder: None,
+            error: false,
+            disabled: false,
+            newline_policy: NewlinePolicy::ReplaceWithSpace,
+            wrap: false,
+            vertical_align: Align::Center,
+            line_align: TextLineAlign::Start,
+        }
+    }
 }
 
-impl TextEditSpecBuilder {
-    pub fn new() -> Self {
-        Self::default()
+impl TextEditSpec {
+    pub fn default_from_theme(theme: &crate::theme::Theme) -> Self {
+        Self::default().theme(theme)
+    }
+
+    pub fn theme(mut self, theme: &crate::theme::Theme) -> Self {
+        let mut style = TextEditStyle::from_theme(theme);
+        let multiline = self.newline_policy == NewlinePolicy::Preserve || self.wrap;
+        style.padding_y = if multiline { 8.0 } else { 0.0 };
+        self.style = style;
+        self
     }
 
     pub fn style(mut self, style: TextEditStyle) -> Self {
-        self.style = Some(style);
+        self.style = style;
         self
     }
+
     pub fn placeholder(mut self, placeholder: impl Into<String>) -> Self {
-        self.placeholder = Some(Some(placeholder.into()));
+        self.placeholder = Some(placeholder.into());
         self
     }
+
     pub fn error(mut self, error: bool) -> Self {
-        self.error = Some(error);
+        self.error = error;
         self
     }
+
     pub fn disabled(mut self, disabled: bool) -> Self {
-        self.disabled = Some(disabled);
+        self.disabled = disabled;
         self
     }
+
     pub fn newline_policy(mut self, newline_policy: NewlinePolicy) -> Self {
-        self.newline_policy = Some(newline_policy);
+        self.newline_policy = newline_policy;
         self
     }
+
     pub fn wrap(mut self, wrap: bool) -> Self {
-        self.wrap = Some(wrap);
+        self.wrap = wrap;
         self
     }
+
     pub fn vertical_align(mut self, vertical_align: Align) -> Self {
-        self.vertical_align = Some(vertical_align);
+        self.vertical_align = vertical_align;
         self
     }
+
     pub fn line_align(mut self, line_align: TextLineAlign) -> Self {
-        self.line_align = Some(line_align);
+        self.line_align = line_align;
         self
     }
 
@@ -2062,36 +2084,6 @@ impl TextEditSpecBuilder {
             .wrap(true)
             .vertical_align(Align::Start)
             .line_align(TextLineAlign::Start)
-    }
-
-    /// Fills unset fields from `theme`. Called automatically by high-level
-    /// context functions.
-    pub fn defaults_from_theme(mut self, theme: &crate::theme::Theme) -> Self {
-        if self.style.is_none() {
-            let mut style = TextEditStyle::from_theme(theme);
-            let multiline = self.newline_policy.unwrap_or_default() == NewlinePolicy::Preserve
-                || self.wrap.unwrap_or(false);
-            style.padding_y = if multiline { 8.0 } else { 0.0 };
-            self.style = Some(style);
-        }
-        self
-    }
-
-    pub fn build(self) -> TextEditSpec {
-        TextEditSpec {
-            style: self
-                .style
-                .expect("style not set — call .style() or defaults_from_theme()"),
-            placeholder: self.placeholder.unwrap_or(None),
-            error: self.error.unwrap_or(false),
-            disabled: self.disabled.unwrap_or(false),
-            newline_policy: self
-                .newline_policy
-                .unwrap_or(NewlinePolicy::ReplaceWithSpace),
-            wrap: self.wrap.unwrap_or(false),
-            vertical_align: self.vertical_align.unwrap_or(Align::Center),
-            line_align: self.line_align.unwrap_or(TextLineAlign::Start),
-        }
     }
 }
 
@@ -2223,15 +2215,15 @@ pub fn logical_line_bounds(text: &str, byte_index: usize) -> (usize, usize) {
 
 /// High-level text edit widget function using `WidgetContext`.
 ///
-/// Resolves defaults, runs the raw pre-layout phase to obtain a `SizeRequest`,
-/// resolves the final rect with layout, then runs the raw post-layout phase.
+/// Consumes a complete `TextEditSpec`, runs the raw pre-layout phase to obtain a
+/// `SizeRequest`, resolves the final rect with layout, then runs the raw
+/// post-layout phase.
 pub fn text_edit<T: TextBackend, S: LayoutState, CF>(
-    ctx: &mut WidgetContext<T, S, CF>,
-    builder: TextEditSpecBuilder,
+    spec: TextEditSpec,
     layout_params: S::Params,
     state: &mut TextEditState,
+    ctx: &mut WidgetContext<T, S, CF>,
 ) -> TextEditResult {
-    let spec = builder.defaults_from_theme(&ctx.theme).build();
     let pre_layout_spec = raw::TextEditPreLayoutSpec {
         style: spec.style,
         wrap: spec.wrap,

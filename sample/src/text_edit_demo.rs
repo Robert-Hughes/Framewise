@@ -10,9 +10,7 @@ use framewise::{
     widgets::checkbox::{labelled_checkbox, CheckboxSpec, CheckboxState, CheckedState},
     widgets::label::{label, LabelSpecBuilder, LabelStyle},
     widgets::radio::{labelled_radio, RadioSpecBuilder, RadioState},
-    widgets::text_edit::{
-        text_edit, NewlinePolicy, TextEditSpecBuilder, TextEditState, TextEditStyle,
-    },
+    widgets::text_edit::{text_edit, NewlinePolicy, TextEditSpec, TextEditState, TextEditStyle},
     Align, LineHeight, TextLineAlign,
 };
 
@@ -249,10 +247,10 @@ pub(crate) fn draw_text_edit_demo_content<'a, 'b, CF>(
     );
     ctx.spacer(6.0);
     text_edit(
-        ctx,
-        TextEditSpecBuilder::new().single_line(),
+        TextEditSpec::default_from_theme(&ctx.theme).single_line(),
         ColumnLayoutParams::fixed(400.0, 36.0),
         &mut state.te_preset_single_line,
+        ctx,
     );
 
     ctx.spacer(18.0);
@@ -273,10 +271,12 @@ pub(crate) fn draw_text_edit_demo_content<'a, 'b, CF>(
     );
     ctx.spacer(6.0);
     text_edit(
-        ctx,
-        TextEditSpecBuilder::new().multiline_unwrapped(),
+        TextEditSpec::default()
+            .multiline_unwrapped()
+            .theme(&ctx.theme),
         ColumnLayoutParams::fixed(400.0, 100.0),
         &mut state.te_preset_multiline_unwrapped,
+        ctx,
     );
 
     ctx.spacer(18.0);
@@ -297,10 +297,12 @@ pub(crate) fn draw_text_edit_demo_content<'a, 'b, CF>(
     );
     ctx.spacer(6.0);
     text_edit(
-        ctx,
-        TextEditSpecBuilder::new().multiline_wrapped(),
+        TextEditSpec::default()
+            .multiline_wrapped()
+            .theme(&ctx.theme),
         ColumnLayoutParams::fixed(400.0, 100.0),
         &mut state.te_preset_multiline_wrapped,
+        ctx,
     );
 
     ctx.spacer(24.0);
@@ -573,18 +575,19 @@ pub(crate) fn draw_text_edit_demo_content<'a, 'b, CF>(
         (false, true) => ColumnLayoutParams::auto().fixed_y(playground_max_height),
         (false, false) => ColumnLayoutParams::auto(),
     };
-    let playground_builder = TextEditSpecBuilder::new()
+    let playground_spec = TextEditSpec::default()
         .newline_policy(state.playground_newline_policy.to_newline_policy())
         .wrap(state.te_playground_wrap.checked == CheckedState::Checked)
         .line_align(state.playground_line_align)
-        .vertical_align(state.playground_vertical_align);
+        .vertical_align(state.playground_vertical_align)
+        .theme(&ctx.theme);
 
     if fixed_width && fixed_height {
         text_edit(
-            ctx,
-            playground_builder,
+            playground_spec,
             playground_layout,
             &mut state.te_playground,
+            ctx,
         );
     } else {
         let playground_rect = ctx.layout(
@@ -602,10 +605,10 @@ pub(crate) fn draw_text_edit_demo_content<'a, 'b, CF>(
             |_, _, _, _, _| {},
         );
         text_edit(
-            &mut playground_limit,
-            playground_builder,
+            playground_spec,
             playground_layout,
             &mut state.te_playground,
+            &mut playground_limit,
         );
         playground_limit.finish();
     }
@@ -645,13 +648,14 @@ pub(crate) fn draw_text_edit_demo_content<'a, 'b, CF>(
             }
 
             text_edit(
-                &mut row,
-                TextEditSpecBuilder::new()
+                TextEditSpec::default()
                     .multiline_wrapped()
                     .vertical_align(vertical_align)
-                    .line_align(line_align),
+                    .line_align(line_align)
+                    .theme(&row.theme),
                 RowLayoutParams::fixed(130.0, 80.0),
                 &mut state.te_aligns[r][c],
+                &mut row,
             );
         }
         row.finish();
@@ -709,14 +713,14 @@ pub(crate) fn draw_text_edit_demo_content<'a, 'b, CF>(
         };
 
         text_edit(
-            &mut right,
-            TextEditSpecBuilder::new()
+            TextEditSpec::default()
                 .multiline_unwrapped()
                 .style(styled_text_edit_style)
                 .line_align(TextLineAlign::Center)
                 .vertical_align(Align::Center),
             ColumnLayoutParams::fixed(360.0, 110.0),
             &mut state.te_styled,
+            &mut right,
         );
 
         right.spacer(24.0);
@@ -739,12 +743,13 @@ pub(crate) fn draw_text_edit_demo_content<'a, 'b, CF>(
 
         let word_wrap_enabled = state.te_large_wrap.checked == CheckedState::Checked;
         text_edit(
-            &mut right,
-            TextEditSpecBuilder::new()
+            TextEditSpec::default()
                 .multiline_unwrapped()
-                .wrap(word_wrap_enabled),
+                .wrap(word_wrap_enabled)
+                .theme(&right.theme),
             ColumnLayoutParams::fixed(540.0, 520.0),
             &mut state.te_large,
+            &mut right,
         );
 
         right.finish();

@@ -100,7 +100,7 @@ use framewise::widgets::tabs::{tabs, TabsSpecBuilder, TabsState};
 #[cfg(feature = "text_edit")]
 #[allow(unused_imports)]
 use framewise::widgets::text_edit::{
-    text_edit, NewlinePolicy, TextEditSpecBuilder, TextEditState, TextEditStyle,
+    text_edit, NewlinePolicy, TextEditSpec, TextEditState, TextEditStyle,
 };
 #[cfg(feature = "tooltip")]
 #[allow(unused_imports)]
@@ -2049,12 +2049,12 @@ fn section_02_text_inputs<CF>(
                             s.size = b.theme.text_md;
                             s
                         };
-                        let spec_builder = TextEditSpecBuilder::new()
+                        let spec = TextEditSpec::default()
                             .style(style)
                             .placeholder(placeholder)
                             .error(error)
                             .disabled(disabled);
-                        let _info = text_edit(&mut b, spec_builder, layout_params, state);
+                        let _info = text_edit(spec, layout_params, state, &mut b);
                     }
                 }
             }
@@ -2092,8 +2092,8 @@ fn section_02_text_inputs<CF>(
                 s.size = b.theme.text_md;
                 s
             };
-            let spec_builder = TextEditSpecBuilder::new().style(style);
-            text_edit(&mut b, spec_builder, layout_params, state)
+            let spec = TextEditSpec::default().style(style);
+            text_edit(spec, layout_params, state, &mut b)
         };
         {
             let layout_params = Rect::new(field_x, y + 18.0 + b.theme.h_md + 4.0, 220.0, 20.0);
@@ -2179,8 +2179,8 @@ fn section_02_text_inputs<CF>(
                 s.size = b.theme.text_md;
                 s
             };
-            let spec_builder = TextEditSpecBuilder::new().style(style);
-            text_edit(&mut b, spec_builder, layout_params, state)
+            let spec = TextEditSpec::default().style(style);
+            text_edit(spec, layout_params, state, &mut b)
         };
         let err_y = y + 18.0 + b.theme.h_md + 4.0;
         {
@@ -2255,8 +2255,8 @@ fn section_02_text_inputs<CF>(
                 s.line_height = b.theme.body_line_height;
                 s
             };
-            let spec_builder = TextEditSpecBuilder::new().style(style).multiline_wrapped();
-            text_edit(&mut b, spec_builder, layout_params, state)
+            let spec = TextEditSpec::default().style(style).multiline_wrapped();
+            text_edit(spec, layout_params, state, &mut b)
         };
         b.finish();
     }

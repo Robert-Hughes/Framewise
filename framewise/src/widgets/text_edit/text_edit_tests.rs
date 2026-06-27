@@ -10,53 +10,40 @@ use crate::{
 };
 
 #[test]
-fn test_builder_defaults_from_theme_fills_unset_style() {
+fn test_spec_default_from_theme_fills_style() {
     let theme = crate::theme::Theme::framewise();
-    let builder = TextEditSpecBuilder::new();
-    assert!(builder.style.is_none());
-    let builder = builder.defaults_from_theme(&theme);
-    assert!(builder.style.is_some());
-    assert_eq!(
-        builder.style.unwrap().font,
-        TextEditStyle::from_theme(&theme).font
-    );
-    assert_eq!(
-        builder.style.unwrap().size,
-        TextEditStyle::from_theme(&theme).size
-    );
+    let spec = super::TextEditSpec::default_from_theme(&theme);
+    assert_eq!(spec.style.font, TextEditStyle::from_theme(&theme).font);
+    assert_eq!(spec.style.size, TextEditStyle::from_theme(&theme).size);
 }
 
 #[test]
-fn test_builder_defaults_from_theme_uses_single_line_vertical_padding() {
+fn test_spec_theme_uses_single_line_vertical_padding() {
     let theme = crate::theme::Theme::framewise();
-    let builder = TextEditSpecBuilder::new().defaults_from_theme(&theme);
+    let spec = super::TextEditSpec::default().theme(&theme);
 
-    assert_eq!(builder.style.unwrap().padding_y, 0.0);
+    assert_eq!(spec.style.padding_y, 0.0);
 }
 
 #[test]
-fn test_builder_defaults_from_theme_uses_multiline_vertical_padding() {
+fn test_spec_theme_uses_multiline_vertical_padding() {
     let theme = crate::theme::Theme::framewise();
 
-    let allow_newlines = TextEditSpecBuilder::new()
+    let allow_newlines = super::TextEditSpec::default()
         .newline_policy(NewlinePolicy::Preserve)
-        .defaults_from_theme(&theme);
-    assert_eq!(allow_newlines.style.unwrap().padding_y, 8.0);
+        .theme(&theme);
+    assert_eq!(allow_newlines.style.padding_y, 8.0);
 
-    let wrapped = TextEditSpecBuilder::new()
-        .wrap(true)
-        .defaults_from_theme(&theme);
-    assert_eq!(wrapped.style.unwrap().padding_y, 8.0);
+    let wrapped = super::TextEditSpec::default().wrap(true).theme(&theme);
+    assert_eq!(wrapped.style.padding_y, 8.0);
 }
 
 #[test]
-fn test_builder_defaults_from_theme_preserves_explicit_style() {
-    let theme = crate::theme::Theme::framewise();
+fn test_spec_style_setter_sets_style() {
     let mut custom_style = TextEditStyle::from_theme(&crate::theme::Theme::framewise());
     custom_style.size = 99.0;
-    let builder = TextEditSpecBuilder::new().style(custom_style);
-    let builder = builder.defaults_from_theme(&theme);
-    assert_eq!(builder.style.unwrap().size, 99.0);
+    let spec = super::TextEditSpec::default().style(custom_style);
+    assert_eq!(spec.style.size, 99.0);
 }
 
 #[test]
@@ -201,13 +188,13 @@ fn test_high_level_auto_sized_text_edit_sizes_same_frame_text_input() {
     );
 
     let result = text_edit(
-        &mut ctx,
-        TextEditSpecBuilder::new()
+        super::TextEditSpec::default()
             .style(style)
             .wrap(false)
             .newline_policy(NewlinePolicy::ReplaceWithSpace),
         ColumnLayoutParams::auto(),
         &mut state,
+        &mut ctx,
     );
     ctx.finish();
 
@@ -258,10 +245,10 @@ fn test_high_level_text_edit_pre_layout_select_all_then_char_replaces_selection(
     );
 
     let result = text_edit(
-        &mut ctx,
-        TextEditSpecBuilder::new().style(style).wrap(false),
+        super::TextEditSpec::default().style(style).wrap(false),
         ColumnLayoutParams::auto(),
         &mut state,
+        &mut ctx,
     );
     ctx.finish();
 
@@ -302,13 +289,13 @@ fn test_high_level_text_edit_unsupported_event_stops_pre_layout_prefix() {
     );
 
     text_edit(
-        &mut ctx,
-        TextEditSpecBuilder::new()
+        super::TextEditSpec::default()
             .style(spec().style)
             .wrap(false)
             .newline_policy(NewlinePolicy::ReplaceWithSpace),
         ColumnLayoutParams::auto(),
         &mut state,
+        &mut ctx,
     );
     ctx.finish();
 
@@ -2479,10 +2466,10 @@ fn test_user_rect_not_overridden() {
     );
     let mut te_state = TextEditState::default();
     let result = super::text_edit(
-        &mut ctx,
-        TextEditSpecBuilder::new(),
+        super::TextEditSpec::default_from_theme(&ctx.theme),
         custom_rect,
         &mut te_state,
+        &mut ctx,
     );
     assert_eq!(result.layout.bounds, custom_rect);
 }
@@ -5884,10 +5871,7 @@ fn test_text_edit_wrapping_selection_visual() {
 fn test_size_text_edit_auto_wrap_with_offer() {
     let mut text_backend = TestTextBackend::default();
     let theme = crate::theme::Theme::framewise();
-    let spec = TextEditSpecBuilder::new()
-        .wrap(true)
-        .defaults_from_theme(&theme)
-        .build();
+    let spec = super::TextEditSpec::default().wrap(true).theme(&theme);
     let size_spec = raw::TextEditPreLayoutSpec {
         style: spec.style,
         wrap: spec.wrap,
@@ -6177,10 +6161,10 @@ fn test_high_level_text_edit_copy() {
     );
 
     let _res = text_edit(
-        &mut ctx,
-        TextEditSpecBuilder::new(),
+        super::TextEditSpec::default_from_theme(&ctx.theme),
         ColumnLayoutParams::auto(),
         &mut state,
+        &mut ctx,
     );
     ctx.finish();
 
@@ -6218,10 +6202,10 @@ fn test_high_level_text_edit_cut() {
     );
 
     let _res = text_edit(
-        &mut ctx,
-        TextEditSpecBuilder::new(),
+        super::TextEditSpec::default_from_theme(&ctx.theme),
         ColumnLayoutParams::auto(),
         &mut state,
+        &mut ctx,
     );
     ctx.finish();
 
@@ -6252,10 +6236,10 @@ fn test_text_edit_high_level_sets_output_cursor() {
     );
 
     let result = text_edit(
-        &mut ctx,
-        TextEditSpecBuilder::new(),
+        super::TextEditSpec::default_from_theme(&ctx.theme),
         ColumnLayoutParams::auto(),
         &mut state,
+        &mut ctx,
     );
     ctx.finish();
 
