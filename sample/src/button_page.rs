@@ -10,7 +10,7 @@ use framewise::{
     theme::Theme,
     types::Rect,
     widget::WidgetContext,
-    widgets::button::{button, ButtonSpecBuilder, ButtonState, ButtonStyle},
+    widgets::button::{button, ButtonSpec, ButtonState, ButtonStyle},
     widgets::label::{label, LabelSpecBuilder, LabelStyle},
 };
 
@@ -132,10 +132,10 @@ pub(crate) fn draw_button_page_content<'a, 'b, CF>(
         let labels = ["Primary", "Secondary", "Accent", "Ghost"];
         for i in 0..4 {
             let r = button(
-                &mut row,
-                ButtonSpecBuilder::new().text(labels[i]).style(styles[i]),
+                ButtonSpec::new(labels[i]).style(styles[i]),
                 RowLayoutParams::fixed(160.0, 40.0),
                 &mut state.toolbar_btns[i],
+                &mut row,
             );
             if r.input.clicked {
                 state.toolbar_clicks[i] += 1;
@@ -166,13 +166,10 @@ pub(crate) fn draw_button_page_content<'a, 'b, CF>(
             ];
             for (i, (text, style, disabled)) in entries.iter().enumerate() {
                 button(
-                    &mut col,
-                    ButtonSpecBuilder::new()
-                        .text(text)
-                        .style(*style)
-                        .disabled(*disabled),
+                    ButtonSpec::new(text).style(*style).disabled(*disabled),
                     ColumnLayoutParams::fixed(240.0, 44.0),
                     &mut state.style_btns[i],
+                    &mut col,
                 );
                 col.spacer(8.0);
             }
@@ -191,13 +188,10 @@ pub(crate) fn draw_button_page_content<'a, 'b, CF>(
             ];
             for (i, (text, style, disabled)) in entries.iter().enumerate() {
                 button(
-                    &mut col,
-                    ButtonSpecBuilder::new()
-                        .text(text)
-                        .style(*style)
-                        .disabled(*disabled),
+                    ButtonSpec::new(text).style(*style).disabled(*disabled),
                     ColumnLayoutParams::fixed(240.0, 44.0),
                     &mut state.style_btns[4 + i],
+                    &mut col,
                 );
                 col.spacer(8.0);
             }
@@ -232,10 +226,10 @@ pub(crate) fn draw_button_page_content<'a, 'b, CF>(
                     col.child_with_layout(ColumnLayoutParams::fixed(420.0, 48.0), RowLayout);
 
                 let r = button(
-                    &mut inner_row,
-                    ButtonSpecBuilder::new().text("−").style(secondary),
+                    ButtonSpec::new("−").style(secondary),
                     RowLayoutParams::fixed(120.0, 48.0),
                     &mut state.counter_btns[1],
+                    &mut inner_row,
                 );
                 if r.input.clicked {
                     state.counter -= 1;
@@ -251,10 +245,10 @@ pub(crate) fn draw_button_page_content<'a, 'b, CF>(
                 inner_row.spacer(12.0);
 
                 let r = button(
-                    &mut inner_row,
-                    ButtonSpecBuilder::new().text("+").style(accent),
+                    ButtonSpec::new("+").style(accent),
                     RowLayoutParams::fixed(120.0, 48.0),
                     &mut state.counter_btns[3],
+                    &mut inner_row,
                 );
                 if r.input.clicked {
                     state.counter += 1;
@@ -265,10 +259,10 @@ pub(crate) fn draw_button_page_content<'a, 'b, CF>(
             col.spacer(12.0);
 
             let r = button(
-                &mut col,
-                ButtonSpecBuilder::new().text("Reset").style(ghost),
+                ButtonSpec::new("Reset").style(ghost),
                 ColumnLayoutParams::fixed(420.0, 36.0),
                 &mut state.counter_btns[4],
+                &mut col,
             );
             if r.input.clicked {
                 state.counter = 0;
@@ -303,12 +297,10 @@ pub(crate) fn draw_button_page_content<'a, 'b, CF>(
             for j in 0..3 {
                 let idx = g * 3 + j;
                 let r = button(
-                    &mut col,
-                    ButtonSpecBuilder::new()
-                        .text(group_labels[g][j])
-                        .style(group_styles[g]),
+                    ButtonSpec::new(group_labels[g][j]).style(group_styles[g]),
                     ColumnLayoutParams::fixed(160.0, 36.0),
                     &mut state.grid_btns[idx],
+                    &mut col,
                 );
                 if r.input.clicked {
                     state.grid_clicks[idx] += 1;
@@ -342,10 +334,10 @@ pub(crate) fn draw_button_page_content<'a, 'b, CF>(
             let labels = ["OK", "Cancel", "Apply to All", "Don't Save"];
             for (i, label) in labels.iter().enumerate() {
                 button(
-                    &mut row,
-                    ButtonSpecBuilder::new().text(label).style(secondary),
+                    ButtonSpec::new(label).style(secondary),
                     auto,
                     &mut state.auto_btns[i],
+                    &mut row,
                 );
                 row.spacer(10.0);
             }
@@ -356,12 +348,10 @@ pub(crate) fn draw_button_page_content<'a, 'b, CF>(
         // A button that fills the column's full width and requests its height.
         let fill = ColumnLayoutParams::auto().fill_x();
         button(
-            &mut col,
-            ButtonSpecBuilder::new()
-                .text("Fills the row width")
-                .style(primary),
+            ButtonSpec::new("Fills the row width").style(primary),
             fill,
             &mut state.auto_btns[4],
+            &mut col,
         );
 
         col.finish();
@@ -396,10 +386,10 @@ pub(crate) fn draw_button_page_content<'a, 'b, CF>(
         ];
         for (i, label) in labels.iter().enumerate() {
             button(
-                &mut wrap,
-                ButtonSpecBuilder::new().text(label).style(ghost),
+                ButtonSpec::new(label).style(ghost),
                 auto,
                 &mut state.wrap_btns[i],
+                &mut wrap,
             );
         }
         wrap.finish();
@@ -420,24 +410,24 @@ pub(crate) fn draw_button_page_content<'a, 'b, CF>(
             let mut col = row.child_with_layout(RowLayoutParams::fixed(200.0, 180.0), ColumnLayout);
 
             button(
-                &mut col,
-                ButtonSpecBuilder::new().text("Center S").style(accent),
+                ButtonSpec::new("Center S").style(accent),
                 ColumnLayoutParams::fixed(80.0, 36.0).align_x(Align::Center),
                 &mut state.align_btns[0],
+                &mut col,
             );
             col.spacer(8.0);
             button(
-                &mut col,
-                ButtonSpecBuilder::new().text("Center Med").style(secondary),
+                ButtonSpec::new("Center Med").style(secondary),
                 ColumnLayoutParams::fixed(140.0, 36.0).align_x(Align::Center),
                 &mut state.align_btns[1],
+                &mut col,
             );
             col.spacer(8.0);
             button(
-                &mut col,
-                ButtonSpecBuilder::new().text("Center Lrg").style(primary),
+                ButtonSpec::new("Center Lrg").style(primary),
                 ColumnLayoutParams::fixed(180.0, 36.0).align_x(Align::Center),
                 &mut state.align_btns[2],
+                &mut col,
             );
 
             col.finish();
@@ -449,24 +439,24 @@ pub(crate) fn draw_button_page_content<'a, 'b, CF>(
             let mut col = row.child_with_layout(RowLayoutParams::fixed(200.0, 180.0), ColumnLayout);
 
             button(
-                &mut col,
-                ButtonSpecBuilder::new().text("End S").style(accent),
+                ButtonSpec::new("End S").style(accent),
                 ColumnLayoutParams::fixed(80.0, 36.0).align_x(Align::End),
                 &mut state.align_btns[3],
+                &mut col,
             );
             col.spacer(8.0);
             button(
-                &mut col,
-                ButtonSpecBuilder::new().text("End Med").style(secondary),
+                ButtonSpec::new("End Med").style(secondary),
                 ColumnLayoutParams::fixed(140.0, 36.0).align_x(Align::End),
                 &mut state.align_btns[4],
+                &mut col,
             );
             col.spacer(8.0);
             button(
-                &mut col,
-                ButtonSpecBuilder::new().text("End Lrg").style(primary),
+                ButtonSpec::new("End Lrg").style(primary),
                 ColumnLayoutParams::fixed(180.0, 36.0).align_x(Align::End),
                 &mut state.align_btns[5],
+                &mut col,
             );
 
             col.finish();
@@ -483,17 +473,17 @@ pub(crate) fn draw_button_page_content<'a, 'b, CF>(
                 let mut inner_row =
                     col.child_with_layout(ColumnLayoutParams::fixed(300.0, 60.0), RowLayout);
                 button(
-                    &mut inner_row,
-                    ButtonSpecBuilder::new().text("Row C1").style(primary),
+                    ButtonSpec::new("Row C1").style(primary),
                     RowLayoutParams::fixed(80.0, 30.0).align_y(Align::Center),
                     &mut state.align_btns[6],
+                    &mut inner_row,
                 );
                 inner_row.spacer(8.0);
                 button(
-                    &mut inner_row,
-                    ButtonSpecBuilder::new().text("Row C2").style(secondary),
+                    ButtonSpec::new("Row C2").style(secondary),
                     RowLayoutParams::fixed(100.0, 48.0).align_y(Align::Center),
                     &mut state.align_btns[7],
+                    &mut inner_row,
                 );
                 inner_row.finish();
             }
@@ -504,17 +494,17 @@ pub(crate) fn draw_button_page_content<'a, 'b, CF>(
                 let mut inner_row =
                     col.child_with_layout(ColumnLayoutParams::fixed(300.0, 60.0), RowLayout);
                 button(
-                    &mut inner_row,
-                    ButtonSpecBuilder::new().text("Row E1").style(primary),
+                    ButtonSpec::new("Row E1").style(primary),
                     RowLayoutParams::fixed(80.0, 30.0).align_y(Align::End),
                     &mut state.align_btns[8],
+                    &mut inner_row,
                 );
                 inner_row.spacer(8.0);
                 button(
-                    &mut inner_row,
-                    ButtonSpecBuilder::new().text("Row E2").style(secondary),
+                    ButtonSpec::new("Row E2").style(secondary),
                     RowLayoutParams::fixed(100.0, 48.0).align_y(Align::End),
                     &mut state.align_btns[9],
+                    &mut inner_row,
                 );
                 inner_row.finish();
             }
@@ -555,10 +545,10 @@ pub(crate) fn draw_button_page_content<'a, 'b, CF>(
                     ..secondary
                 };
                 button(
-                    &mut row,
-                    ButtonSpecBuilder::new().text(text).style(style),
+                    ButtonSpec::new(text).style(style),
                     RowLayoutParams::fixed(150.0, 48.0),
                     &mut state.content_btns[index],
+                    &mut row,
                 );
                 row.spacer(8.0);
             }
@@ -602,10 +592,10 @@ pub(crate) fn draw_button_page_content<'a, 'b, CF>(
         );
         row.spacer(6.0);
         button(
-            &mut row,
-            ButtonSpecBuilder::new().text("×").style(logical_icon),
+            ButtonSpec::new("×").style(logical_icon),
             RowLayoutParams::fixed(29.0, 29.0),
             &mut state.content_btns[9],
+            &mut row,
         );
         row.spacer(18.0);
         label(
@@ -617,10 +607,10 @@ pub(crate) fn draw_button_page_content<'a, 'b, CF>(
         );
         row.spacer(6.0);
         button(
-            &mut row,
-            ButtonSpecBuilder::new().text("×").style(ink_icon),
+            ButtonSpec::new("×").style(ink_icon),
             RowLayoutParams::fixed(29.0, 29.0),
             &mut state.content_btns[10],
+            &mut row,
         );
         row.finish();
     }

@@ -7,7 +7,7 @@ use framewise::{
     theme::Theme,
     types::Rect,
     widget::WidgetContext,
-    widgets::button::{button, ButtonSpecBuilder, ButtonState, ButtonStyle},
+    widgets::button::{button, ButtonSpec, ButtonState, ButtonStyle},
     widgets::frame::{begin_frame, FrameResult, FrameSpecBuilder, FrameStyle},
     widgets::label::{label, LabelSpecBuilder},
 };
@@ -193,12 +193,10 @@ pub(crate) fn draw_frame_page_content<'a, 'b, CF>(
                 .child_with_layout(ColumnLayoutParams::auto().fill_x().fixed_y(40.0), RowLayout);
 
             let add_r = button(
-                &mut control_row,
-                ButtonSpecBuilder::new()
-                    .text("Add Dynamic Button")
-                    .style(primary),
+                ButtonSpec::new("Add Dynamic Button").style(primary),
                 RowLayoutParams::fixed(200.0, 40.0),
                 &mut state.add_btn,
+                &mut control_row,
             );
             if add_r.input.clicked && state.item_count < 5 {
                 state.item_count += 1;
@@ -206,12 +204,10 @@ pub(crate) fn draw_frame_page_content<'a, 'b, CF>(
             control_row.spacer(12.0);
 
             let rem_r = button(
-                &mut control_row,
-                ButtonSpecBuilder::new()
-                    .text("Remove Dynamic Button")
-                    .style(accent),
+                ButtonSpec::new("Remove Dynamic Button").style(accent),
                 RowLayoutParams::fixed(200.0, 40.0),
                 &mut state.remove_btn,
+                &mut control_row,
             );
             if rem_r.input.clicked && state.item_count > 0 {
                 state.item_count -= 1;
@@ -256,10 +252,10 @@ pub(crate) fn draw_frame_page_content<'a, 'b, CF>(
                         state.dynamic_clicks[i]
                     );
                     let r = button(
-                        &mut dynamic_frame,
-                        ButtonSpecBuilder::new().text(&text).style(secondary),
+                        ButtonSpec::new(&text).style(secondary),
                         ColumnLayoutParams::auto().fill_x().fixed_y(36.0),
                         &mut state.dynamic_btns[i],
+                        &mut dynamic_frame,
                     );
                     if r.input.clicked {
                         state.dynamic_clicks[i] += 1;
@@ -305,10 +301,10 @@ pub(crate) fn draw_frame_page_content<'a, 'b, CF>(
 
                 let text = format!("Cl: {}", state.fixed_clicks);
                 let r = button(
-                    &mut sub_frame,
-                    ButtonSpecBuilder::new().text(&text).style(primary),
+                    ButtonSpec::new(&text).style(primary),
                     ColumnLayoutParams::auto().fill_x().fixed_y(36.0),
                     &mut state.fixed_btn,
+                    &mut sub_frame,
                 );
                 if r.input.clicked {
                     state.fixed_clicks += 1;
@@ -336,10 +332,10 @@ pub(crate) fn draw_frame_page_content<'a, 'b, CF>(
 
                 let text = format!("Auto Width for me! {}", state.width_auto_clicks);
                 let r = button(
-                    &mut sub_frame,
-                    ButtonSpecBuilder::new().text(&text).style(secondary),
+                    ButtonSpec::new(&text).style(secondary),
                     ColumnLayoutParams::auto().fixed_y(36.0),
                     &mut state.width_auto_btn,
+                    &mut sub_frame,
                 );
                 if r.input.clicked {
                     state.width_auto_clicks += 1;
@@ -367,10 +363,10 @@ pub(crate) fn draw_frame_page_content<'a, 'b, CF>(
 
                 let text = format!("Auto H: {}", state.height_auto_clicks);
                 let r = button(
-                    &mut sub_frame,
-                    ButtonSpecBuilder::new().text(&text).style(accent),
+                    ButtonSpec::new(&text).style(accent),
                     ColumnLayoutParams::auto().fill_x().fixed_y(36.0),
                     &mut state.height_auto_btn,
+                    &mut sub_frame,
                 );
                 if r.input.clicked {
                     state.height_auto_clicks += 1;
@@ -378,10 +374,10 @@ pub(crate) fn draw_frame_page_content<'a, 'b, CF>(
                 sub_frame.spacer(4.0);
 
                 button(
-                    &mut sub_frame,
-                    ButtonSpecBuilder::new().text("Height").style(accent),
+                    ButtonSpec::new("Height").style(accent),
                     ColumnLayoutParams::auto().fill_x(),
                     &mut state.height_auto_btn2,
+                    &mut sub_frame,
                 );
 
                 sub_frame.finish();
@@ -406,10 +402,10 @@ pub(crate) fn draw_frame_page_content<'a, 'b, CF>(
 
                 let text = format!("Fully Auto: {}", state.fully_auto_clicks);
                 let r = button(
-                    &mut sub_frame,
-                    ButtonSpecBuilder::new().text(&text).style(secondary),
+                    ButtonSpec::new(&text).style(secondary),
                     ColumnLayoutParams::auto(),
                     &mut state.fully_auto_btn,
+                    &mut sub_frame,
                 );
                 if r.input.clicked {
                     state.fully_auto_clicks += 1;
@@ -462,10 +458,10 @@ pub(crate) fn draw_frame_page_content<'a, 'b, CF>(
 
             let text = format!("Outer Fixed Frame (Clicks: {})", state.nested_clicks[0]);
             let r = button(
-                &mut outer_fixed,
-                ButtonSpecBuilder::new().text(&text).style(secondary),
+                ButtonSpec::new(&text).style(secondary),
                 ColumnLayoutParams::auto().fill_x().fixed_y(36.0),
                 &mut state.outer_btn,
+                &mut outer_fixed,
             );
             if r.input.clicked {
                 state.nested_clicks[0] += 1;
@@ -490,10 +486,10 @@ pub(crate) fn draw_frame_page_content<'a, 'b, CF>(
 
                 let text_c = format!("Inner Center (Clicks: {})", state.nested_clicks[1]);
                 let r1 = button(
-                    &mut inner_auto,
-                    ButtonSpecBuilder::new().text(&text_c).style(accent),
+                    ButtonSpec::new(&text_c).style(accent),
                     RowLayoutParams::auto(),
                     &mut state.inner_center_btn,
+                    &mut inner_auto,
                 );
                 if r1.input.clicked {
                     state.nested_clicks[1] += 1;
@@ -502,10 +498,10 @@ pub(crate) fn draw_frame_page_content<'a, 'b, CF>(
 
                 let text_e = format!("Inner End (Clicks: {})", state.nested_clicks[2]);
                 let r2 = button(
-                    &mut inner_auto,
-                    ButtonSpecBuilder::new().text(&text_e).style(primary),
+                    ButtonSpec::new(&text_e).style(primary),
                     RowLayoutParams::auto(),
                     &mut state.inner_end_btn,
+                    &mut inner_auto,
                 );
                 if r2.input.clicked {
                     state.nested_clicks[2] += 1;
@@ -540,30 +536,26 @@ pub(crate) fn draw_frame_page_content<'a, 'b, CF>(
 
             // Three buttons of varying widths visually demonstrating centered alignment within dynamic frame
             button(
-                &mut fit_centered,
-                ButtonSpecBuilder::new().text("Small Width").style(primary),
+                ButtonSpec::new("Small Width").style(primary),
                 ColumnLayoutParams::fixed(120.0, 36.0).align_x(Align::Center),
                 &mut state.align_small_btn,
+                &mut fit_centered,
             );
             fit_centered.spacer(10.0);
 
             button(
-                &mut fit_centered,
-                ButtonSpecBuilder::new()
-                    .text("Medium Width Button")
-                    .style(secondary),
+                ButtonSpec::new("Medium Width Button").style(secondary),
                 ColumnLayoutParams::fixed(240.0, 36.0).align_x(Align::Center),
                 &mut state.align_med_btn,
+                &mut fit_centered,
             );
             fit_centered.spacer(10.0);
 
             button(
-                &mut fit_centered,
-                ButtonSpecBuilder::new()
-                    .text("Large Width Content Button")
-                    .style(accent),
+                ButtonSpec::new("Large Width Content Button").style(accent),
                 ColumnLayoutParams::fixed(360.0, 36.0).align_x(Align::Center),
                 &mut state.align_large_btn,
+                &mut fit_centered,
             );
 
             fit_centered.finish();

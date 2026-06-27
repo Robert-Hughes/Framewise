@@ -367,6 +367,12 @@ impl ButtonStyle {
     }
 }
 
+impl Default for ButtonStyle {
+    fn default() -> Self {
+        Self::secondary_from_theme(&crate::theme::Theme::minimal())
+    }
+}
+
 // ── State ─────────────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, Default, PartialEq)]
@@ -397,47 +403,37 @@ pub struct ButtonSpec<'a> {
     pub disabled: bool,
 }
 
-// ── Spec Builder ─────────────────────────────────────────────────────────────
-
-#[derive(Debug, Clone, PartialEq, Default)]
-pub struct ButtonSpecBuilder<'a> {
-    pub text: Option<&'a str>,
-    pub style: Option<ButtonStyle>,
-    pub disabled: Option<bool>,
-}
-
-impl<'a> ButtonSpecBuilder<'a> {
-    pub fn new() -> Self {
-        Self::default()
+impl<'a> ButtonSpec<'a> {
+    pub fn new(text: &'a str) -> Self {
+        Self {
+            text,
+            style: ButtonStyle::default(),
+            disabled: false,
+        }
     }
+
+    pub fn new_from_theme(text: &'a str, theme: &crate::theme::Theme) -> Self {
+        Self::new(text).theme(theme)
+    }
+
+    pub fn theme(mut self, theme: &crate::theme::Theme) -> Self {
+        self.style = ButtonStyle::secondary_from_theme(theme);
+        self
+    }
+
     pub fn text(mut self, text: &'a str) -> Self {
-        self.text = Some(text);
+        self.text = text;
         self
     }
+
     pub fn style(mut self, style: ButtonStyle) -> Self {
-        self.style = Some(style);
+        self.style = style;
         self
     }
+
     pub fn disabled(mut self, disabled: bool) -> Self {
-        self.disabled = Some(disabled);
+        self.disabled = disabled;
         self
-    }
-    /// Fills unset fields from `theme`. Called automatically by high-level
-    /// context functions.
-    pub fn defaults_from_theme(mut self, theme: &crate::theme::Theme) -> Self {
-        if self.style.is_none() {
-            self.style = Some(ButtonStyle::secondary_from_theme(theme));
-        }
-        self
-    }
-    pub fn build(self) -> ButtonSpec<'a> {
-        ButtonSpec {
-            text: self.text.expect("text not set — call .text()"),
-            style: self
-                .style
-                .expect("style not set — call .style() or defaults_from_theme()"),
-            disabled: self.disabled.unwrap_or(false),
-        }
     }
 }
 
@@ -445,15 +441,15 @@ impl<'a> ButtonSpecBuilder<'a> {
 
 /// High-level button widget function using `WidgetContext`.
 ///
-/// Resolves defaults, runs the raw pre-layout phase to obtain a `SizeRequest`,
-/// resolves the final rect with layout, then runs the raw post-layout phase.
+/// Consumes a complete `ButtonSpec`, runs the raw pre-layout phase to obtain a
+/// `SizeRequest`, resolves the final rect with layout, then runs the raw
+/// post-layout phase.
 pub fn button<'a, T: TextBackend, S: LayoutState, CF>(
-    ctx: &mut WidgetContext<T, S, CF>,
-    builder: ButtonSpecBuilder<'a>,
+    spec: ButtonSpec<'a>,
     layout_params: S::Params,
     state: &mut ButtonState,
+    ctx: &mut WidgetContext<T, S, CF>,
 ) -> ButtonResult {
-    let spec = builder.defaults_from_theme(&ctx.theme).build();
     let pre_layout_spec = raw::ButtonPreLayoutSpec {
         text: spec.text,
         style: spec.style,

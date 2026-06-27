@@ -1,4 +1,4 @@
-use super::raw::ButtonSpec;
+use super::raw::ButtonSpec as RawButtonSpec;
 use super::*;
 use crate::draw::DrawCmd;
 
@@ -15,8 +15,8 @@ fn placement_text_backend() -> TestTextBackend {
         .with_glyph_ink_bounds(Rect::new(-4.0, 3.0, 18.0, 10.0))
 }
 
-fn btn_spec(rect: Rect) -> ButtonSpec<'static> {
-    ButtonSpec {
+fn btn_spec(rect: Rect) -> RawButtonSpec<'static> {
+    RawButtonSpec {
         layer: Layer::default(),
         rect,
         text: "Btn",
@@ -148,7 +148,7 @@ fn test_drag_off_and_release_does_not_click_other_button() {
         false,
         |state1, state2, input, focus_system, cmds| {
             let res1 = raw::post_layout_button(
-                ButtonSpec {
+                RawButtonSpec {
                     layer: Layer::default(),
                     text: "Click Me",
                     ..btn_spec(Rect::new(10.0, 10.0, 100.0, 30.0))
@@ -163,7 +163,7 @@ fn test_drag_off_and_release_does_not_click_other_button() {
                 cmds,
             );
             let res2 = raw::post_layout_button(
-                ButtonSpec {
+                RawButtonSpec {
                     layer: Layer::default(),
                     text: "Btn2",
                     ..btn_spec(Rect::new(0.0, 100.0, 100.0, 50.0))
@@ -321,7 +321,7 @@ fn test_button_clipped_click_does_not_take_focus() {
         Vec2::new(50.0, 25.0),
         |state, input, focus_system, cmds| {
             raw::post_layout_button(
-                ButtonSpec {
+                RawButtonSpec {
                     layer: Layer::default(),
                     rect: Rect::new(10.0, 10.0, 100.0, 30.0),
                     text: "Btn",
@@ -355,7 +355,7 @@ fn test_button_disabled_ignores_interaction() {
         Vec2::new(50.0, 25.0),
         |state, input, focus_system, cmds| {
             raw::post_layout_button(
-                ButtonSpec {
+                RawButtonSpec {
                     layer: Layer::default(),
                     disabled: true,
                     ..btn_spec(Rect::new(10.0, 10.0, 100.0, 30.0))
@@ -843,7 +843,7 @@ fn test_button_visual_disabled() {
     let mut text_backend = TestTextBackend::default();
     let mut focus_system = FocusSystem::new();
     let state = ButtonState::default();
-    let spec = ButtonSpec {
+    let spec = RawButtonSpec {
         layer: Layer::default(),
         disabled: true,
         ..btn_spec(Rect::new(10.0, 10.0, 100.0, 30.0))
@@ -922,7 +922,7 @@ fn test_button_logical_content_placement_respects_padding() {
     let mut text_backend = TestTextBackend::default();
     let mut focus_system = FocusSystem::new();
     let mut state = ButtonState::default();
-    let spec = ButtonSpec {
+    let spec = RawButtonSpec {
         layer: Layer::default(),
         style: ButtonStyle {
             content_placement: crate::text::TextContentPlacement::logical(
@@ -962,7 +962,7 @@ fn test_button_ink_content_placement_uses_ink_bounds_when_disabled() {
     let mut text_backend = placement_text_backend();
     let mut focus_system = FocusSystem::new();
     let mut state = ButtonState::default();
-    let spec = ButtonSpec {
+    let spec = RawButtonSpec {
         layer: Layer::default(),
         disabled: true,
         style: ButtonStyle {
@@ -1025,7 +1025,7 @@ fn test_regression_custom_style_no_theme_lookup() {
         min_height: 28.0,
     };
 
-    let spec = ButtonSpec {
+    let spec = RawButtonSpec {
         layer: Layer::default(),
         rect: Rect::new(5.0, 15.0, 120.0, 45.0),
         text: "Explicit Spec",
@@ -1120,37 +1120,29 @@ fn test_regression_custom_style_no_theme_lookup() {
 }
 
 #[test]
-fn test_builder_defaults_from_theme_fills_unset_style() {
+fn test_button_spec_new_from_theme() {
     let theme = crate::theme::Theme::framewise();
-    let builder = ButtonSpecBuilder::new().text("test");
-    assert!(builder.style.is_none());
-    let builder = builder.defaults_from_theme(&theme);
-    assert!(builder.style.is_some());
-    let expected = ButtonStyle::secondary_from_theme(&theme);
-    assert_eq!(
-        builder.style.unwrap().text_style.font,
-        expected.text_style.font
-    );
-    assert_eq!(
-        builder.style.unwrap().text_style.size,
-        expected.text_style.size
-    );
+    let spec = ButtonSpec::new_from_theme("Save", &theme);
+    assert_eq!(spec.text, "Save");
+    assert_eq!(spec.disabled, false);
+    assert_eq!(spec.style, ButtonStyle::secondary_from_theme(&theme));
 }
 
 #[test]
-fn test_builder_defaults_from_theme_preserves_explicit_style() {
+fn test_button_spec_theme_overwrites_style_only() {
     let theme = crate::theme::Theme::framewise();
-    let default_primary = ButtonStyle::primary_from_theme(&theme::Theme::default());
-    let custom_style = ButtonStyle {
-        text_style: crate::text::TextStyle {
-            size: 99.0,
-            ..default_primary.text_style
-        },
-        ..default_primary
-    };
-    let builder = ButtonSpecBuilder::new().text("test").style(custom_style);
-    let builder = builder.defaults_from_theme(&theme);
-    assert_eq!(builder.style.unwrap().text_style.size, 99.0);
+    let spec = ButtonSpec::new("Save").disabled(true).theme(&theme);
+    assert_eq!(spec.text, "Save");
+    assert_eq!(spec.disabled, true);
+    assert_eq!(spec.style, ButtonStyle::secondary_from_theme(&theme));
+}
+
+#[test]
+fn test_button_spec_new_uses_default_style() {
+    let spec = ButtonSpec::new("Save");
+    assert_eq!(spec.text, "Save");
+    assert_eq!(spec.disabled, false);
+    assert_eq!(spec.style, ButtonStyle::default());
 }
 
 #[test]
@@ -1176,10 +1168,10 @@ fn test_high_level_explicit_placement_via_manual_layout() {
     // Under ManualLayout the layout param *is* the rect — the sanctioned way
     // to place a high-level widget explicitly.
     let result = super::button(
-        &mut ctx,
-        ButtonSpecBuilder::new().text("X"),
+        ButtonSpec::new_from_theme("X", &ctx.theme),
         placement,
         &mut btn_state,
+        &mut ctx,
     );
     assert_eq!(result.layout.bounds, placement);
 }
@@ -1211,10 +1203,10 @@ fn test_high_level_honors_user_style() {
     let mut btn_state = ButtonState::default();
     // Placed away from the default mouse position (0,0) so it isn't hovered.
     super::button(
-        &mut ctx,
-        ButtonSpecBuilder::new().text("X").style(custom),
+        ButtonSpec::new("X").style(custom),
         Rect::new(100.0, 100.0, 40.0, 28.0),
         &mut btn_state,
+        &mut ctx,
     );
     let has_custom_fill = cmds
         .iter()
@@ -1286,10 +1278,10 @@ fn test_button_auto_layout_uses_size_request() {
     // Auto on both axes → the button sizes to its label request.
     // "Save" = 4*8 = 32 wide; width = 32 + 28 = 60; height = 28.
     let r = super::button(
-        &mut col,
-        ButtonSpecBuilder::new().text("Save"),
+        ButtonSpec::new_from_theme("Save", &col.theme),
         ColumnLayoutParams::auto(),
         &mut st,
+        &mut col,
     );
     assert_eq!(r.layout.bounds, Rect::new(10.0, 10.0, 60.0, 28.0));
 }
@@ -1316,10 +1308,10 @@ fn test_button_peek_offer_flow_does_not_move_sibling() {
     let mut st = ButtonState::default();
 
     let button = super::button(
-        &mut col,
-        ButtonSpecBuilder::new().text("Save"),
+        ButtonSpec::new_from_theme("Save", &col.theme),
         ColumnLayoutParams::auto(),
         &mut st,
+        &mut col,
     );
     let sibling = col.layout(
         ColumnLayoutParams::fixed(20.0, 10.0),

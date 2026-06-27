@@ -39,7 +39,7 @@ use framewise::widgets::{DividerSpecBuilder, LabelSpecBuilder, LabelStyle};
 // multi-widget) section that consumes it is off.
 #[cfg(feature = "button")]
 #[allow(unused_imports)]
-use framewise::widgets::button::{button, ButtonSpecBuilder, ButtonState, ButtonStyle};
+use framewise::widgets::button::{button, ButtonSpec, ButtonState, ButtonStyle};
 #[cfg(feature = "checkbox")]
 #[allow(unused_imports)]
 use framewise::widgets::checkbox::{
@@ -497,7 +497,7 @@ fn button_preferred_width<T: TextBackend>(
     style: ButtonStyle,
     text_backend: &mut T,
 ) -> f32 {
-    let spec = ButtonSpecBuilder::new().text(text).style(style).build();
+    let spec = ButtonSpec::new(text).style(style);
     let spec = framewise::widgets::button::raw::ButtonPreLayoutSpec {
         text: spec.text,
         style: spec.style,
@@ -1745,8 +1745,8 @@ fn section_01_buttons<CF>(
                 let layout_params = Rect::new(bx, 0.0, w, b.theme.h_md);
                 let text: &str = label;
                 let style = *style;
-                let spec_builder = ButtonSpecBuilder::new().text(text).style(style);
-                button(&mut b, spec_builder, layout_params, state)
+                let spec = ButtonSpec::new(text).style(style);
+                button(spec, layout_params, state, &mut b)
             };
             if btn.input.clicked && i == 2 {
                 *should_reset = true;
@@ -1848,11 +1848,8 @@ fn section_01_buttons<CF>(
                         let _btn = {
                             let state = &mut state.btn_matrix[idx];
                             let style = row_styles[ri];
-                            let spec_builder = ButtonSpecBuilder::new()
-                                .text("Action")
-                                .style(style)
-                                .disabled(disabled);
-                            button(&mut b, spec_builder, rect, state)
+                            let spec = ButtonSpec::new("Action").style(style).disabled(disabled);
+                            button(spec, rect, state, &mut b)
                         };
                     }
                 }
@@ -1892,8 +1889,8 @@ fn section_01_buttons<CF>(
                 let layout_params = RowLayoutParams::fixed(w, *h).align_y(Align::Center);
                 let text: &str = label;
                 let style = *style;
-                let spec_builder = ButtonSpecBuilder::new().text(text).style(style);
-                button(&mut b, spec_builder, layout_params, state)
+                let spec = ButtonSpec::new(text).style(style);
+                button(spec, layout_params, state, &mut b)
             };
             if i + 1 < size_defs.len() {
                 b.spacer(16.0);
@@ -1916,8 +1913,8 @@ fn section_01_buttons<CF>(
                 let layout_params = RowLayoutParams::fixed(w, b.theme.h_md).align_y(Align::Center);
                 let text: &str = label;
                 let style = *style;
-                let spec_builder = ButtonSpecBuilder::new().text(text).style(style);
-                button(&mut b, spec_builder, layout_params, state)
+                let spec = ButtonSpec::new(text).style(style);
+                button(spec, layout_params, state, &mut b)
             };
             if btn.input.clicked {
                 match i {
@@ -1942,8 +1939,8 @@ fn section_01_buttons<CF>(
                 let layout_params = RowLayoutParams::fixed(w, b.theme.h_md).align_y(Align::Center);
                 let text: &str = label;
                 let style = *style;
-                let spec_builder = ButtonSpecBuilder::new().text(text).style(style);
-                button(&mut b, spec_builder, layout_params, state)
+                let spec = ButtonSpec::new(text).style(style);
+                button(spec, layout_params, state, &mut b)
             };
         }
 
@@ -4477,8 +4474,8 @@ fn section_12_in_use<CF>(
                 let layout_params = Rect::new(btn_x, fy, bw, win.theme.h_md);
                 let text: &str = label;
                 let style = *style;
-                let spec_builder = ButtonSpecBuilder::new().text(text).style(style);
-                button(&mut win, spec_builder, layout_params, state)
+                let spec = ButtonSpec::new(text).style(style);
+                button(spec, layout_params, state, &mut win)
             };
             btn_x -= 8.0;
         }

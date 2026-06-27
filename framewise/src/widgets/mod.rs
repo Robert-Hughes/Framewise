@@ -79,7 +79,7 @@ pub mod tree;
 pub mod window;
 
 #[cfg(feature = "button")]
-pub use button::{button, ButtonResult, ButtonSpecBuilder, ButtonState, ButtonStyle};
+pub use button::{button, ButtonResult, ButtonSpec, ButtonState, ButtonStyle};
 #[cfg(feature = "checkbox")]
 pub use checkbox::{
     checkbox, labelled_checkbox, CheckboxResult, CheckboxSpecBuilder, CheckboxState, CheckboxStyle,

@@ -40,7 +40,7 @@ use framewise::{
     widgets::button::{
         button,
         raw::{pre_layout_button, ButtonPreLayoutSpec},
-        ButtonSpecBuilder, ButtonState, ButtonStyle,
+        ButtonSpec, ButtonState, ButtonStyle,
     },
     widgets::label::{label, LabelSpecBuilder},
     Color, TextContentPlacement,
@@ -182,10 +182,10 @@ pub(crate) fn draw_layout_page_content<'a, 'b, CF>(
                 let text = format!("Auto-column row #{} (clicks: {})", i + 1, state.a_clicks[i]);
                 let style = [primary, secondary, accent][i];
                 let r = button(
-                    &mut auto_col,
-                    ButtonSpecBuilder::new().text(&text).style(style),
+                    ButtonSpec::new(&text).style(style),
                     ColumnLayoutParams::auto().fill_x().fixed_y(34.0),
                     &mut state.a_btns[i],
+                    &mut auto_col,
                 );
                 if r.input.clicked {
                     state.a_clicks[i] += 1;
@@ -207,10 +207,10 @@ pub(crate) fn draw_layout_page_content<'a, 'b, CF>(
                 left.child_with_layout(ColumnLayoutParams::auto().fixed_y(40.0), RowLayout);
             for (i, label) in ["One", "Two", "Three"].iter().enumerate() {
                 button(
-                    &mut auto_row,
-                    ButtonSpecBuilder::new().text(label).style(secondary),
+                    ButtonSpec::new(label).style(secondary),
                     RowLayoutParams::auto().fill_y(),
                     &mut state.b_btns[i],
+                    &mut auto_row,
                 );
                 auto_row.spacer(8.0);
             }
@@ -232,10 +232,10 @@ pub(crate) fn draw_layout_page_content<'a, 'b, CF>(
                 for (col_idx, label) in pair.iter().enumerate() {
                     let idx = row_idx * 2 + col_idx;
                     button(
-                        &mut inner_row,
-                        ButtonSpecBuilder::new().text(label).style(primary),
+                        ButtonSpec::new(label).style(primary),
                         RowLayoutParams::auto(),
                         &mut state.c_btns[idx],
+                        &mut inner_row,
                     );
                     inner_row.spacer(6.0);
                 }
@@ -258,10 +258,10 @@ pub(crate) fn draw_layout_page_content<'a, 'b, CF>(
             for (i, label) in ["Go", "Cancel", "Save all changes now"].iter().enumerate() {
                 let style = [primary, secondary, accent][i];
                 button(
-                    &mut row,
-                    ButtonSpecBuilder::new().text(label).style(style),
+                    ButtonSpec::new(label).style(style),
                     RowLayoutParams::auto().fill_y(),
                     &mut state.d_btns[i],
+                    &mut row,
                 );
                 row.spacer(8.0);
             }
@@ -280,20 +280,20 @@ pub(crate) fn draw_layout_page_content<'a, 'b, CF>(
                 left.child_with_layout(ColumnLayoutParams::auto().fixed_y(40.0), RowLayout);
             // Fixed 40px square "icon" — width imposed, ignores its label extent.
             button(
-                &mut row,
-                ButtonSpecBuilder::new().text("*").style(accent),
+                ButtonSpec::new("*").style(accent),
                 RowLayoutParams::auto().fixed_x(40.0).fill_y(),
                 &mut state.i_btns[0],
+                &mut row,
             );
             row.spacer(8.0);
             // Two Auto-width labels each hug their own text — different axis policy
             // than the icon, in the same row.
             for (i, label) in ["Intrinsic label", "Another"].iter().enumerate() {
                 button(
-                    &mut row,
-                    ButtonSpecBuilder::new().text(label).style(secondary),
+                    ButtonSpec::new(label).style(secondary),
                     RowLayoutParams::auto().fill_y(),
                     &mut state.i_btns[i + 1],
+                    &mut row,
                 );
                 row.spacer(8.0);
             }
@@ -328,12 +328,10 @@ pub(crate) fn draw_layout_page_content<'a, 'b, CF>(
                     for j in 0..3 {
                         let idx = row_idx * 3 + j;
                         button(
-                            &mut row,
-                            ButtonSpecBuilder::new()
-                                .text(&format!("{name} {}", j + 1))
-                                .style(styles[j]),
+                            ButtonSpec::new(&format!("{name} {}", j + 1)).style(styles[j]),
                             RowLayoutParams::auto().fixed_y(heights[j]).align_y(align),
                             &mut state.l_btns[idx],
+                            &mut row,
                         );
                         row.spacer(6.0);
                     }
@@ -352,26 +350,26 @@ pub(crate) fn draw_layout_page_content<'a, 'b, CF>(
             let mut row = left
                 .child_with_layout(ColumnLayoutParams::auto().fill_x().fixed_y(36.0), RowLayout);
             button(
-                &mut row,
-                ButtonSpecBuilder::new().text("Back").style(secondary),
+                ButtonSpec::new("Back").style(secondary),
                 RowLayoutParams::auto().fill_y(),
                 &mut state.m_btns[0],
+                &mut row,
             );
             row.spacer(8.0);
             button(
-                &mut row,
-                ButtonSpecBuilder::new().text("Edit").style(secondary),
+                ButtonSpec::new("Edit").style(secondary),
                 RowLayoutParams::auto().fill_y(),
                 &mut state.m_btns[1],
+                &mut row,
             );
             button(
-                &mut row,
-                ButtonSpecBuilder::new().text("Save").style(primary),
+                ButtonSpec::new("Save").style(primary),
                 RowLayoutParams::auto()
                     .fixed_x(96.0)
                     .fill_y()
                     .align_x(MainAxisAlign::End),
                 &mut state.m_btns[2],
+                &mut row,
             );
             row.finish();
         }
@@ -395,10 +393,10 @@ pub(crate) fn draw_layout_page_content<'a, 'b, CF>(
 
             let text_0 = format!("Clicks: {}", state.n_clicks[0]);
             let r0 = button(
-                &mut manual,
-                ButtonSpecBuilder::new().text(&text_0).style(outer_style),
+                ButtonSpec::new(&text_0).style(outer_style),
                 Rect::new(10.0, 10.0, 130.0, 120.0),
                 &mut state.n_btns[0],
+                &mut manual,
             );
             if r0.input.clicked {
                 state.n_clicks[0] = (state.n_clicks[0] + 1) % 10;
@@ -410,10 +408,10 @@ pub(crate) fn draw_layout_page_content<'a, 'b, CF>(
 
             let text_1 = format!("Clicks: {}", state.n_clicks[1]);
             let r1 = button(
-                &mut manual,
-                ButtonSpecBuilder::new().text(&text_1).style(inner_style),
+                ButtonSpec::new(&text_1).style(inner_style),
                 Rect::new(25.0, 35.0, 100.0, 70.0),
                 &mut state.n_btns[1],
+                &mut manual,
             );
             if r1.input.clicked {
                 state.n_clicks[1] = (state.n_clicks[1] + 1) % 10;
@@ -425,10 +423,10 @@ pub(crate) fn draw_layout_page_content<'a, 'b, CF>(
 
             let text_2 = format!("Clicks: {}", state.n_clicks[2]);
             let r2 = button(
-                &mut manual,
-                ButtonSpecBuilder::new().text(&text_2).style(side_style),
+                ButtonSpec::new(&text_2).style(side_style),
                 Rect::new(135.0, 10.0, 85.0, 40.0),
                 &mut state.n_btns[2],
+                &mut manual,
             );
             if r2.input.clicked {
                 state.n_clicks[2] = (state.n_clicks[2] + 1) % 10;
@@ -440,10 +438,10 @@ pub(crate) fn draw_layout_page_content<'a, 'b, CF>(
 
             let text_3 = format!("Clicks: {}", state.n_clicks[3]);
             let r3 = button(
-                &mut manual,
-                ButtonSpecBuilder::new().text(&text_3).style(mid_style),
+                ButtonSpec::new(&text_3).style(mid_style),
                 Rect::new(200.0, 25.0, 85.0, 40.0),
                 &mut state.n_btns[3],
+                &mut manual,
             );
             if r3.input.clicked {
                 state.n_clicks[3] = (state.n_clicks[3] + 1) % 10;
@@ -455,10 +453,10 @@ pub(crate) fn draw_layout_page_content<'a, 'b, CF>(
 
             let text_4 = format!("Clicks: {}", state.n_clicks[4]);
             let r4 = button(
-                &mut manual,
-                ButtonSpecBuilder::new().text(&text_4).style(corner_style),
+                ButtonSpec::new(&text_4).style(corner_style),
                 Rect::new(265.0, 50.0, 85.0, 40.0),
                 &mut state.n_btns[4],
+                &mut manual,
             );
             if r4.input.clicked {
                 state.n_clicks[4] = (state.n_clicks[4] + 1) % 10;
@@ -505,12 +503,10 @@ pub(crate) fn draw_layout_page_content<'a, 'b, CF>(
                     for j in 0..3 {
                         let idx = col_idx * 3 + j;
                         button(
-                            &mut col,
-                            ButtonSpecBuilder::new()
-                                .text(&format!("{name} {}", j + 1))
-                                .style(styles[j]),
+                            ButtonSpec::new(&format!("{name} {}", j + 1)).style(styles[j]),
                             ColumnLayoutParams::fixed(widths[j], 30.0).align_x(align),
                             &mut state.e_btns[idx],
+                            &mut col,
                         );
                         col.spacer(5.0);
                     }
@@ -539,12 +535,10 @@ pub(crate) fn draw_layout_page_content<'a, 'b, CF>(
             );
             for i in 0..3 {
                 button(
-                    &mut fixed_col,
-                    ButtonSpecBuilder::new()
-                        .text(&format!("Fixed {}", i + 1))
-                        .style(secondary),
+                    ButtonSpec::new(&format!("Fixed {}", i + 1)).style(secondary),
                     ColumnLayoutParams::auto().fill_x().fixed_y(34.0),
                     &mut state.f_fixed_btns[i],
+                    &mut fixed_col,
                 );
                 fixed_col.spacer(4.0);
             }
@@ -559,12 +553,10 @@ pub(crate) fn draw_layout_page_content<'a, 'b, CF>(
             );
             for i in 0..3 {
                 button(
-                    &mut auto_col,
-                    ButtonSpecBuilder::new()
-                        .text(&format!("Auto {}", i + 1))
-                        .style(accent),
+                    ButtonSpec::new(&format!("Auto {}", i + 1)).style(accent),
                     ColumnLayoutParams::auto().fill_x().fixed_y(34.0),
                     &mut state.f_auto_btns[i],
+                    &mut auto_col,
                 );
                 auto_col.spacer(4.0);
             }
@@ -600,13 +592,13 @@ pub(crate) fn draw_layout_page_content<'a, 'b, CF>(
             ];
             for (i, tag) in tags.iter().enumerate() {
                 button(
-                    &mut wrap,
-                    ButtonSpecBuilder::new().text(tag).style(primary),
+                    ButtonSpec::new(tag).style(primary),
                     Placement2D {
                         width: Placement::auto(),
                         height: Placement::fixed(30.0),
                     },
                     &mut state.g_btns[i],
+                    &mut wrap,
                 );
             }
             wrap.finish();
@@ -633,10 +625,10 @@ pub(crate) fn draw_layout_page_content<'a, 'b, CF>(
             for (i, &style) in styles.iter().enumerate() {
                 let text = format!("Third #{} ({})", i + 1, state.h_clicks[i]);
                 let r = button(
-                    &mut split,
-                    ButtonSpecBuilder::new().text(&text).style(style),
+                    ButtonSpec::new(&text).style(style),
                     Placement::fill(), // fill the cell height
                     &mut state.h_btns[i],
+                    &mut split,
                 );
                 if r.input.clicked {
                     state.h_clicks[i] += 1;
@@ -662,11 +654,7 @@ pub(crate) fn draw_layout_page_content<'a, 'b, CF>(
             // Query the two button size requests up front — the reorder trick needs
             // their sizes before the fill child can be placed.
             let measure = |ts: &mut SampleTextBackend, label: &str| {
-                let spec = ButtonSpecBuilder::new()
-                    .text(label)
-                    .style(secondary)
-                    .defaults_from_theme(&theme)
-                    .build();
+                let spec = ButtonSpec::new_from_theme(label, &theme);
                 let spec = ButtonPreLayoutSpec {
                     text: spec.text,
                     style: spec.style,
@@ -691,23 +679,23 @@ pub(crate) fn draw_layout_page_content<'a, 'b, CF>(
             // Emit the request-sized (right-hand) children first — they depend on no
             // sibling, so their position is known immediately.
             button(
-                &mut tb,
-                ButtonSpecBuilder::new().text("Filter").style(secondary),
+                ButtonSpec::new("Filter").style(secondary),
                 Rect::new(x_filter, 0.0, w_filter, h),
                 &mut state.j_btns[0],
+                &mut tb,
             );
             button(
-                &mut tb,
-                ButtonSpecBuilder::new().text("Sort").style(secondary),
+                ButtonSpec::new("Sort").style(secondary),
                 Rect::new(x_sort, 0.0, w_sort, h),
                 &mut state.j_btns[1],
+                &mut tb,
             );
             // Then the fill child at the computed remainder.
             button(
-                &mut tb,
-                ButtonSpecBuilder::new().text("Search...").style(primary),
+                ButtonSpec::new("Search...").style(primary),
                 Rect::new(0.0, 0.0, search_w, h),
                 &mut state.j_search,
+                &mut tb,
             );
             tb.finish();
 
@@ -732,29 +720,27 @@ pub(crate) fn draw_layout_page_content<'a, 'b, CF>(
             let mut row = right.child_with_layout(ColumnLayoutParams::auto().fill_x(), RowLayout);
             // Fixed block eats 55% of the row width.
             button(
-                &mut row,
-                ButtonSpecBuilder::new().text("Fixed 55%").style(secondary),
+                ButtonSpec::new("Fixed 55%").style(secondary),
                 RowLayoutParams::fixed(col_w * 0.55, 70.0),
                 &mut state.k_btns[0],
+                &mut row,
             );
             row.spacer(12.0);
             // Nested Auto-width column → receives AtMost(remaining ~45%). Inside, the
             // short label hugs its text; the long one clamps to the AtMost ceiling.
             let mut nested = row.child_with_layout(RowLayoutParams::auto(), ColumnLayout);
             button(
-                &mut nested,
-                ButtonSpecBuilder::new().text("Hi").style(primary),
+                ButtonSpec::new("Hi").style(primary),
                 ColumnLayoutParams::auto().fixed_y(30.0),
                 &mut state.k_btns[1],
+                &mut nested,
             );
             nested.spacer(6.0);
             button(
-                &mut nested,
-                ButtonSpecBuilder::new()
-                    .text("This long label clamps to the AtMost ceiling")
-                    .style(accent),
+                ButtonSpec::new("This long label clamps to the AtMost ceiling").style(accent),
                 ColumnLayoutParams::auto().fixed_y(30.0),
                 &mut state.k_btns[2],
+                &mut nested,
             );
             nested.finish();
 

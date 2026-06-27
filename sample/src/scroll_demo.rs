@@ -12,7 +12,7 @@ use framewise::{
         slider::{
             slider, Orientation as SliderOrientation, SliderSpecBuilder, SliderState, SliderValue,
         },
-        ButtonSpecBuilder,
+        ButtonSpec,
     },
     ColumnLayoutParams, RowLayoutParams,
 };
@@ -249,8 +249,8 @@ pub(crate) fn draw_scroll_demo_content<'a, 'b, CF>(
                 let state = &mut state.sidebar_btns[i].state;
                 let layout_params = ColumnLayoutParams::fixed(180.0, 32.0).align_x(Align::Center);
                 let text = format!("Menu Item {}", i + 1);
-                let spec_builder = ButtonSpecBuilder::new().text(&text).style(button_style);
-                button(&mut sidebar_scroll, spec_builder, layout_params, state)
+                let spec = ButtonSpec::new(&text).style(button_style);
+                button(spec, layout_params, state, &mut sidebar_scroll)
             };
             let clicked = btn.input.clicked;
             if clicked {
@@ -301,8 +301,8 @@ pub(crate) fn draw_scroll_demo_content<'a, 'b, CF>(
                 let btn_state = &mut state.top_btn1.state;
                 let layout_params = RowLayoutParams::fixed(100.0, 30.0).align_y(Align::Center); // 30px height centered vertically in 40px row
                 let text = "Profile";
-                let spec_builder = ButtonSpecBuilder::new().text(text).style(button_style);
-                button(&mut header_row, spec_builder, layout_params, btn_state)
+                let spec = ButtonSpec::new(text).style(button_style);
+                button(spec, layout_params, btn_state, &mut header_row)
             };
 
             header_row.spacer(10.0);
@@ -311,8 +311,8 @@ pub(crate) fn draw_scroll_demo_content<'a, 'b, CF>(
                 let btn_state = &mut state.top_btn2.state;
                 let layout_params = RowLayoutParams::fixed(100.0, 30.0).align_y(Align::Center); // 30px height centered vertically in 40px row
                 let text = "Settings";
-                let spec_builder = ButtonSpecBuilder::new().text(text).style(button_style);
-                button(&mut header_row, spec_builder, layout_params, btn_state)
+                let spec = ButtonSpec::new(text).style(button_style);
+                button(spec, layout_params, btn_state, &mut header_row)
             };
 
             header_row.finish()
@@ -349,9 +349,8 @@ pub(crate) fn draw_scroll_demo_content<'a, 'b, CF>(
                             let btn_state = &mut state.grid_btns[idx].state;
                             let layout_params = RowLayoutParams::fixed(120.0, 32.0);
                             let text = format!("Grid [{},{}]", row, col);
-                            let spec_builder =
-                                ButtonSpecBuilder::new().text(&text).style(button_style);
-                            button(&mut grid_row, spec_builder, layout_params, btn_state)
+                            let spec = ButtonSpec::new(&text).style(button_style);
+                            button(spec, layout_params, btn_state, &mut grid_row)
                         };
                         grid_row.spacer(10.0);
                     }
@@ -412,8 +411,8 @@ pub(crate) fn draw_scroll_demo_content<'a, 'b, CF>(
                 let btn_state = &mut state.main_btns[i].state;
                 let layout_params = ColumnLayoutParams::fixed(350.0, 50.0).align_x(Align::Center); // Narrower width centered in scroll area
                 let text = format!("Feed Item #{} - Very Important Notification", i + 1);
-                let spec_builder = ButtonSpecBuilder::new().text(&text).style(button_style);
-                button(&mut main_scroll, spec_builder, layout_params, btn_state)
+                let spec = ButtonSpec::new(&text).style(button_style);
+                button(spec, layout_params, btn_state, &mut main_scroll)
             };
             let clicked = btn.input.clicked;
             if clicked {
@@ -470,8 +469,8 @@ pub(crate) fn draw_scroll_demo_content<'a, 'b, CF>(
                 let btn_state = &mut row_state.btn1.state;
                 let layout_params = RowLayoutParams::fixed(80.0, row_h);
                 let text = format!("R{} A", i + 1);
-                let spec_builder = ButtonSpecBuilder::new().text(&text).style(button_style);
-                button(&mut row_builder, spec_builder, layout_params, btn_state)
+                let spec = ButtonSpec::new(&text).style(button_style);
+                button(spec, layout_params, btn_state, &mut row_builder)
             };
             let clicked1 = btn1.input.clicked;
             if clicked1 {
@@ -503,8 +502,8 @@ pub(crate) fn draw_scroll_demo_content<'a, 'b, CF>(
                     let btn_state = &mut row_state.inner_btns[j].state;
                     let layout_params = ColumnLayoutParams::fixed(100.0, 45.0);
                     let text = format!("V {}", j + 1);
-                    let spec_builder = ButtonSpecBuilder::new().text(&text).style(button_style);
-                    button(&mut inner_scroll, spec_builder, layout_params, btn_state)
+                    let spec = ButtonSpec::new(&text).style(button_style);
+                    button(spec, layout_params, btn_state, &mut inner_scroll)
                 };
                 let clicked = btn.input.clicked;
                 if clicked {
@@ -546,8 +545,8 @@ pub(crate) fn draw_scroll_demo_content<'a, 'b, CF>(
                     let btn_state = &mut row_state.horiz_btns[j].state;
                     let layout_params = RowLayoutParams::fixed(80.0, row_h - 25.0);
                     let text = format!("H {}", j + 1);
-                    let spec_builder = ButtonSpecBuilder::new().text(&text).style(button_style);
-                    button(&mut horiz_scroll, spec_builder, layout_params, btn_state)
+                    let spec = ButtonSpec::new(&text).style(button_style);
+                    button(spec, layout_params, btn_state, &mut horiz_scroll)
                 };
                 let clicked = btn.input.clicked;
                 if clicked {
@@ -592,8 +591,8 @@ pub(crate) fn draw_scroll_demo_content<'a, 'b, CF>(
                     let btn_state = &mut row_state.both_btns[j].state;
                     let layout_params = Rect::new(x, y, 80.0, 45.0);
                     let text = format!("2D {}", j + 1);
-                    let spec_builder = ButtonSpecBuilder::new().text(&text).style(button_style);
-                    button(&mut both_scroll, spec_builder, layout_params, btn_state)
+                    let spec = ButtonSpec::new(&text).style(button_style);
+                    button(spec, layout_params, btn_state, &mut both_scroll)
                 };
                 let clicked = btn.input.clicked;
                 if clicked {
@@ -651,10 +650,10 @@ pub(crate) fn draw_scroll_demo_content<'a, 'b, CF>(
         .ctx;
 
         button(
-            &mut d_outer_scroll,
-            ButtonSpecBuilder::new().text("Outer L"),
+            ButtonSpec::new_from_theme("Outer L", &d_outer_scroll.theme),
             RowLayoutParams::fixed(100.0, 100.0),
             &mut framewise::widgets::button::ButtonState::default(),
+            &mut d_outer_scroll,
         );
 
         d_outer_scroll.spacer(20.0);
@@ -681,8 +680,8 @@ pub(crate) fn draw_scroll_demo_content<'a, 'b, CF>(
                 let btn_state = &mut state.double_horiz_btns[j].state;
                 let layout_params = RowLayoutParams::fixed(60.0, 80.0);
                 let text = format!("H {}", j + 1);
-                let spec_builder = ButtonSpecBuilder::new().text(&text);
-                button(&mut d_inner_scroll, spec_builder, layout_params, btn_state)
+                let spec = ButtonSpec::new_from_theme(&text, &d_inner_scroll.theme);
+                button(spec, layout_params, btn_state, &mut d_inner_scroll)
             };
             d_inner_scroll.spacer(8.0);
         }
@@ -691,10 +690,10 @@ pub(crate) fn draw_scroll_demo_content<'a, 'b, CF>(
         d_outer_scroll.spacer(20.0);
 
         button(
-            &mut d_outer_scroll,
-            ButtonSpecBuilder::new().text("Outer R"),
+            ButtonSpec::new_from_theme("Outer R", &d_outer_scroll.theme),
             RowLayoutParams::fixed(300.0, 100.0),
             &mut framewise::widgets::button::ButtonState::default(),
+            &mut d_outer_scroll,
         );
 
         d_outer_scroll.finish();
@@ -728,10 +727,10 @@ pub(crate) fn draw_scroll_demo_content<'a, 'b, CF>(
                 let btn_state = &mut state.atmost_btns[j].state;
                 let text = format!("AtMost row {} (fits → no scrollbar)", j + 1);
                 button(
-                    &mut atmost,
-                    ButtonSpecBuilder::new().text(&text),
+                    ButtonSpec::new_from_theme(&text, &atmost.theme),
                     ColumnLayoutParams::fixed(260.0, 30.0),
                     btn_state,
+                    &mut atmost,
                 );
                 atmost.spacer(6.0);
             }
@@ -772,8 +771,8 @@ pub(crate) fn draw_scroll_demo_content<'a, 'b, CF>(
                     let btn_state = &mut state.nested_2d_outer_btns[k].state;
                     let layout_params = Rect::new(*bx, *by, 60.0, 28.0);
                     let text = lbl;
-                    let spec_builder = ButtonSpecBuilder::new().text(text);
-                    button(&mut outer, spec_builder, layout_params, btn_state)
+                    let spec = ButtonSpec::new_from_theme(text, &outer.theme);
+                    button(spec, layout_params, btn_state, &mut outer)
                 };
             }
 
@@ -813,8 +812,8 @@ pub(crate) fn draw_scroll_demo_content<'a, 'b, CF>(
                         48.0,
                     );
                     let text = format!("2D {:02}", j + 1);
-                    let spec_builder = ButtonSpecBuilder::new().text(&text).style(button_style);
-                    button(&mut inner, spec_builder, layout_params, btn_state)
+                    let spec = ButtonSpec::new(&text).style(button_style);
+                    button(spec, layout_params, btn_state, &mut inner)
                 };
                 let clicked = btn.input.clicked;
                 if clicked {
@@ -887,8 +886,8 @@ pub(crate) fn draw_scroll_demo_content<'a, 'b, CF>(
                     let btn_state = &mut state.triple_inner_btns[j].state;
                     let layout_params = ColumnLayoutParams::fixed(165.0, 35.0);
                     let text = format!("Inner V {}", j + 1);
-                    let spec_builder = ButtonSpecBuilder::new().text(&text).style(button_style);
-                    button(&mut inner_scroll, spec_builder, layout_params, btn_state)
+                    let spec = ButtonSpec::new(&text).style(button_style);
+                    button(spec, layout_params, btn_state, &mut inner_scroll)
                 };
                 let clicked = btn.input.clicked;
                 if clicked {
@@ -926,13 +925,8 @@ pub(crate) fn draw_scroll_demo_content<'a, 'b, CF>(
                     let btn_state = &mut state.triple_innermost_btns[k].state;
                     let layout_params = RowLayoutParams::fixed(80.0, 26.0);
                     let text = format!("IH {}", k + 1);
-                    let spec_builder = ButtonSpecBuilder::new().text(&text).style(button_style);
-                    button(
-                        &mut innermost_scroll,
-                        spec_builder,
-                        layout_params,
-                        btn_state,
-                    )
+                    let spec = ButtonSpec::new(&text).style(button_style);
+                    button(spec, layout_params, btn_state, &mut innermost_scroll)
                 };
                 let clicked = btn.input.clicked;
                 if clicked {
