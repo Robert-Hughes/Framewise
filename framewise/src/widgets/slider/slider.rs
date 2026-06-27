@@ -1990,6 +1990,12 @@ impl SliderStyle {
     }
 }
 
+impl Default for SliderStyle {
+    fn default() -> Self {
+        Self::from_theme(&crate::theme::Theme::minimal())
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Orientation {
     Vertical,
@@ -2160,106 +2166,93 @@ pub struct SliderSpec {
     pub keyboard_focusable: bool,
 }
 
-// ── Spec Builder ─────────────────────────────────────────────────────────────
-
-#[derive(Debug, Clone, PartialEq, Default)]
-pub struct SliderSpecBuilder {
-    pub min: Option<f32>,
-    pub max: Option<f32>,
-    pub min_gap: Option<f32>,
-    pub max_gap: Option<f32>,
-    pub value_snap: Option<Option<f32>>,
-    pub page_step: Option<f32>,
-    pub step: Option<f32>,
-    pub orientation: Option<Orientation>,
-    pub style: Option<SliderStyle>,
-    pub scroll_claim: Option<ScrollClaimPolicy>,
-    pub disabled: Option<bool>,
-    pub keyboard_focusable: Option<bool>,
+impl Default for SliderSpec {
+    fn default() -> Self {
+        Self {
+            min: 0.0,
+            max: 100.0,
+            min_gap: None,
+            max_gap: None,
+            value_snap: None,
+            page_step: 10.0,
+            step: 1.0,
+            orientation: Orientation::Horizontal,
+            style: SliderStyle::default(),
+            scroll_claim: ScrollClaimPolicy::ClaimAllDirections,
+            disabled: false,
+            keyboard_focusable: true,
+        }
+    }
 }
 
-impl SliderSpecBuilder {
-    pub fn new() -> Self {
-        Self::default()
+impl SliderSpec {
+    pub fn default_from_theme(theme: &crate::theme::Theme) -> Self {
+        Self::default().theme(theme)
+    }
+
+    pub fn theme(mut self, theme: &crate::theme::Theme) -> Self {
+        self.style = SliderStyle::from_theme(theme);
+        self
     }
 
     pub fn min(mut self, min: f32) -> Self {
-        self.min = Some(min);
+        self.min = min;
         self
     }
+
     pub fn max(mut self, max: f32) -> Self {
-        self.max = Some(max);
+        self.max = max;
         self
     }
+
     pub fn min_gap(mut self, min_gap: f32) -> Self {
         self.min_gap = Some(min_gap);
         self
     }
+
     pub fn max_gap(mut self, max_gap: f32) -> Self {
         self.max_gap = Some(max_gap);
         self
     }
+
     pub fn value_snap(mut self, value_snap: Option<f32>) -> Self {
-        self.value_snap = Some(value_snap);
+        self.value_snap = value_snap;
         self
     }
+
     pub fn page_step(mut self, page_step: f32) -> Self {
-        self.page_step = Some(page_step);
+        self.page_step = page_step;
         self
     }
+
     pub fn step(mut self, step: f32) -> Self {
-        self.step = Some(step);
+        self.step = step;
         self
     }
+
     pub fn orientation(mut self, orientation: Orientation) -> Self {
-        self.orientation = Some(orientation);
+        self.orientation = orientation;
         self
     }
+
     pub fn style(mut self, style: SliderStyle) -> Self {
-        self.style = Some(style);
+        self.style = style;
         self
     }
+
     pub fn scroll_claim(mut self, scroll_claim: ScrollClaimPolicy) -> Self {
-        self.scroll_claim = Some(scroll_claim);
+        self.scroll_claim = scroll_claim;
         self
     }
+
     pub fn disabled(mut self, disabled: bool) -> Self {
-        self.disabled = Some(disabled);
+        self.disabled = disabled;
         self
     }
+
     pub fn keyboard_focusable(mut self, keyboard_focusable: bool) -> Self {
-        self.keyboard_focusable = Some(keyboard_focusable);
+        self.keyboard_focusable = keyboard_focusable;
         self
-    }
-
-    /// Fills unset fields from `theme`. Called automatically by high-level
-    /// context functions.
-    pub fn defaults_from_theme(mut self, theme: &crate::theme::Theme) -> Self {
-        if self.style.is_none() {
-            self.style = Some(SliderStyle::from_theme(theme));
-        }
-        self
-    }
-
-    pub fn build(self) -> SliderSpec {
-        SliderSpec {
-            min: self.min.unwrap_or(0.0),
-            max: self.max.unwrap_or(100.0),
-            min_gap: self.min_gap,
-            max_gap: self.max_gap,
-            value_snap: self.value_snap.unwrap_or(None),
-            page_step: self.page_step.unwrap_or(10.0),
-            step: self.step.unwrap_or(1.0),
-            orientation: self.orientation.unwrap_or(Orientation::Horizontal),
-            style: self
-                .style
-                .expect("style not set — call .style() or defaults_from_theme()"),
-            scroll_claim: self
-                .scroll_claim
-                .unwrap_or(ScrollClaimPolicy::ClaimAllDirections),
-            disabled: self.disabled.unwrap_or(false),
-            keyboard_focusable: self.keyboard_focusable.unwrap_or(true),
-        }
     }
 }
 
@@ -2267,15 +2260,15 @@ impl SliderSpecBuilder {
 
 /// High-level slider widget function using `WidgetContext`.
 ///
-/// Resolves defaults, runs the raw pre-layout phase to obtain a `SizeRequest`,
-/// resolves the final rect with layout, then runs the raw post-layout phase.
+/// Consumes a complete `SliderSpec`, runs the raw pre-layout phase to obtain a
+/// `SizeRequest`, resolves the final rect with layout, then runs the raw
+/// post-layout phase.
 pub fn slider<T: TextBackend, S: LayoutState, CF>(
-    ctx: &mut WidgetContext<T, S, CF>,
-    builder: SliderSpecBuilder,
+    spec: SliderSpec,
     layout_params: S::Params,
     state: &mut SliderState,
+    ctx: &mut WidgetContext<T, S, CF>,
 ) -> SliderResult {
-    let spec = builder.defaults_from_theme(&ctx.theme).build();
     let pre_layout_spec = raw::SliderPreLayoutSpec {
         orientation: spec.orientation,
         style: spec.style,

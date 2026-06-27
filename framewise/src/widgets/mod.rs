@@ -122,7 +122,7 @@ pub use select::{select, SelectResult, SelectSpecBuilder, SelectState, SelectSty
 #[cfg(feature = "slider")]
 pub use slider::{
     slider, CrossAxisSize, InteractiveColor, Orientation, ScrollClaimPolicy, SegmentStyle,
-    SliderPart, SliderResult, SliderSpecBuilder, SliderState, SliderStyle, SliderValue, ThumbStyle,
+    SliderPart, SliderResult, SliderSpec, SliderState, SliderStyle, SliderValue, ThumbStyle,
 };
 #[cfg(feature = "spinner")]
 pub use spinner::{spinner, SpinnerResult, SpinnerSpecBuilder, SpinnerStyle};

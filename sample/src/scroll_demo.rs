@@ -9,9 +9,7 @@ use framewise::{
     widgets::{
         button::button,
         scroll_area::{begin_scroll_area, ScrollAreaSpecBuilder},
-        slider::{
-            slider, Orientation as SliderOrientation, SliderSpecBuilder, SliderState, SliderValue,
-        },
+        slider::{slider, Orientation as SliderOrientation, SliderSpec, SliderState, SliderValue},
         ButtonSpec,
     },
     ColumnLayoutParams, RowLayoutParams,
@@ -375,11 +373,11 @@ pub(crate) fn draw_scroll_demo_content<'a, 'b, CF>(
                 let slider_state: &mut SliderState = &mut state.standalone_slider_state;
                 let step = 20.0;
                 let layout_params = RowLayoutParams::fixed(30.0, 100.0).align_y(Align::Center);
-                let spec_builder = SliderSpecBuilder::new()
+                let spec = SliderSpec::default_from_theme(&slider_row.theme)
                     .orientation(SliderOrientation::Vertical)
                     .page_step(step)
                     .step(step);
-                slider(&mut slider_row, spec_builder, layout_params, slider_state);
+                slider(spec, layout_params, slider_state, &mut slider_row);
             };
 
             slider_row.finish()
@@ -608,11 +606,11 @@ pub(crate) fn draw_scroll_demo_content<'a, 'b, CF>(
                 let slider_state: &mut SliderState = &mut row_state.slider_state;
                 let step = 20.0;
                 let layout_params = RowLayoutParams::fixed(30.0, row_h);
-                let spec_builder = SliderSpecBuilder::new()
+                let spec = SliderSpec::default_from_theme(&row_builder.theme)
                     .orientation(SliderOrientation::Vertical)
                     .page_step(step)
                     .step(step);
-                slider(&mut row_builder, spec_builder, layout_params, slider_state);
+                slider(spec, layout_params, slider_state, &mut row_builder);
             };
 
             row_builder.spacer(10.0);
@@ -622,8 +620,10 @@ pub(crate) fn draw_scroll_demo_content<'a, 'b, CF>(
                 let slider_state: &mut SliderState = &mut row_state.horiz_slider_state;
                 let step = 20.0;
                 let layout_params = RowLayoutParams::fixed(100.0, 30.0);
-                let spec_builder = SliderSpecBuilder::new().page_step(step).step(step);
-                slider(&mut row_builder, spec_builder, layout_params, slider_state);
+                let spec = SliderSpec::default_from_theme(&row_builder.theme)
+                    .page_step(step)
+                    .step(step);
+                slider(spec, layout_params, slider_state, &mut row_builder);
             };
 
             row_builder.finish();
@@ -944,16 +944,11 @@ pub(crate) fn draw_scroll_demo_content<'a, 'b, CF>(
                 let slider_state: &mut SliderState = &mut state.triple_inner_slider_state;
                 let step = 20.0;
                 let layout_params = RowLayoutParams::fixed(30.0, 130.0);
-                let spec_builder = SliderSpecBuilder::new()
+                let spec = SliderSpec::default_from_theme(&middle_scroll.theme)
                     .orientation(SliderOrientation::Vertical)
                     .page_step(step)
                     .step(step);
-                slider(
-                    &mut middle_scroll,
-                    spec_builder,
-                    layout_params,
-                    slider_state,
-                );
+                slider(spec, layout_params, slider_state, &mut middle_scroll);
             };
 
             middle_scroll.finish();

@@ -2222,22 +2222,23 @@ fn test_slider_visual_focused() {
 }
 
 #[test]
-fn test_builder_defaults_from_theme_fills_unset_style() {
+fn test_slider_spec_default_from_theme() {
     let theme = crate::theme::Theme::framewise();
-    let builder = SliderSpecBuilder::new();
-    assert!(builder.style.is_none());
-    let builder = builder.defaults_from_theme(&theme);
-    assert_eq!(builder.style, Some(SliderStyle::from_theme(&theme)));
+    let spec = super::SliderSpec::default_from_theme(&theme);
+    assert_eq!(spec.style, SliderStyle::from_theme(&theme));
 }
 
 #[test]
-fn test_builder_defaults_from_theme_preserves_explicit_style() {
+fn test_slider_spec_theme_overwrites_style_only() {
     let theme = crate::theme::Theme::framewise();
     let mut custom_style = SliderStyle::from_theme(&theme);
     custom_style.disabled_alpha = 0.99;
-    let builder = SliderSpecBuilder::new().style(custom_style);
-    let builder = builder.defaults_from_theme(&theme);
-    assert_eq!(builder.style.unwrap().disabled_alpha, 0.99);
+    let spec = super::SliderSpec::default()
+        .disabled(true)
+        .style(custom_style)
+        .theme(&theme);
+    assert_eq!(spec.style, SliderStyle::from_theme(&theme));
+    assert!(spec.disabled);
 }
 
 #[test]
@@ -2263,7 +2264,12 @@ fn test_high_level_explicit_placement_via_manual_layout() {
     let mut state = SliderState::default();
     // Under ManualLayout the layout param *is* the rect — the sanctioned way
     // to place a high-level widget explicitly.
-    super::slider(&mut ctx, SliderSpecBuilder::new(), placement, &mut state);
+    super::slider(
+        super::SliderSpec::default_from_theme(&ctx.theme),
+        placement,
+        &mut state,
+        &mut ctx,
+    );
     // First draw command for a horizontal slider is the track-line FillRect,
     // whose x starts at the resolved track rect's x = placement.x + padding.
     match &cmds[0] {

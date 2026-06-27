@@ -80,8 +80,8 @@ use framewise::widgets::select::{select, SelectSpecBuilder, SelectState, SelectS
 #[cfg(feature = "slider")]
 #[allow(unused_imports)]
 use framewise::widgets::slider::{
-    slider, Orientation, ScrollClaimPolicy, SliderPart, SliderSpecBuilder, SliderState,
-    SliderStyle, SliderValue, TrackMarksStyle,
+    slider, Orientation, ScrollClaimPolicy, SliderPart, SliderSpec, SliderState, SliderStyle,
+    SliderValue, TrackMarksStyle,
 };
 #[cfg(feature = "spinner")]
 #[allow(unused_imports)]
@@ -2618,26 +2618,29 @@ fn section_04_sliders<CF>(
                     true,
                 );
             } else {
-                let mut spec_builder = if show_ticks {
+                let mut spec = if show_ticks {
                     let mut style = SliderStyle::from_theme(&b.theme);
                     style.track_marks = Some(TrackMarksStyle::from_theme(&b.theme, 1.0));
-                    SliderSpecBuilder::new()
+                    SliderSpec::default()
+                        .style(style)
                         .max(9.0)
                         .page_step(1.0)
                         .step(1.0)
                         .value_snap(Some(1.0))
-                        .style(style)
                 } else {
-                    SliderSpecBuilder::new().max(1.0).page_step(step).step(step)
+                    SliderSpec::default_from_theme(&b.theme)
+                        .max(1.0)
+                        .page_step(step)
+                        .step(step)
                 };
                 if is_disabled {
-                    spec_builder = spec_builder.disabled(true);
+                    spec = spec.disabled(true);
                 }
                 slider(
-                    &mut b,
-                    spec_builder,
+                    spec,
                     RowLayoutParams::auto().fixed_x(slider_w),
                     slider_state,
+                    &mut b,
                 );
             }
 
@@ -2675,17 +2678,17 @@ fn section_04_sliders<CF>(
     {
         let mut b = b.child_with_layout(ColumnLayoutParams::auto(), RowLayout);
         let track_w = 260.0_f32;
-        let spec_builder = SliderSpecBuilder::new()
+        let spec = SliderSpec::default()
+            .style(SliderStyle::range_from_theme(&b.theme))
             .max(1.0)
             .page_step(0.1)
-            .step(0.01)
-            .style(SliderStyle::range_from_theme(&b.theme));
+            .step(0.01);
 
         slider(
-            &mut b,
-            spec_builder,
+            spec,
             RowLayoutParams::auto().fixed_x(track_w),
             &mut state.slider_range_state,
+            &mut b,
         );
 
         b.spacer(8.0);
@@ -4251,17 +4254,12 @@ fn section_12_in_use<CF>(
         {
             let step = 10.0;
             let layout_params = Rect::new(widget_x, fy, widget_w - 40.0, row_h);
-            let spec_builder = SliderSpecBuilder::new()
+            let spec = SliderSpec::default_from_theme(&win.theme)
                 .min(24.0)
                 .max(240.0)
                 .page_step(step)
                 .step(step);
-            slider(
-                &mut win,
-                spec_builder,
-                layout_params,
-                &mut state.iu_fps_slider,
-            );
+            slider(spec, layout_params, &mut state.iu_fps_slider, &mut win);
         };
         {
             let layout_params = Rect::new(widget_x + widget_w - 34.0, fy + 7.0, 34.0, 14.0);
