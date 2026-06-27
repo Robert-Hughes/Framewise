@@ -203,6 +203,12 @@ impl TooltipStyle {
     }
 }
 
+impl Default for TooltipStyle {
+    fn default() -> Self {
+        Self::from_theme(&crate::theme::Theme::minimal())
+    }
+}
+
 // ── Result ───────────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, PartialEq)]
@@ -219,50 +225,43 @@ pub struct TooltipSpec<'a> {
     pub style: TooltipStyle,
 }
 
-// ── Spec Builder ─────────────────────────────────────────────────────────────
+impl<'a> TooltipSpec<'a> {
+    pub fn new(text: &'a str, variant: TooltipVariant) -> Self {
+        Self {
+            text,
+            variant,
+            style: TooltipStyle::default(),
+        }
+    }
 
-#[derive(Debug, Clone, PartialEq, Default)]
-pub struct TooltipSpecBuilder<'a> {
-    pub text: Option<&'a str>,
-    pub variant: Option<TooltipVariant>,
-    pub style: Option<TooltipStyle>,
-}
+    pub fn new_from_theme(
+        text: &'a str,
+        variant: TooltipVariant,
+        theme: &crate::theme::Theme,
+    ) -> Self {
+        Self::new(text, variant).theme(theme)
+    }
 
-impl<'a> TooltipSpecBuilder<'a> {
-    pub fn new() -> Self {
-        Self::default()
+    /// Overwrites `style` with the style derived from `theme`.
+    /// Leaves `text` and `variant` unchanged.
+    pub fn theme(mut self, theme: &crate::theme::Theme) -> Self {
+        self.style = TooltipStyle::from_theme(theme);
+        self
     }
 
     pub fn text(mut self, text: &'a str) -> Self {
-        self.text = Some(text);
+        self.text = text;
         self
     }
-    pub fn style(mut self, style: TooltipStyle) -> Self {
-        self.style = Some(style);
-        self
-    }
+
     pub fn variant(mut self, variant: TooltipVariant) -> Self {
-        self.variant = Some(variant);
+        self.variant = variant;
         self
     }
 
-    /// Fills unset fields from `theme`. Called automatically by high-level
-    /// context functions.
-    pub fn defaults_from_theme(mut self, theme: &crate::theme::Theme) -> Self {
-        if self.style.is_none() {
-            self.style = Some(TooltipStyle::from_theme(theme));
-        }
+    pub fn style(mut self, style: TooltipStyle) -> Self {
+        self.style = style;
         self
-    }
-
-    pub fn build(self) -> TooltipSpec<'a> {
-        TooltipSpec {
-            text: self.text.expect("text not set — call .text()"),
-            variant: self.variant.expect("variant not set — call .variant()"),
-            style: self
-                .style
-                .expect("style not set — call .style() or defaults_from_theme()"),
-        }
     }
 }
 
@@ -270,14 +269,14 @@ impl<'a> TooltipSpecBuilder<'a> {
 
 /// High-level tooltip widget function using `WidgetContext`.
 ///
-/// Resolves defaults, runs the raw pre-layout phase to obtain a `SizeRequest`,
-/// resolves the final rect with layout, then runs the raw post-layout phase.
+/// Consumes a complete `TooltipSpec`, runs the raw pre-layout phase to obtain a
+/// `SizeRequest`, resolves the final rect with layout, then runs the raw
+/// post-layout phase.
 pub fn tooltip<'a, T: TextBackend, S: LayoutState, CF>(
-    ctx: &mut WidgetContext<T, S, CF>,
-    builder: TooltipSpecBuilder<'a>,
+    spec: TooltipSpec<'a>,
     layout_params: S::Params,
+    ctx: &mut WidgetContext<T, S, CF>,
 ) -> TooltipResult {
-    let spec = builder.defaults_from_theme(&ctx.theme).build();
     let pre_layout_spec = raw::TooltipPreLayoutSpec {
         text: spec.text,
         style: spec.style,

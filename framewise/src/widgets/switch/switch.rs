@@ -255,7 +255,6 @@ pub struct SwitchSpec {
     pub style: SwitchStyle,
 }
 
-
 impl SwitchSpec {
     pub fn default_from_theme(theme: &crate::theme::Theme) -> Self {
         Self::default().theme(theme)

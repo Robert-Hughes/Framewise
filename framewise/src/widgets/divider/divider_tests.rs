@@ -61,9 +61,7 @@ fn test_divider_visual_uses_stroke_width() {
 #[test]
 fn test_builder_defaults_from_theme_fills_unset_color() {
     let theme = crate::theme::Theme::framewise();
-    let spec = DividerSpecBuilder::new()
-        .defaults_from_theme(&theme)
-        .build();
+    let spec = super::DividerSpec::default_from_theme(&theme);
     assert_eq!(spec.stroke.color, theme.line_on_paper);
 }
 
@@ -71,10 +69,7 @@ fn test_builder_defaults_from_theme_fills_unset_color() {
 fn test_builder_defaults_from_theme_preserves_explicit_color() {
     let theme = crate::theme::Theme::framewise();
     let sentinel = Color::from_srgb_u8(1, 2, 3, 255);
-    let spec = DividerSpecBuilder::new()
-        .color(sentinel)
-        .defaults_from_theme(&theme)
-        .build();
+    let spec = super::DividerSpec::default_from_theme(&theme).color(sentinel);
     assert_eq!(spec.stroke.color, sentinel);
 }
 
@@ -114,6 +109,10 @@ fn test_high_level_explicit_placement_via_manual_layout() {
         Rect::new(0.0, 0.0, 800.0, 600.0),
         &mut cmds,
     );
-    let result = super::divider(&mut ctx, DividerSpecBuilder::new(), placement);
+    let result = super::divider(
+        super::DividerSpec::default_from_theme(&ctx.theme),
+        placement,
+        &mut ctx,
+    );
     assert_eq!(result.layout.bounds, placement);
 }

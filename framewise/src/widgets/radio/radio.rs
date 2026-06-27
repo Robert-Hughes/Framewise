@@ -244,7 +244,6 @@ pub struct RadioSpec {
     pub style: RadioStyle,
 }
 
-
 impl RadioSpec {
     pub fn default_from_theme(theme: &crate::theme::Theme) -> Self {
         Self::default().theme(theme)

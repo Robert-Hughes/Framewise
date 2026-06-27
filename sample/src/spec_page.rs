@@ -31,7 +31,7 @@ use framewise::widgets::label::label;
 use framewise::widgets::scroll_area::{
     begin_scroll_area, ScrollAreaSpec, ScrollAxis, ScrollExtent, ScrollState, ScrollbarVisibility,
 };
-use framewise::widgets::{DividerSpecBuilder, LabelSpec, LabelStyle};
+use framewise::widgets::{DividerSpec, LabelSpec, LabelStyle};
 
 // Per-widget imports — present only when the owning feature is enabled. Marked
 // `unused_imports`-allowed because a widget feature can be on while the (possibly
@@ -46,7 +46,7 @@ use framewise::widgets::checkbox::{
 };
 #[cfg(feature = "chip")]
 #[allow(unused_imports)]
-use framewise::widgets::chip::{chip, ChipSpecBuilder, ChipState, ChipStyle};
+use framewise::widgets::chip::{chip, ChipSpec, ChipState, ChipStyle};
 #[cfg(feature = "color_swatch")]
 #[allow(unused_imports)]
 use framewise::widgets::color_swatch::{color_swatch, ColorSwatchSpec};
@@ -90,9 +90,7 @@ use framewise::widgets::spinner::{spinner, SpinnerSpec};
 use framewise::widgets::status::{status, StatusSpec, StatusVariant};
 #[cfg(feature = "switch")]
 #[allow(unused_imports)]
-use framewise::widgets::switch::{
-    labelled_switch, switch, SwitchSpec, SwitchState, SwitchStyle,
-};
+use framewise::widgets::switch::{labelled_switch, switch, SwitchSpec, SwitchState, SwitchStyle};
 #[cfg(feature = "tabs")]
 #[allow(unused_imports)]
 use framewise::widgets::tabs::{tabs, TabsSpecBuilder, TabsState};
@@ -103,7 +101,7 @@ use framewise::widgets::text_edit::{
 };
 #[cfg(feature = "tooltip")]
 #[allow(unused_imports)]
-use framewise::widgets::tooltip::{tooltip, TooltipSpecBuilder, TooltipVariant};
+use framewise::widgets::tooltip::{tooltip, TooltipSpec, TooltipVariant};
 #[cfg(feature = "tree")]
 #[allow(unused_imports)]
 use framewise::widgets::tree::{tree, TreeRow, TreeSpecBuilder};
@@ -1364,8 +1362,8 @@ fn sec_y<CF>(
     }
     b.spacer(16.0);
     {
-        let spec_builder = DividerSpecBuilder::new();
-        divider(b, spec_builder, ColumnLayoutParams::fixed(w, 36.0))
+        let spec = DividerSpec::default_from_theme(&b.theme);
+        divider(spec, ColumnLayoutParams::fixed(w, 36.0), b)
     };
 }
 
@@ -1641,8 +1639,8 @@ fn header_section<CF>(b: &mut WidgetContext<SampleTextBackend, ColumnState, CF>,
         }
     }
     {
-        let spec_builder = DividerSpecBuilder::new();
-        divider(&mut b, spec_builder, Rect::new(0.0, 320.0, content_w, 1.0))
+        let spec = DividerSpec::default_from_theme(&b.theme);
+        divider(spec, Rect::new(0.0, 320.0, content_w, 1.0), &mut b)
     };
 
     b.finish();
@@ -2924,8 +2922,8 @@ fn section_05_selection<CF>(
             {
                 let state = &mut state.chip_states[i];
                 let layout_params = Rect::new(chip_x, 0.0, chip_w, 22.0);
-                let spec_builder = ChipSpecBuilder::new().text(label).style(chip_style);
-                chip(&mut b, spec_builder, layout_params, state);
+                let spec = ChipSpec::new(label).style(chip_style);
+                chip(spec, layout_params, state, &mut b);
             };
             chip_x += chip_w + 6.0;
         }
@@ -2948,10 +2946,8 @@ fn section_05_selection<CF>(
         {
             let state = &mut state.chip_states[4];
             let layout_params = Rect::new(560.0, 30.0, add_w, 22.0);
-            let spec_builder = ChipSpecBuilder::new()
-                .text("+ add backend")
-                .style(chip_style);
-            chip(&mut b, spec_builder, layout_params, state);
+            let spec = ChipSpec::new("+ add backend").style(chip_style);
+            chip(spec, layout_params, state, &mut b);
         };
         b.finish();
     }
@@ -3693,29 +3689,35 @@ fn section_10_tooltips<CF>(
         let mut b = b.child_with_layout(ColumnLayoutParams::fixed(content_w, 112.0), ManualLayout);
         let mut y = 0.0;
         tooltip(
-            &mut b,
-            TooltipSpecBuilder::new()
-                .text("Drag to scrub — hold ⌥ for fine.")
-                .variant(TooltipVariant::Dark),
+            TooltipSpec::new_from_theme(
+                "Drag to scrub — hold ⌥ for fine.",
+                TooltipVariant::Dark,
+                &b.theme,
+            ),
             Rect::new(0.0, y, 0.0, 0.0),
+            &mut b,
         );
         y += 28.0 + 8.0;
 
         tooltip(
-            &mut b,
-            TooltipSpecBuilder::new()
-                .text("Re-described every frame from current application state. No retained nodes.")
-                .variant(TooltipVariant::Dark),
+            TooltipSpec::new_from_theme(
+                "Re-described every frame from current application state. No retained nodes.",
+                TooltipVariant::Dark,
+                &b.theme,
+            ),
             Rect::new(0.0, y, 0.0, 0.0),
+            &mut b,
         );
         y += 28.0 + 8.0;
 
         tooltip(
-            &mut b,
-            TooltipSpecBuilder::new()
-                .text("⚠ shader recompiled b frame (12 ms)")
-                .variant(TooltipVariant::Rust),
+            TooltipSpec::new_from_theme(
+                "⚠ shader recompiled b frame (12 ms)",
+                TooltipVariant::Rust,
+                &b.theme,
+            ),
             Rect::new(0.0, y, 0.0, 0.0),
+            &mut b,
         );
         b.finish();
     }
@@ -3825,8 +3827,8 @@ fn section_11_window<CF>(
         iy += win.theme.h_md + 10.0;
         {
             let layout_params = Rect::new(0.0, iy, cr_w, 1.0);
-            let spec_builder = DividerSpecBuilder::new();
-            divider(&mut win, spec_builder, layout_params)
+            let spec = DividerSpec::default_from_theme(&win.theme);
+            divider(spec, layout_params, &mut win)
         };
         iy += 10.0;
         let check_labels = ["clip to parent", "debug overlay"];
@@ -4404,8 +4406,8 @@ fn section_12_in_use<CF>(
 
         {
             let layout_params = Rect::new(0.0, fy, cr_w, 1.0);
-            let spec_builder = DividerSpecBuilder::new();
-            divider(&mut win, spec_builder, layout_params)
+            let spec = DividerSpec::default_from_theme(&win.theme);
+            divider(spec, layout_params, &mut win)
         };
         fy += 10.0;
 
@@ -4636,9 +4638,9 @@ fn footer_section<CF>(b: &mut WidgetContext<SampleTextBackend, ColumnState, CF>,
 
     footer.spacer(LinearSpacer::always(FOOTER_MARGIN_TOP));
     divider(
-        &mut footer,
-        DividerSpecBuilder::new(),
+        DividerSpec::default_from_theme(&footer.theme),
         ColumnLayoutParams::fixed(content_w, 1.0),
+        &mut footer,
     );
     footer.spacer(FOOTER_TOP_PAD);
 

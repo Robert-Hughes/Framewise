@@ -402,10 +402,8 @@ fn test_chip_keyboard_toggle() {
 #[test]
 fn test_builder_defaults_from_theme_fills_unset_fields() {
     let theme = crate::theme::Theme::framewise();
-    let builder = ChipSpecBuilder::new();
-    assert!(builder.style.is_none());
-    let builder = builder.defaults_from_theme(&theme);
-    assert_eq!(builder.style, Some(ChipStyle::from_theme(&theme)));
+    let spec = super::ChipSpec::new_from_theme("Tag", &theme);
+    assert_eq!(spec.style, ChipStyle::from_theme(&theme));
 }
 
 #[test]
@@ -413,9 +411,8 @@ fn test_builder_defaults_from_theme_preserves_explicit_fields() {
     let theme = crate::theme::Theme::framewise();
     let mut custom_style = ChipStyle::from_theme(&theme);
     custom_style.text_style.size = 99.0;
-    let builder = ChipSpecBuilder::new().style(custom_style);
-    let builder = builder.defaults_from_theme(&theme);
-    assert_eq!(builder.style.unwrap().text_style.size, 99.0);
+    let spec = super::ChipSpec::new("Tag").style(custom_style);
+    assert_eq!(spec.style.text_style.size, 99.0);
 }
 
 #[test]
@@ -439,10 +436,10 @@ fn test_explicit_placement_via_manual_layout() {
     );
     let mut chip_state = ChipState::default();
     let result = super::chip(
-        &mut ctx,
-        ChipSpecBuilder::new().text("X"),
+        super::ChipSpec::new_from_theme("X", &ctx.theme),
         placement,
         &mut chip_state,
+        &mut ctx,
     );
     assert_eq!(result.layout.bounds, placement);
 }

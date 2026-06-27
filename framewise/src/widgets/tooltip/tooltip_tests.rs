@@ -194,11 +194,9 @@ fn test_high_level_explicit_placement_via_manual_layout() {
         &mut cmds,
     );
     let result = super::tooltip(
-        &mut ctx,
-        TooltipSpecBuilder::new()
-            .text("hi")
-            .variant(TooltipVariant::Dark),
+        super::TooltipSpec::new_from_theme("hi", TooltipVariant::Dark, &ctx.theme),
         placement,
+        &mut ctx,
     );
     assert_eq!(result.layout.bounds.x, placement.x);
     assert_eq!(result.layout.bounds.y, placement.y);
@@ -225,11 +223,9 @@ fn test_tooltip_bounds_and_content_bounds() {
         &mut cmds,
     );
     let res = super::tooltip(
-        &mut ctx,
-        TooltipSpecBuilder::new()
-            .text("hi")
-            .variant(TooltipVariant::Dark),
+        super::TooltipSpec::new_from_theme("hi", TooltipVariant::Dark, &ctx.theme),
         layout_rect,
+        &mut ctx,
     );
 
     let style = TooltipStyle::from_theme(&ctx.theme);

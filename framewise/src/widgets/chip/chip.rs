@@ -221,6 +221,12 @@ pub struct ChipStyle {
     pub disabled_alpha: f32,
 }
 
+impl Default for ChipStyle {
+    fn default() -> Self {
+        Self::from_theme(&crate::theme::Theme::minimal())
+    }
+}
+
 impl ChipStyle {
     pub fn from_theme(theme: &crate::theme::Theme) -> Self {
         Self {
@@ -274,50 +280,39 @@ pub struct ChipSpec<'a> {
     pub disabled: bool,
 }
 
-// ── Spec Builder ─────────────────────────────────────────────────────────────
+impl<'a> ChipSpec<'a> {
+    pub fn new(text: &'a str) -> Self {
+        Self {
+            text,
+            style: ChipStyle::default(),
+            disabled: false,
+        }
+    }
 
-#[derive(Debug, Clone, PartialEq, Default)]
-pub struct ChipSpecBuilder<'a> {
-    pub text: Option<&'a str>,
-    pub style: Option<ChipStyle>,
-    pub disabled: Option<bool>,
-}
+    pub fn new_from_theme(text: &'a str, theme: &crate::theme::Theme) -> Self {
+        Self::new(text).theme(theme)
+    }
 
-impl<'a> ChipSpecBuilder<'a> {
-    pub fn new() -> Self {
-        Self::default()
+    /// Overwrites `style` with the style derived from `theme`.
+    /// Leaves `text` and `disabled` unchanged.
+    pub fn theme(mut self, theme: &crate::theme::Theme) -> Self {
+        self.style = ChipStyle::from_theme(theme);
+        self
     }
 
     pub fn text(mut self, text: &'a str) -> Self {
-        self.text = Some(text);
+        self.text = text;
         self
     }
+
     pub fn style(mut self, style: ChipStyle) -> Self {
-        self.style = Some(style);
+        self.style = style;
         self
     }
+
     pub fn disabled(mut self, disabled: bool) -> Self {
-        self.disabled = Some(disabled);
+        self.disabled = disabled;
         self
-    }
-
-    /// Fills unset fields from `theme`. Called automatically by high-level
-    /// context functions.
-    pub fn defaults_from_theme(mut self, theme: &crate::theme::Theme) -> Self {
-        if self.style.is_none() {
-            self.style = Some(ChipStyle::from_theme(theme));
-        }
-        self
-    }
-
-    pub fn build(self) -> ChipSpec<'a> {
-        ChipSpec {
-            text: self.text.expect("text not set — call .text()"),
-            style: self
-                .style
-                .expect("style not set — call .style() or defaults_from_theme()"),
-            disabled: self.disabled.unwrap_or(false),
-        }
     }
 }
 
@@ -325,15 +320,19 @@ impl<'a> ChipSpecBuilder<'a> {
 
 /// High-level chip widget function using `WidgetContext`.
 ///
-/// Resolves defaults, runs the raw pre-layout phase to obtain a `SizeRequest`,
-/// resolves the final rect with layout, then runs the raw post-layout phase.
+/// Consumes a complete `ChipSpec`, runs the raw pre-layout phase to obtain a
+/// `SizeRequest`, resolves the final rect with layout, then runs the raw
+/// post-layout phase.
+///
+/// The chip is stateful: it tracks checked/unchecked state, keyboard focus,
+/// and space-bar activation via `state`. The cursor icon is propagated to
+/// `ctx.output.cursor_icon` when the chip is hovered and enabled.
 pub fn chip<'a, T: TextBackend, S: LayoutState, CF>(
-    ctx: &mut WidgetContext<T, S, CF>,
-    builder: ChipSpecBuilder<'a>,
+    spec: ChipSpec<'a>,
     layout_params: S::Params,
     state: &mut ChipState,
+    ctx: &mut WidgetContext<T, S, CF>,
 ) -> ChipResult {
-    let spec = builder.defaults_from_theme(&ctx.theme).build();
     let pre_layout_spec = raw::ChipPreLayoutSpec {
         text: spec.text,
         style: spec.style,

@@ -86,11 +86,11 @@ pub use checkbox::{
     CheckedState,
 };
 #[cfg(feature = "chip")]
-pub use chip::{chip, ChipResult, ChipSpecBuilder, ChipState, ChipStyle};
+pub use chip::{chip, ChipResult, ChipSpec, ChipState, ChipStyle};
 #[cfg(feature = "color_swatch")]
 pub use color_swatch::{color_swatch, ColorSwatchResult, ColorSwatchSpec};
 #[cfg(feature = "divider")]
-pub use divider::{divider, DividerResult, DividerSpecBuilder};
+pub use divider::{divider, DividerResult, DividerSpec};
 #[cfg(feature = "drag_number")]
 pub use drag_number::{
     drag_number, DragNumberResult, DragNumberSpec, DragNumberState, DragNumberStyle,
@@ -129,9 +129,7 @@ pub use spinner::{spinner, SpinnerResult, SpinnerSpec, SpinnerStyle};
 #[cfg(feature = "status")]
 pub use status::{status, StatusResult, StatusSpec, StatusStyle, StatusVariant};
 #[cfg(feature = "switch")]
-pub use switch::{
-    labelled_switch, switch, SwitchResult, SwitchSpec, SwitchState, SwitchStyle,
-};
+pub use switch::{labelled_switch, switch, SwitchResult, SwitchSpec, SwitchState, SwitchStyle};
 #[cfg(feature = "tabs")]
 pub use tabs::{tabs, TabsResult, TabsSpecBuilder, TabsState, TabsStyle};
 #[cfg(feature = "text_edit")]
@@ -140,7 +138,7 @@ pub use text_edit::{
     TextEditStyle,
 };
 #[cfg(feature = "tooltip")]
-pub use tooltip::{tooltip, TooltipResult, TooltipSpecBuilder, TooltipStyle, TooltipVariant};
+pub use tooltip::{tooltip, TooltipResult, TooltipSpec, TooltipStyle, TooltipVariant};
 #[cfg(feature = "tree")]
 pub use tree::{tree, TreeResult, TreeRow, TreeSpecBuilder, TreeStyle};
 #[cfg(feature = "window")]

@@ -87,56 +87,40 @@ pub struct DividerSpec {
     pub stroke: Stroke,
 }
 
-// ── Spec Builder ─────────────────────────────────────────────────────────────
-
-#[derive(Debug, Clone, PartialEq, Default)]
-pub struct DividerSpecBuilder {
-    pub stroke: Option<Stroke>,
-    pub color: Option<Color>,
-    pub width: Option<f32>,
+impl Default for DividerSpec {
+    fn default() -> Self {
+        Self {
+            stroke: Stroke::new(crate::theme::Theme::minimal().line_on_paper, 1.0),
+        }
+    }
 }
 
-impl DividerSpecBuilder {
-    pub fn new() -> Self {
-        Self::default()
+impl DividerSpec {
+    pub fn default_from_theme(theme: &crate::theme::Theme) -> Self {
+        Self::default().theme(theme)
     }
+
+    /// Overwrites `stroke` with the default divider stroke derived from `theme`.
+    pub fn theme(mut self, theme: &crate::theme::Theme) -> Self {
+        self.stroke = Stroke::new(theme.line_on_paper, 1.0);
+        self
+    }
+
     pub fn stroke(mut self, stroke: Stroke) -> Self {
-        self.stroke = Some(stroke);
+        self.stroke = stroke;
         self
     }
+
+    /// Patches the current stroke colour.
     pub fn color(mut self, color: Color) -> Self {
-        self.color = Some(color);
+        self.stroke.color = color;
         self
     }
+
+    /// Patches the current stroke width.
     pub fn width(mut self, width: f32) -> Self {
-        self.width = Some(width);
+        self.stroke.width = width;
         self
-    }
-    /// Fills unset fields from `theme`. Called automatically by high-level
-    /// context functions.
-    pub fn defaults_from_theme(mut self, theme: &crate::theme::Theme) -> Self {
-        if self.stroke.is_none() {
-            let color = self.color.unwrap_or(theme.line_on_paper);
-            let width = self.width.unwrap_or(1.0);
-            self.stroke = Some(Stroke::new(color, width));
-        } else {
-            let mut s = self.stroke.unwrap();
-            if let Some(c) = self.color {
-                s.color = c;
-            }
-            if let Some(w) = self.width {
-                s.width = w;
-            }
-            self.stroke = Some(s);
-        }
-        self
-    }
-    pub fn build(self) -> DividerSpec {
-        DividerSpec {
-            stroke: self
-                .stroke
-                .expect("stroke not set — call defaults_from_theme() or stroke()"),
-        }
     }
 }
 
@@ -144,14 +128,14 @@ impl DividerSpecBuilder {
 
 /// High-level divider widget function using `WidgetContext`.
 ///
-/// Resolves defaults, runs the raw pre-layout phase to obtain a `SizeRequest`,
-/// resolves the final rect with layout, then runs the raw post-layout phase.
+/// Consumes a complete `DividerSpec`, runs the raw pre-layout phase to obtain a
+/// `SizeRequest`, resolves the final rect with layout, then runs the raw
+/// post-layout phase.
 pub fn divider<T: TextBackend, S: LayoutState, CF>(
-    ctx: &mut WidgetContext<T, S, CF>,
-    builder: DividerSpecBuilder,
+    spec: DividerSpec,
     layout_params: S::Params,
+    ctx: &mut WidgetContext<T, S, CF>,
 ) -> DividerResult {
-    let spec = builder.defaults_from_theme(&ctx.theme).build();
     let pre_layout_spec = raw::DividerPreLayoutSpec {};
     let offer = ctx.peek_offer(layout_params.clone());
     let pre_layout = raw::pre_layout_divider(&pre_layout_spec, offer);
