@@ -30,6 +30,7 @@ use raw::{begin_scroll_area, ScrollAreaSpec};
 use test_helpers::frames;
 
 // Helper to keep test calls the same
+#[allow(dead_code)]
 fn scroll_area(
     bounds: Rect,
     content_size: Vec2,

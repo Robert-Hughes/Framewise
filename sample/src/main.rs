@@ -516,7 +516,7 @@ impl ApplicationHandler for App {
             WindowEvent::MouseWheel { delta, .. } => {
                 let _delta_y = match delta {
                     winit::event::MouseScrollDelta::LineDelta(x, y) => {
-                        self.input.scroll_delta = Vec2::new(x, y);
+                        self.input.scroll_delta += Vec2::new(x, y);
                         y
                     }
                     winit::event::MouseScrollDelta::PixelDelta(pos) => {
@@ -525,7 +525,7 @@ impl ApplicationHandler for App {
                             .as_ref()
                             .map_or(1.0, |g| g.physical_pixels_per_logical_pixel);
                         let dy = pos.y as f32 / scale / 20.0;
-                        self.input.scroll_delta = Vec2::new(pos.x as f32 / scale / 20.0, dy);
+                        self.input.scroll_delta += Vec2::new(pos.x as f32 / scale / 20.0, dy);
                         dy
                     }
                 };

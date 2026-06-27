@@ -29,6 +29,78 @@ impl Vec2 {
     }
 }
 
+impl std::ops::Add for Vec2 {
+    type Output = Self;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        Self {
+            x: self.x + rhs.x,
+            y: self.y + rhs.y,
+        }
+    }
+}
+
+impl std::ops::AddAssign for Vec2 {
+    fn add_assign(&mut self, rhs: Self) {
+        self.x += rhs.x;
+        self.y += rhs.y;
+    }
+}
+
+impl std::ops::Sub for Vec2 {
+    type Output = Self;
+
+    fn sub(self, rhs: Self) -> Self::Output {
+        Self {
+            x: self.x - rhs.x,
+            y: self.y - rhs.y,
+        }
+    }
+}
+
+impl std::ops::SubAssign for Vec2 {
+    fn sub_assign(&mut self, rhs: Self) {
+        self.x -= rhs.x;
+        self.y -= rhs.y;
+    }
+}
+
+impl std::ops::Mul<f32> for Vec2 {
+    type Output = Self;
+
+    fn mul(self, rhs: f32) -> Self::Output {
+        Self {
+            x: self.x * rhs,
+            y: self.y * rhs,
+        }
+    }
+}
+
+impl std::ops::MulAssign<f32> for Vec2 {
+    fn mul_assign(&mut self, rhs: f32) {
+        self.x *= rhs;
+        self.y *= rhs;
+    }
+}
+
+impl std::ops::Div<f32> for Vec2 {
+    type Output = Self;
+
+    fn div(self, rhs: f32) -> Self::Output {
+        Self {
+            x: self.x / rhs,
+            y: self.y / rhs,
+        }
+    }
+}
+
+impl std::ops::DivAssign<f32> for Vec2 {
+    fn div_assign(&mut self, rhs: f32) {
+        self.x /= rhs;
+        self.y /= rhs;
+    }
+}
+
 // ── Rect ─────────────────────────────────────────────────────────────────────
 
 /// An axis-aligned rectangle, stored as origin + size.
@@ -384,5 +456,39 @@ mod tests {
         assert!(!r_zero_h.contains(Vec2::new(50.0, 20.0)));
         let r_zero_both = Rect::new(10.0, 20.0, 0.0, 0.0);
         assert!(!r_zero_both.contains(Vec2::new(10.0, 20.0)));
+    }
+
+    #[test]
+    fn test_vec2_ops() {
+        let mut v1 = Vec2::new(1.0, 2.0);
+        let v2 = Vec2::new(3.0, 4.0);
+
+        // Add
+        assert_eq!(v1 + v2, Vec2::new(4.0, 6.0));
+
+        // AddAssign
+        v1 += v2;
+        assert_eq!(v1, Vec2::new(4.0, 6.0));
+
+        // Sub
+        assert_eq!(v1 - v2, Vec2::new(1.0, 2.0));
+
+        // SubAssign
+        v1 -= v2;
+        assert_eq!(v1, Vec2::new(1.0, 2.0));
+
+        // Mul
+        assert_eq!(v1 * 3.0, Vec2::new(3.0, 6.0));
+
+        // MulAssign
+        v1 *= 3.0;
+        assert_eq!(v1, Vec2::new(3.0, 6.0));
+
+        // Div
+        assert_eq!(v1 / 3.0, Vec2::new(1.0, 2.0));
+
+        // DivAssign
+        v1 /= 3.0;
+        assert_eq!(v1, Vec2::new(1.0, 2.0));
     }
 }
