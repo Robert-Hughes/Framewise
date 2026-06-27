@@ -434,6 +434,64 @@ impl DrawCommands {
         }))
     }
 
+    pub fn push_crisp_h_rule(
+        &mut self,
+        x: f32,
+        y: f32,
+        width: f32,
+        stroke: Option<Stroke>,
+        z: u32,
+    ) -> Option<usize> {
+        let s = stroke?;
+        if !s.is_visible() || width <= 0.0 {
+            return None;
+        }
+
+        let x0 = self.snap_to_physical_pixel(x);
+        let x1 = self.snap_to_physical_pixel(x + width);
+        let y0 = self.snap_to_physical_pixel(y);
+        let h = self.snap_length_to_physical_pixels(s.width);
+
+        if x1 <= x0 {
+            return None;
+        }
+
+        Some(self.push(DrawCmd::FillRect {
+            rect: Rect::new(x0, y0, x1 - x0, h),
+            color: s.color,
+            z,
+        }))
+    }
+
+    pub fn push_crisp_v_rule(
+        &mut self,
+        x: f32,
+        y: f32,
+        height: f32,
+        stroke: Option<Stroke>,
+        z: u32,
+    ) -> Option<usize> {
+        let s = stroke?;
+        if !s.is_visible() || height <= 0.0 {
+            return None;
+        }
+
+        let x0 = self.snap_to_physical_pixel(x);
+        let y0 = self.snap_to_physical_pixel(y);
+        let y1 = self.snap_to_physical_pixel(y + height);
+        let w = self.snap_length_to_physical_pixels(s.width);
+
+        if y1 <= y0 {
+            return None;
+        }
+
+        Some(self.push(DrawCmd::FillRect {
+            rect: Rect::new(x0, y0, w, y1 - y0),
+            color: s.color,
+            z,
+        }))
+    }
+
     pub fn push_stroke_line(
         &mut self,
         p0: Vec2,

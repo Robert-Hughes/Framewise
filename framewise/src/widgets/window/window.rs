@@ -87,12 +87,8 @@ pub mod raw {
         };
 
         // Body.
-        cmds.push(DrawCmd::FillRect {
-            rect: spec.rect,
-            color: s.background,
-            z: spec.layer.get_z(),
-        });
-        cmds.push_border_rect(
+        cmds.push_crisp_fill_rect(spec.rect, s.background, spec.layer.get_z());
+        cmds.push_crisp_border_rect(
             spec.rect,
             s.border,
             BorderPlacement::Inside,
@@ -101,11 +97,7 @@ pub mod raw {
 
         // Title bar.
         let title_rect = Rect::new(spec.rect.x, spec.rect.y, spec.rect.w, title_h);
-        cmds.push(DrawCmd::FillRect {
-            rect: title_rect,
-            color: s.title_bg,
-            z: spec.layer.get_z(),
-        });
+        cmds.push_crisp_fill_rect(title_rect, s.title_bg, spec.layer.get_z());
 
         let title_layout = layout_text(
             text_backend,
@@ -159,7 +151,7 @@ pub mod raw {
         // Status bar.
         if spec.status_bar {
             let bar_y = spec.rect.y + spec.rect.h - status_h;
-            cmds.push_h_rule(
+            cmds.push_crisp_h_rule(
                 spec.rect.x,
                 bar_y,
                 spec.rect.w,

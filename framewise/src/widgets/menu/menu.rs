@@ -1,5 +1,7 @@
+#[cfg(test)]
+use crate::draw::DrawCmd;
 use crate::{
-    draw::{BorderPlacement, DrawCmd, DrawCommands},
+    draw::{BorderPlacement, DrawCommands},
     layout::{LayoutState, SizeOffer},
     text::{layout_text, TextBackend},
     types::{Color, Layer, Rect, Stroke, Vec2},
@@ -130,13 +132,9 @@ pub mod raw {
         let w = spec.rect.w.max(s.min_width);
         let outer = Rect::new(spec.rect.x, spec.rect.y, w, total_h);
 
-        cmds.push(DrawCmd::FillRect {
-            rect: outer,
-            color: s.background,
-            z: spec.layer.get_z(),
-        });
+        cmds.push_crisp_fill_rect(outer, s.background, spec.layer.get_z());
         let border_width = s.border.map_or(0.0, |stroke| stroke.width);
-        cmds.push_border_rect(outer, s.border, BorderPlacement::Inside, spec.layer.get_z());
+        cmds.push_crisp_border_rect(outer, s.border, BorderPlacement::Inside, spec.layer.get_z());
 
         let mut y = spec.rect.y + s.pad_y;
 
@@ -144,7 +142,7 @@ pub mod raw {
             match item {
                 MenuItem::Separator => {
                     let sep_y = y + s.separator_y;
-                    cmds.push_h_rule(outer.x, sep_y, w, s.separator, spec.layer.get_z());
+                    cmds.push_crisp_h_rule(outer.x, sep_y, w, s.separator, spec.layer.get_z());
                     y += sep_h;
                 }
                 MenuItem::Group(label) => {
@@ -183,11 +181,11 @@ pub mod raw {
                     let row_rect = Rect::new(outer.x, y, w, row_h);
 
                     if *selected {
-                        cmds.push(DrawCmd::FillRect {
-                            rect: row_rect,
-                            color: tint(s.selected_bg),
-                            z: spec.layer.get_z(),
-                        });
+                        cmds.push_crisp_fill_rect(
+                            row_rect,
+                            tint(s.selected_bg),
+                            spec.layer.get_z(),
+                        );
                     }
 
                     let text_color = if *selected {

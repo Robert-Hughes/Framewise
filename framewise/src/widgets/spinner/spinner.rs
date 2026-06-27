@@ -75,17 +75,17 @@ pub mod raw {
         let sw = spec.style.stroke.width;
 
         // Top-left bracket.
-        cmds.push_v_rule(x, y, arm, Some(spec.style.stroke), spec.layer.get_z());
-        cmds.push_h_rule(x, y, arm, Some(spec.style.stroke), spec.layer.get_z());
+        cmds.push_crisp_v_rule(x, y, arm, Some(spec.style.stroke), spec.layer.get_z());
+        cmds.push_crisp_h_rule(x, y, arm, Some(spec.style.stroke), spec.layer.get_z());
         // Top-right bracket.
-        cmds.push_h_rule(
+        cmds.push_crisp_h_rule(
             x + size - arm,
             y,
             arm,
             Some(spec.style.stroke),
             spec.layer.get_z(),
         );
-        cmds.push_v_rule(
+        cmds.push_crisp_v_rule(
             x + size - sw,
             y,
             arm,
@@ -93,14 +93,14 @@ pub mod raw {
             spec.layer.get_z(),
         );
         // Bottom-right bracket.
-        cmds.push_v_rule(
+        cmds.push_crisp_v_rule(
             x + size - sw,
             y + size - arm,
             arm,
             Some(spec.style.stroke),
             spec.layer.get_z(),
         );
-        cmds.push_h_rule(
+        cmds.push_crisp_h_rule(
             x + size - arm,
             y + size - sw,
             arm,
@@ -108,14 +108,14 @@ pub mod raw {
             spec.layer.get_z(),
         );
         // Bottom-left bracket.
-        cmds.push_h_rule(
+        cmds.push_crisp_h_rule(
             x,
             y + size - sw,
             arm,
             Some(spec.style.stroke),
             spec.layer.get_z(),
         );
-        cmds.push_v_rule(
+        cmds.push_crisp_v_rule(
             x,
             y + size - arm,
             arm,
@@ -125,7 +125,7 @@ pub mod raw {
 
         // Animated segment on the top edge — drawn as a highlight.
         let seg_w = size * spec.style.highlight_fraction;
-        cmds.push_h_rule(
+        cmds.push_crisp_h_rule(
             x + size * 0.1,
             y,
             seg_w,

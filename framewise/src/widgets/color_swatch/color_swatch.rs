@@ -1,5 +1,7 @@
+#[cfg(test)]
+use crate::draw::DrawCmd;
 use crate::{
-    draw::{BorderPlacement, DrawCmd, DrawCommands},
+    draw::{BorderPlacement, DrawCommands},
     layout::{LayoutState, SizeOffer},
     text::TextBackend,
     types::{Color, Layer, Rect, Stroke},
@@ -62,12 +64,8 @@ pub mod raw {
         _pre_layout: ColorSwatchPreLayoutResult,
         cmds: &mut DrawCommands,
     ) -> ColorSwatchResult {
-        cmds.push(DrawCmd::FillRect {
-            rect: spec.rect,
-            color: spec.color,
-            z: spec.layer.get_z(),
-        });
-        cmds.push_border_rect(
+        cmds.push_crisp_fill_rect(spec.rect, spec.color, spec.layer.get_z());
+        cmds.push_crisp_border_rect(
             spec.rect,
             spec.border,
             BorderPlacement::Inside,

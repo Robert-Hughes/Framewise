@@ -1,5 +1,7 @@
+#[cfg(test)]
+use crate::draw::DrawCmd;
 use crate::{
-    draw::{BorderPlacement, DrawCmd, DrawCommands},
+    draw::{BorderPlacement, DrawCommands},
     layout::{LayoutState, SizeOffer},
     text::{layout_text, TextBackend},
     types::{Color, Layer, Rect, Stroke, Vec2},
@@ -72,12 +74,8 @@ pub mod raw {
         cmds: &mut DrawCommands,
     ) -> KeycapResult {
         // Background + border
-        cmds.push(DrawCmd::FillRect {
-            rect: spec.rect,
-            color: spec.style.background,
-            z: spec.layer.get_z(),
-        });
-        cmds.push_border_rect(
+        cmds.push_crisp_fill_rect(spec.rect, spec.style.background, spec.layer.get_z());
+        cmds.push_crisp_border_rect(
             spec.rect,
             spec.style.border,
             BorderPlacement::Inside,
@@ -90,11 +88,7 @@ pub mod raw {
             spec.rect.w - spec.style.shadow_offset,
             spec.style.shadow_height,
         );
-        cmds.push(DrawCmd::FillRect {
-            rect: shadow_rect,
-            color: spec.style.shadow,
-            z: spec.layer.get_z(),
-        });
+        cmds.push_crisp_fill_rect(shadow_rect, spec.style.shadow, spec.layer.get_z());
 
         // text, centered
         if !spec.text.is_empty() {

@@ -1,5 +1,7 @@
+#[cfg(test)]
+use crate::draw::DrawCmd;
 use crate::{
-    draw::{BorderPlacement, DrawCmd, DrawCommands},
+    draw::{BorderPlacement, DrawCommands},
     focus::{FocusId, FocusSystem},
     input::Input,
     layout::{LayoutState, SizeOffer},
@@ -188,12 +190,20 @@ pub mod raw {
         let tint = |c: Color| Color::linear_rgba(c.r, c.g, c.b, c.a * alpha);
 
         let visually_active = focused || state.is_dragging;
+        let draw_outer = cmds.snap_rect_edges_to_physical_pixel(spec.rect);
+        let draw_split_x = cmds.snap_to_physical_pixel(value_x);
+        let draw_label_rect = Rect::from_ltrb(
+            draw_outer.x,
+            draw_outer.y,
+            draw_split_x,
+            draw_outer.bottom(),
+        );
 
         // Focus / active ring.
         if visually_active && !spec.disabled {
             if let Some(outline) = s.focus {
                 let focus_stroke = Stroke::new(tint(outline.stroke.color), outline.stroke.width);
-                cmds.push_border_rect(
+                cmds.push_crisp_border_rect(
                     spec.rect.inset(-outline.offset),
                     Some(focus_stroke),
                     BorderPlacement::Outside,
@@ -202,24 +212,15 @@ pub mod raw {
             }
         }
 
-        cmds.push(DrawCmd::FillRect {
-            rect: spec.rect,
-            color: tint(s.background),
-            z: spec.layer.get_z(),
-        });
+        cmds.push_crisp_fill_rect(draw_outer, tint(s.background), spec.layer.get_z());
 
         // text section (ink/rust bg, paper text).
-        let text_rect = Rect::new(spec.rect.x, spec.rect.y, text_w, spec.rect.h);
         let text_bg = if visually_active {
             s.active_text_bg
         } else {
             s.text_bg
         };
-        cmds.push(DrawCmd::FillRect {
-            rect: text_rect,
-            color: tint(text_bg),
-            z: spec.layer.get_z(),
-        });
+        cmds.push_crisp_fill_rect(draw_label_rect, tint(text_bg), spec.layer.get_z());
 
         let lty = spec.rect.y + (spec.rect.h - text_metrics.logical_size.y) * 0.5;
         let text_rect = Rect::new(
@@ -245,11 +246,17 @@ pub mod raw {
             0.0
         };
         if frac > 0.0 {
-            cmds.push(DrawCmd::FillRect {
-                rect: Rect::new(value_x, spec.rect.y, value_w * frac, spec.rect.h),
-                color: tint(s.value_fill),
-                z: spec.layer.get_z(),
-            });
+            let draw_value_r = cmds.snap_to_physical_pixel(value_x + value_w * frac);
+            cmds.push_crisp_fill_rect(
+                Rect::from_ltrb(
+                    draw_split_x,
+                    draw_outer.y,
+                    draw_value_r,
+                    draw_outer.bottom(),
+                ),
+                tint(s.value_fill),
+                spec.layer.get_z(),
+            );
         }
 
         let value_text = format!("{:.2}", state.value);
@@ -278,7 +285,7 @@ pub mod raw {
 
         // Border pushed at the very end to draw on top of the value fill.
         let tinted_border = s.border.map(|b| Stroke::new(tint(b.color), b.width));
-        cmds.push_border_rect(
+        cmds.push_crisp_border_rect(
             spec.rect,
             tinted_border,
             BorderPlacement::Inside,

@@ -1,5 +1,7 @@
+#[cfg(test)]
+use crate::draw::DrawCmd;
 use crate::{
-    draw::{BorderPlacement, DrawCmd, DrawCommands},
+    draw::{BorderPlacement, DrawCommands},
     focus::{FocusId, FocusSystem},
     input::Input,
     layout::{LayoutState, SizeOffer},
@@ -236,7 +238,7 @@ pub mod raw {
         // Focus / open ring.
         if focused || state.open {
             if let Some(outline) = s.focus {
-                cmds.push_border_rect(
+                cmds.push_crisp_border_rect(
                     r.inset(-outline.offset),
                     Some(tint_stroke(outline.stroke)),
                     BorderPlacement::Outside,
@@ -245,12 +247,8 @@ pub mod raw {
             }
         }
 
-        cmds.push(DrawCmd::FillRect {
-            rect: r,
-            color: tint(s.background),
-            z: spec.layer.get_z(),
-        });
-        cmds.push_border_rect(
+        cmds.push_crisp_fill_rect(r, tint(s.background), spec.layer.get_z());
+        cmds.push_crisp_border_rect(
             r,
             s.border.map(tint_stroke),
             BorderPlacement::Inside,
@@ -316,12 +314,13 @@ pub mod raw {
             let popup_h = spec.items.len() as f32 * row_h + s.popup_pad_y * 2.0;
             let popup = Rect::new(r.x, r.y + s.height + s.popup_gap, r.w, popup_h);
 
-            cmds.push(DrawCmd::FillRect {
-                rect: popup,
-                color: tint(s.background),
-                z: spec.layer.get_z(),
-            });
-            cmds.push_border_rect(
+            let draw_popup = cmds.snap_rect_edges_to_physical_pixel(popup);
+            let row_edges: Vec<f32> = (0..=spec.items.len())
+                .map(|i| cmds.snap_to_physical_pixel(popup.y + s.popup_pad_y + i as f32 * row_h))
+                .collect();
+
+            cmds.push_crisp_fill_rect(draw_popup, tint(s.background), spec.layer.get_z());
+            cmds.push_crisp_border_rect(
                 popup,
                 s.border.map(tint_stroke),
                 BorderPlacement::Inside,
@@ -332,20 +331,29 @@ pub mod raw {
                 let is_selected = i == state.selected_index;
                 let is_hovered = state.hovered == Some(i);
                 let row_y = popup.y + s.popup_pad_y + i as f32 * row_h;
-                let row_rect = Rect::new(popup.x, row_y, popup.w, row_h);
 
                 if is_selected {
-                    cmds.push(DrawCmd::FillRect {
-                        rect: row_rect,
-                        color: tint(s.selected_bg),
-                        z: spec.layer.get_z(),
-                    });
+                    cmds.push_crisp_fill_rect(
+                        Rect::from_ltrb(
+                            draw_popup.x,
+                            row_edges[i],
+                            draw_popup.right(),
+                            row_edges[i + 1],
+                        ),
+                        tint(s.selected_bg),
+                        spec.layer.get_z(),
+                    );
                 } else if is_hovered {
-                    cmds.push(DrawCmd::FillRect {
-                        rect: row_rect,
-                        color: tint(s.hover),
-                        z: spec.layer.get_z(),
-                    });
+                    cmds.push_crisp_fill_rect(
+                        Rect::from_ltrb(
+                            draw_popup.x,
+                            row_edges[i],
+                            draw_popup.right(),
+                            row_edges[i + 1],
+                        ),
+                        tint(s.hover),
+                        spec.layer.get_z(),
+                    );
                 }
 
                 let text_color = if is_selected { s.selected_text } else { s.text };

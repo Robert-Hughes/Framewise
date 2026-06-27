@@ -119,9 +119,10 @@ pub mod raw {
         let border_width = style.border.map_or(0.0, |s| s.width);
         let inset = border_width + style.padding;
         let content = rect.inset(inset);
+        let draw_rect = cmds.snap_rect_edges_to_physical_pixel(rect);
 
         match cmds.get_mut(token.fill_index) {
-            Some(DrawCmd::FillRect {  rect: r, .. }) => *r = rect,
+            Some(DrawCmd::FillRect { rect: r, .. }) => *r = draw_rect,
             _ => panic!(
                 "DrawCommands corruption detected: placeholder FillRect at index {} was missing or modified!",
                 token.fill_index
@@ -137,7 +138,7 @@ pub mod raw {
 
         cmds.push(DrawCmd::PopClip);
 
-        cmds.push_border_rect(
+        cmds.push_crisp_border_rect(
             rect,
             style.border,
             BorderPlacement::Inside,

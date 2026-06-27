@@ -1,5 +1,7 @@
+#[cfg(test)]
+use crate::draw::DrawCmd;
 use crate::{
-    draw::{BorderPlacement, DrawCmd, DrawCommands},
+    draw::{BorderPlacement, DrawCommands},
     focus::{FocusId, FocusSystem},
     input::Input,
     layout::{LayoutState, SizeOffer},
@@ -175,13 +177,18 @@ pub mod raw {
         let tint = |c: Color| Color::linear_rgba(c.r, c.g, c.b, c.a * alpha);
 
         let border_width = s.border.map_or(0.0, |stroke| stroke.width);
-        cmds.push(DrawCmd::FillRect {
-            rect: outer,
-            color: tint(s.background),
-            z: spec.layer.get_z(),
-        });
+        let draw_outer = cmds.snap_rect_edges_to_physical_pixel(outer);
+        let mut draw_edges = Vec::with_capacity(widths.len() + 1);
+        let mut edge_x = spec.rect.x;
+        draw_edges.push(cmds.snap_to_physical_pixel(edge_x));
+        for width in &widths {
+            edge_x += *width;
+            draw_edges.push(cmds.snap_to_physical_pixel(edge_x));
+        }
+
+        cmds.push_crisp_fill_rect(draw_outer, tint(s.background), spec.layer.get_z());
         let tint_stroke = |st: Stroke| Stroke::new(tint(st.color), st.width);
-        cmds.push_border_rect(
+        cmds.push_crisp_border_rect(
             outer,
             s.border.map(tint_stroke),
             BorderPlacement::Inside,
@@ -199,13 +206,15 @@ pub mod raw {
             let metric = layout.metrics();
             let is_active = i == state.active_index;
             let seg_rect = Rect::new(x, spec.rect.y, w, h);
+            let draw_seg_rect = Rect::from_ltrb(
+                draw_edges[i],
+                draw_outer.y,
+                draw_edges[i + 1],
+                draw_outer.bottom(),
+            );
 
             if is_active {
-                cmds.push(DrawCmd::FillRect {
-                    rect: seg_rect,
-                    color: tint(s.active_bg),
-                    z: spec.layer.get_z(),
-                });
+                cmds.push_crisp_fill_rect(draw_seg_rect, tint(s.active_bg), spec.layer.get_z());
             }
 
             // Focus ring (inset to stay within bounds).
@@ -213,7 +222,7 @@ pub mod raw {
             if visually_focused && !spec.disabled {
                 if let Some(outline) = s.focus {
                     let tint_stroke = |st: Stroke| Stroke::new(tint(st.color), st.width);
-                    cmds.push_border_rect(
+                    cmds.push_crisp_border_rect(
                         seg_rect.inset(-outline.offset),
                         Some(tint_stroke(outline.stroke)),
                         BorderPlacement::Outside,
@@ -225,9 +234,8 @@ pub mod raw {
             // Divider between segments (right edge, except last).
             if i + 1 < spec.items.len() {
                 let div_x = x + w;
-                let x = div_x - border_width;
-                cmds.push_v_rule(
-                    x,
+                cmds.push_crisp_v_rule(
+                    div_x - border_width,
                     spec.rect.y,
                     h,
                     s.border.map(tint_stroke),

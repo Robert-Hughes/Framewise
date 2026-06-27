@@ -1,5 +1,7 @@
+#[cfg(test)]
+use crate::draw::DrawCmd;
 use crate::{
-    draw::{BorderPlacement, DrawCmd, DrawCommands},
+    draw::{BorderPlacement, DrawCommands},
     focus::{FocusId, FocusSystem},
     input::Input,
     layout::{LayoutState, SizeOffer, SizeRequest},
@@ -151,13 +153,25 @@ pub mod raw {
         let border_width = s.border.map_or(0.0, |stroke| stroke.width);
         let border_y = spec.rect.y + tab_h;
         let tint_stroke = |st: Stroke| Stroke::new(tint(st.color), st.width);
-        cmds.push_h_rule(
+        cmds.push_crisp_h_rule(
             spec.rect.x,
             border_y - border_width,
             spec.rect.w,
             s.border.map(tint_stroke),
             spec.layer.get_z(),
         );
+
+        let mut draw_edges = Vec::with_capacity(widths.len() + 1);
+        let mut edge_x = spec.rect.x;
+        draw_edges.push(cmds.snap_to_physical_pixel(edge_x));
+        for width in &widths {
+            edge_x += *width;
+            draw_edges.push(cmds.snap_to_physical_pixel(edge_x));
+        }
+        let draw_border_y = cmds.snap_to_physical_pixel(border_y);
+        let draw_underbar_top = cmds.snap_to_physical_pixel(border_y - underbar_h);
+        let draw_uptick_top = cmds.snap_to_physical_pixel(border_y - 9.0);
+        let draw_uptick_w = cmds.snap_length_to_physical_pixels(3.0);
 
         let mut x = spec.rect.x;
 
@@ -176,7 +190,7 @@ pub mod raw {
             if visually_focused && !spec.disabled {
                 if let Some(outline) = s.focus {
                     let tint_stroke = |st: Stroke| Stroke::new(tint(st.color), st.width);
-                    cmds.push_border_rect(
+                    cmds.push_crisp_border_rect(
                         tab_rect.inset(-outline.offset),
                         Some(tint_stroke(outline.stroke)),
                         BorderPlacement::Outside,
@@ -198,23 +212,35 @@ pub mod raw {
 
             // Active underbar: 3px rust rect sitting on the bottom border + upticks at the ends.
             if is_active {
-                cmds.push(DrawCmd::FillRect {
-                    rect: Rect::new(x, border_y - underbar_h, tab_w, underbar_h),
-                    color: tint(s.accent),
-                    z: spec.layer.get_z(),
-                });
+                let draw_l = draw_edges[i];
+                let draw_r = draw_edges[i + 1];
+                cmds.push_crisp_fill_rect(
+                    Rect::from_ltrb(draw_l, draw_underbar_top, draw_r, draw_border_y),
+                    tint(s.accent),
+                    spec.layer.get_z(),
+                );
                 // Left uptick (3px wide, 9px tall)
-                cmds.push(DrawCmd::FillRect {
-                    rect: Rect::new(x, border_y - 9.0, 3.0, 9.0),
-                    color: tint(s.accent),
-                    z: spec.layer.get_z(),
-                });
+                cmds.push_crisp_fill_rect(
+                    Rect::from_ltrb(
+                        draw_l,
+                        draw_uptick_top,
+                        draw_l + draw_uptick_w,
+                        draw_border_y,
+                    ),
+                    tint(s.accent),
+                    spec.layer.get_z(),
+                );
                 // Right uptick (3px wide, 9px tall)
-                cmds.push(DrawCmd::FillRect {
-                    rect: Rect::new(x + tab_w - 3.0, border_y - 9.0, 3.0, 9.0),
-                    color: tint(s.accent),
-                    z: spec.layer.get_z(),
-                });
+                cmds.push_crisp_fill_rect(
+                    Rect::from_ltrb(
+                        draw_r - draw_uptick_w,
+                        draw_uptick_top,
+                        draw_r,
+                        draw_border_y,
+                    ),
+                    tint(s.accent),
+                    spec.layer.get_z(),
+                );
             }
 
             x += tab_w;

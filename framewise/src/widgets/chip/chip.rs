@@ -1,5 +1,7 @@
+#[cfg(test)]
+use crate::draw::DrawCmd;
 use crate::{
-    draw::{BorderPlacement, DrawCmd, DrawCommands},
+    draw::{BorderPlacement, DrawCommands},
     focus::{FocusId, FocusSystem},
     input::Input,
     layout::{LayoutState, SizeOffer},
@@ -141,7 +143,7 @@ pub mod raw {
         if focused {
             if let Some(outline) = s.focus {
                 let tint_stroke = |st: Stroke| Stroke::new(tint(st.color), st.width);
-                cmds.push_border_rect(
+                cmds.push_crisp_border_rect(
                     r.inset(-outline.offset),
                     Some(tint_stroke(outline.stroke)),
                     BorderPlacement::Outside,
@@ -155,14 +157,10 @@ pub mod raw {
         } else {
             s.background
         };
-        cmds.push(DrawCmd::FillRect {
-            rect: r,
-            color: tint(bg),
-            z: spec.layer.get_z(),
-        });
+        cmds.push_crisp_fill_rect(r, tint(bg), spec.layer.get_z());
 
         let tint_stroke = |st: Stroke| Stroke::new(tint(st.color), st.width);
-        cmds.push_border_rect(
+        cmds.push_crisp_border_rect(
             r,
             s.border.map(tint_stroke),
             BorderPlacement::Inside,

@@ -1,5 +1,7 @@
+#[cfg(test)]
+use crate::draw::DrawCmd;
 use crate::{
-    draw::{BorderPlacement, DrawCmd, DrawCommands},
+    draw::{BorderPlacement, DrawCommands},
     focus::{FocusId, FocusSystem},
     input::Input,
     layout::{LayoutState, SizeOffer, SizeRequest},
@@ -103,7 +105,7 @@ pub mod raw {
         if focused {
             if let Some(outline) = s.focus {
                 let tint_stroke = |st: Stroke| Stroke::new(tint(st.color), st.width);
-                cmds.push_border_rect(
+                cmds.push_crisp_border_rect(
                     r.inset(-outline.offset),
                     Some(tint_stroke(outline.stroke)),
                     BorderPlacement::Outside,
@@ -130,15 +132,11 @@ pub mod raw {
                 input_info.pressed,
             )
         };
-        cmds.push(DrawCmd::FillRect {
-            rect: r,
-            color: tint(track_fill),
-            z: spec.layer.get_z(),
-        });
+        cmds.push_crisp_fill_rect(r, tint(track_fill), spec.layer.get_z());
 
         // Track border.
         let tint_stroke = |st: Stroke| Stroke::new(tint(st.color), st.width);
-        cmds.push_border_rect(
+        cmds.push_crisp_border_rect(
             r,
             s.border.map(tint_stroke),
             BorderPlacement::Inside,
@@ -158,11 +156,11 @@ pub mod raw {
         } else {
             s.off_thumb
         };
-        cmds.push(DrawCmd::FillRect {
-            rect: Rect::new(dot_x, dot_y, s.thumb_size, s.thumb_size),
-            color: tint(dot_color),
-            z: spec.layer.get_z(),
-        });
+        cmds.push_crisp_fill_rect(
+            Rect::new(dot_x, dot_y, s.thumb_size, s.thumb_size),
+            tint(dot_color),
+            spec.layer.get_z(),
+        );
 
         let cursor_icon = if input_info.hovered && !spec.disabled {
             Some(crate::output::CursorIcon::Pointer)
