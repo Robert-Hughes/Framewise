@@ -331,6 +331,7 @@ fn draw_drag_number_fake_state<T: TextBackend, LS: LayoutState, CF>(
         step: 1.0,
         page_step: 10.0,
         value_formatter: framewise::widgets::drag_number::default_drag_number_value_formatter,
+        time: b.time,
         disabled,
         style: DragNumberStyle::from_theme(&b.theme),
         clip_rect: b.clip_rect,

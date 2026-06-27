@@ -18,6 +18,7 @@ fn default_spec(rect: Rect) -> raw::DragNumberSpec<'static> {
         step: 1.0,
         page_step: 10.0,
         value_formatter: default_drag_number_value_formatter,
+        time: 0.0,
         disabled: false,
         style: default_style(),
         clip_rect: None,
@@ -87,6 +88,15 @@ fn value_area_pos(rect: Rect, label: &str) -> Vec2 {
     let value_x = rect.x + label_w;
     let value_w = (rect.w - label_w).max(20.0);
     Vec2::new(value_x + value_w / 2.0, rect.y + rect.h / 2.0)
+}
+
+fn right_arrow_pos(rect: Rect, label: &str) -> Vec2 {
+    let char_width = 8.0; // default advance in TestTextBackend
+    let pad_x = 10.0;
+    let label_w = (label.len() as f32) * char_width + pad_x * 2.0;
+    let value_x = rect.x + label_w;
+    let value_w = (rect.w - label_w).max(20.0);
+    Vec2::new(value_x + value_w - 10.0, rect.y + rect.h / 2.0)
 }
 
 fn drag_num<'a, F>(spec: DragNumberSpec<'a, F>, value: f32) -> (raw::DragNumberResult, DrawCommands)
@@ -159,6 +169,7 @@ fn test_drag_number_custom_formatter_affects_measurement_and_rendering() {
         step: 1.0,
         page_step: 10.0,
         value_formatter: integer_formatter,
+        time: 0.0,
         disabled: false,
         style,
         clip_rect: None,
@@ -191,6 +202,7 @@ fn test_drag_number_visual_normal() {
         step: 1.0,
         page_step: 10.0,
         value_formatter: default_drag_number_value_formatter,
+        time: 0.0,
         disabled: false,
         style: DragNumberStyle::from_theme(&crate::theme::Theme::framewise()),
         clip_rect: None,
@@ -286,6 +298,7 @@ fn test_drag_number_visual_active() {
         step: 1.0,
         page_step: 10.0,
         value_formatter: default_drag_number_value_formatter,
+        time: 0.0,
         disabled: false,
         style: DragNumberStyle::from_theme(&crate::theme::Theme::framewise()),
         clip_rect: None,
@@ -427,6 +440,7 @@ fn test_drag_number_visual_min_value() {
         step: 1.0,
         page_step: 10.0,
         value_formatter: default_drag_number_value_formatter,
+        time: 0.0,
         disabled: false,
         style: DragNumberStyle::from_theme(&crate::theme::Theme::framewise()),
         clip_rect: None,
@@ -528,6 +542,7 @@ fn test_drag_number_click_takes_focus() {
         step: 1.0,
         page_step: 10.0,
         value_formatter: default_drag_number_value_formatter,
+        time: 0.0,
         disabled: false,
         style: DragNumberStyle::from_theme(&crate::theme::Theme::framewise()),
         clip_rect: None,
@@ -583,6 +598,7 @@ fn test_drag_number_clipped_click_does_not_take_focus() {
         step: 1.0,
         page_step: 10.0,
         value_formatter: default_drag_number_value_formatter,
+        time: 0.0,
         disabled: false,
         style: DragNumberStyle::from_theme(&crate::theme::Theme::framewise()),
         clip_rect: Some(Rect::new(500.0, 500.0, 100.0, 28.0)),
@@ -1101,6 +1117,229 @@ fn test_drag_number_drag_releases_when_mouse_up() {
 }
 
 #[test]
+fn test_drag_number_arrow_hold_repeat_sequence() {
+    let rect = Rect::new(0.0, 0.0, 100.0, 28.0);
+    let mut state = DragNumberState {
+        value: 50.0,
+        ..Default::default()
+    };
+    let mut focus_system = FocusSystem::new();
+    let mut text_backend = TestTextBackend::default();
+    let mut cmds = DrawCommands::new(1.0);
+    let mut spec = default_spec(rect);
+    spec.step = 5.0;
+    let arrow_pos = right_arrow_pos(rect, "X");
+
+    // Warmup frame: hover the right arrow so the focus system grants active hover.
+    let mut input = Input {
+        mouse_pos: arrow_pos,
+        ..Default::default()
+    };
+    focus_system.begin_frame();
+    let _ = run_raw(
+        spec.clone(),
+        &mut state,
+        &input,
+        &mut focus_system,
+        &mut text_backend,
+        &mut cmds,
+    );
+    focus_system.end_frame();
+
+    // Frame 1: press the right arrow; it steps immediately and schedules repeat.
+    input.mouse_down = true;
+    input.mouse_pressed = true;
+    spec.time = 0.0;
+    focus_system.begin_frame();
+    let _ = run_raw(
+        spec.clone(),
+        &mut state,
+        &input,
+        &mut focus_system,
+        &mut text_backend,
+        &mut cmds,
+    );
+    focus_system.end_frame();
+    assert_eq!(state.value, 55.0);
+    assert!(state.is_arrow_stepping);
+    assert_eq!(
+        state.arrow_step_direction,
+        Some(DragNumberStepDirection::Increment)
+    );
+    assert_eq!(state.next_repeat_time, 0.5);
+
+    // Frame 2: keep holding before the repeat delay; value should not change.
+    input.mouse_pressed = false;
+    spec.time = 0.4;
+    focus_system.begin_frame();
+    let _ = run_raw(
+        spec.clone(),
+        &mut state,
+        &input,
+        &mut focus_system,
+        &mut text_backend,
+        &mut cmds,
+    );
+    focus_system.end_frame();
+    assert_eq!(state.value, 55.0);
+
+    // Frame 3: reach the initial repeat time; one repeat step should fire.
+    spec.time = 0.5;
+    focus_system.begin_frame();
+    let _ = run_raw(
+        spec.clone(),
+        &mut state,
+        &input,
+        &mut focus_system,
+        &mut text_backend,
+        &mut cmds,
+    );
+    focus_system.end_frame();
+    assert_eq!(state.value, 60.0);
+    assert_eq!(state.next_repeat_time, 0.55);
+
+    // Frame 4: continue holding past the fast repeat interval; another step fires.
+    spec.time = 0.6;
+    focus_system.begin_frame();
+    let _ = run_raw(
+        spec.clone(),
+        &mut state,
+        &input,
+        &mut focus_system,
+        &mut text_backend,
+        &mut cmds,
+    );
+    focus_system.end_frame();
+    assert_eq!(state.value, 65.0);
+
+    // Frame 5: release the mouse; arrow-step state is cleared.
+    input.mouse_down = false;
+    focus_system.begin_frame();
+    let _ = run_raw(
+        spec,
+        &mut state,
+        &input,
+        &mut focus_system,
+        &mut text_backend,
+        &mut cmds,
+    );
+    focus_system.end_frame();
+    assert!(!state.is_arrow_stepping);
+    assert_eq!(state.arrow_step_direction, None);
+}
+
+#[test]
+fn test_drag_number_arrow_step_promotes_to_drag_after_motion_threshold() {
+    let rect = Rect::new(0.0, 0.0, 100.0, 28.0);
+    let mut state = DragNumberState {
+        value: 50.0,
+        ..Default::default()
+    };
+    let mut focus_system = FocusSystem::new();
+    let mut text_backend = TestTextBackend::default();
+    let mut cmds = DrawCommands::new(1.0);
+    let mut spec = default_spec(rect);
+    spec.step = 5.0;
+    let arrow_pos = right_arrow_pos(rect, "X");
+
+    // Warmup frame: hover the right arrow so the press goes to this widget.
+    let mut input = Input {
+        mouse_pos: arrow_pos,
+        ..Default::default()
+    };
+    focus_system.begin_frame();
+    let _ = run_raw(
+        spec.clone(),
+        &mut state,
+        &input,
+        &mut focus_system,
+        &mut text_backend,
+        &mut cmds,
+    );
+    focus_system.end_frame();
+
+    // Frame 1: press the right arrow; it steps once and remains in arrow mode.
+    input.mouse_down = true;
+    input.mouse_pressed = true;
+    focus_system.begin_frame();
+    let _ = run_raw(
+        spec.clone(),
+        &mut state,
+        &input,
+        &mut focus_system,
+        &mut text_backend,
+        &mut cmds,
+    );
+    focus_system.end_frame();
+    assert_eq!(state.value, 55.0);
+    assert!(state.is_arrow_stepping);
+    assert!(!state.is_dragging);
+
+    // Frame 2: move less than the 4px threshold; stay in arrow-step mode.
+    input.mouse_pressed = false;
+    input.mouse_pos = Vec2::new(arrow_pos.x + 3.0, arrow_pos.y);
+    focus_system.begin_frame();
+    let _ = run_raw(
+        spec.clone(),
+        &mut state,
+        &input,
+        &mut focus_system,
+        &mut text_backend,
+        &mut cmds,
+    );
+    focus_system.end_frame();
+    assert!(state.is_arrow_stepping);
+    assert!(!state.is_dragging);
+
+    // Frame 3: move beyond the threshold; promote to normal drag from current value.
+    input.mouse_pos = Vec2::new(arrow_pos.x + 6.0, arrow_pos.y);
+    focus_system.begin_frame();
+    let _ = run_raw(
+        spec.clone(),
+        &mut state,
+        &input,
+        &mut focus_system,
+        &mut text_backend,
+        &mut cmds,
+    );
+    focus_system.end_frame();
+    assert!(!state.is_arrow_stepping);
+    assert_eq!(state.arrow_step_direction, None);
+    assert!(state.is_dragging);
+    assert_eq!(state.drag_start_x, input.mouse_pos.x);
+    assert_eq!(state.drag_start_value, 55.0);
+
+    // Frame 4: keep dragging; value follows the existing drag-number scrub formula.
+    input.mouse_pos = Vec2::new(arrow_pos.x + 13.0, arrow_pos.y);
+    focus_system.begin_frame();
+    let _ = run_raw(
+        spec.clone(),
+        &mut state,
+        &input,
+        &mut focus_system,
+        &mut text_backend,
+        &mut cmds,
+    );
+    focus_system.end_frame();
+    let expected = 55.0 + (7.0 / 72.0) * 100.0;
+    assert!((state.value - expected).abs() < 0.0001);
+
+    // Release: normal drag cleanup should run.
+    input.mouse_down = false;
+    focus_system.begin_frame();
+    let _ = run_raw(
+        spec,
+        &mut state,
+        &input,
+        &mut focus_system,
+        &mut text_backend,
+        &mut cmds,
+    );
+    focus_system.end_frame();
+    assert!(!state.is_dragging);
+}
+
+#[test]
 fn test_drag_number_min_greater_than_max_keyboard_does_not_panic() {
     let rect = Rect::new(0.0, 0.0, 100.0, 28.0);
     let spec = raw::DragNumberSpec {
@@ -1112,6 +1351,7 @@ fn test_drag_number_min_greater_than_max_keyboard_does_not_panic() {
         step: 1.0,
         page_step: 10.0,
         value_formatter: default_drag_number_value_formatter,
+        time: 0.0,
         disabled: false,
         style: default_style(),
         clip_rect: None,

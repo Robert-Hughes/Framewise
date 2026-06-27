@@ -28,6 +28,7 @@ pub mod raw {
         pub step: f32,
         pub page_step: f32,
         pub value_formatter: F,
+        pub time: f64,
         pub disabled: bool,
         pub clip_rect: ClipRect,
     }
@@ -159,9 +160,19 @@ pub mod raw {
         let text_w = text_metrics.logical_size.x + s.text_pad_x * 2.0;
         let value_x = spec.rect.x + text_w;
         let value_w = (spec.rect.w - text_w).max(20.0);
+        let value_rect = Rect::new(value_x, spec.rect.y, value_w, spec.rect.h);
+        let arrow_w = value_w.min(20.0).min(value_w * 0.5);
+        let left_arrow_rect = Rect::new(value_x, spec.rect.y, arrow_w, spec.rect.h);
+        let right_arrow_rect = Rect::new(
+            value_x + value_w - arrow_w,
+            spec.rect.y,
+            arrow_w,
+            spec.rect.h,
+        );
 
         let is_visible = spec.clip_rect.is_none_or(|c| c.contains(input.mouse_pos));
         let contains = spec.rect.contains(input.mouse_pos) && is_visible;
+        let contains_value = value_rect.contains(input.mouse_pos) && is_visible;
 
         if contains && !spec.disabled {
             focus_system.claim_hover(state.focus_id);
@@ -174,12 +185,56 @@ pub mod raw {
         // Mouse drag interaction
         if !spec.disabled {
             let hovered_control_area = contains && is_hover_active;
+            let hovered_value_area = contains_value && is_hover_active;
+            let hovered_left_arrow =
+                hovered_value_area && left_arrow_rect.contains(input.mouse_pos);
+            let hovered_right_arrow =
+                hovered_value_area && right_arrow_rect.contains(input.mouse_pos);
+            let hovered_arrow_direction = if hovered_left_arrow {
+                Some(DragNumberStepDirection::Decrement)
+            } else if hovered_right_arrow {
+                Some(DragNumberStepDirection::Increment)
+            } else {
+                None
+            };
 
-            if input.mouse_pressed && hovered_control_area {
+            if state.is_arrow_stepping && !input.mouse_down {
+                state.is_arrow_stepping = false;
+                state.arrow_step_direction = None;
+            }
+
+            let dx = input.mouse_pos.x - state.arrow_step_start_mouse_pos.x;
+            let dy = input.mouse_pos.y - state.arrow_step_start_mouse_pos.y;
+            let drag_dist = dx.hypot(dy);
+            const ARROW_DRAG_THRESHOLD: f32 = 4.0;
+            if state.is_arrow_stepping && input.mouse_down && drag_dist > ARROW_DRAG_THRESHOLD {
+                state.is_arrow_stepping = false;
+                state.arrow_step_direction = None;
                 state.is_dragging = true;
                 state.drag_start_x = input.mouse_pos.x;
                 state.drag_start_value = state.value;
+            }
+
+            if input.mouse_pressed && hovered_control_area {
                 focus_system.take_keyboard_focus(state.focus_id);
+                if let Some(direction) = hovered_arrow_direction {
+                    step_value(state, direction, spec.step, clamp_min, clamp_max);
+                    state.is_arrow_stepping = true;
+                    state.arrow_step_start_mouse_pos = input.mouse_pos;
+                    state.arrow_step_direction = Some(direction);
+                    state.next_repeat_time = spec.time + 0.5;
+                } else {
+                    state.is_dragging = true;
+                    state.drag_start_x = input.mouse_pos.x;
+                    state.drag_start_value = state.value;
+                }
+            }
+
+            if state.is_arrow_stepping && input.mouse_down && spec.time >= state.next_repeat_time {
+                if let Some(direction) = state.arrow_step_direction {
+                    step_value(state, direction, spec.step, clamp_min, clamp_max);
+                    state.next_repeat_time = spec.time + 0.05;
+                }
             }
 
             if state.is_dragging {
@@ -304,7 +359,7 @@ pub mod raw {
         let value_metrics = value_layout.metrics();
         let vtx = value_x + (value_w - value_metrics.logical_size.x) * 0.5;
         let vty = spec.rect.y + (spec.rect.h - value_metrics.logical_size.y) * 0.5;
-        let value_rect = Rect::new(
+        let value_text_rect = Rect::new(
             vtx,
             vty,
             value_metrics.logical_size.x,
@@ -313,10 +368,56 @@ pub mod raw {
         value_layout.emit_glyphs(
             cmds,
             text_backend,
-            Vec2::new(value_rect.x, value_rect.y),
+            Vec2::new(value_text_rect.x, value_text_rect.y),
             tint(s.value_text),
             spec.layer.get_z(),
         );
+
+        if !spec.disabled && (contains_value && is_hover_active || state.is_arrow_stepping) {
+            let arrow_color = tint(Color::linear_rgba(
+                s.value_text.r,
+                s.value_text.g,
+                s.value_text.b,
+                s.value_text.a * 0.55,
+            ));
+            let left_arrow = "\u{2039}";
+            let left_layout = layout_text(
+                text_backend,
+                left_arrow,
+                s.text_style,
+                crate::text::TextBounds::UNBOUNDED,
+            );
+            let left_metrics = left_layout.metrics();
+            let left_x =
+                left_arrow_rect.x + (left_arrow_rect.w - left_metrics.logical_size.x) * 0.5;
+            let left_y = spec.rect.y + (spec.rect.h - left_metrics.logical_size.y) * 0.5;
+            left_layout.emit_glyphs(
+                cmds,
+                text_backend,
+                Vec2::new(left_x, left_y),
+                arrow_color,
+                spec.layer.get_z(),
+            );
+
+            let right_arrow = "\u{203A}";
+            let right_layout = layout_text(
+                text_backend,
+                right_arrow,
+                s.text_style,
+                crate::text::TextBounds::UNBOUNDED,
+            );
+            let right_metrics = right_layout.metrics();
+            let right_x =
+                right_arrow_rect.x + (right_arrow_rect.w - right_metrics.logical_size.x) * 0.5;
+            let right_y = spec.rect.y + (spec.rect.h - right_metrics.logical_size.y) * 0.5;
+            right_layout.emit_glyphs(
+                cmds,
+                text_backend,
+                Vec2::new(right_x, right_y),
+                arrow_color,
+                spec.layer.get_z(),
+            );
+        }
 
         // Border pushed at the very end to draw on top of the value fill.
         let tinted_border = s.border.map(|b| Stroke::new(tint(b.color), b.width));
@@ -332,7 +433,15 @@ pub mod raw {
             && !spec.disabled
             && (!input.mouse_down || state.is_dragging);
 
-        let cursor_icon = if !spec.disabled && (contains || state.is_dragging) {
+        let active_arrow = state.is_arrow_stepping && !spec.disabled;
+        let hovered_arrow = !spec.disabled
+            && contains_value
+            && is_hover_active
+            && (left_arrow_rect.contains(input.mouse_pos)
+                || right_arrow_rect.contains(input.mouse_pos));
+        let cursor_icon = if active_arrow || hovered_arrow {
+            Some(crate::output::CursorIcon::Pointer)
+        } else if !spec.disabled && (contains || state.is_dragging) {
             Some(crate::output::CursorIcon::EwResize)
         } else {
             None
@@ -411,7 +520,31 @@ pub struct DragNumberState {
     pub is_dragging: bool,
     pub drag_start_x: f32,
     pub drag_start_value: f32,
+    pub is_arrow_stepping: bool,
+    pub arrow_step_start_mouse_pos: Vec2,
+    pub arrow_step_direction: Option<DragNumberStepDirection>,
+    pub next_repeat_time: f64,
     pub focus_id: FocusId,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DragNumberStepDirection {
+    Decrement,
+    Increment,
+}
+
+fn step_value(
+    state: &mut DragNumberState,
+    direction: DragNumberStepDirection,
+    step: f32,
+    clamp_min: f32,
+    clamp_max: f32,
+) {
+    let delta = match direction {
+        DragNumberStepDirection::Decrement => -step,
+        DragNumberStepDirection::Increment => step,
+    };
+    state.value = (state.value + delta).clamp(clamp_min, clamp_max);
 }
 
 // ── Result ───────────────────────────────────────────────────────────────────
@@ -574,6 +707,7 @@ where
         step: spec.step,
         page_step: spec.page_step,
         value_formatter: spec.value_formatter,
+        time: ctx.time,
         disabled: spec.disabled,
         clip_rect: ctx.clip_rect,
     };
