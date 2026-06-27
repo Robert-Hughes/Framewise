@@ -1,5 +1,3 @@
-#[cfg(test)]
-use crate::draw::DrawCmd;
 use crate::{
     draw::{BorderPlacement, DrawCommands},
     layout::{LayoutState, SizeOffer},
