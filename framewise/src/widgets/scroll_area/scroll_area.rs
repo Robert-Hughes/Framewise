@@ -63,6 +63,11 @@ pub mod raw {
         pub inner_space: LayoutSpace,
     }
 
+    #[derive(Debug, Clone, Copy, Default, PartialEq)]
+    pub struct ScrollAreaEndResult {
+        pub scrollbar_pressed: bool,
+    }
+
     /// Return the size this scroll area would request under `offer`.
     ///
     /// The current implementation ignores `offer` because a scroll area's outer
@@ -205,7 +210,7 @@ pub mod raw {
         input: &Input,
         focus_system: &mut FocusSystem,
         cmds: &mut DrawCommands,
-    ) {
+    ) -> ScrollAreaEndResult {
         let max_scroll = Vec2::new(
             (content_extent.x - token.content_bounds.w).max(0.0),
             (content_extent.y - token.content_bounds.h).max(0.0),
@@ -230,6 +235,8 @@ pub mod raw {
         // End the content clip BEFORE drawing the scrollbars: they live in the
         // reserved gutter (outside content_bounds) and must draw on top of content.
         cmds.push(DrawCmd::PopClip);
+
+        let mut scrollbar_pressed = false;
 
         if token.needs_v {
             let span = token.content_bounds.h;
@@ -266,7 +273,7 @@ pub mod raw {
                 lower: state.offset.y,
                 upper: state.offset.y + span,
             };
-            crate::widgets::slider::raw::post_layout_slider(
+            let slider_result = crate::widgets::slider::raw::post_layout_slider(
                 slider_spec,
                 crate::widgets::slider::raw::SliderPreLayoutResult {
                     size_request: crate::layout::SizeRequest::UNKNOWN,
@@ -276,6 +283,7 @@ pub mod raw {
                 focus_system,
                 cmds,
             );
+            scrollbar_pressed |= slider_result.input.pressed;
             state.offset.y = state.vert_slider_state.value.lower();
         }
 
@@ -312,7 +320,7 @@ pub mod raw {
                 lower: state.offset.x,
                 upper: state.offset.x + span,
             };
-            crate::widgets::slider::raw::post_layout_slider(
+            let slider_result = crate::widgets::slider::raw::post_layout_slider(
                 slider_spec,
                 crate::widgets::slider::raw::SliderPreLayoutResult {
                     size_request: crate::layout::SizeRequest::UNKNOWN,
@@ -322,6 +330,7 @@ pub mod raw {
                 focus_system,
                 cmds,
             );
+            scrollbar_pressed |= slider_result.input.pressed;
             state.offset.x = state.horiz_slider_state.value.lower();
         }
 
@@ -461,6 +470,8 @@ pub mod raw {
                 }
             }
         }
+
+        ScrollAreaEndResult { scrollbar_pressed }
     }
 
     /// Route the wheel delta to the appropriate axis(es) based on mode, but only

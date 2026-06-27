@@ -1,6 +1,7 @@
 mod raw {
     pub use super::super::raw::{
-        end_scroll_area, ScrollAreaPreLayoutResult, ScrollAreaResult, ScrollAreaSpec,
+        end_scroll_area, ScrollAreaEndResult, ScrollAreaPreLayoutResult, ScrollAreaResult,
+        ScrollAreaSpec,
     };
     pub fn begin_scroll_area(
         spec: ScrollAreaSpec,
@@ -42,6 +43,32 @@ fn scroll_area(
     Rect,
     crate::layouts::OffsetLayout<crate::layouts::ManualLayout>,
 ) {
+    let (cmds, content_bounds, layout, _) = scroll_area_with_end_result(
+        bounds,
+        content_size,
+        state,
+        input,
+        focus_system,
+        clip_rect,
+        time,
+    );
+    (cmds, content_bounds, layout)
+}
+
+fn scroll_area_with_end_result(
+    bounds: Rect,
+    content_size: Vec2,
+    state: &mut ScrollState,
+    input: &Input,
+    focus_system: &mut FocusSystem,
+    clip_rect: ClipRect,
+    time: f64,
+) -> (
+    DrawCommands,
+    Rect,
+    crate::layouts::OffsetLayout<crate::layouts::ManualLayout>,
+    raw::ScrollAreaEndResult,
+) {
     let spec = ScrollAreaSpec {
         layer: Layer::default(),
         rect: bounds,
@@ -67,12 +94,13 @@ fn scroll_area(
     };
     let mut cmds = DrawCommands::new(1.0);
     let r = raw::begin_scroll_area(spec, state, input, focus_system, &mut cmds);
-    raw::end_scroll_area(r.token, content_size, state, input, focus_system, &mut cmds);
+    let end_result =
+        raw::end_scroll_area(r.token, content_size, state, input, focus_system, &mut cmds);
     let layout = crate::layouts::OffsetLayout {
         offset: r.offset,
         inner: ManualLayout,
     };
-    (cmds, r.content_bounds, layout)
+    (cmds, r.content_bounds, layout, end_result)
 }
 
 #[test]
@@ -82,7 +110,7 @@ fn test_scroll_area_math() {
     let input = Input::new();
     let mut focus_system = FocusSystem::new();
 
-    let (_, content_bounds, layout) = scroll_area(
+    let (_, content_bounds, layout, end_result) = scroll_area_with_end_result(
         bounds,
         Vec2::new(200.0, 400.0),
         &mut state,
@@ -94,6 +122,7 @@ fn test_scroll_area_math() {
 
     assert_eq!(content_bounds.w, 190.0);
     assert_eq!(layout.offset.y, 0.0);
+    assert!(!end_result.scrollbar_pressed);
 }
 
 fn nested_scroll_two_frames(
@@ -210,7 +239,7 @@ fn test_scroll_area_vertical_scrollbar_segment_drag_updates_offset_y() {
         ..Default::default()
     };
     let mut focus_system = FocusSystem::new();
-    let (_, _, _) = scroll_area(
+    let (_, _, _, end_result) = scroll_area_with_end_result(
         Rect::new(0.0, 0.0, 200.0, 200.0),
         Vec2::new(188.0, 400.0),
         &mut state,
@@ -221,6 +250,7 @@ fn test_scroll_area_vertical_scrollbar_segment_drag_updates_offset_y() {
     );
 
     assert!(state.offset.y > 0.0);
+    assert!(end_result.scrollbar_pressed);
 }
 
 #[test]
@@ -238,7 +268,7 @@ fn test_scroll_area_horizontal_scrollbar_segment_drag_updates_offset_x() {
         ..Default::default()
     };
     let mut focus_system = FocusSystem::new();
-    let (_, _, _) = scroll_area(
+    let (_, _, _, end_result) = scroll_area_with_end_result(
         Rect::new(0.0, 0.0, 200.0, 200.0),
         Vec2::new(400.0, 188.0),
         &mut state,
@@ -249,6 +279,7 @@ fn test_scroll_area_horizontal_scrollbar_segment_drag_updates_offset_x() {
     );
 
     assert!(state.offset.x > 0.0);
+    assert!(end_result.scrollbar_pressed);
 }
 
 #[test]

@@ -4,8 +4,6 @@ Working notes, TODOs, open questions, and half-baked ideas.
 
 ## Current Work
 
-- Clicking and dragging a text_edit scrollbar doesn't focus the text_edit!
-
 - Go through the spec_page, check/implement/test each widget/aspect to make better match the mock-up and add interactivity as we go (https://claude.ai/design/p/1aab4e86-cbf2-497e-b379-44cf41de2b12?file=Framewise+Widgets.html)
   - Done 01-03
   - Add demo pages for each widget type (or possibly in groups?)
@@ -273,6 +271,8 @@ This is the same width ↔ content self-dependency that bars **constraint-affect
 
 - NOw that we have z-buffering, we could draw the draw commands out-of-order if we assign a different Z for each command, to 'simulate' correct draw order even if we actually batch a bunch together or draw them out of order.
 
+- Should disabled widgets still be making hover claims? If not, then a disabled widget visually on top of an enabled one might not block mouse input as expected
+
 ## Pixel Snapping
 
 We want to design a unified strategy for pixel snapping for geometry in Framewise.
@@ -390,8 +390,7 @@ The "App-Managed State" option would require either a trait layer (so the widget
 - 'Enter key policy' - does it insert a newline (depending on the NewlinePolicy) or 'submit' the form/dialog? Perhaps shift/ctrl/enter is needed, to make a newline, or maybe that's how you submit instead?
 - tab alignment within text. Maybe need a 'tab policy' like we could for Enter key?
 - Should disabled overflowing text still show scrollbars?
-- Should clicking on the scrollbar area of a text_edit set focus to the text edit?
-
+- after a scrollbar press focuses an unfocused editor, the next focused frame can auto-reveal the existing caret and undo the scroll if the caret is near the top
 
 ## Splitters
 

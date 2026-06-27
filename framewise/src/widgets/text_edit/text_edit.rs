@@ -1206,7 +1206,7 @@ pub mod raw {
             focus_system.claim_pgdn_vert(state.focus_id);
         }
 
-        end_scroll_area(
+        let scroll_end_result = end_scroll_area(
             scroll_result.token,
             inner_scroll_size,
             &mut state.scroll,
@@ -1214,6 +1214,10 @@ pub mod raw {
             focus_system,
             cmds,
         );
+        if scroll_end_result.scrollbar_pressed && !focused {
+            state.suppress_select_all_on_next_focus = true;
+            focus_system.take_keyboard_focus(state.focus_id);
+        }
 
         // Border - must be drawn after the scroll bars as the focus border can overlap them slightly.
         let border = if spec.error {

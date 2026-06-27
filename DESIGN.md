@@ -1121,6 +1121,10 @@ Because Framewise lacks a retained UI tree, routing user input to the correct wi
      * **Mechanism:** Containers finish and teardown bottom-up (innermost first). The innermost container claims the scroll event first (`claim_scroll_up`, etc.). Parent containers finishing later check if a claim has already been registered; if so, they respect it and do not overwrite it. If the child container is at its limit and declines to claim, the parent's claim succeeds, enabling natural nested scrolling.
 - **The Guiding Principle:** Why not solve this locally by having the inner widget consume the event bottom-up when its scope closes? Because doing so would mutate the widget's local state *after* it has already laid out its children. This violates a core Framewise principle: **If local state is modified in Frame N, it must visually reflect in Frame N.** If a state change must be delayed to Frame N+1 (due to top-down evaluation constraints), that pending intent must be explicitly stored in a central system (like `FocusSystem` or `InteractionSystem`), not quietly hidden inside local widget state.
 
+- **Composite Focus Propagation:** Hover claims remain authoritative for deciding which overlapping widget owns mouse input. Container/composite widgets such as `text_edit` should not bypass hover claims to handle clicks on child affordances. Instead, hierarchical focus behavior is propagated explicitly through widget result structs: for example, a `ScrollArea` can report that one of its scrollbars is pressed, and the parent `TextEdit` can use that signal to take keyboard focus while the scrollbar continues to own pointer interaction.
+
+- **Disabled Widgets Still Occlude:** Disabled widgets should still make hover claims when the pointer is over their bounds. Otherwise, a disabled widget visually layered above an enabled widget might fail to block mouse input to the enabled widget underneath.
+
 ---
 
 ## Text Rendering

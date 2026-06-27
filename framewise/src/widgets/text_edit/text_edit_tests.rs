@@ -1685,6 +1685,151 @@ fn test_text_edit_click_takes_focus() {
 }
 
 #[test]
+fn test_text_edit_scrollbar_interaction_scrolls_text_and_takes_focus_without_selection() {
+    fn first_glyph_top_left(cmds: &DrawCommands) -> Vec2 {
+        cmds.iter()
+            .find_map(|cmd| {
+                if let DrawCmd::GlyphRun { glyphs, .. } = cmd {
+                    Some(cmds.glyphs()[glyphs.start].top_left)
+                } else {
+                    None
+                }
+            })
+            .expect("text edit should draw text glyphs")
+    }
+
+    let mut text_backend = TestTextBackend::default();
+    let mut focus_system = FocusSystem::new();
+    let mut state = TextEditState::new("one\ntwo\nthree\nfour\nfive");
+    set_caret_byte(&mut state, 14);
+    set_selection_byte(&mut state, None);
+
+    let edit_spec = TextEditSpec {
+        rect: Rect::new(0.0, 0.0, 200.0, 40.0),
+        newline_policy: NewlinePolicy::Preserve,
+        ..spec()
+    };
+    let hover_input = Input {
+        mouse_pos: Vec2::new(196.0, 30.0),
+        ..Default::default()
+    };
+
+    let mut initial_cmds = DrawCommands::new(1.0);
+    focus_system.begin_frame();
+    raw::post_layout_text_edit(
+        edit_spec.clone(),
+        raw::post_layout_only_pre_layout_result(&mut state),
+        &mut state,
+        &hover_input,
+        &mut focus_system,
+        &mut text_backend,
+        &mut initial_cmds,
+    );
+    focus_system.end_frame();
+    let initial_glyph_pos = first_glyph_top_left(&initial_cmds);
+
+    focus_system.begin_frame();
+    raw::post_layout_text_edit(
+        edit_spec.clone(),
+        raw::post_layout_only_pre_layout_result(&mut state),
+        &mut state,
+        &Input {
+            mouse_pos: Vec2::new(196.0, 30.0),
+            mouse_pressed: true,
+            mouse_down: true,
+            ..Default::default()
+        },
+        &mut focus_system,
+        &mut text_backend,
+        &mut DrawCommands::new(1.0),
+    );
+    focus_system.end_frame();
+
+    assert_eq!(focus_system.current_keyboard_focus(), Some(state.focus_id));
+    assert!(
+        state.scroll.offset.y > 0.0,
+        "scrollbar track press should scroll the text edit"
+    );
+    assert_eq!(caret_byte(&state), 14);
+    assert_eq!(selection_byte(&state), None);
+
+    let mut after_press_cmds = DrawCommands::new(1.0);
+    focus_system.begin_frame();
+    raw::post_layout_text_edit(
+        edit_spec.clone(),
+        raw::post_layout_only_pre_layout_result(&mut state),
+        &mut state,
+        &Input::default(),
+        &mut focus_system,
+        &mut text_backend,
+        &mut after_press_cmds,
+    );
+    focus_system.end_frame();
+    let after_press_glyph_pos = first_glyph_top_left(&after_press_cmds);
+    assert!(
+        after_press_glyph_pos.y < initial_glyph_pos.y,
+        "next frame should render text at the scrolled location"
+    );
+
+    let mut drag_state = TextEditState::new("one\ntwo\nthree\nfour\nfive");
+    set_caret_byte(&mut drag_state, 14);
+    set_selection_byte(&mut drag_state, None);
+    drag_state.scroll.vert_slider_state.active_part =
+        Some(crate::widgets::slider::SliderPart::Segment);
+    drag_state.scroll.vert_slider_state.drag_start_mouse_coord = 10.0;
+    drag_state.scroll.vert_slider_state.drag_start_value = crate::widgets::SliderValue::Range {
+        lower: 0.0,
+        upper: 38.0,
+    };
+    let mut drag_focus_system = FocusSystem::new();
+
+    drag_focus_system.begin_frame();
+    raw::post_layout_text_edit(
+        edit_spec.clone(),
+        raw::post_layout_only_pre_layout_result(&mut drag_state),
+        &mut drag_state,
+        &Input {
+            mouse_pos: Vec2::new(196.0, 25.0),
+            mouse_down: true,
+            ..Default::default()
+        },
+        &mut drag_focus_system,
+        &mut text_backend,
+        &mut DrawCommands::new(1.0),
+    );
+    drag_focus_system.end_frame();
+
+    assert_eq!(
+        drag_focus_system.current_keyboard_focus(),
+        Some(drag_state.focus_id)
+    );
+    assert!(
+        drag_state.scroll.offset.y > 0.0,
+        "scrollbar drag should scroll the text edit"
+    );
+    assert_eq!(caret_byte(&drag_state), 14);
+    assert_eq!(selection_byte(&drag_state), None);
+
+    let mut after_drag_cmds = DrawCommands::new(1.0);
+    drag_focus_system.begin_frame();
+    raw::post_layout_text_edit(
+        edit_spec,
+        raw::post_layout_only_pre_layout_result(&mut drag_state),
+        &mut drag_state,
+        &Input::default(),
+        &mut drag_focus_system,
+        &mut text_backend,
+        &mut after_drag_cmds,
+    );
+    drag_focus_system.end_frame();
+    let after_drag_glyph_pos = first_glyph_top_left(&after_drag_cmds);
+    assert!(
+        after_drag_glyph_pos.y < initial_glyph_pos.y,
+        "next frame should render dragged text at the scrolled location"
+    );
+}
+
+#[test]
 fn test_text_edit_clipped_click_does_not_take_focus() {
     let mut text_backend = TestTextBackend::default();
     let mut focus_system = FocusSystem::new();
@@ -5487,7 +5632,7 @@ fn test_text_edit_visual_vertical_scrollbar() {
     edit_spec.newline_policy = NewlinePolicy::Preserve;
 
     raw::post_layout_text_edit(
-        edit_spec,
+        edit_spec.clone(),
         raw::post_layout_only_pre_layout_result(&mut state),
         &mut state,
         &input,
