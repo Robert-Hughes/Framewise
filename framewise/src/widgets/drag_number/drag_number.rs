@@ -182,7 +182,6 @@ pub mod raw {
 
         // Mouse drag interaction
         if !spec.disabled {
-            let hovered_control_area = contains && is_hover_active;
             let hovered_value_area = contains_value && is_hover_active;
             let hovered_left_arrow =
                 hovered_value_area && left_arrow_rect.contains(input.mouse_pos);
@@ -213,8 +212,11 @@ pub mod raw {
                 state.drag_start_value = state.value;
             }
 
-            if input.mouse_pressed && hovered_control_area {
+            if input.mouse_pressed && contains && is_hover_active {
                 focus_system.take_keyboard_focus(state.focus_id);
+            }
+
+            if input.mouse_pressed && hovered_value_area {
                 if let Some(direction) = hovered_arrow_direction {
                     step_value(state, direction, spec.step, clamp_min, clamp_max);
                     state.is_arrow_stepping = true;
@@ -441,7 +443,7 @@ pub mod raw {
                 || right_arrow_rect.contains(input.mouse_pos));
         let cursor_icon = if active_arrow || hovered_arrow {
             Some(crate::output::CursorIcon::Pointer)
-        } else if !spec.disabled && (contains || state.is_dragging) {
+        } else if !spec.disabled && (contains_value || state.is_dragging) {
             Some(crate::output::CursorIcon::EwResize)
         } else {
             None

@@ -564,10 +564,7 @@ fn test_drag_number_click_takes_focus() {
     );
     focus_system.end_frame();
 
-    assert_eq!(
-        result.cursor_icon,
-        Some(crate::output::CursorIcon::EwResize)
-    );
+    assert_eq!(result.cursor_icon, None);
     assert_eq!(
         focus_system.current_keyboard_focus(),
         Some(state.focus_id),
@@ -1391,7 +1388,7 @@ fn test_drag_number_min_greater_than_max_keyboard_does_not_panic() {
 }
 
 #[test]
-fn test_drag_number_label_area_starts_dragging() {
+fn test_drag_number_label_area_takes_focus_without_dragging() {
     let rect = Rect::new(0.0, 0.0, 100.0, 28.0);
     let label = "X";
     let mut state = DragNumberState {
@@ -1437,8 +1434,13 @@ fn test_drag_number_label_area_starts_dragging() {
     focus_system.end_frame();
 
     assert!(
-        state.is_dragging,
-        "Pressing inside label area should start dragging"
+        !state.is_dragging,
+        "Pressing inside label area should not start dragging"
+    );
+    assert_eq!(
+        focus_system.current_keyboard_focus(),
+        Some(state.focus_id),
+        "Pressing inside label area should still take focus"
     );
 }
 
