@@ -110,7 +110,7 @@ pub mod raw {
             state.is_dragging = false;
         }
 
-        let (focused, clicked) = if spec.disabled {
+        let (focused, _) = if spec.disabled {
             (false, false)
         } else {
             crate::focus::handle_widget_keyboard_focus(
@@ -119,7 +119,7 @@ pub mod raw {
                 spec.clip_rect,
                 input,
                 focus_system,
-                crate::focus::FocusTraversalKeys::all(),
+                crate::focus::FocusTraversalKeys::tab_only(),
                 spec.disabled,
             )
         };
@@ -149,8 +149,6 @@ pub mod raw {
         let clamp_min = spec.min.min(spec.max);
         let clamp_max = spec.min.max(spec.max);
 
-        let mut was_released = false;
-
         // Mouse drag interaction
         if !spec.disabled {
             let hovered_control_area = contains && is_hover_active;
@@ -165,7 +163,6 @@ pub mod raw {
             if state.is_dragging {
                 if !input.mouse_down {
                     state.is_dragging = false;
-                    was_released = contains;
                 } else {
                     let dx = input.mouse_pos.x - state.drag_start_x;
                     let value_range = spec.max - spec.min;
@@ -291,14 +288,12 @@ pub mod raw {
             && is_hover_active
             && !spec.disabled
             && (!input.mouse_down || state.is_dragging);
-        let report_clicked =
-            (clicked && !state.is_dragging) || (was_released && input.mouse_clicked);
 
         DragNumberResult {
             input: InputInfo {
                 hovered,
                 pressed: state.is_dragging && !spec.disabled,
-                clicked: report_clicked && !spec.disabled,
+                clicked: false,
             },
             focused,
             content_bounds: spec.rect.inset(s.border.map_or(0.0, |b| b.width)),
@@ -330,8 +325,8 @@ impl DragNumberStyle {
             height: theme.h_md,
             text_pad_x: 10.0,
             text_style: crate::text::TextStyle::new(
-                theme.sans_font,
-                theme.text_md,
+                theme.mono_font,
+                theme.text_mono,
                 theme.sans_weight_regular,
                 crate::text::TextFlow::single_line(),
             ),

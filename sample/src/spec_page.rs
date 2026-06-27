@@ -309,28 +309,40 @@ fn draw_drag_number_fake_state<T: TextBackend, LS: LayoutState, CF>(
     val: f32,
     min: f32,
     max: f32,
-    is_active: bool,
+    is_focused: bool,
+    is_dragging: bool,
+    disabled: bool,
 ) {
     let rect = b.layout(layout_params, SizeRequest::UNKNOWN);
     let mut state = DragNumberState {
         value: val,
-        is_dragging: is_active,
+        is_dragging,
+        drag_start_value: val,
         ..Default::default()
     };
 
-    let dummy_input = Input::default();
+    let mut dummy_input = Input::default();
+    if is_dragging {
+        dummy_input.mouse_down = true;
+    }
+
     let spec = framewise::widgets::drag_number::raw::DragNumberSpec {
         rect,
         text: label,
         min,
         max,
-        disabled: false,
+        disabled,
         style: DragNumberStyle::from_theme(&b.theme),
         clip_rect: b.clip_rect,
         layer: b.layer,
     };
 
-    let mut dummy_focus_sys = FocusSystem::new();
+    let mut dummy_focus_sys = if is_focused {
+        FocusSystem::new_mocked(Some(state.focus_id), None)
+    } else {
+        FocusSystem::new()
+    };
+
     let pre_layout = framewise::widgets::drag_number::raw::pre_layout_drag_number(
         &framewise::widgets::drag_number::raw::DragNumberPreLayoutSpec {
             text: spec.text,
@@ -636,7 +648,7 @@ pub struct SpecWidgetsState {
     #[cfg(all(feature = "slider", feature = "drag_number", feature = "color_swatch"))]
     pub slider_range_state: SliderState,
     #[cfg(all(feature = "slider", feature = "drag_number", feature = "color_swatch"))]
-    pub dn_showcase: Vec<DragNumberState>, // X(320), Y(144), H(400) — W stays fake
+    pub dn_showcase: Vec<DragNumberState>, // X(320), Y(144), H(400, disabled) — W stays fake
 
     // 05 Selection
     #[cfg(all(
@@ -2648,33 +2660,38 @@ fn section_04_sliders<CF>(
 
     group_y(b, "drag-number");
     {
+        const DRAG_W: f32 = 168.0;
+        const GAP: f32 = 12.0;
         let mut b = b.child_with_layout(ColumnLayoutParams::fixed(content_w, 42.0), ManualLayout);
         let mut x = 0.0;
-        let rect = Rect::new(x, 0.0, 100.0, b.theme.h_md);
+        let rect = Rect::new(x, 14.0, DRAG_W, b.theme.h_md);
         drag_number(
             &mut b,
             DragNumberSpecBuilder::new().text("X").max(800.0),
             rect,
             &mut state.dn_showcase[0],
         );
-        x += 108.0;
-        let rect = Rect::new(x, 0.0, 100.0, b.theme.h_md);
+        x += DRAG_W + GAP;
+        let rect = Rect::new(x, 14.0, DRAG_W, b.theme.h_md);
         drag_number(
             &mut b,
             DragNumberSpecBuilder::new().text("Y").max(600.0),
             rect,
             &mut state.dn_showcase[1],
         );
-        x += 108.0;
+        x += DRAG_W + GAP;
         let badge_rect = b.layout(Rect::new(x, 0.0, 72.0, 12.0), SizeRequest::UNKNOWN);
         static_badge(&mut b, badge_rect);
-        let rect = Rect::new(x, 0.0, 100.0, b.theme.h_md);
-        draw_drag_number_fake_state(&mut b, rect, "W", 576.0, 0.0, 800.0, true);
-        x += 108.0;
-        let rect = Rect::new(x, 0.0, 100.0, b.theme.h_md);
+        let rect = Rect::new(x, 14.0, DRAG_W, b.theme.h_md);
+        draw_drag_number_fake_state(&mut b, rect, "W", 576.0, 0.0, 800.0, false, true, false);
+        x += DRAG_W + GAP;
+        let rect = Rect::new(x, 14.0, DRAG_W, b.theme.h_md);
         drag_number(
             &mut b,
-            DragNumberSpecBuilder::new().text("H").max(600.0),
+            DragNumberSpecBuilder::new()
+                .text("H")
+                .max(600.0)
+                .disabled(true),
             rect,
             &mut state.dn_showcase[2],
         );

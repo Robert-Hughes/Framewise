@@ -5,12 +5,10 @@ Working notes, TODOs, open questions, and half-baked ideas.
 ## Current Work
 
 - drag_number
-  - Make one of the drag_numbers in the spec page disabled so that we can see that
-  - Drag number fill background ("soft rust"?) is slightly different to the mockup. Not sure if just this widget or wrong in the theme
+  - hover styling with little arrow icons shown on mockup. Can these be clickable (with hold-repeat) to increment/decrement by step?
   - keyboard arrows and page up/down home/end
-  - click on text to edit it by typing?
-  - width of controls doesn't match the mockup
-  - hover styling with little arrow icons shown on mockup
+  - double-click on text to edit it by typing?
+  - configurable step increment
 
 
 - Mouse cursor changes for clickable things like buttons and draggable things like sliders or dragnumbers?

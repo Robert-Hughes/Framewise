@@ -136,27 +136,27 @@ fn test_drag_number_visual_normal() {
         vec![
             DrawGlyph {
                 token: PreparedGlyphToken(88),
-                top_left: Vec2 { x: 20.0, y: 29.0 },
+                top_left: Vec2 { x: 20.0, y: 28.0 },
             },
             DrawGlyph {
                 token: PreparedGlyphToken(53),
-                top_left: Vec2 { x: 54.0, y: 29.0 },
+                top_left: Vec2 { x: 54.0, y: 28.0 },
             },
             DrawGlyph {
                 token: PreparedGlyphToken(48),
-                top_left: Vec2 { x: 62.0, y: 29.0 },
+                top_left: Vec2 { x: 62.0, y: 28.0 },
             },
             DrawGlyph {
                 token: PreparedGlyphToken(46),
-                top_left: Vec2 { x: 70.0, y: 29.0 },
+                top_left: Vec2 { x: 70.0, y: 28.0 },
             },
             DrawGlyph {
                 token: PreparedGlyphToken(48),
-                top_left: Vec2 { x: 78.0, y: 29.0 },
+                top_left: Vec2 { x: 78.0, y: 28.0 },
             },
             DrawGlyph {
                 token: PreparedGlyphToken(48),
-                top_left: Vec2 { x: 86.0, y: 29.0 },
+                top_left: Vec2 { x: 86.0, y: 28.0 },
             },
         ]
     );
@@ -277,27 +277,27 @@ fn test_drag_number_visual_active() {
         vec![
             DrawGlyph {
                 token: PreparedGlyphToken(88),
-                top_left: Vec2 { x: 20.0, y: 29.0 },
+                top_left: Vec2 { x: 20.0, y: 28.0 },
             },
             DrawGlyph {
                 token: PreparedGlyphToken(53),
-                top_left: Vec2 { x: 54.0, y: 29.0 },
+                top_left: Vec2 { x: 54.0, y: 28.0 },
             },
             DrawGlyph {
                 token: PreparedGlyphToken(48),
-                top_left: Vec2 { x: 62.0, y: 29.0 },
+                top_left: Vec2 { x: 62.0, y: 28.0 },
             },
             DrawGlyph {
                 token: PreparedGlyphToken(46),
-                top_left: Vec2 { x: 70.0, y: 29.0 },
+                top_left: Vec2 { x: 70.0, y: 28.0 },
             },
             DrawGlyph {
                 token: PreparedGlyphToken(48),
-                top_left: Vec2 { x: 78.0, y: 29.0 },
+                top_left: Vec2 { x: 78.0, y: 28.0 },
             },
             DrawGlyph {
                 token: PreparedGlyphToken(48),
-                top_left: Vec2 { x: 86.0, y: 29.0 },
+                top_left: Vec2 { x: 86.0, y: 28.0 },
             },
         ]
     );
@@ -368,23 +368,23 @@ fn test_drag_number_visual_min_value() {
         vec![
             DrawGlyph {
                 token: PreparedGlyphToken(88),
-                top_left: Vec2 { x: 20.0, y: 29.0 },
+                top_left: Vec2 { x: 20.0, y: 28.0 },
             },
             DrawGlyph {
                 token: PreparedGlyphToken(48),
-                top_left: Vec2 { x: 58.0, y: 29.0 },
+                top_left: Vec2 { x: 58.0, y: 28.0 },
             },
             DrawGlyph {
                 token: PreparedGlyphToken(46),
-                top_left: Vec2 { x: 66.0, y: 29.0 },
+                top_left: Vec2 { x: 66.0, y: 28.0 },
             },
             DrawGlyph {
                 token: PreparedGlyphToken(48),
-                top_left: Vec2 { x: 74.0, y: 29.0 },
+                top_left: Vec2 { x: 74.0, y: 28.0 },
             },
             DrawGlyph {
                 token: PreparedGlyphToken(48),
-                top_left: Vec2 { x: 82.0, y: 29.0 },
+                top_left: Vec2 { x: 82.0, y: 28.0 },
             },
         ]
     );
@@ -1036,33 +1036,158 @@ fn test_drag_number_overlapping_press_uses_top_widget() {
         ..Default::default()
     };
     let overlap_pos = value_area_pos(rect, "X");
+    let mut focus_system = FocusSystem::new();
+    let mut text_backend = TestTextBackend::default();
+    let mut cmds = DrawCommands::new(1.0);
 
-    crate::widgets::test_helpers::assert_overlapping_click(
+    // Warm up hover over two overlapping drag-numbers
+    let warmup_input = Input {
+        mouse_pos: overlap_pos,
+        ..Default::default()
+    };
+    focus_system.begin_frame();
+    let spec_b = default_spec(rect);
+    let spec_t = default_spec(rect);
+    let _ = run_raw(
+        spec_b.clone(),
         &mut state_bottom,
+        &warmup_input,
+        &mut focus_system,
+        &mut text_backend,
+        &mut cmds,
+    );
+    let _ = run_raw(
+        spec_t.clone(),
         &mut state_top,
-        overlap_pos,
-        true, // expect click on top
-        |state_b, state_t, input, focus_system, cmds| {
-            let mut text_backend = TestTextBackend::default();
-            let spec_b = default_spec(rect);
-            let spec_t = default_spec(rect);
-            let res_b = run_raw(
-                spec_b,
-                state_b,
-                input,
-                focus_system,
-                &mut text_backend,
-                cmds,
-            );
-            let res_t = run_raw(
-                spec_t,
-                state_t,
-                input,
-                focus_system,
-                &mut text_backend,
-                cmds,
-            );
-            (res_b.input, res_t.input)
-        },
+        &warmup_input,
+        &mut focus_system,
+        &mut text_backend,
+        &mut cmds,
+    );
+    focus_system.end_frame();
+
+    // Mouse press/down in the overlapping control area
+    let press_input = Input {
+        mouse_pos: overlap_pos,
+        mouse_down: true,
+        mouse_pressed: true,
+        ..Default::default()
+    };
+    focus_system.begin_frame();
+    let res_b = run_raw(
+        spec_b,
+        &mut state_bottom,
+        &press_input,
+        &mut focus_system,
+        &mut text_backend,
+        &mut cmds,
+    );
+    let res_t = run_raw(
+        spec_t,
+        &mut state_top,
+        &press_input,
+        &mut focus_system,
+        &mut text_backend,
+        &mut cmds,
+    );
+    focus_system.end_frame();
+
+    assert!(
+        !state_bottom.is_dragging,
+        "Bottom widget should not enter is_dragging"
+    );
+    assert!(state_top.is_dragging, "Top widget should enter is_dragging");
+    assert!(
+        !res_b.input.pressed,
+        "Bottom widget result should not be pressed"
+    );
+    assert!(res_t.input.pressed, "Top widget result should be pressed");
+}
+
+#[test]
+fn test_drag_number_arrow_keys_no_traversal_but_tab_traverses() {
+    let mut focus_system = FocusSystem::new();
+    let mut state1 = DragNumberState {
+        value: 50.0,
+        ..Default::default()
+    };
+    let mut state2 = DragNumberState {
+        value: 50.0,
+        ..Default::default()
+    };
+    let mut text_backend = TestTextBackend::default();
+    let mut cmds = DrawCommands::new(1.0);
+
+    // Initial frame to register widgets and focus the first one
+    focus_system.take_keyboard_focus(state1.focus_id);
+
+    // Frame 1: Press ArrowRight. First value should increase, focus should remain on first
+    let input_right = Input {
+        key_pressed_right: true,
+        ..Default::default()
+    };
+    focus_system.begin_frame();
+    let spec1 = default_spec(Rect::new(0.0, 0.0, 100.0, 28.0));
+    let spec2 = default_spec(Rect::new(0.0, 40.0, 100.0, 28.0));
+
+    // Run first widget
+    let _ = run_raw(
+        spec1.clone(),
+        &mut state1,
+        &input_right,
+        &mut focus_system,
+        &mut text_backend,
+        &mut cmds,
+    );
+    // Run second widget
+    let _ = run_raw(
+        spec2.clone(),
+        &mut state2,
+        &input_right,
+        &mut focus_system,
+        &mut text_backend,
+        &mut cmds,
+    );
+    focus_system.end_frame();
+
+    assert_eq!(
+        state1.value, 51.0,
+        "First value should adjust with ArrowRight"
+    );
+    assert_eq!(state2.value, 50.0, "Second value should not change");
+    assert_eq!(
+        focus_system.current_keyboard_focus(),
+        Some(state1.focus_id),
+        "Focus should remain on first widget after ArrowRight"
+    );
+
+    // Frame 2: Press Tab. Focus should traverse to the second widget
+    let input_tab = Input {
+        key_pressed_tab: true,
+        ..Default::default()
+    };
+    focus_system.begin_frame();
+    let _ = run_raw(
+        spec1,
+        &mut state1,
+        &input_tab,
+        &mut focus_system,
+        &mut text_backend,
+        &mut cmds,
+    );
+    let _ = run_raw(
+        spec2,
+        &mut state2,
+        &input_tab,
+        &mut focus_system,
+        &mut text_backend,
+        &mut cmds,
+    );
+    focus_system.end_frame();
+
+    assert_eq!(
+        focus_system.current_keyboard_focus(),
+        Some(state2.focus_id),
+        "Focus should traverse to the second widget after Tab"
     );
 }

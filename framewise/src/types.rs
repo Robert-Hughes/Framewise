@@ -334,6 +334,35 @@ impl Color {
         )
     }
 
+    /// Composite a foreground color over an opaque background using sRGB blending.
+    /// Converts both colors from linear to sRGB, blends them using sRGB alpha compositing,
+    /// and then encodes the result back to linear.
+    pub fn with_srgb_alpha_over(self, bg: Color, alpha: f32) -> Color {
+        let a = alpha.clamp(0.0, 1.0);
+
+        let to_srgb = |x: f32| -> f32 {
+            if x <= 0.0031308 {
+                x * 12.92
+            } else {
+                1.055 * x.powf(1.0 / 2.4) - 0.055
+            }
+        };
+
+        let fg_r_s = to_srgb(self.r);
+        let fg_g_s = to_srgb(self.g);
+        let fg_b_s = to_srgb(self.b);
+
+        let bg_r_s = to_srgb(bg.r);
+        let bg_g_s = to_srgb(bg.g);
+        let bg_b_s = to_srgb(bg.b);
+
+        let r_s = fg_r_s * a + bg_r_s * (1.0 - a);
+        let g_s = fg_g_s * a + bg_g_s * (1.0 - a);
+        let b_s = fg_b_s * a + bg_b_s * (1.0 - a);
+
+        Color::from_srgb_f32(r_s, g_s, b_s, 1.0)
+    }
+
     /// Multiply RGB by `factor` (brightness adjustment, clamped to [0, 1]). Linear space.
     pub fn darken(&self, factor: f32) -> Self {
         Self {
