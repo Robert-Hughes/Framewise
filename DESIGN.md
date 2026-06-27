@@ -1178,14 +1178,14 @@ The order of calls therefore matters and should be used deliberately:
 
 ```rust
 // Semantic options first, then theme, then final visual overrides.
-let spec = TextEditSpec::new()
+let spec = TextEditSpec::default()
     .multiline_wrapped()
     .theme(&ctx.theme)
     .placeholder("Notes");
 
 // This means something different: wrap changes after the theme-derived style
 // was computed, so any wrap-dependent style adjustment is not recomputed.
-let spec = TextEditSpec::new()
+let spec = TextEditSpec::default()
     .theme(&ctx.theme)
     .multiline_wrapped();
 ```

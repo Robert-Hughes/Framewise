@@ -4,12 +4,11 @@ Working notes, TODOs, open questions, and half-baked ideas.
 
 ## Current Work
 
-- migrate all widgets to new Spec pattern (remove builder etc.)
-
 - drag_number
-  - formatting logic for display value?
   - hover styling with little arrow icons shown on mockup. Can these be clickable (with hold-repeat) to increment/decrement by step?
   - double-click on text to edit it by typing?
+
+- slider track doesn't seem centred within the widget rect, but the thumb is. So the thumb isn't centred on the track!
 
 - Go through the spec_page, check/implement/test each widget/aspect to make better match the mock-up and add interactivity as we go (https://claude.ai/design/p/1aab4e86-cbf2-497e-b379-44cf41de2b12?file=Framewise+Widgets.html)
   - Done 01-03

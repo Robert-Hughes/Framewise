@@ -182,18 +182,9 @@ pub struct FrameResult<'b, T: TextBackend, LS: LayoutState, CF> {
 
 // ── Spec ─────────────────────────────────────────────────────────────────────
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Default, PartialEq)]
 pub struct FrameSpec {
     pub style: FrameStyle,
-}
-
-#[allow(clippy::derivable_impls)]
-impl Default for FrameSpec {
-    fn default() -> Self {
-        Self {
-            style: FrameStyle::default(),
-        }
-    }
 }
 
 impl FrameSpec {
