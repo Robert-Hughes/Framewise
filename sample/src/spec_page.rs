@@ -331,6 +331,8 @@ fn draw_drag_number_fake_state<T: TextBackend, LS: LayoutState, CF>(
         text: label,
         min,
         max,
+        step: 1.0,
+        page_step: 10.0,
         disabled,
         style: DragNumberStyle::from_theme(&b.theme),
         clip_rect: b.clip_rect,

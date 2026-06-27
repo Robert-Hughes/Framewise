@@ -15,6 +15,8 @@ fn default_spec(rect: Rect) -> raw::DragNumberSpec<'static> {
         text: "X",
         min: 0.0,
         max: 100.0,
+        step: 1.0,
+        page_step: 10.0,
         disabled: false,
         style: default_style(),
         clip_rect: None,
@@ -40,6 +42,29 @@ fn run_raw(
         text_backend,
         cmds,
     )
+}
+
+fn run_key(
+    spec: raw::DragNumberSpec<'_>,
+    state: &mut DragNumberState,
+    focus_system: &mut FocusSystem,
+    set_key: impl FnOnce(&mut Input),
+) {
+    let mut input = Input::default();
+    set_key(&mut input);
+    let mut text_backend = TestTextBackend::default();
+    let mut cmds = DrawCommands::new(1.0);
+
+    focus_system.begin_frame();
+    let _ = run_raw(
+        spec,
+        state,
+        &input,
+        focus_system,
+        &mut text_backend,
+        &mut cmds,
+    );
+    focus_system.end_frame();
 }
 
 fn label_area_pos(rect: Rect, label: &str) -> Vec2 {
@@ -86,6 +111,8 @@ fn test_drag_number_visual_normal() {
         text: "X",
         min: 0.0,
         max: 100.0,
+        step: 1.0,
+        page_step: 10.0,
         disabled: false,
         style: DragNumberStyle::from_theme(&crate::theme::Theme::framewise()),
         clip_rect: None,
@@ -178,6 +205,8 @@ fn test_drag_number_visual_active() {
         text: "X",
         min: 0.0,
         max: 100.0,
+        step: 1.0,
+        page_step: 10.0,
         disabled: false,
         style: DragNumberStyle::from_theme(&crate::theme::Theme::framewise()),
         clip_rect: None,
@@ -316,6 +345,8 @@ fn test_drag_number_visual_min_value() {
         text: "X",
         min: 0.0,
         max: 100.0,
+        step: 1.0,
+        page_step: 10.0,
         disabled: false,
         style: DragNumberStyle::from_theme(&crate::theme::Theme::framewise()),
         clip_rect: None,
@@ -414,6 +445,8 @@ fn test_drag_number_click_takes_focus() {
         text: "X",
         min: 0.0,
         max: 100.0,
+        step: 1.0,
+        page_step: 10.0,
         disabled: false,
         style: DragNumberStyle::from_theme(&crate::theme::Theme::framewise()),
         clip_rect: None,
@@ -466,6 +499,8 @@ fn test_drag_number_clipped_click_does_not_take_focus() {
         text: "X",
         min: 0.0,
         max: 100.0,
+        step: 1.0,
+        page_step: 10.0,
         disabled: false,
         style: DragNumberStyle::from_theme(&crate::theme::Theme::framewise()),
         clip_rect: Some(Rect::new(500.0, 500.0, 100.0, 28.0)),
@@ -496,72 +531,147 @@ fn test_drag_number_clipped_click_does_not_take_focus() {
 }
 
 #[test]
-fn test_drag_number_keyboard_navigation() {
+fn test_drag_number_focused_step_keys() {
     let mut focus_system = FocusSystem::new();
     let mut state = DragNumberState {
         value: 50.0,
         ..Default::default()
     };
-    let mut input = Input::default();
-    let mut text_backend = TestTextBackend::default();
-
-    // Focus the widget
     focus_system.take_keyboard_focus(state.focus_id);
 
-    // Frame 1: Press Arrow Right -> value increases by 1.0 (step = 100 * 0.01)
-    input.key_pressed_right = true;
-    let mut cmds = DrawCommands::new(1.0);
-    focus_system.begin_frame();
-    raw::post_layout_drag_number(
-        DragNumberSpec {
-            layer: Layer::default(),
-            rect: Rect::new(0.0, 0.0, 100.0, 28.0),
-            text: "X",
-            min: 0.0,
-            max: 100.0,
-            disabled: false,
-            style: DragNumberStyle::from_theme(&crate::theme::Theme::framewise()),
-            clip_rect: None,
-        },
-        raw::DragNumberPreLayoutResult {
-            size_request: crate::layout::SizeRequest::UNKNOWN,
-        },
-        &mut state,
-        &input,
-        &mut focus_system,
-        &mut text_backend,
-        &mut cmds,
-    );
-    focus_system.end_frame();
-    input.key_pressed_right = false;
+    let mut spec = default_spec(Rect::new(0.0, 0.0, 100.0, 28.0));
+    spec.step = 5.0;
 
-    assert_eq!(state.value, 51.0);
+    run_key(spec.clone(), &mut state, &mut focus_system, |input| {
+        input.key_pressed_right = true;
+    });
+    assert_eq!(state.value, 55.0);
 
-    // Frame 2: Press Arrow Left -> value decreases back to 50.0
-    input.key_pressed_left = true;
-    let mut cmds = DrawCommands::new(1.0);
-    focus_system.begin_frame();
-    raw::post_layout_drag_number(
-        DragNumberSpec {
-            layer: Layer::default(),
-            rect: Rect::new(0.0, 0.0, 100.0, 28.0),
-            text: "X",
-            min: 0.0,
-            max: 100.0,
-            disabled: false,
-            style: DragNumberStyle::from_theme(&crate::theme::Theme::framewise()),
-            clip_rect: None,
-        },
-        raw::DragNumberPreLayoutResult {
-            size_request: crate::layout::SizeRequest::UNKNOWN,
-        },
-        &mut state,
-        &input,
-        &mut focus_system,
-        &mut text_backend,
-        &mut cmds,
-    );
-    focus_system.end_frame();
+    run_key(spec.clone(), &mut state, &mut focus_system, |input| {
+        input.key_pressed_down = true;
+    });
+    assert_eq!(state.value, 60.0);
+
+    run_key(spec.clone(), &mut state, &mut focus_system, |input| {
+        input.key_pressed_left = true;
+    });
+    assert_eq!(state.value, 55.0);
+
+    run_key(spec, &mut state, &mut focus_system, |input| {
+        input.key_pressed_up = true;
+    });
+    assert_eq!(state.value, 50.0);
+}
+
+#[test]
+fn test_drag_number_focused_page_home_end_keys() {
+    let mut focus_system = FocusSystem::new();
+    let mut state = DragNumberState {
+        value: 50.0,
+        ..Default::default()
+    };
+    focus_system.take_keyboard_focus(state.focus_id);
+
+    let mut spec = default_spec(Rect::new(0.0, 0.0, 100.0, 28.0));
+    spec.page_step = 20.0;
+
+    run_key(spec.clone(), &mut state, &mut focus_system, |input| {
+        input.key_pressed_page_up = true;
+    });
+    assert_eq!(state.value, 30.0);
+    assert!(focus_system.is_active_pgup_vert(state.focus_id));
+    assert!(focus_system.is_active_pgdn_vert(state.focus_id));
+    assert!(focus_system.is_active_pgup_horiz(state.focus_id));
+    assert!(focus_system.is_active_pgdn_horiz(state.focus_id));
+
+    run_key(spec.clone(), &mut state, &mut focus_system, |input| {
+        input.key_pressed_page_down = true;
+    });
+    assert_eq!(state.value, 50.0);
+
+    run_key(spec.clone(), &mut state, &mut focus_system, |input| {
+        input.key_pressed_home = true;
+    });
+    assert_eq!(state.value, 0.0);
+
+    run_key(spec, &mut state, &mut focus_system, |input| {
+        input.key_pressed_end = true;
+    });
+    assert_eq!(state.value, 100.0);
+}
+
+#[test]
+fn test_drag_number_keyboard_adjustment_clamps_to_bounds() {
+    let mut focus_system = FocusSystem::new();
+    let mut state = DragNumberState {
+        value: 95.0,
+        ..Default::default()
+    };
+    focus_system.take_keyboard_focus(state.focus_id);
+
+    let mut spec = default_spec(Rect::new(0.0, 0.0, 100.0, 28.0));
+    spec.step = 10.0;
+
+    run_key(spec.clone(), &mut state, &mut focus_system, |input| {
+        input.key_pressed_right = true;
+    });
+    assert_eq!(state.value, 100.0);
+
+    state.value = 5.0;
+    run_key(spec, &mut state, &mut focus_system, |input| {
+        input.key_pressed_left = true;
+    });
+    assert_eq!(state.value, 0.0);
+}
+
+#[test]
+fn test_drag_number_keyboard_adjustment_ignored_when_not_focused() {
+    let mut focus_system = FocusSystem::new();
+    let mut state = DragNumberState {
+        value: 50.0,
+        ..Default::default()
+    };
+
+    let mut spec = default_spec(Rect::new(0.0, 0.0, 100.0, 28.0));
+    spec.step = 5.0;
+    spec.page_step = 20.0;
+
+    run_key(spec.clone(), &mut state, &mut focus_system, |input| {
+        input.key_pressed_right = true;
+    });
+    run_key(spec.clone(), &mut state, &mut focus_system, |input| {
+        input.key_pressed_page_down = true;
+    });
+    run_key(spec, &mut state, &mut focus_system, |input| {
+        input.key_pressed_end = true;
+    });
+
+    assert_eq!(state.value, 50.0);
+}
+
+#[test]
+fn test_drag_number_keyboard_adjustment_ignored_when_disabled() {
+    let mut focus_system = FocusSystem::new();
+    let mut state = DragNumberState {
+        value: 50.0,
+        ..Default::default()
+    };
+    focus_system.take_keyboard_focus(state.focus_id);
+
+    let mut spec = default_spec(Rect::new(0.0, 0.0, 100.0, 28.0));
+    spec.disabled = true;
+    spec.step = 5.0;
+    spec.page_step = 20.0;
+
+    run_key(spec.clone(), &mut state, &mut focus_system, |input| {
+        input.key_pressed_right = true;
+    });
+    run_key(spec.clone(), &mut state, &mut focus_system, |input| {
+        input.key_pressed_page_down = true;
+    });
+    run_key(spec, &mut state, &mut focus_system, |input| {
+        input.key_pressed_end = true;
+    });
 
     assert_eq!(state.value, 50.0);
 }
@@ -901,6 +1011,8 @@ fn test_drag_number_min_greater_than_max_keyboard_does_not_panic() {
         text: "X",
         min: 100.0,
         max: 0.0,
+        step: 1.0,
+        page_step: 10.0,
         disabled: false,
         style: default_style(),
         clip_rect: None,

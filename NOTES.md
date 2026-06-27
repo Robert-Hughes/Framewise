@@ -5,8 +5,7 @@ Working notes, TODOs, open questions, and half-baked ideas.
 ## Current Work
 
 - drag_number
-  - keyboard arrows and page up/down home/end
-  - configurable step increment
+  - formatting logic for display value?
   - hover styling with little arrow icons shown on mockup. Can these be clickable (with hold-repeat) to increment/decrement by step?
   - double-click on text to edit it by typing?
 

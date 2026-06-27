@@ -22,6 +22,8 @@ pub mod raw {
         pub style: super::DragNumberStyle,
         pub min: f32,
         pub max: f32,
+        pub step: f32,
+        pub page_step: f32,
         pub disabled: bool,
         pub clip_rect: ClipRect,
     }
@@ -177,12 +179,28 @@ pub mod raw {
 
         // Keyboard navigation when focused
         if focused && !spec.disabled {
-            let step = (spec.max - spec.min).abs() * 0.01;
-            if input.key_pressed_left {
-                state.value = (state.value - step).clamp(clamp_min, clamp_max);
+            focus_system.claim_pgup_vert(state.focus_id);
+            focus_system.claim_pgdn_vert(state.focus_id);
+            focus_system.claim_pgup_horiz(state.focus_id);
+            focus_system.claim_pgdn_horiz(state.focus_id);
+
+            if input.key_pressed_left || input.key_pressed_up {
+                state.value = (state.value - spec.step).clamp(clamp_min, clamp_max);
             }
-            if input.key_pressed_right {
-                state.value = (state.value + step).clamp(clamp_min, clamp_max);
+            if input.key_pressed_right || input.key_pressed_down {
+                state.value = (state.value + spec.step).clamp(clamp_min, clamp_max);
+            }
+            if input.key_pressed_page_up {
+                state.value = (state.value - spec.page_step).clamp(clamp_min, clamp_max);
+            }
+            if input.key_pressed_page_down {
+                state.value = (state.value + spec.page_step).clamp(clamp_min, clamp_max);
+            }
+            if input.key_pressed_home {
+                state.value = clamp_min;
+            }
+            if input.key_pressed_end {
+                state.value = clamp_max;
             }
         }
 
@@ -390,6 +408,8 @@ pub struct DragNumberSpec<'a> {
     pub style: DragNumberStyle,
     pub min: f32,
     pub max: f32,
+    pub step: f32,
+    pub page_step: f32,
     pub disabled: bool,
 }
 
@@ -401,6 +421,8 @@ pub struct DragNumberSpecBuilder<'a> {
     pub style: Option<DragNumberStyle>,
     pub min: Option<f32>,
     pub max: Option<f32>,
+    pub step: Option<f32>,
+    pub page_step: Option<f32>,
     pub disabled: Option<bool>,
 }
 
@@ -425,6 +447,14 @@ impl<'a> DragNumberSpecBuilder<'a> {
         self.max = Some(max);
         self
     }
+    pub fn step(mut self, step: f32) -> Self {
+        self.step = Some(step);
+        self
+    }
+    pub fn page_step(mut self, page_step: f32) -> Self {
+        self.page_step = Some(page_step);
+        self
+    }
     pub fn disabled(mut self, disabled: bool) -> Self {
         self.disabled = Some(disabled);
         self
@@ -447,6 +477,8 @@ impl<'a> DragNumberSpecBuilder<'a> {
                 .expect("style not set — call .style() or defaults_from_theme()"),
             min: self.min.unwrap_or(0.0),
             max: self.max.unwrap_or(100.0),
+            step: self.step.unwrap_or(1.0),
+            page_step: self.page_step.unwrap_or(10.0),
             disabled: self.disabled.unwrap_or(false),
         }
     }
@@ -481,6 +513,8 @@ pub fn drag_number<'a, T: TextBackend, S: LayoutState, CF>(
         style: spec.style,
         min: spec.min,
         max: spec.max,
+        step: spec.step,
+        page_step: spec.page_step,
         disabled: spec.disabled,
         clip_rect: ctx.clip_rect,
     };
