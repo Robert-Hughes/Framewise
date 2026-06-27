@@ -5,16 +5,18 @@ Working notes, TODOs, open questions, and half-baked ideas.
 ## Current Work
 
 - drag_number
+  - when focused, there's a gap between the label background and the focus ring
   - hover styling with little arrow icons shown on mockup. Can these be clickable (with hold-repeat) to increment/decrement by step?
   - keyboard arrows and page up/down home/end
   - double-click on text to edit it by typing?
   - configurable step increment
 
-
 - Mouse cursor changes for clickable things like buttons and draggable things like sliders or dragnumbers?
-- Make one of the sliders in the spec page disabled so that we can see that
-- checkbox disabled column in the spec page doesn't need to be fake/static
-- make one of the radio buttons disabled
+
+- Spec page updates
+  - Make one of the sliders in the spec page disabled so that we can see that
+  - checkbox disabled column in the spec page doesn't need to be fake/static
+  - make one of the radio buttons disabled
 
 - Go through the spec_page, check/implement/test each widget/aspect to make better match the mock-up and add interactivity as we go (https://claude.ai/design/p/1aab4e86-cbf2-497e-b379-44cf41de2b12?file=Framewise+Widgets.html)
   - Done 01-03

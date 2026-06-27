@@ -630,9 +630,9 @@ pub struct SpecWidgetsState {
 
     // 03 Checkboxes, radios & switches
     #[cfg(all(feature = "checkbox", feature = "radio", feature = "switch"))]
-    pub cb_matrix: Vec<CheckboxState>, // 2 rows × 3 interactive cols (off, on, mixed) = 6
+    pub cb_matrix: Vec<CheckboxState>, // 2 rows × 4 real widget-backed cols (off, on, mixed, disabled) = 8
     #[cfg(all(feature = "checkbox", feature = "radio", feature = "switch"))]
-    pub radio_states: Vec<RadioState>, // items 0,1,2 — item 3 (focused) stays fake
+    pub radio_states: Vec<RadioState>, // items 0,1,3 — item 2 (focused/static) stays fake
     #[cfg(all(feature = "checkbox", feature = "radio", feature = "switch"))]
     pub switch_states: Vec<SwitchState>, // items 0,1,3 — item 2 (focused) stays fake
 
@@ -871,6 +871,10 @@ impl Default for SpecWidgetsState {
                     ..Default::default()
                 },
                 CheckboxState {
+                    checked: CheckedState::Checked,
+                    ..Default::default()
+                },
+                CheckboxState {
                     checked: CheckedState::Unchecked,
                     ..Default::default()
                 },
@@ -880,6 +884,10 @@ impl Default for SpecWidgetsState {
                 },
                 CheckboxState {
                     checked: CheckedState::Indeterminate,
+                    ..Default::default()
+                },
+                CheckboxState {
+                    checked: CheckedState::Checked,
                     ..Default::default()
                 },
             ],
@@ -2276,7 +2284,7 @@ fn section_03_toggles<CF>(
         let col_labels = ["OFF", "ON", "MIXED", "FOCUSED", "DISABLED"];
         for (ci, col) in col_labels.iter().enumerate() {
             // Add STATIC badge for fake state columns
-            if (3..=4).contains(&ci) {
+            if ci == 3 {
                 let r = b.layout(
                     Rect::new(label_w + ci as f32 * cell_w, y - 14.0, 44.0, 12.0),
                     SizeRequest::UNKNOWN,
@@ -2339,8 +2347,14 @@ fn section_03_toggles<CF>(
                         });
                     checkbox(&mut b, spec_builder, rect, state)
                 };
-            } else {
+            } else if ci == 3 {
                 draw_checkbox_fake_state(&mut b, rect, *cs, *focused, *disabled);
+            } else {
+                let _info = {
+                    let state = &mut state.cb_matrix[3];
+                    let spec_builder = CheckboxSpecBuilder::new().disabled(true);
+                    checkbox(&mut b, spec_builder, rect, state)
+                };
             }
         }
         y += row_height + 12.0;
@@ -2364,7 +2378,7 @@ fn section_03_toggles<CF>(
         for (ci, (cs, focused, disabled)) in box_specs.iter().enumerate() {
             let cx = label_w + ci as f32 * cell_w;
             if ci < 3 {
-                let state = &mut state.cb_matrix[3 + ci];
+                let state = &mut state.cb_matrix[4 + ci];
                 let layout_params = Rect::new(cx, y, cell_w, row_height);
                 let spec_builder = CheckboxSpecBuilder::new().allowed_checked_states(if ci < 2 {
                     vec![CheckedState::Unchecked, CheckedState::Checked]
@@ -2377,7 +2391,7 @@ fn section_03_toggles<CF>(
                 });
 
                 labelled_checkbox(&mut b, spec_builder, "vsync", layout_params, state);
-            } else {
+            } else if ci == 3 {
                 draw_checkbox_fake_state(
                     &mut b,
                     Rect::new(cx, y + checkbox_offset_y, 14.0, 14.0),
@@ -2403,6 +2417,11 @@ fn section_03_toggles<CF>(
                     });
                     label(&mut b, spec_builder, layout_params)
                 };
+            } else {
+                let state = &mut state.cb_matrix[7];
+                let layout_params = Rect::new(cx, y, cell_w, row_height);
+                let spec_builder = CheckboxSpecBuilder::new().disabled(true);
+                labelled_checkbox(&mut b, spec_builder, "vsync", layout_params, state);
             }
         }
         b.finish();
@@ -2417,45 +2436,65 @@ fn section_03_toggles<CF>(
             let radio_labels = ["immediate-mode", "retained-mode", "hybrid", "deferred"];
             for (i, radio_label) in radio_labels.iter().enumerate() {
                 b.spacer(LinearSpacer::always(16.0));
-                if i < 3 {
-                    let info = {
-                        let state = &mut state.radio_states[i];
-                        let spec_builder = RadioSpecBuilder::new();
+                match i {
+                    0 | 1 => {
+                        let info = {
+                            let state = &mut state.radio_states[i];
+                            let spec_builder = RadioSpecBuilder::new();
+                            labelled_radio(
+                                &mut b,
+                                spec_builder,
+                                radio_label,
+                                ColumnLayoutParams::auto(),
+                                state,
+                            )
+                        };
+                        if info.input.clicked {
+                            state.radio_states[0].checked = i == 0;
+                            state.radio_states[1].checked = i == 1;
+                            state.radio_states[2].checked = false;
+                        }
+                    }
+                    2 => {
+                        let mut b = b.child_with_layout(ColumnLayoutParams::auto(), RowLayout {});
+                        let r = draw_radio_fake_state(
+                            &mut b,
+                            Vec2::new(14.0, 14.0),
+                            false,
+                            true,
+                            false,
+                        )
+                        .content_bounds;
+                        static_badge(&mut b, Rect::new(r.x - 50.0, r.y, 144.0, 14.0));
+                        b.spacer(8.0);
+                        {
+                            let size = b.theme.text_md;
+                            let color = b.theme.ink;
+                            let spec_builder =
+                                LabelSpecBuilder::new().text(radio_label).style(LabelStyle {
+                                    text_style: framewise::TextStyle {
+                                        size,
+                                        ..(LabelStyle::from_theme(&b.theme)).text_style
+                                    },
+                                    text_color: color,
+                                    ..LabelStyle::from_theme(&b.theme)
+                                });
+                            label(&mut b, spec_builder, RowLayoutParams::auto())
+                        };
+                        b.finish();
+                    }
+                    3 => {
+                        let state = &mut state.radio_states[2];
+                        let spec_builder = RadioSpecBuilder::new().disabled(true);
                         labelled_radio(
                             &mut b,
                             spec_builder,
                             radio_label,
                             ColumnLayoutParams::auto(),
                             state,
-                        )
-                    };
-                    if info.input.clicked {
-                        for j in 0..3 {
-                            state.radio_states[j].checked = j == i;
-                        }
+                        );
                     }
-                } else {
-                    let mut b = b.child_with_layout(ColumnLayoutParams::auto(), RowLayout {});
-                    let r =
-                        draw_radio_fake_state(&mut b, Vec2::new(14.0, 14.0), false, true, false)
-                            .content_bounds;
-                    static_badge(&mut b, Rect::new(r.x - 50.0, r.y, 144.0, 14.0));
-                    b.spacer(8.0);
-                    {
-                        let size = b.theme.text_md;
-                        let color = b.theme.ink;
-                        let spec_builder =
-                            LabelSpecBuilder::new().text(radio_label).style(LabelStyle {
-                                text_style: framewise::TextStyle {
-                                    size,
-                                    ..(LabelStyle::from_theme(&b.theme)).text_style
-                                },
-                                text_color: color,
-                                ..LabelStyle::from_theme(&b.theme)
-                            });
-                        label(&mut b, spec_builder, RowLayoutParams::auto())
-                    };
-                    b.finish();
+                    _ => unreachable!(),
                 }
             }
             b.finish();
@@ -2552,14 +2591,14 @@ fn section_04_sliders<CF>(
             b.child_with_layout(ColumnLayoutParams::auto().fixed_x(content_w), ColumnLayout);
         let slider_w = 260.0_f32;
         let values = [
-            (0.1, &mut state.slider1_state, false, false),
-            (0.1, &mut state.slider2_state, false, false),
-            (0.1, &mut state.slider3_state, false, true),
-            (1.0, &mut state.slider4_state, true, false),
+            (0.1, &mut state.slider1_state, false, false, false),
+            (0.1, &mut state.slider2_state, false, false, true),
+            (0.1, &mut state.slider3_state, false, true, false),
+            (1.0, &mut state.slider4_state, true, false, false),
         ];
 
-        for (step, slider_state, show_ticks, is_static) in values {
-            b.spacer(8.0);
+        for (step, slider_state, show_ticks, is_static, is_disabled) in values {
+            b.spacer(16.0);
             let mut b = b.child_with_layout(ColumnLayoutParams::auto(), RowLayout);
             if is_static {
                 draw_slider_fake_state(
@@ -2570,7 +2609,7 @@ fn section_04_sliders<CF>(
                     true,
                 );
             } else {
-                let spec_builder = if show_ticks {
+                let mut spec_builder = if show_ticks {
                     let mut style = SliderStyle::from_theme(&b.theme);
                     style.track_marks = Some(TrackMarksStyle::from_theme(&b.theme, 1.0));
                     SliderSpecBuilder::new()
@@ -2582,6 +2621,9 @@ fn section_04_sliders<CF>(
                 } else {
                     SliderSpecBuilder::new().max(1.0).page_step(step).step(step)
                 };
+                if is_disabled {
+                    spec_builder = spec_builder.disabled(true);
+                }
                 slider(
                     &mut b,
                     spec_builder,
