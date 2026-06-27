@@ -29,8 +29,7 @@ use framewise::{
 use framewise::widgets::divider::divider;
 use framewise::widgets::label::label;
 use framewise::widgets::scroll_area::{
-    begin_scroll_area, ScrollAreaSpecBuilder, ScrollAxis, ScrollExtent, ScrollState,
-    ScrollbarVisibility,
+    begin_scroll_area, ScrollAreaSpec, ScrollAxis, ScrollExtent, ScrollState, ScrollbarVisibility,
 };
 use framewise::widgets::{DividerSpecBuilder, LabelSpecBuilder, LabelStyle};
 
@@ -1428,14 +1427,14 @@ pub fn draw_spec_page(
     // Scroll area provides clip + scroll offset for all page content.
     #[cfg(feature = "button")]
     let mut page = begin_scroll_area(
-        &mut b,
-        ScrollAreaSpecBuilder::new().vertical(ScrollAxis {
+        ScrollAreaSpec::default_from_theme(&b.theme).vertical(ScrollAxis {
             extent: ScrollExtent::Unbounded,
             vis: ScrollbarVisibility::Auto,
         }),
         win_rect,
         &mut state.page_scroll,
         RowLayout,
+        &mut b,
     )
     .ctx;
 
@@ -3106,14 +3105,14 @@ fn section_06_scrollbars<CF>(
         {
             let mut sa = {
                 begin_scroll_area(
-                    &mut b,
-                    ScrollAreaSpecBuilder::new().vertical(ScrollAxis {
+                    ScrollAreaSpec::default_from_theme(&b.theme).vertical(ScrollAxis {
                         extent: ScrollExtent::fixed(b1_content.y),
                         vis: ScrollbarVisibility::Always,
                     }),
                     b1,
                     &mut state.scroll_vert,
                     ManualLayout,
+                    &mut b,
                 )
                 .ctx
             };
@@ -3187,14 +3186,14 @@ fn section_06_scrollbars<CF>(
         {
             let mut sa = {
                 begin_scroll_area(
-                    &mut b,
-                    ScrollAreaSpecBuilder::new().vertical(ScrollAxis {
+                    ScrollAreaSpec::default_from_theme(&b.theme).vertical(ScrollAxis {
                         extent: ScrollExtent::fixed(b2_content.y),
                         vis: ScrollbarVisibility::Always,
                     }),
                     b2,
                     &mut state.scroll_horiz,
                     ManualLayout,
+                    &mut b,
                 )
                 .ctx
             };
@@ -3255,8 +3254,7 @@ fn section_06_scrollbars<CF>(
         {
             let mut sa = {
                 begin_scroll_area(
-                    &mut b,
-                    ScrollAreaSpecBuilder::new()
+                    ScrollAreaSpec::default_from_theme(&b.theme)
                         .horizontal(ScrollAxis {
                             extent: ScrollExtent::fixed(b3_content.x),
                             vis: ScrollbarVisibility::Always,
@@ -3268,6 +3266,7 @@ fn section_06_scrollbars<CF>(
                     b3,
                     &mut state.scroll_both,
                     ManualLayout,
+                    &mut b,
                 )
                 .ctx
             };
@@ -3320,8 +3319,7 @@ fn section_06_scrollbars<CF>(
         {
             let mut sa = {
                 begin_scroll_area(
-                    &mut b,
-                    ScrollAreaSpecBuilder::new()
+                    ScrollAreaSpec::default_from_theme(&b.theme)
                         .horizontal(ScrollAxis {
                             extent: ScrollExtent::fixed(b4_content.x),
                             vis: ScrollbarVisibility::Always,
@@ -3333,6 +3331,7 @@ fn section_06_scrollbars<CF>(
                     b4,
                     &mut state.scroll_both_axes,
                     ManualLayout,
+                    &mut b,
                 )
                 .ctx
             };
@@ -4526,14 +4525,14 @@ fn section_12_in_use<CF>(
                 let content_size = Vec2::new(fl_scroll_rect.w, log_content_h);
                 let inner_layout = ManualLayout;
                 begin_scroll_area(
-                    &mut fl_win,
-                    ScrollAreaSpecBuilder::new().vertical(ScrollAxis {
+                    ScrollAreaSpec::default_from_theme(&fl_win.theme).vertical(ScrollAxis {
                         extent: ScrollExtent::fixed(content_size.y),
                         vis: ScrollbarVisibility::Auto,
                     }),
                     fl_scroll_rect,
                     &mut state.iu_log_scroll,
                     inner_layout,
+                    &mut fl_win,
                 )
                 .ctx
             };

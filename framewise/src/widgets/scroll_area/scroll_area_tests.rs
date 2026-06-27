@@ -6125,8 +6125,7 @@ mod nested_bubbling_tests {
         // gives us a track whose y == placement.y. Destructure `ctx` out so the
         // result's borrow of `cmds` ends before the assert.
         let super::super::ScrollAreaResult { ctx: child_ctx, .. } = super::super::begin_scroll_area(
-            &mut ctx,
-            ScrollAreaSpecBuilder::new()
+            super::super::ScrollAreaSpec::default_from_theme(&ctx.theme)
                 .horizontal(ScrollAxis {
                     extent: ScrollExtent::FIT,
                     vis: ScrollbarVisibility::Auto,
@@ -6138,6 +6137,7 @@ mod nested_bubbling_tests {
             placement,
             &mut scroll_state,
             ManualLayout,
+            &mut ctx,
         );
         child_ctx.finish();
         drop(ctx);
@@ -6252,14 +6252,14 @@ mod nested_bubbling_tests {
         let super::super::ScrollAreaResult {
             ctx: mut child_ctx, ..
         } = super::super::begin_scroll_area(
-            &mut ctx,
-            ScrollAreaSpecBuilder::new().vertical(ScrollAxis {
+            super::super::ScrollAreaSpec::default_from_theme(&ctx.theme).vertical(ScrollAxis {
                 extent: ScrollExtent::SCROLL,
                 vis: ScrollbarVisibility::Always,
             }),
             placement,
             &mut scroll_state,
             ManualLayout,
+            &mut ctx,
         );
 
         let col = child_ctx.child_with_layout(

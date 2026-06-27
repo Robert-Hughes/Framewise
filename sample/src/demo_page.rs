@@ -39,13 +39,12 @@ pub fn begin_demo_page<'a, 'b, T: TextBackend, L: Layout, CF>(
 
     let pad = 20.0;
     let clip = parent_ctx.clip_rect;
-    let spec = framewise::widgets::scroll_area::ScrollAreaSpecBuilder::new()
-        .vertical(framewise::widgets::scroll_area::ScrollAxis {
-            extent: framewise::widgets::scroll_area::ScrollExtent::SCROLL,
-            vis: framewise::widgets::scroll_area::ScrollbarVisibility::Auto,
-        })
-        .defaults_from_theme(&parent_ctx.theme)
-        .build();
+    let spec =
+        framewise::widgets::scroll_area::ScrollAreaSpec::default_from_theme(&parent_ctx.theme)
+            .vertical(framewise::widgets::scroll_area::ScrollAxis {
+                extent: framewise::widgets::scroll_area::ScrollExtent::SCROLL,
+                vis: framewise::widgets::scroll_area::ScrollbarVisibility::Auto,
+            });
 
     let pre_layout_spec = framewise::widgets::scroll_area::raw::ScrollAreaPreLayoutSpec {};
     let layout_params = ColumnLayoutParams::auto().fill_x().fill_y();

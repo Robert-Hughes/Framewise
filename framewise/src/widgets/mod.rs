@@ -111,7 +111,7 @@ pub use progress_bar::{progress_bar, ProgressBarResult, ProgressBarSpecBuilder, 
 pub use radio::{labelled_radio, radio, RadioResult, RadioSpecBuilder, RadioState, RadioStyle};
 #[cfg(feature = "scroll_area")]
 pub use scroll_area::{
-    begin_scroll_area, ScrollAreaResult, ScrollAreaSpecBuilder, ScrollState, ScrollbarVisibility,
+    begin_scroll_area, ScrollAreaResult, ScrollAreaSpec, ScrollState, ScrollbarVisibility,
 };
 #[cfg(feature = "segmented")]
 pub use segmented::{

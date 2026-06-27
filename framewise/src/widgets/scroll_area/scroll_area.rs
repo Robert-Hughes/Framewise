@@ -671,6 +671,12 @@ pub struct ScrollAreaStyle {
     pub corner_color: Option<Color>,
 }
 
+impl Default for ScrollAreaStyle {
+    fn default() -> Self {
+        Self::from_theme(&crate::theme::Theme::minimal())
+    }
+}
+
 impl ScrollAreaStyle {
     pub fn from_theme(theme: &crate::theme::Theme) -> Self {
         Self {
@@ -691,62 +697,48 @@ pub struct ScrollAreaSpec {
     pub keyboard_focusable: bool,
 }
 
-// ── Spec Builder ─────────────────────────────────────────────────────────────
-
-#[derive(Debug, Clone, PartialEq, Default)]
-pub struct ScrollAreaSpecBuilder {
-    pub horizontal: Option<ScrollAxis>,
-    pub vertical: Option<ScrollAxis>,
-    pub style: Option<ScrollAreaStyle>,
-    pub keyboard_focusable: Option<bool>,
+impl Default for ScrollAreaSpec {
+    fn default() -> Self {
+        Self {
+            horizontal: ScrollAxis::default(),
+            vertical: ScrollAxis {
+                extent: ScrollExtent::SCROLL,
+                vis: ScrollbarVisibility::Auto,
+            },
+            style: ScrollAreaStyle::default(),
+            keyboard_focusable: true,
+        }
+    }
 }
 
-impl ScrollAreaSpecBuilder {
-    pub fn new() -> Self {
-        Self::default()
+impl ScrollAreaSpec {
+    pub fn default_from_theme(theme: &crate::theme::Theme) -> Self {
+        Self::default().theme(theme)
+    }
+
+    pub fn theme(mut self, theme: &crate::theme::Theme) -> Self {
+        self.style = ScrollAreaStyle::from_theme(theme);
+        self
     }
 
     pub fn horizontal(mut self, axis: ScrollAxis) -> Self {
-        self.horizontal = Some(axis);
+        self.horizontal = axis;
         self
     }
 
     pub fn vertical(mut self, axis: ScrollAxis) -> Self {
-        self.vertical = Some(axis);
+        self.vertical = axis;
         self
     }
 
     pub fn style(mut self, style: ScrollAreaStyle) -> Self {
-        self.style = Some(style);
+        self.style = style;
         self
     }
 
     pub fn keyboard_focusable(mut self, keyboard_focusable: bool) -> Self {
-        self.keyboard_focusable = Some(keyboard_focusable);
+        self.keyboard_focusable = keyboard_focusable;
         self
-    }
-
-    /// Fills unset fields from `theme`. Called automatically by high-level
-    /// context functions.
-    pub fn defaults_from_theme(mut self, theme: &crate::theme::Theme) -> Self {
-        if self.style.is_none() {
-            self.style = Some(ScrollAreaStyle::from_theme(theme));
-        }
-        self
-    }
-
-    pub fn build(self) -> ScrollAreaSpec {
-        ScrollAreaSpec {
-            horizontal: self.horizontal.unwrap_or_default(),
-            vertical: self.vertical.unwrap_or(ScrollAxis {
-                extent: ScrollExtent::SCROLL,
-                vis: ScrollbarVisibility::Auto,
-            }),
-            style: self
-                .style
-                .expect("style not set — call .style() or defaults_from_theme()"),
-            keyboard_focusable: self.keyboard_focusable.unwrap_or(true),
-        }
     }
 }
 
@@ -796,27 +788,30 @@ const SCROLL_PIXELS_PER_LINE: f32 = 30.0;
 
 // ── High-level widget functions ───────────────────────────────────────────────────
 
-/// High-level scroll area begin function using WidgetContext.
+/// High-level scroll area begin function using `WidgetContext`.
 ///
-/// Resolves defaults, runs the raw pre-layout phase to obtain a `SizeRequest`,
-/// resolves the outer rect, runs the raw begin phase to open the child scope,
-/// and arranges for the raw end phase to run when the child context finishes.
+/// Consumes a complete `ScrollAreaSpec`, runs the raw pre-layout phase to obtain
+/// a `SizeRequest`, resolves the outer rect, runs the raw begin phase to open
+/// the child scope, and arranges for the raw end phase to run when the child
+/// context finishes.
 ///
-/// Note there is no low-level end_scroll_area - everything is handled by the on_finish callback of the child context, which calls raw::end_scroll_area internally. This is because the scroll area must be ended on the same context it was begun on, and we want to allow users to simply drop the child context when finished without needing to manually call an end function.
+/// There is no separate high-level `end_scroll_area`: cleanup is handled by the
+/// child context's `on_finish` callback, which calls `raw::end_scroll_area`
+/// internally. This ensures the scroll area is ended on the same context it was
+/// begun on, while allowing callers to finish or drop the child context normally.
 #[allow(clippy::type_complexity)]
 pub fn begin_scroll_area<'a, 'b, T: TextBackend, S: LayoutState, L: Layout, CF>(
-    ctx: &'b mut WidgetContext<'a, T, S, CF>,
-    builder: ScrollAreaSpecBuilder,
+    spec: ScrollAreaSpec,
     layout_params: S::Params,
     state: &'b mut ScrollState,
     inner_layout: L,
+    ctx: &'b mut WidgetContext<'a, T, S, CF>,
 ) -> ScrollAreaResult<
     'b,
     T,
     crate::layouts::OffsetState<L::State>,
     impl FnOnce(&mut FocusSystem, &mut T, &mut DrawCommands, &mut crate::output::Output, Rect) + 'b,
 > {
-    let spec = builder.defaults_from_theme(&ctx.theme).build();
     let pre_layout_spec = raw::ScrollAreaPreLayoutSpec {};
     let offer = ctx.peek_offer(layout_params.clone());
     let pre_layout = raw::pre_layout_scroll_area(&pre_layout_spec, offer);
