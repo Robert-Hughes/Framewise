@@ -88,7 +88,7 @@ pub use checkbox::{
 #[cfg(feature = "chip")]
 pub use chip::{chip, ChipResult, ChipSpecBuilder, ChipState, ChipStyle};
 #[cfg(feature = "color_swatch")]
-pub use color_swatch::{color_swatch, ColorSwatchResult, ColorSwatchSpecBuilder};
+pub use color_swatch::{color_swatch, ColorSwatchResult, ColorSwatchSpec};
 #[cfg(feature = "divider")]
 pub use divider::{divider, DividerResult, DividerSpecBuilder};
 #[cfg(feature = "drag_number")]
@@ -104,9 +104,9 @@ pub use label::{label, LabelResult, LabelSpec, LabelStyle};
 #[cfg(feature = "menu")]
 pub use menu::{menu, MenuItem, MenuResult, MenuSpecBuilder, MenuStyle};
 #[cfg(feature = "meter")]
-pub use meter::{meter, MeterResult, MeterSpecBuilder};
+pub use meter::{meter, MeterResult, MeterSpec, MeterStyle};
 #[cfg(feature = "progress_bar")]
-pub use progress_bar::{progress_bar, ProgressBarResult, ProgressBarSpecBuilder, ProgressBarStyle};
+pub use progress_bar::{progress_bar, ProgressBarResult, ProgressBarSpec, ProgressBarStyle};
 #[cfg(feature = "radio")]
 pub use radio::{labelled_radio, radio, RadioResult, RadioSpecBuilder, RadioState, RadioStyle};
 #[cfg(feature = "scroll_area")]

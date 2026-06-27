@@ -89,49 +89,35 @@ pub struct ColorSwatchResult {
 #[derive(Debug, Clone, PartialEq)]
 pub struct ColorSwatchSpec {
     pub color: Color,
+    /// Border stroke drawn around the swatch.
     pub border: Option<Stroke>,
 }
 
-// ── Spec Builder ─────────────────────────────────────────────────────────────
+impl ColorSwatchSpec {
+    pub fn new(color: Color) -> Self {
+        Self {
+            color,
+            border: Some(Stroke::new(crate::theme::Theme::minimal().ink, 1.0)),
+        }
+    }
 
-#[derive(Debug, Clone, PartialEq, Default)]
-pub struct ColorSwatchSpecBuilder {
-    pub color: Option<Color>,
-    pub border: Option<Option<Stroke>>,
-}
+    pub fn new_from_theme(color: Color, theme: &crate::theme::Theme) -> Self {
+        Self::new(color).theme(theme)
+    }
 
-impl ColorSwatchSpecBuilder {
-    pub fn new() -> Self {
-        Self::default()
+    pub fn theme(mut self, theme: &crate::theme::Theme) -> Self {
+        self.border = Some(Stroke::new(theme.ink, 1.0));
+        self
     }
 
     pub fn color(mut self, color: Color) -> Self {
-        self.color = Some(color);
+        self.color = color;
         self
     }
 
     pub fn border(mut self, border: Option<Stroke>) -> Self {
-        self.border = Some(border);
+        self.border = border;
         self
-    }
-
-    /// Fills unset fields from `theme`. Called automatically by high-level
-    /// context functions.
-    pub fn defaults_from_theme(mut self, theme: &crate::theme::Theme) -> Self {
-        if self.border.is_none() {
-            self.border = Some(Some(Stroke::new(theme.ink, 1.0)));
-        }
-        // Note color doesn't come from theme - this is the colour being indicated by the swatch!
-        self
-    }
-
-    pub fn build(self) -> ColorSwatchSpec {
-        ColorSwatchSpec {
-            color: self.color.expect("color not set — call .color()"),
-            border: self
-                .border
-                .expect("border not set — call .border() or defaults_from_theme()"),
-        }
     }
 }
 
@@ -139,14 +125,14 @@ impl ColorSwatchSpecBuilder {
 
 /// High-level color swatch widget function using `WidgetContext`.
 ///
-/// Resolves defaults, runs the raw pre-layout phase to obtain a `SizeRequest`,
-/// resolves the final rect with layout, then runs the raw post-layout phase.
+/// Consumes a complete `ColorSwatchSpec`, runs the raw pre-layout phase to obtain a
+/// `SizeRequest`, resolves the final rect with layout, then runs the raw
+/// post-layout phase.
 pub fn color_swatch<T: TextBackend, S: LayoutState, CF>(
-    ctx: &mut WidgetContext<T, S, CF>,
-    builder: ColorSwatchSpecBuilder,
+    spec: ColorSwatchSpec,
     layout_params: S::Params,
+    ctx: &mut WidgetContext<T, S, CF>,
 ) -> ColorSwatchResult {
-    let spec = builder.defaults_from_theme(&ctx.theme).build();
     let pre_layout_spec = raw::ColorSwatchPreLayoutSpec {};
     let offer = ctx.peek_offer(layout_params.clone());
     let pre_layout = raw::pre_layout_color_swatch(&pre_layout_spec, offer);

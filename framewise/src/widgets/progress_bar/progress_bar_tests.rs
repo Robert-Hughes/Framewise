@@ -1,4 +1,3 @@
-use super::raw::ProgressBarSpec;
 use super::*;
 use crate::draw::DrawCmd;
 use crate::focus::FocusSystem;
@@ -7,7 +6,7 @@ use crate::test_utils::TestTextBackend;
 #[test]
 fn test_progress_bar_visual_normal() {
     let style = ProgressBarStyle::from_theme(&crate::theme::Theme::framewise());
-    let spec = ProgressBarSpec {
+    let spec = raw::ProgressBarSpec {
         layer: Layer::default(),
         rect: Rect::new(10.0, 10.0, 100.0, 10.0), // h=10
         value: 0.5,
@@ -47,7 +46,7 @@ fn test_progress_bar_visual_normal() {
 #[test]
 fn test_progress_bar_visual_active() {
     let style = ProgressBarStyle::from_theme(&crate::theme::Theme::framewise());
-    let spec = ProgressBarSpec {
+    let spec = raw::ProgressBarSpec {
         layer: Layer::default(),
         rect: Rect::new(10.0, 10.0, 100.0, 10.0),
         value: 0.5,
@@ -87,7 +86,7 @@ fn test_progress_bar_visual_active() {
 #[test]
 fn test_progress_bar_visual_indeterminate() {
     let style = ProgressBarStyle::from_theme(&crate::theme::Theme::framewise());
-    let spec = ProgressBarSpec {
+    let spec = raw::ProgressBarSpec {
         layer: Layer::default(),
         rect: Rect::new(10.0, 10.0, 100.0, 10.0),
         value: f32::NAN,
@@ -125,22 +124,10 @@ fn test_progress_bar_visual_indeterminate() {
 }
 
 #[test]
-fn test_builder_defaults_from_theme_fills_unset_style() {
+fn test_spec_defaults_from_theme() {
     let theme = crate::theme::Theme::framewise();
-    let builder = ProgressBarSpecBuilder::new().value(0.5);
-    assert!(builder.style.is_none());
-    let builder = builder.defaults_from_theme(&theme);
-    assert_eq!(builder.style, Some(ProgressBarStyle::from_theme(&theme)));
-}
-
-#[test]
-fn test_builder_defaults_from_theme_preserves_explicit_style() {
-    let theme = crate::theme::Theme::framewise();
-    let mut custom_style = ProgressBarStyle::from_theme(&theme);
-    custom_style.track_height = 99.0;
-    let builder = ProgressBarSpecBuilder::new().value(0.5).style(custom_style);
-    let builder = builder.defaults_from_theme(&theme);
-    assert_eq!(builder.style.unwrap().track_height, 99.0);
+    let spec = ProgressBarSpec::new_from_theme(0.5, &theme);
+    assert_eq!(spec.style, ProgressBarStyle::from_theme(&theme));
 }
 
 #[test]
@@ -163,9 +150,9 @@ fn test_high_level_explicit_placement_via_manual_layout() {
         &mut cmds,
     );
     let result = super::progress_bar(
-        &mut ctx,
-        ProgressBarSpecBuilder::new().value(0.5),
+        ProgressBarSpec::new_from_theme(0.5, &ctx.theme),
         placement,
+        &mut ctx,
     );
     assert_eq!(result.layout.bounds, placement);
 }

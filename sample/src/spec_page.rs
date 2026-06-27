@@ -49,7 +49,7 @@ use framewise::widgets::checkbox::{
 use framewise::widgets::chip::{chip, ChipSpecBuilder, ChipState, ChipStyle};
 #[cfg(feature = "color_swatch")]
 #[allow(unused_imports)]
-use framewise::widgets::color_swatch::{color_swatch, ColorSwatchSpecBuilder};
+use framewise::widgets::color_swatch::{color_swatch, ColorSwatchSpec};
 #[cfg(feature = "drag_number")]
 #[allow(unused_imports)]
 use framewise::widgets::drag_number::{
@@ -63,10 +63,10 @@ use framewise::widgets::keycap::{keycap, KeycapSpec};
 use framewise::widgets::menu::{menu, MenuItem, MenuSpecBuilder};
 #[cfg(feature = "meter")]
 #[allow(unused_imports)]
-use framewise::widgets::meter::{meter, MeterSpecBuilder};
+use framewise::widgets::meter::{meter, MeterSpec};
 #[cfg(feature = "progress_bar")]
 #[allow(unused_imports)]
-use framewise::widgets::progress_bar::{progress_bar, ProgressBarSpecBuilder};
+use framewise::widgets::progress_bar::{progress_bar, ProgressBarSpec};
 #[cfg(feature = "radio")]
 #[allow(unused_imports)]
 use framewise::widgets::radio::{labelled_radio, radio, RadioSpecBuilder, RadioState, RadioStyle};
@@ -1263,7 +1263,7 @@ impl Default for SpecWidgetsState {
 fn static_badge<CF, LS: LayoutState>(b: &mut WidgetContext<SampleTextBackend, LS, CF>, rect: Rect) {
     let size = 9.0;
     let color = b.theme.muted;
-    let spec_builder = LabelSpec::new("(STATIC)").style(LabelStyle {
+    let spec = LabelSpec::new("(STATIC)").style(LabelStyle {
         text_style: framewise::TextStyle {
             size,
             ..(LabelStyle::from_theme(&b.theme)).text_style
@@ -1271,7 +1271,6 @@ fn static_badge<CF, LS: LayoutState>(b: &mut WidgetContext<SampleTextBackend, LS
         text_color: color,
         ..LabelStyle::from_theme(&b.theme)
     });
-    let spec = spec_builder;
     let label_spec = framewise::widgets::label::raw::LabelSpec {
         rect,
         text: spec.text,
@@ -1306,7 +1305,7 @@ fn sec_y<CF>(
         let mut b = b.child_with_layout(ColumnLayoutParams::auto().fill_x(), RowLayout);
         {
             let color = b.theme.muted;
-            let spec_builder = LabelSpec::new(num).style(LabelStyle {
+            let spec = LabelSpec::new(num).style(LabelStyle {
                 text_style: framewise::TextStyle {
                     font: b.theme.mono_font,
                     size: b.theme.text_sm,
@@ -1316,13 +1315,13 @@ fn sec_y<CF>(
                 text_color: color,
                 ..LabelStyle::from_theme(&b.theme)
             });
-            label(spec_builder, RowLayoutParams::auto(), &mut b)
+            label(spec, RowLayoutParams::auto(), &mut b)
         };
         b.spacer(16.0);
         {
             let color = b.theme.ink;
             let font = b.theme.sans_font;
-            let spec_builder = LabelSpec::new(title).style(LabelStyle {
+            let spec = LabelSpec::new(title).style(LabelStyle {
                 text_style: framewise::TextStyle {
                     font,
                     size: 22.0,
@@ -1332,7 +1331,7 @@ fn sec_y<CF>(
                 text_color: color,
                 ..LabelStyle::from_theme(&b.theme)
             });
-            label(spec_builder, RowLayoutParams::auto(), &mut b)
+            label(spec, RowLayoutParams::auto(), &mut b)
         };
         b.spacer(16.0);
         {
@@ -1340,7 +1339,7 @@ fn sec_y<CF>(
             let size = b.theme.text_mono;
             let color = b.theme.muted;
             let font = b.theme.mono_font;
-            let spec_builder = LabelSpec::new(detail_text).style(LabelStyle {
+            let spec = LabelSpec::new(detail_text).style(LabelStyle {
                 text_style: TextStyle {
                     font,
                     size,
@@ -1355,7 +1354,7 @@ fn sec_y<CF>(
                 ..LabelStyle::from_theme(&b.theme)
             });
             label(
-                spec_builder,
+                spec,
                 ColumnLayoutParams::fixed(330.0, 48.0).align_x(Align::End),
                 &mut b,
             );
@@ -1376,12 +1375,12 @@ fn group_y<CF>(b: &mut WidgetContext<SampleTextBackend, ColumnState, CF>, text: 
     {
         let text: &str = &text.to_uppercase();
         let color = b.theme.muted;
-        let spec_builder = LabelSpec::new(text).style(LabelStyle {
+        let spec = LabelSpec::new(text).style(LabelStyle {
             text_style: b.theme.overline_text_style(b.theme.text_sm),
             text_color: color,
             ..LabelStyle::from_theme(&b.theme)
         });
-        label(spec_builder, ColumnLayoutParams::fixed(400.0, 16.0), b)
+        label(spec, ColumnLayoutParams::fixed(400.0, 16.0), b)
     };
     b.spacer(16.0);
 }
@@ -1577,35 +1576,34 @@ fn header_section<CF>(b: &mut WidgetContext<SampleTextBackend, ColumnState, CF>,
         let layout_params = Rect::new(tx, 0.0, hero_w, 16.0);
         let size = b.theme.text_sm;
         let color = b.theme.muted;
-        let spec_builder =
-            LabelSpec::new("FRAMEWISE · WIDGET SPECIFICATION · V0.1").style(LabelStyle {
-                text_style: b.theme.overline_text_style(size),
-                text_color: color,
-                ..LabelStyle::from_theme(&b.theme)
-            });
-        label(spec_builder, layout_params, &mut b)
+        let spec = LabelSpec::new("FRAMEWISE · WIDGET SPECIFICATION · V0.1").style(LabelStyle {
+            text_style: b.theme.overline_text_style(size),
+            text_color: color,
+            ..LabelStyle::from_theme(&b.theme)
+        });
+        label(spec, layout_params, &mut b)
     };
     // Two-line Title (56px size, Bold, line-height 0.95)
     {
         let layout_params = Rect::new(tx, 22.0, hero_w.min(540.0), 140.0);
         let color = b.theme.ink;
-        let spec_builder = LabelSpec::new("A widget set that explains itself.").style(LabelStyle {
+        let spec = LabelSpec::new("A widget set that explains itself.").style(LabelStyle {
             text_style: b.theme.heading_text_style(56.0),
             text_color: color,
             ..LabelStyle::from_theme(&b.theme)
         });
-        label(spec_builder, layout_params, &mut b)
+        label(spec, layout_params, &mut b)
     };
     // Description (15px size, regular, line-height 1.55)
     {
         let layout_params = Rect::new(tx, 168.0, hero_w.min(520.0), 80.0);
         let color = Color::from_srgb_u8(58, 53, 45, 255);
-        let spec_builder = LabelSpec::new("Sharp corners, hairline borders, monospaced numerics. One accent — rust — reserved for focus, drag, and primary action. Every widget describes its state explicitly; nothing is hidden behind animation or chrome.").style(LabelStyle {
+        let spec = LabelSpec::new("Sharp corners, hairline borders, monospaced numerics. One accent — rust — reserved for focus, drag, and primary action. Every widget describes its state explicitly; nothing is hidden behind animation or chrome.").style(LabelStyle {
                 text_style: { let mut ts = b.theme.body_text_style(15.0); ts.font = b.theme.heading_font; ts },
                 text_color: color,
                 ..LabelStyle::from_theme(&b.theme)
             });
-        label(spec_builder, layout_params, &mut b)
+        label(spec, layout_params, &mut b)
     };
     // Color Meta Row
     {
@@ -1621,23 +1619,23 @@ fn header_section<CF>(b: &mut WidgetContext<SampleTextBackend, ColumnState, CF>,
             {
                 let size = b.theme.text_sm;
                 let color = b.theme.ink;
-                let spec_builder = LabelSpec::new(key).style(LabelStyle {
+                let spec = LabelSpec::new(key).style(LabelStyle {
                     text_style: b.theme.overline_text_style(size).with_letter_spacing(0.12),
                     text_color: color,
                     ..LabelStyle::from_theme(&b.theme)
                 });
-                label(spec_builder, RowLayoutParams::auto(), &mut b)
+                label(spec, RowLayoutParams::auto(), &mut b)
             };
             b.spacer(16.0);
             {
                 let size = b.theme.text_sm;
                 let color = b.theme.muted;
-                let spec_builder = LabelSpec::new(val).style(LabelStyle {
+                let spec = LabelSpec::new(val).style(LabelStyle {
                     text_style: b.theme.overline_text_style(size).with_letter_spacing(0.12),
                     text_color: color,
                     ..LabelStyle::from_theme(&b.theme)
                 });
-                label(spec_builder, RowLayoutParams::auto(), &mut b)
+                label(spec, RowLayoutParams::auto(), &mut b)
             };
             b.spacer(40.0);
         }
@@ -1781,12 +1779,12 @@ fn section_01_buttons<CF>(
             {
                 let layout_params = Rect::new(col_x, y, cell_w, 16.0);
                 let color = b.theme.muted;
-                let spec_builder = LabelSpec::new(col).style(LabelStyle {
+                let spec = LabelSpec::new(col).style(LabelStyle {
                     text_style: b.theme.overline_text_style(10.0),
                     text_color: color,
                     ..LabelStyle::from_theme(&b.theme)
                 });
-                label(spec_builder, layout_params, &mut b)
+                label(spec, layout_params, &mut b)
             };
         }
         y += 16.0 + row_gap;
@@ -1794,7 +1792,7 @@ fn section_01_buttons<CF>(
         for (ri, row_label) in row_labels.iter().enumerate() {
             {
                 let layout_params = Rect::new(0.0, y, label_w, b.theme.h_md);
-                let spec_builder = LabelSpec::new(row_label).style(LabelStyle {
+                let spec = LabelSpec::new(row_label).style(LabelStyle {
                     text_style: b.theme.overline_text_style(12.0).with_letter_spacing(0.04),
                     text_color: b.theme.ink,
                     content_placement: framewise::TextContentPlacement::logical(
@@ -1803,7 +1801,7 @@ fn section_01_buttons<CF>(
                     ),
                     ..LabelStyle::from_theme(&b.theme)
                 });
-                label(spec_builder, layout_params, &mut b)
+                label(spec, layout_params, &mut b)
             };
             for ci in 0..5 {
                 let col_x = label_w + col_gap + ci as f32 * (cell_w + col_gap);
@@ -1979,12 +1977,12 @@ fn section_02_text_inputs<CF>(
                 let layout_params =
                     Rect::new(label_w + ci as f32 * (cell_w + col_gap), y, cell_w, 16.0);
                 let color = b.theme.muted;
-                let spec_builder = LabelSpec::new(col).style(LabelStyle {
+                let spec = LabelSpec::new(col).style(LabelStyle {
                     text_style: b.theme.overline_text_style(10.0),
                     text_color: color,
                     ..LabelStyle::from_theme(&b.theme)
                 });
-                label(spec_builder, layout_params, &mut b)
+                label(spec, layout_params, &mut b)
             };
         }
         y += 20.0;
@@ -1992,7 +1990,7 @@ fn section_02_text_inputs<CF>(
         for (ri, row_label) in row_labels.iter().enumerate() {
             {
                 let layout_params = Rect::new(lx, y, label_w - 4.0, b.theme.h_md);
-                let spec_builder = LabelSpec::new(row_label).style(LabelStyle {
+                let spec = LabelSpec::new(row_label).style(LabelStyle {
                     text_style: b.theme.overline_text_style(12.0).with_letter_spacing(0.04),
                     text_color: b.theme.ink,
                     content_placement: framewise::TextContentPlacement::logical(
@@ -2001,7 +1999,7 @@ fn section_02_text_inputs<CF>(
                     ),
                     ..LabelStyle::from_theme(&b.theme)
                 });
-                label(spec_builder, layout_params, &mut b)
+                label(spec, layout_params, &mut b)
             };
             for ci in 0..5 {
                 let idx = ri * 5 + ci;
@@ -2066,7 +2064,7 @@ fn section_02_text_inputs<CF>(
         {
             let layout_params = Rect::new(field_x, y, 220.0, 20.0);
             let color = b.theme.muted;
-            let spec_builder = LabelSpec::new("CRATE NAME").style(LabelStyle {
+            let spec = LabelSpec::new("CRATE NAME").style(LabelStyle {
                 text_style: b
                     .theme
                     .overline_text_style(b.theme.text_sm)
@@ -2074,7 +2072,7 @@ fn section_02_text_inputs<CF>(
                 text_color: color,
                 ..LabelStyle::from_theme(&b.theme)
             });
-            label(spec_builder, layout_params, &mut b)
+            label(spec, layout_params, &mut b)
         };
         let _info = {
             let state = &mut state.te_labelled;
@@ -2090,7 +2088,7 @@ fn section_02_text_inputs<CF>(
         {
             let layout_params = Rect::new(field_x, y + 18.0 + b.theme.h_md + 4.0, 220.0, 20.0);
             let color = b.theme.muted;
-            let spec_builder = LabelSpec::new("a–z, 0–9, hyphen; max 64").style(LabelStyle {
+            let spec = LabelSpec::new("a–z, 0–9, hyphen; max 64").style(LabelStyle {
                 text_style: framewise::TextStyle::new(
                     b.theme.mono_font,
                     b.theme.text_sm,
@@ -2101,7 +2099,7 @@ fn section_02_text_inputs<CF>(
                 text_color: color,
                 ..LabelStyle::from_theme(&b.theme)
             });
-            label(spec_builder, layout_params, &mut b)
+            label(spec, layout_params, &mut b)
         };
 
         // Prefixed field (draw prefix addon manually)
@@ -2109,7 +2107,7 @@ fn section_02_text_inputs<CF>(
         {
             let layout_params = Rect::new(pf_x, y, 240.0, 20.0);
             let color = b.theme.muted;
-            let spec_builder = LabelSpec::new("VERSION").style(LabelStyle {
+            let spec = LabelSpec::new("VERSION").style(LabelStyle {
                 text_style: b
                     .theme
                     .overline_text_style(b.theme.text_sm)
@@ -2117,7 +2115,7 @@ fn section_02_text_inputs<CF>(
                 text_color: color,
                 ..LabelStyle::from_theme(&b.theme)
             });
-            label(spec_builder, layout_params, &mut b)
+            label(spec, layout_params, &mut b)
         };
         {
             let layout_params = Rect::new(pf_x, y + 18.0, 24.0, b.theme.h_md);
@@ -2144,7 +2142,7 @@ fn section_02_text_inputs<CF>(
         {
             let layout_params = Rect::new(pf_x, y + 18.0, 24.0, b.theme.h_md);
             let color = b.theme.paper;
-            let spec_builder = LabelSpec::new("v").style(LabelStyle {
+            let spec = LabelSpec::new("v").style(LabelStyle {
                 text_style: framewise::TextStyle::new(
                     b.theme.mono_font,
                     b.theme.text_mono,
@@ -2159,7 +2157,7 @@ fn section_02_text_inputs<CF>(
                 ),
                 ..LabelStyle::from_theme(&b.theme)
             });
-            label(spec_builder, layout_params, &mut b)
+            label(spec, layout_params, &mut b)
         };
         let _info = {
             let state = &mut state.te_prefixed;
@@ -2186,7 +2184,7 @@ fn section_02_text_inputs<CF>(
             );
             b.append_cmds(cmds);
 
-            let spec_builder = LabelSpec::new("!").style(LabelStyle {
+            let spec = LabelSpec::new("!").style(LabelStyle {
                 text_style: framewise::TextStyle::new(
                     b.theme.mono_font,
                     9.0,
@@ -2198,12 +2196,12 @@ fn section_02_text_inputs<CF>(
                 content_placement: framewise::TextContentPlacement::INK_CENTER,
                 ..LabelStyle::from_theme(&b.theme)
             });
-            label(spec_builder, badge_rect, &mut b);
+            label(spec, badge_rect, &mut b);
         }
         {
             let layout_params = Rect::new(pf_x + 18.0, err_y, 222.0, 20.0);
             let color = b.theme.rust;
-            let spec_builder = LabelSpec::new("semver mismatch — bump minor").style(LabelStyle {
+            let spec = LabelSpec::new("semver mismatch — bump minor").style(LabelStyle {
                 text_style: framewise::TextStyle::new(
                     b.theme.mono_font,
                     b.theme.text_sm,
@@ -2213,7 +2211,7 @@ fn section_02_text_inputs<CF>(
                 text_color: color,
                 ..LabelStyle::from_theme(&b.theme)
             });
-            label(spec_builder, layout_params, &mut b)
+            label(spec, layout_params, &mut b)
         };
 
         // Multiline field
@@ -2221,7 +2219,7 @@ fn section_02_text_inputs<CF>(
         {
             let layout_params = Rect::new(ml_x, y, 280.0, 20.0);
             let color = b.theme.muted;
-            let spec_builder = LabelSpec::new("DESCRIPTION").style(LabelStyle {
+            let spec = LabelSpec::new("DESCRIPTION").style(LabelStyle {
                 text_style: b
                     .theme
                     .overline_text_style(b.theme.text_sm)
@@ -2229,7 +2227,7 @@ fn section_02_text_inputs<CF>(
                 text_color: color,
                 ..LabelStyle::from_theme(&b.theme)
             });
-            label(spec_builder, layout_params, &mut b)
+            label(spec, layout_params, &mut b)
         };
         let _info = {
             let state = &mut state.te_multiline;
@@ -2287,12 +2285,12 @@ fn section_03_toggles<CF>(
             {
                 let layout_params = Rect::new(label_w + ci as f32 * cell_w, y, cell_w - 4.0, 14.0);
                 let color = b.theme.muted;
-                let spec_builder = LabelSpec::new(col).style(LabelStyle {
+                let spec = LabelSpec::new(col).style(LabelStyle {
                     text_style: b.theme.overline_text_style(10.0),
                     text_color: color,
                     ..LabelStyle::from_theme(&b.theme)
                 });
-                label(spec_builder, layout_params, &mut b)
+                label(spec, layout_params, &mut b)
             };
         }
         y += 18.0;
@@ -2300,7 +2298,7 @@ fn section_03_toggles<CF>(
         // Row 1: box only
         {
             let layout_params = Rect::new(0.0, y, label_w - 4.0, row_height);
-            let spec_builder = LabelSpec::new("box").style(LabelStyle {
+            let spec = LabelSpec::new("box").style(LabelStyle {
                 text_style: label_text_style,
                 text_color: b.theme.ink,
                 content_placement: framewise::TextContentPlacement::logical(
@@ -2309,7 +2307,7 @@ fn section_03_toggles<CF>(
                 ),
                 ..LabelStyle::from_theme(&b.theme)
             });
-            label(spec_builder, layout_params, &mut b)
+            label(spec, layout_params, &mut b)
         };
         let box_specs: &[(CheckedState, bool, bool)] = &[
             (CheckedState::Unchecked, false, false),
@@ -2356,7 +2354,7 @@ fn section_03_toggles<CF>(
         // Row 2: with label
         {
             let layout_params = Rect::new(0.0, y, label_w - 4.0, row_height);
-            let spec_builder = LabelSpec::new("with label").style(LabelStyle {
+            let spec = LabelSpec::new("with label").style(LabelStyle {
                 text_style: label_text_style,
                 text_color: b.theme.ink,
                 content_placement: framewise::TextContentPlacement::logical(
@@ -2365,7 +2363,7 @@ fn section_03_toggles<CF>(
                 ),
                 ..LabelStyle::from_theme(&b.theme)
             });
-            label(spec_builder, layout_params, &mut b)
+            label(spec, layout_params, &mut b)
         };
         for (ci, (cs, focused, disabled)) in box_specs.iter().enumerate() {
             let cx = label_w + ci as f32 * cell_w;
@@ -2400,7 +2398,7 @@ fn section_03_toggles<CF>(
                 {
                     let layout_params = Rect::new(cx + 21.0, y + checkbox_offset_y, 60.0, 14.0);
                     let size = b.theme.text_sm;
-                    let spec_builder = LabelSpec::new("vsync").style(LabelStyle {
+                    let spec = LabelSpec::new("vsync").style(LabelStyle {
                         text_style: framewise::TextStyle {
                             size,
                             ..(LabelStyle::from_theme(&b.theme)).text_style
@@ -2408,7 +2406,7 @@ fn section_03_toggles<CF>(
                         text_color: label_alpha,
                         ..LabelStyle::from_theme(&b.theme)
                     });
-                    label(spec_builder, layout_params, &mut b)
+                    label(spec, layout_params, &mut b)
                 };
             } else {
                 let state = &mut state.cb_matrix[7];
@@ -2463,7 +2461,7 @@ fn section_03_toggles<CF>(
                         {
                             let size = b.theme.text_md;
                             let color = b.theme.ink;
-                            let spec_builder = LabelSpec::new(radio_label).style(LabelStyle {
+                            let spec = LabelSpec::new(radio_label).style(LabelStyle {
                                 text_style: framewise::TextStyle {
                                     size,
                                     ..(LabelStyle::from_theme(&b.theme)).text_style
@@ -2471,7 +2469,7 @@ fn section_03_toggles<CF>(
                                 text_color: color,
                                 ..LabelStyle::from_theme(&b.theme)
                             });
-                            label(spec_builder, RowLayoutParams::auto(), &mut b)
+                            label(spec, RowLayoutParams::auto(), &mut b)
                         };
                         b.finish();
                     }
@@ -2517,7 +2515,7 @@ fn section_03_toggles<CF>(
                         b.spacer(8.0);
                         {
                             let size = b.theme.text_md;
-                            let spec_builder = LabelSpec::new(switch_label).style(LabelStyle {
+                            let spec = LabelSpec::new(switch_label).style(LabelStyle {
                                 text_style: framewise::TextStyle {
                                     size,
                                     ..(LabelStyle::from_theme(&b.theme)).text_style
@@ -2525,7 +2523,7 @@ fn section_03_toggles<CF>(
                                 text_color: label_color,
                                 ..LabelStyle::from_theme(&b.theme)
                             });
-                            label(spec_builder, RowLayoutParams::fixed(140.0, 16.0), &mut b)
+                            label(spec, RowLayoutParams::fixed(140.0, 16.0), &mut b)
                         };
                         b.finish();
                     }
@@ -2826,11 +2824,10 @@ fn section_04_sliders<CF>(
         let swatches: &[(Color, &str)] = &[(b.theme.ink, "#15130f"), (b.theme.rust, "#c25a2c")];
         let mut x = 220.0;
         for (color, hex) in swatches {
-            let spec = ColorSwatchSpecBuilder::new()
-                .color(*color)
-                .border(Some(Stroke::new(b.theme.line_on_paper, 1.0)));
+            let spec =
+                ColorSwatchSpec::new(*color).border(Some(Stroke::new(b.theme.line_on_paper, 1.0)));
             let rect = Rect::new(x, 0.0, 18.0, b.theme.h_md);
-            color_swatch(&mut b, spec, rect);
+            color_swatch(spec, rect, &mut b);
             let spec = LabelSpec::new(hex).style(LabelStyle {
                 text_style: framewise::TextStyle {
                     size: b.theme.text_sm,
@@ -3116,7 +3113,7 @@ fn section_06_scrollbars<CF>(
                     let layout_params = Rect::new(6.0, i as f32 * 18.0 + 6.0, 160.0, 14.0);
                     let size = sa.theme.text_sm;
                     let color = sa.theme.muted;
-                    let spec_builder = LabelSpec::new(line).style(LabelStyle {
+                    let spec = LabelSpec::new(line).style(LabelStyle {
                         text_style: framewise::TextStyle {
                             size,
                             ..(LabelStyle::from_theme(&sa.theme)).text_style
@@ -3124,7 +3121,7 @@ fn section_06_scrollbars<CF>(
                         text_color: color,
                         ..LabelStyle::from_theme(&sa.theme)
                     });
-                    label(spec_builder, layout_params, &mut sa)
+                    label(spec, layout_params, &mut sa)
                 };
             }
             sa.finish();
@@ -3133,7 +3130,7 @@ fn section_06_scrollbars<CF>(
             let layout_params = Rect::new(b1.x, 40.0 + b1.h + 4.0, b1.w, cap_h);
             let size = b.theme.text_sm;
             let color = b.theme.muted;
-            let spec_builder = LabelSpec::new("vertical · idle").style(LabelStyle {
+            let spec = LabelSpec::new("vertical · idle").style(LabelStyle {
                 text_style: framewise::TextStyle {
                     size,
                     ..(LabelStyle::from_theme(&b.theme)).text_style
@@ -3141,7 +3138,7 @@ fn section_06_scrollbars<CF>(
                 text_color: color,
                 ..LabelStyle::from_theme(&b.theme)
             });
-            label(spec_builder, layout_params, &mut b)
+            label(spec, layout_params, &mut b)
         };
 
         // Box 2: vertical, dragging (same implementation, user can drag)
@@ -3182,7 +3179,7 @@ fn section_06_scrollbars<CF>(
                     let text: &str = &format!("// entry {:02}/24 — frame state", i + 1);
                     let size = sa.theme.text_sm;
                     let color = sa.theme.muted;
-                    let spec_builder = LabelSpec::new(text).style(LabelStyle {
+                    let spec = LabelSpec::new(text).style(LabelStyle {
                         text_style: framewise::TextStyle {
                             size,
                             ..(LabelStyle::from_theme(&sa.theme)).text_style
@@ -3190,7 +3187,7 @@ fn section_06_scrollbars<CF>(
                         text_color: color,
                         ..LabelStyle::from_theme(&sa.theme)
                     });
-                    label(spec_builder, layout_params, &mut sa)
+                    label(spec, layout_params, &mut sa)
                 };
             }
             sa.finish();
@@ -3199,7 +3196,7 @@ fn section_06_scrollbars<CF>(
             let layout_params = Rect::new(b2.x, 40.0 + b2.h + 4.0, b2.w, cap_h);
             let size = b.theme.text_sm;
             let color = b.theme.muted;
-            let spec_builder = LabelSpec::new("vertical · dragging (rust)").style(LabelStyle {
+            let spec = LabelSpec::new("vertical · dragging (rust)").style(LabelStyle {
                 text_style: framewise::TextStyle {
                     size,
                     ..(LabelStyle::from_theme(&b.theme)).text_style
@@ -3207,7 +3204,7 @@ fn section_06_scrollbars<CF>(
                 text_color: color,
                 ..LabelStyle::from_theme(&b.theme)
             });
-            label(spec_builder, layout_params, &mut b)
+            label(spec, layout_params, &mut b)
         };
 
         // Box 3: horizontal
@@ -3251,8 +3248,8 @@ fn section_06_scrollbars<CF>(
                 let layout_params = Rect::new(6.0, 6.0, 680.0, 14.0);
                 let size = sa.theme.text_sm;
                 let color = sa.theme.muted;
-                let spec_builder = LabelSpec::new("frame.draw_rect( … )  frame.draw_text( \"hello, framewise\" )  frame.draw_image( logo )  frame.layout.push( Row )").style(LabelStyle { text_style: framewise::TextStyle { size, ..(LabelStyle::from_theme(&sa.theme)).text_style }, text_color: color, ..LabelStyle::from_theme(&sa.theme) });
-                label(spec_builder, layout_params, &mut sa)
+                let spec = LabelSpec::new("frame.draw_rect( … )  frame.draw_text( \"hello, framewise\" )  frame.draw_image( logo )  frame.layout.push( Row )").style(LabelStyle { text_style: framewise::TextStyle { size, ..(LabelStyle::from_theme(&sa.theme)).text_style }, text_color: color, ..LabelStyle::from_theme(&sa.theme) });
+                label(spec, layout_params, &mut sa)
             };
             sa.finish();
         }
@@ -3260,7 +3257,7 @@ fn section_06_scrollbars<CF>(
             let layout_params = Rect::new(b3.x, 40.0 + b3.h + 15.0 + 4.0, b3.w, cap_h);
             let size = b.theme.text_sm;
             let color = b.theme.muted;
-            let spec_builder = LabelSpec::new("horizontal").style(LabelStyle {
+            let spec = LabelSpec::new("horizontal").style(LabelStyle {
                 text_style: framewise::TextStyle {
                     size,
                     ..(LabelStyle::from_theme(&b.theme)).text_style
@@ -3268,7 +3265,7 @@ fn section_06_scrollbars<CF>(
                 text_color: color,
                 ..LabelStyle::from_theme(&b.theme)
             });
-            label(spec_builder, layout_params, &mut b)
+            label(spec, layout_params, &mut b)
         };
 
         // Box 4: both axes
@@ -3312,7 +3309,7 @@ fn section_06_scrollbars<CF>(
                 let layout_params = Rect::new(12.0, 10.0, 160.0, 32.0);
                 let size = sa.theme.text_sm;
                 let color = sa.theme.muted;
-                let spec_builder =
+                let spec =
                     LabelSpec::new("scroll surface with both bars + corner").style(LabelStyle {
                         text_style: framewise::TextStyle {
                             flow: framewise::text::TextFlow::wrapped(),
@@ -3322,7 +3319,7 @@ fn section_06_scrollbars<CF>(
                         text_color: color,
                         ..LabelStyle::from_theme(&sa.theme)
                     });
-                label(spec_builder, layout_params, &mut sa)
+                label(spec, layout_params, &mut sa)
             };
             sa.finish();
         }
@@ -3330,7 +3327,7 @@ fn section_06_scrollbars<CF>(
             let layout_params = Rect::new(b4.x, 40.0 + b4.h + 4.0, b4.w, cap_h);
             let size = b.theme.text_sm;
             let color = b.theme.muted;
-            let spec_builder = LabelSpec::new("both axes").style(LabelStyle {
+            let spec = LabelSpec::new("both axes").style(LabelStyle {
                 text_style: framewise::TextStyle {
                     size,
                     ..(LabelStyle::from_theme(&b.theme)).text_style
@@ -3338,7 +3335,7 @@ fn section_06_scrollbars<CF>(
                 text_color: color,
                 ..LabelStyle::from_theme(&b.theme)
             });
-            label(spec_builder, layout_params, &mut b)
+            label(spec, layout_params, &mut b)
         };
 
         b.finish();
@@ -3382,7 +3379,7 @@ fn section_07_tabs<CF>(
 fn section_08_progress<CF>(
     b: &mut WidgetContext<SampleTextBackend, ColumnState, CF>,
     content_w: f32,
-    time: f64,
+    _time: f64,
 ) {
     // ── 08 · PROGRESS · METERS · STATUS ──────────────────────────────────────
     sec_y(b, content_w, "08", "Progress, meters & status",
@@ -3400,17 +3397,14 @@ fn section_08_progress<CF>(
         for (val, active, bar_label) in bar_items {
             let mut b = b.child_with_layout(ColumnLayoutParams::auto(), RowLayout);
             progress_bar(
-                &mut b,
-                ProgressBarSpecBuilder::new()
-                    .value(*val)
-                    .phase((time as f32) * 0.5)
-                    .active(*active),
+                ProgressBarSpec::new_from_theme(*val, &b.theme).active(*active),
                 RowLayoutParams::fixed(bar_w, 3.0),
+                &mut b,
             );
             {
                 let size = b.theme.text_sm;
                 let color = b.theme.muted;
-                let spec_builder = LabelSpec::new(bar_label).style(LabelStyle {
+                let spec = LabelSpec::new(bar_label).style(LabelStyle {
                     text_style: framewise::TextStyle {
                         size,
                         ..(LabelStyle::from_theme(&b.theme)).text_style
@@ -3418,7 +3412,7 @@ fn section_08_progress<CF>(
                     text_color: color,
                     ..LabelStyle::from_theme(&b.theme)
                 });
-                label(spec_builder, RowLayoutParams::auto(), &mut b)
+                label(spec, RowLayoutParams::auto(), &mut b)
             };
             b.finish();
         }
@@ -3436,7 +3430,7 @@ fn section_08_progress<CF>(
             {
                 let size = b.theme.text_sm;
                 let color = b.theme.muted;
-                let spec_builder = LabelSpec::new(meter_label).style(LabelStyle {
+                let spec = LabelSpec::new(meter_label).style(LabelStyle {
                     text_style: framewise::TextStyle {
                         size,
                         ..(LabelStyle::from_theme(&b.theme)).text_style
@@ -3444,13 +3438,13 @@ fn section_08_progress<CF>(
                     text_color: color,
                     ..LabelStyle::from_theme(&b.theme)
                 });
-                label(spec_builder, RowLayoutParams::fixed(36.0, 14.0), &mut b)
+                label(spec, RowLayoutParams::fixed(36.0, 14.0), &mut b)
             };
             if *meter_label == "FRAME" {
                 {
                     let size = b.theme.text_sm;
                     let color = b.theme.ink;
-                    let spec_builder = LabelSpec::new("2.4 ms").style(LabelStyle {
+                    let spec = LabelSpec::new("2.4 ms").style(LabelStyle {
                         text_style: framewise::TextStyle {
                             size,
                             ..(LabelStyle::from_theme(&b.theme)).text_style
@@ -3458,13 +3452,15 @@ fn section_08_progress<CF>(
                         text_color: color,
                         ..LabelStyle::from_theme(&b.theme)
                     });
-                    label(spec_builder, RowLayoutParams::fixed(60.0, 16.0), &mut b);
+                    label(spec, RowLayoutParams::fixed(60.0, 16.0), &mut b);
                 }
             } else {
                 meter(
-                    &mut b,
-                    MeterSpecBuilder::new().value(*val).peak(*peak).bars(10),
+                    MeterSpec::new_from_theme(*val, &b.theme)
+                        .peak(*peak)
+                        .bars(10),
                     RowLayoutParams::fixed(100.0, 12.0),
+                    &mut b,
                 );
             }
             b.finish();
@@ -3483,7 +3479,7 @@ fn section_08_progress<CF>(
             {
                 let size = b.theme.text_sm;
                 let color = b.theme.muted;
-                let spec_builder = LabelSpec::new("loading").style(LabelStyle {
+                let spec = LabelSpec::new("loading").style(LabelStyle {
                     text_style: framewise::TextStyle {
                         size,
                         ..(LabelStyle::from_theme(&b.theme)).text_style
@@ -3491,7 +3487,7 @@ fn section_08_progress<CF>(
                     text_color: color,
                     ..LabelStyle::from_theme(&b.theme)
                 });
-                label(spec_builder, RowLayoutParams::fixed(60.0, 14.0), &mut b)
+                label(spec, RowLayoutParams::fixed(60.0, 14.0), &mut b)
             };
 
             spinner(
@@ -3503,7 +3499,7 @@ fn section_08_progress<CF>(
                 let layout_params = RowLayoutParams::fixed(50.0, 14.0);
                 let size = b.theme.text_sm;
                 let color = b.theme.muted;
-                let spec_builder = LabelSpec::new("large").style(LabelStyle {
+                let spec = LabelSpec::new("large").style(LabelStyle {
                     text_style: framewise::TextStyle {
                         size,
                         ..(LabelStyle::from_theme(&b.theme)).text_style
@@ -3511,7 +3507,7 @@ fn section_08_progress<CF>(
                     text_color: color,
                     ..LabelStyle::from_theme(&b.theme)
                 });
-                label(spec_builder, layout_params, &mut b)
+                label(spec, layout_params, &mut b)
             };
             b.finish();
         }
@@ -3753,7 +3749,7 @@ fn section_10_tooltips<CF>(
                 let layout_params = Rect::new(kx + 4.0, y + 3.0, 200.0, 14.0);
                 let size = b.theme.text_sm;
                 let color = b.theme.muted;
-                let spec_builder = LabelSpec::new(desc).style(LabelStyle {
+                let spec = LabelSpec::new(desc).style(LabelStyle {
                     text_style: framewise::TextStyle {
                         size,
                         ..(LabelStyle::from_theme(&b.theme)).text_style
@@ -3761,7 +3757,7 @@ fn section_10_tooltips<CF>(
                     text_color: color,
                     ..LabelStyle::from_theme(&b.theme)
                 });
-                label(spec_builder, layout_params, &mut b)
+                label(spec, layout_params, &mut b)
             };
             y += 28.0;
         }
@@ -3849,7 +3845,7 @@ fn section_11_window<CF>(
                 let layout_params = Rect::new(18.0, iy, cr_w - 18.0, 14.0);
                 let size = win.theme.text_md;
                 let color = win.theme.ink;
-                let spec_builder = LabelSpec::new(check_label).style(LabelStyle {
+                let spec = LabelSpec::new(check_label).style(LabelStyle {
                     text_style: framewise::TextStyle {
                         size,
                         ..(LabelStyle::from_theme(&win.theme)).text_style
@@ -3857,7 +3853,7 @@ fn section_11_window<CF>(
                     text_color: color,
                     ..LabelStyle::from_theme(&win.theme)
                 });
-                label(spec_builder, layout_params, &mut win)
+                label(spec, layout_params, &mut win)
             };
             iy += 22.0;
         }
@@ -3899,7 +3895,7 @@ fn section_11_window<CF>(
         {
             let layout_params = Rect::new(dw.x + 10.0, 6.0, 180.0, 14.0);
             let size = b.theme.text_sm;
-            let spec_builder = LabelSpec::new("FRAMEWISE · DARK").style(LabelStyle {
+            let spec = LabelSpec::new("FRAMEWISE · DARK").style(LabelStyle {
                 text_style: framewise::TextStyle {
                     size,
                     ..(LabelStyle::from_theme(&b.theme)).text_style
@@ -3907,12 +3903,12 @@ fn section_11_window<CF>(
                 text_color: light,
                 ..LabelStyle::from_theme(&b.theme)
             });
-            label(spec_builder, layout_params, &mut b)
+            label(spec, layout_params, &mut b)
         };
         {
             let layout_params = Rect::new(dw.x + dw.w - 28.0, 6.0, 20.0, 14.0);
             let size = b.theme.text_sm;
-            let spec_builder = LabelSpec::new("✕").style(LabelStyle {
+            let spec = LabelSpec::new("✕").style(LabelStyle {
                 text_style: framewise::TextStyle {
                     size,
                     ..(LabelStyle::from_theme(&b.theme)).text_style
@@ -3920,7 +3916,7 @@ fn section_11_window<CF>(
                 text_color: light,
                 ..LabelStyle::from_theme(&b.theme)
             });
-            label(spec_builder, layout_params, &mut b)
+            label(spec, layout_params, &mut b)
         };
 
         let cx = dw.x + 16.0;
@@ -3963,7 +3959,7 @@ fn section_11_window<CF>(
         {
             let layout_params = Rect::new(cx + 7.0, cyw + 5.0, 12.0, 12.0);
             let size = b.theme.text_sm;
-            let spec_builder = LabelSpec::new("⌘").style(LabelStyle {
+            let spec = LabelSpec::new("⌘").style(LabelStyle {
                 text_style: framewise::TextStyle {
                     size,
                     ..(LabelStyle::from_theme(&b.theme)).text_style
@@ -3971,12 +3967,12 @@ fn section_11_window<CF>(
                 text_color: light,
                 ..LabelStyle::from_theme(&b.theme)
             });
-            label(spec_builder, layout_params, &mut b)
+            label(spec, layout_params, &mut b)
         };
         {
             let layout_params = Rect::new(cx + 35.0, cyw + 5.0, 12.0, 12.0);
             let size = b.theme.text_sm;
-            let spec_builder = LabelSpec::new("K").style(LabelStyle {
+            let spec = LabelSpec::new("K").style(LabelStyle {
                 text_style: framewise::TextStyle {
                     size,
                     ..(LabelStyle::from_theme(&b.theme)).text_style
@@ -3984,12 +3980,12 @@ fn section_11_window<CF>(
                 text_color: light,
                 ..LabelStyle::from_theme(&b.theme)
             });
-            label(spec_builder, layout_params, &mut b)
+            label(spec, layout_params, &mut b)
         };
         {
             let layout_params = Rect::new(cx + 56.0, cyw + 5.0, 140.0, 12.0);
             let size = b.theme.text_sm;
-            let spec_builder = LabelSpec::new("search everything").style(LabelStyle {
+            let spec = LabelSpec::new("search everything").style(LabelStyle {
                 text_style: framewise::TextStyle {
                     size,
                     ..(LabelStyle::from_theme(&b.theme)).text_style
@@ -3997,7 +3993,7 @@ fn section_11_window<CF>(
                 text_color: muted_l,
                 ..LabelStyle::from_theme(&b.theme)
             });
-            label(spec_builder, layout_params, &mut b)
+            label(spec, layout_params, &mut b)
         };
 
         // fake dark input
@@ -4027,7 +4023,7 @@ fn section_11_window<CF>(
         {
             let layout_params = Rect::new(cx + 8.0, inp_y + 7.0, dw.w - 48.0, 12.0);
             let size = b.theme.text_sm;
-            let spec_builder = LabelSpec::new("type a command…").style(LabelStyle {
+            let spec = LabelSpec::new("type a command…").style(LabelStyle {
                 text_style: framewise::TextStyle {
                     size,
                     ..(LabelStyle::from_theme(&b.theme)).text_style
@@ -4035,7 +4031,7 @@ fn section_11_window<CF>(
                 text_color: muted_l,
                 ..LabelStyle::from_theme(&b.theme)
             });
-            label(spec_builder, layout_params, &mut b)
+            label(spec, layout_params, &mut b)
         };
 
         // fake dark tabs
@@ -4060,7 +4056,7 @@ fn section_11_window<CF>(
                 let layout_params = Rect::new(tab_x, tab_y + 5.0, 60.0, 14.0);
                 let size = b.theme.text_sm;
                 let color = if i == 0 { light } else { muted_l };
-                let spec_builder = LabelSpec::new(item).style(LabelStyle {
+                let spec = LabelSpec::new(item).style(LabelStyle {
                     text_style: framewise::TextStyle {
                         size,
                         ..(LabelStyle::from_theme(&b.theme)).text_style
@@ -4068,7 +4064,7 @@ fn section_11_window<CF>(
                     text_color: color,
                     ..LabelStyle::from_theme(&b.theme)
                 });
-                label(spec_builder, layout_params, &mut b)
+                label(spec, layout_params, &mut b)
             };
             if i == 0 {
                 {
@@ -4096,7 +4092,7 @@ fn section_11_window<CF>(
             {
                 let layout_params = Rect::new(cx, file_y + i as f32 * 18.0, 200.0, 14.0);
                 let size = b.theme.text_sm;
-                let spec_builder = LabelSpec::new(file).style(LabelStyle {
+                let spec = LabelSpec::new(file).style(LabelStyle {
                     text_style: framewise::TextStyle {
                         size,
                         ..(LabelStyle::from_theme(&b.theme)).text_style
@@ -4104,7 +4100,7 @@ fn section_11_window<CF>(
                     text_color: muted_l,
                     ..LabelStyle::from_theme(&b.theme)
                 });
-                label(spec_builder, layout_params, &mut b)
+                label(spec, layout_params, &mut b)
             };
         }
 
@@ -4176,7 +4172,7 @@ fn section_12_in_use<CF>(
             let layout_params = Rect::new(0.0, fy + 7.0, label_w, 14.0);
             let size = win.theme.text_sm;
             let color = win.theme.muted;
-            let spec_builder = LabelSpec::new("BACKEND").style(LabelStyle {
+            let spec = LabelSpec::new("BACKEND").style(LabelStyle {
                 text_style: framewise::TextStyle {
                     size,
                     ..(LabelStyle::from_theme(&win.theme)).text_style
@@ -4184,7 +4180,7 @@ fn section_12_in_use<CF>(
                 text_color: color,
                 ..LabelStyle::from_theme(&win.theme)
             });
-            label(spec_builder, layout_params, &mut win)
+            label(spec, layout_params, &mut win)
         };
         let backends = ["OpenGL", "Vulkan", "Metal", "wgpu"];
         let _backend_info = {
@@ -4201,7 +4197,7 @@ fn section_12_in_use<CF>(
             let layout_params = Rect::new(0.0, fy + 7.0, label_w, 14.0);
             let size = win.theme.text_sm;
             let color = win.theme.muted;
-            let spec_builder = LabelSpec::new("TARGET FPS").style(LabelStyle {
+            let spec = LabelSpec::new("TARGET FPS").style(LabelStyle {
                 text_style: framewise::TextStyle {
                     size,
                     ..(LabelStyle::from_theme(&win.theme)).text_style
@@ -4209,7 +4205,7 @@ fn section_12_in_use<CF>(
                 text_color: color,
                 ..LabelStyle::from_theme(&win.theme)
             });
-            label(spec_builder, layout_params, &mut win)
+            label(spec, layout_params, &mut win)
         };
         {
             let step = 10.0;
@@ -4226,7 +4222,7 @@ fn section_12_in_use<CF>(
             let text: &str = &format!("{:.0}", state.iu_fps_slider.value.lower());
             let size = win.theme.text_sm;
             let color = win.theme.ink;
-            let spec_builder = LabelSpec::new(text).style(LabelStyle {
+            let spec = LabelSpec::new(text).style(LabelStyle {
                 text_style: framewise::TextStyle {
                     size,
                     ..(LabelStyle::from_theme(&win.theme)).text_style
@@ -4234,7 +4230,7 @@ fn section_12_in_use<CF>(
                 text_color: color,
                 ..LabelStyle::from_theme(&win.theme)
             });
-            label(spec_builder, layout_params, &mut win)
+            label(spec, layout_params, &mut win)
         };
         fy += row_h + row_gap;
 
@@ -4243,7 +4239,7 @@ fn section_12_in_use<CF>(
             let layout_params = Rect::new(0.0, fy + 7.0, label_w, 14.0);
             let size = win.theme.text_sm;
             let color = win.theme.muted;
-            let spec_builder = LabelSpec::new("VSYNC").style(LabelStyle {
+            let spec = LabelSpec::new("VSYNC").style(LabelStyle {
                 text_style: framewise::TextStyle {
                     size,
                     ..(LabelStyle::from_theme(&win.theme)).text_style
@@ -4251,7 +4247,7 @@ fn section_12_in_use<CF>(
                 text_color: color,
                 ..LabelStyle::from_theme(&win.theme)
             });
-            label(spec_builder, layout_params, &mut win)
+            label(spec, layout_params, &mut win)
         };
         let _switch_res = {
             let state = &mut state.iu_vsync;
@@ -4272,7 +4268,7 @@ fn section_12_in_use<CF>(
             let layout_params = Rect::new(0.0, fy + 7.0, label_w, 14.0);
             let size = win.theme.text_sm;
             let color = win.theme.muted;
-            let spec_builder = LabelSpec::new("MSAA").style(LabelStyle {
+            let spec = LabelSpec::new("MSAA").style(LabelStyle {
                 text_style: framewise::TextStyle {
                     size,
                     ..(LabelStyle::from_theme(&win.theme)).text_style
@@ -4280,7 +4276,7 @@ fn section_12_in_use<CF>(
                 text_color: color,
                 ..LabelStyle::from_theme(&win.theme)
             });
-            label(spec_builder, layout_params, &mut win)
+            label(spec, layout_params, &mut win)
         };
         let msaa_opts = ["off", "2×", "4×", "8×"];
         let _seg_res = {
@@ -4297,7 +4293,7 @@ fn section_12_in_use<CF>(
             let layout_params = Rect::new(0.0, fy + 7.0, label_w, 14.0);
             let size = win.theme.text_sm;
             let color = win.theme.muted;
-            let spec_builder = LabelSpec::new("VIEWPORT").style(LabelStyle {
+            let spec = LabelSpec::new("VIEWPORT").style(LabelStyle {
                 text_style: framewise::TextStyle {
                     size,
                     ..(LabelStyle::from_theme(&win.theme)).text_style
@@ -4305,7 +4301,7 @@ fn section_12_in_use<CF>(
                 text_color: color,
                 ..LabelStyle::from_theme(&win.theme)
             });
-            label(spec_builder, layout_params, &mut win)
+            label(spec, layout_params, &mut win)
         };
         let _w_res = {
             let state = &mut state.iu_vp_w;
@@ -4336,7 +4332,7 @@ fn section_12_in_use<CF>(
             let layout_params = Rect::new(0.0, fy + 7.0, label_w, 14.0);
             let size = win.theme.text_sm;
             let color = win.theme.muted;
-            let spec_builder = LabelSpec::new("ACCENT").style(LabelStyle {
+            let spec = LabelSpec::new("ACCENT").style(LabelStyle {
                 text_style: framewise::TextStyle {
                     size,
                     ..(LabelStyle::from_theme(&win.theme)).text_style
@@ -4344,17 +4340,16 @@ fn section_12_in_use<CF>(
                 text_color: color,
                 ..LabelStyle::from_theme(&win.theme)
             });
-            label(spec_builder, layout_params, &mut win)
+            label(spec, layout_params, &mut win)
         };
-        let spec = ColorSwatchSpecBuilder::new()
-            .color(win.theme.rust)
+        let spec = ColorSwatchSpec::new(win.theme.rust)
             .border(Some(Stroke::new(win.theme.line_on_paper, 1.0)));
-        color_swatch(&mut win, spec, Rect::new(widget_x, fy + 4.0, 18.0, 20.0));
+        color_swatch(spec, Rect::new(widget_x, fy + 4.0, 18.0, 20.0), &mut win);
         {
             let layout_params = Rect::new(widget_x + 22.0, fy + 7.0, 60.0, 14.0);
             let size = win.theme.text_sm;
             let color = win.theme.ink;
-            let spec_builder = LabelSpec::new("#c25a2c").style(LabelStyle {
+            let spec = LabelSpec::new("#c25a2c").style(LabelStyle {
                 text_style: framewise::TextStyle {
                     size,
                     ..(LabelStyle::from_theme(&win.theme)).text_style
@@ -4362,7 +4357,7 @@ fn section_12_in_use<CF>(
                 text_color: color,
                 ..LabelStyle::from_theme(&win.theme)
             });
-            label(spec_builder, layout_params, &mut win)
+            label(spec, layout_params, &mut win)
         };
         fy += row_h + row_gap;
 
@@ -4371,7 +4366,7 @@ fn section_12_in_use<CF>(
             let layout_params = Rect::new(0.0, fy + 7.0, label_w, 14.0);
             let size = win.theme.text_sm;
             let color = win.theme.muted;
-            let spec_builder = LabelSpec::new("OPTIONS").style(LabelStyle {
+            let spec = LabelSpec::new("OPTIONS").style(LabelStyle {
                 text_style: framewise::TextStyle {
                     size,
                     ..(LabelStyle::from_theme(&win.theme)).text_style
@@ -4379,7 +4374,7 @@ fn section_12_in_use<CF>(
                 text_color: color,
                 ..LabelStyle::from_theme(&win.theme)
             });
-            label(spec_builder, layout_params, &mut win)
+            label(spec, layout_params, &mut win)
         };
         let opt_labels = [
             "show layout grid",
@@ -4399,7 +4394,7 @@ fn section_12_in_use<CF>(
                 let layout_params = Rect::new(widget_x + 18.0, opt_y + 4.0, widget_w - 18.0, 14.0);
                 let size = win.theme.text_md;
                 let color = win.theme.ink;
-                let spec_builder = LabelSpec::new(opt_label).style(LabelStyle {
+                let spec = LabelSpec::new(opt_label).style(LabelStyle {
                     text_style: framewise::TextStyle {
                         size,
                         ..(LabelStyle::from_theme(&win.theme)).text_style
@@ -4407,7 +4402,7 @@ fn section_12_in_use<CF>(
                     text_color: color,
                     ..LabelStyle::from_theme(&win.theme)
                 });
-                label(spec_builder, layout_params, &mut win)
+                label(spec, layout_params, &mut win)
             };
         }
         fy += 3.0 * 22.0 + 4.0;
@@ -4504,7 +4499,7 @@ fn section_12_in_use<CF>(
                     let layout_params = Rect::new(6.0, row_y, ts_w, 14.0);
                     let size = log_page.theme.text_sm;
                     let color = log_page.theme.muted;
-                    let spec_builder = LabelSpec::new(ts_str).style(LabelStyle {
+                    let spec = LabelSpec::new(ts_str).style(LabelStyle {
                         text_style: framewise::TextStyle {
                             size,
                             ..(LabelStyle::from_theme(&log_page.theme)).text_style
@@ -4512,7 +4507,7 @@ fn section_12_in_use<CF>(
                         text_color: color,
                         ..LabelStyle::from_theme(&log_page.theme)
                     });
-                    label(spec_builder, layout_params, &mut log_page)
+                    label(spec, layout_params, &mut log_page)
                 };
                 let msg_color = if *highlight {
                     log_page.theme.rust
@@ -4527,7 +4522,7 @@ fn section_12_in_use<CF>(
                         14.0,
                     );
                     let size = log_page.theme.text_sm;
-                    let spec_builder = LabelSpec::new(msg).style(LabelStyle {
+                    let spec = LabelSpec::new(msg).style(LabelStyle {
                         text_style: framewise::TextStyle {
                             size,
                             ..(LabelStyle::from_theme(&log_page.theme)).text_style
@@ -4535,7 +4530,7 @@ fn section_12_in_use<CF>(
                         text_color: msg_color,
                         ..LabelStyle::from_theme(&log_page.theme)
                     });
-                    label(spec_builder, layout_params, &mut log_page)
+                    label(spec, layout_params, &mut log_page)
                 };
             }
             log_page.finish();

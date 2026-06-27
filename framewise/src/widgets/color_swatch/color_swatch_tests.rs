@@ -1,11 +1,10 @@
-use super::raw::ColorSwatchSpec;
 use super::*;
 use crate::focus::FocusSystem;
 use crate::test_utils::TestTextBackend;
 
 #[test]
 fn test_color_swatch_visual_normal() {
-    let spec = ColorSwatchSpec {
+    let spec = raw::ColorSwatchSpec {
         layer: Layer::default(),
         rect: Rect::new(0.0, 0.0, 16.0, 16.0),
         color: Color::from_srgb_f32(0.5, 0.5, 0.5, 1.0),
@@ -52,7 +51,7 @@ fn test_color_swatch_visual_normal() {
 fn test_color_swatch_visual_custom() {
     let custom_color = Color::from_srgb_f32(1.0, 0.0, 0.0, 1.0);
     let custom_border = Color::from_srgb_f32(0.0, 1.0, 0.0, 1.0);
-    let spec = ColorSwatchSpec {
+    let spec = raw::ColorSwatchSpec {
         layer: Layer::default(),
         rect: Rect::new(0.0, 0.0, 20.0, 20.0),
         color: custom_color,
@@ -113,9 +112,9 @@ fn test_high_level_explicit_placement_via_manual_layout() {
         &mut cmds,
     );
     let result = super::color_swatch(
-        &mut ctx,
-        ColorSwatchSpecBuilder::new().color(Color::from_srgb_u8(0, 0, 0, 0)),
+        ColorSwatchSpec::new_from_theme(Color::from_srgb_u8(0, 0, 0, 0), &ctx.theme),
         placement,
+        &mut ctx,
     );
     assert_eq!(result.layout.bounds, placement);
 }
@@ -140,9 +139,9 @@ fn test_color_swatch_bounds_and_content_bounds() {
         &mut cmds,
     );
     let result = super::color_swatch(
-        &mut ctx,
-        ColorSwatchSpecBuilder::new().color(Color::from_srgb_u8(0, 0, 0, 0)),
+        ColorSwatchSpec::new_from_theme(Color::from_srgb_u8(0, 0, 0, 0), &ctx.theme),
         layout_rect,
+        &mut ctx,
     );
     assert_eq!(result.layout.bounds, layout_rect);
     assert_eq!(result.layout.content_bounds, layout_rect.inset(1.0));

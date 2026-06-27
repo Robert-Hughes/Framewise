@@ -82,7 +82,8 @@ pub mod raw {
         if spec.value.is_nan() {
             // Indeterminate: 30% width sweeping along, wrapped by phase.
             let seg_w = spec.rect.w * spec.style.indeterminate_fraction;
-            let start = spec.phase * spec.rect.w;
+            let phase = spec.phase.rem_euclid(1.0);
+            let start = phase * spec.rect.w;
             let x = track.x + start;
             let visible_w = (seg_w).min(track.x + track.w - x).max(0.0);
             if visible_w > 0.0 {
@@ -128,6 +129,12 @@ impl ProgressBarStyle {
     }
 }
 
+impl Default for ProgressBarStyle {
+    fn default() -> Self {
+        Self::from_theme(&crate::theme::Theme::minimal())
+    }
+}
+
 // ── Result ───────────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, PartialEq)]
@@ -140,85 +147,68 @@ pub struct ProgressBarResult {
 #[derive(Debug, Clone, PartialEq)]
 pub struct ProgressBarSpec {
     pub value: f32,
-    pub phase: f32,
     pub active: bool,
     pub style: ProgressBarStyle,
 }
 
-// ── Spec Builder ─────────────────────────────────────────────────────────────
-
-#[derive(Debug, Clone, PartialEq, Default)]
-pub struct ProgressBarSpecBuilder {
-    pub value: Option<f32>,
-    pub phase: Option<f32>,
-    pub active: Option<bool>,
-    pub style: Option<ProgressBarStyle>,
-}
-
-impl ProgressBarSpecBuilder {
-    pub fn new() -> Self {
-        Self::default()
+impl ProgressBarSpec {
+    pub fn new(value: f32) -> Self {
+        Self {
+            value,
+            active: false,
+            style: ProgressBarStyle::default(),
+        }
     }
 
-    pub fn value(mut self, value: f32) -> Self {
-        self.value = Some(value);
+    pub fn new_from_theme(value: f32, theme: &crate::theme::Theme) -> Self {
+        Self::new(value).theme(theme)
+    }
+
+    pub fn theme(mut self, theme: &crate::theme::Theme) -> Self {
+        self.style = ProgressBarStyle::from_theme(theme);
         self
     }
 
-    pub fn phase(mut self, phase: f32) -> Self {
-        self.phase = Some(phase);
+    pub fn value(mut self, value: f32) -> Self {
+        self.value = value;
         self
     }
 
     pub fn active(mut self, active: bool) -> Self {
-        self.active = Some(active);
+        self.active = active;
         self
     }
 
     pub fn style(mut self, style: ProgressBarStyle) -> Self {
-        self.style = Some(style);
+        self.style = style;
         self
-    }
-
-    /// Fills unset fields from `theme`. Called automatically by high-level
-    /// context functions.
-    pub fn defaults_from_theme(mut self, theme: &crate::theme::Theme) -> Self {
-        if self.style.is_none() {
-            self.style = Some(ProgressBarStyle::from_theme(theme));
-        }
-        self
-    }
-
-    pub fn build(self) -> ProgressBarSpec {
-        ProgressBarSpec {
-            value: self.value.expect("value not set — call .value()"),
-            phase: self.phase.unwrap_or(0.0),
-            active: self.active.unwrap_or(false),
-            style: self
-                .style
-                .expect("style not set — call .style() or defaults_from_theme()"),
-        }
     }
 }
 
 // ── High‑level widget function ───────────────────────────────────────────────────
 
-/// High‑level progress bar widget function using `WidgetContext`.
+/// High-level progress bar widget function using `WidgetContext`.
+///
+/// Consumes a complete `ProgressBarSpec`, runs the raw pre-layout phase to obtain a
+/// `SizeRequest`, resolves the final rect with layout, then runs the raw
+/// post-layout phase.
+///
+/// The high-level function derives the raw indeterminate phase from `ctx.time`.
 pub fn progress_bar<T: TextBackend, S: LayoutState, CF>(
-    ctx: &mut WidgetContext<T, S, CF>,
-    builder: ProgressBarSpecBuilder,
+    spec: ProgressBarSpec,
     layout_params: S::Params,
+    ctx: &mut WidgetContext<T, S, CF>,
 ) -> ProgressBarResult {
-    let spec = builder.defaults_from_theme(&ctx.theme).build();
     let pre_layout_spec = raw::ProgressBarPreLayoutSpec {};
     let offer = ctx.peek_offer(layout_params.clone());
     let pre_layout = raw::pre_layout_progress_bar(&pre_layout_spec, offer);
     let rect = ctx.layout(layout_params, pre_layout.size_request);
+    let phase = ((ctx.time as f32) * 0.5).rem_euclid(1.0);
     let raw_spec = raw::ProgressBarSpec {
         layer: ctx.layer,
         rect,
         value: spec.value,
-        phase: ctx.time as f32,
+        phase,
         active: spec.active,
         style: spec.style,
     };

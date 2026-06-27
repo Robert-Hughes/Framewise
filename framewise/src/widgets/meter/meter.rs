@@ -123,6 +123,12 @@ pub struct MeterResult {
     pub layout: LayoutInfo,
 }
 
+impl Default for MeterStyle {
+    fn default() -> Self {
+        Self::from_theme(&crate::theme::Theme::minimal())
+    }
+}
+
 // ── Spec ─────────────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, PartialEq)]
@@ -133,71 +139,58 @@ pub struct MeterSpec {
     pub bars: usize,
 }
 
-// ── Spec Builder ─────────────────────────────────────────────────────────────
+impl MeterSpec {
+    pub fn new(value: f32) -> Self {
+        Self {
+            value,
+            style: MeterStyle::default(),
+            peak: None,
+            bars: 10,
+        }
+    }
 
-#[derive(Debug, Clone, PartialEq, Default)]
-pub struct MeterSpecBuilder {
-    pub value: Option<f32>,
-    pub style: Option<MeterStyle>,
-    pub peak: Option<Option<f32>>, // matches original API
-    pub bars: Option<usize>,
-}
+    pub fn new_from_theme(value: f32, theme: &crate::theme::Theme) -> Self {
+        Self::new(value).theme(theme)
+    }
 
-impl MeterSpecBuilder {
-    pub fn new() -> Self {
-        Self::default()
+    pub fn theme(mut self, theme: &crate::theme::Theme) -> Self {
+        self.style = MeterStyle::from_theme(theme);
+        self
     }
 
     pub fn value(mut self, value: f32) -> Self {
-        self.value = Some(value);
+        self.value = value;
         self
     }
 
     pub fn style(mut self, style: MeterStyle) -> Self {
-        self.style = Some(style);
+        self.style = style;
         self
     }
 
     pub fn peak(mut self, peak: Option<f32>) -> Self {
-        self.peak = Some(peak);
+        self.peak = peak;
         self
     }
 
     pub fn bars(mut self, bars: usize) -> Self {
-        self.bars = Some(bars);
+        self.bars = bars;
         self
-    }
-
-    /// Fills unset fields from `theme`. Called automatically by high-level
-    /// context functions.
-    pub fn defaults_from_theme(mut self, theme: &crate::theme::Theme) -> Self {
-        if self.style.is_none() {
-            self.style = Some(MeterStyle::from_theme(theme));
-        }
-        self
-    }
-
-    pub fn build(self) -> MeterSpec {
-        MeterSpec {
-            value: self.value.expect("value not set — call .value()"),
-            style: self
-                .style
-                .expect("style not set — call .style() or defaults_from_theme()"),
-            peak: self.peak.unwrap_or(None),
-            bars: self.bars.unwrap_or(10),
-        }
     }
 }
 
 // ── High‑level widget function ───────────────────────────────────────────────────
 
-/// High‑level meter widget function using `WidgetContext`.
+/// High-level meter widget function using `WidgetContext`.
+///
+/// Consumes a complete `MeterSpec`, runs the raw pre-layout phase to obtain a
+/// `SizeRequest`, resolves the final rect with layout, then runs the raw
+/// post-layout phase.
 pub fn meter<T: TextBackend, S: LayoutState, CF>(
-    ctx: &mut WidgetContext<T, S, CF>,
-    builder: MeterSpecBuilder,
+    spec: MeterSpec,
     layout_params: S::Params,
+    ctx: &mut WidgetContext<T, S, CF>,
 ) -> MeterResult {
-    let spec = builder.defaults_from_theme(&ctx.theme).build();
     let pre_layout_spec = raw::MeterPreLayoutSpec {
         style: spec.style,
         bars: spec.bars,
