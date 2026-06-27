@@ -260,6 +260,12 @@ impl WindowStyle {
     }
 }
 
+impl Default for WindowStyle {
+    fn default() -> Self {
+        Self::from_theme(&crate::theme::Theme::minimal())
+    }
+}
+
 // ── Result ───────────────────────────────────────────────────────────────────
 
 pub struct WindowResult<'b, T: TextBackend, LS: LayoutState, CF> {
@@ -278,91 +284,75 @@ pub struct WindowSpec<'a> {
     pub style: WindowStyle,
 }
 
-// ── Spec Builder ─────────────────────────────────────────────────────────────
+impl<'a> WindowSpec<'a> {
+    pub fn new(title: &'a str) -> Self {
+        Self {
+            title,
+            buttons: &[],
+            status_bar: false,
+            status_text: None,
+            style: WindowStyle::default(),
+        }
+    }
 
-#[derive(Debug, Clone, PartialEq, Default)]
-pub struct WindowSpecBuilder<'a> {
-    pub title: Option<&'a str>,
-    pub buttons: Option<&'a [WindowButton]>,
-    pub status_bar: Option<bool>,
-    pub status_text: Option<&'a str>,
-    pub style: Option<WindowStyle>,
-}
+    pub fn new_from_theme(title: &'a str, theme: &crate::theme::Theme) -> Self {
+        Self::new(title).theme(theme)
+    }
 
-impl<'a> WindowSpecBuilder<'a> {
-    pub fn new() -> Self {
-        Self::default()
+    pub fn theme(mut self, theme: &crate::theme::Theme) -> Self {
+        self.style = WindowStyle::from_theme(theme);
+        self
     }
 
     pub fn title(mut self, title: &'a str) -> Self {
-        self.title = Some(title);
+        self.title = title;
         self
     }
+
     pub fn buttons(mut self, buttons: &'a [WindowButton]) -> Self {
-        self.buttons = Some(buttons);
+        self.buttons = buttons;
         self
     }
-    pub fn style(mut self, style: WindowStyle) -> Self {
-        self.style = Some(style);
-        self
-    }
+
     pub fn status_bar(mut self, status_bar: bool) -> Self {
-        self.status_bar = Some(status_bar);
+        self.status_bar = status_bar;
         self
     }
+
     pub fn status_text(mut self, status_text: &'a str) -> Self {
         self.status_text = Some(status_text);
         self
     }
 
-    /// Fills unset fields from `theme`. Called automatically by high-level
-    /// context functions.
-    pub fn defaults_from_theme(mut self, theme: &crate::theme::Theme) -> Self {
-        if self.style.is_none() {
-            self.style = Some(WindowStyle::from_theme(theme));
-        }
+    pub fn style(mut self, style: WindowStyle) -> Self {
+        self.style = style;
         self
-    }
-
-    pub fn build(self) -> WindowSpec<'a> {
-        WindowSpec {
-            title: self.title.expect("title not set — call .title()"),
-            buttons: self.buttons.expect("buttons not set — call .buttons()"),
-            status_bar: self.status_bar.unwrap_or(false),
-            status_text: self.status_text,
-            style: self
-                .style
-                .expect("style not set — call .style() or defaults_from_theme()"),
-        }
     }
 }
 
 // ── High-level widget functions ───────────────────────────────────────────────────
 
-/// High-level window begin function using WidgetContext.
+/// High-level window begin function using `WidgetContext`.
 ///
-/// Resolves defaults, runs the raw pre-layout phase to obtain a `SizeRequest`,
-/// resolves the outer rect, runs the raw begin phase to open the child scope,
-/// and arranges for the raw end phase to run when the child context finishes.
+/// Consumes a complete `WindowSpec`, runs the raw pre-layout phase to obtain a
+/// `SizeRequest`, resolves the outer rect, runs the raw begin phase to open the
+/// child scope, and arranges for the raw end phase to run when the child context
+/// finishes.
 ///
-/// Note there is no low-level end_window - everything is handled by the on_finish callback of the child context, which calls raw::end_window internally.
+/// There is no separate high-level `end_window`: cleanup is handled by the child
+/// context's `on_finish` callback, which calls `raw::end_window` internally.
 #[allow(clippy::type_complexity)]
 pub fn begin_window<'a, 'b, 'c, T: TextBackend, S: LayoutState, L: Layout, CF>(
-    ctx: &'b mut WidgetContext<'a, T, S, CF>,
-    builder: WindowSpecBuilder<'c>,
+    spec: WindowSpec<'c>,
     layout_params: S::Params,
     inner_layout: L,
+    ctx: &'b mut WidgetContext<'a, T, S, CF>,
 ) -> WindowResult<
     'b,
     T,
     L::State,
     impl FnOnce(&mut FocusSystem, &mut T, &mut DrawCommands, &mut crate::output::Output, Rect),
 > {
-    let buttons = builder.buttons.unwrap_or(&[]);
-    let spec = builder
-        .defaults_from_theme(&ctx.theme)
-        .buttons(buttons)
-        .build();
     let pre_layout_spec = raw::WindowPreLayoutSpec {
         status_bar: spec.status_bar,
         style: spec.style,

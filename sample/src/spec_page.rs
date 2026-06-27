@@ -109,7 +109,7 @@ use framewise::widgets::tooltip::{tooltip, TooltipSpecBuilder, TooltipVariant};
 use framewise::widgets::tree::{tree, TreeRow, TreeSpecBuilder};
 #[cfg(feature = "window")]
 #[allow(unused_imports)]
-use framewise::widgets::window::{begin_window, WindowButton, WindowSpecBuilder};
+use framewise::widgets::window::{begin_window, WindowButton, WindowSpec};
 
 // ── Fake State Helpers ────────────────────────────────────────────────────────
 
@@ -3814,12 +3814,11 @@ fn section_11_window<CF>(
         ];
         let win_rect = Rect::new(0.0, 0.0, 360.0, 280.0);
         let mut win = {
-            let widget_spec_builder = WindowSpecBuilder::new()
-                .title("Inspector")
+            let spec = WindowSpec::new_from_theme("Inspector", &b.theme)
                 .buttons(&win_buttons)
                 .status_bar(true)
                 .status_text("RENDERING  frame #00248  2.4 ms");
-            begin_window(&mut b, widget_spec_builder, win_rect, ManualLayout).ctx
+            begin_window(spec, win_rect, ManualLayout, &mut b).ctx
         };
 
         let mut iy = 0.0;
@@ -4180,12 +4179,11 @@ fn section_12_in_use<CF>(
         ];
         let wr = Rect::new(0.0, y, win_w_left, win_h_full);
         let mut win = {
-            let widget_spec_builder = WindowSpecBuilder::new()
-                .title("Renderer Settings")
+            let spec = WindowSpec::new_from_theme("Renderer Settings", &b.theme)
                 .buttons(&win_buttons)
                 .status_bar(true)
                 .status_text("RENDERING  frame #00248  2.4 ms  Vulkan 1.3 · 4× msaa");
-            begin_window(&mut b, widget_spec_builder, wr, ManualLayout).ctx
+            begin_window(spec, wr, ManualLayout, &mut b).ctx
         };
         let cr_w = win_w_left - 32.0;
 
@@ -4493,12 +4491,11 @@ fn section_12_in_use<CF>(
         ];
         let fl_rect = Rect::new(rcol_x, y, rcol_w, fl_h);
         let mut fl_win = {
-            let widget_spec_builder = WindowSpecBuilder::new()
-                .title("Frame Log")
+            let spec = WindowSpec::new_from_theme("Frame Log", &b.theme)
                 .buttons(&fl_buttons)
                 .status_bar(true)
                 .status_text("RECORDING  248 frames  2.6 ms avg");
-            begin_window(&mut b, widget_spec_builder, fl_rect, ManualLayout).ctx
+            begin_window(spec, fl_rect, ManualLayout, &mut b).ctx
         };
         let fl_cr_w = rcol_w - 32.0;
         let fl_cr_h = fl_h - 80.0; // 26 title + 22 status + 32 padding
@@ -4587,12 +4584,11 @@ fn section_12_in_use<CF>(
         let qa_buttons = [WindowButton { symbol: "×" }];
         let qa_rect = Rect::new(rcol_x, qa_y, rcol_w, 174.0);
         let mut qa_win = {
-            let widget_spec_builder = WindowSpecBuilder::new()
-                .title("Quick actions")
+            let spec = WindowSpec::new_from_theme("Quick actions", &b.theme)
                 .buttons(&qa_buttons)
                 .status_bar(false)
                 .status_text("");
-            begin_window(&mut b, widget_spec_builder, qa_rect, ManualLayout).ctx
+            begin_window(spec, qa_rect, ManualLayout, &mut b).ctx
         };
         let qa_cr_w = rcol_w - 32.0;
 

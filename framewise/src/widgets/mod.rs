@@ -144,4 +144,4 @@ pub use tooltip::{tooltip, TooltipResult, TooltipSpecBuilder, TooltipStyle, Tool
 #[cfg(feature = "tree")]
 pub use tree::{tree, TreeResult, TreeRow, TreeSpecBuilder, TreeStyle};
 #[cfg(feature = "window")]
-pub use window::{begin_window, WindowButton, WindowResult, WindowSpecBuilder, WindowStyle};
+pub use window::{begin_window, WindowButton, WindowResult, WindowSpec, WindowStyle};
