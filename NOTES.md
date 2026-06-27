@@ -4,6 +4,20 @@ Working notes, TODOs, open questions, and half-baked ideas.
 
 ## Current Work
 
+- drag_number
+  - Make one of the drag_numbers in the spec page disabled so that we can see that
+  - Drag number fill background ("soft rust"?) is slightly different to the mockup. Not sure if just this widget or wrong in the theme
+  - keyboard arrows and page up/down home/end
+  - click on text to edit it by typing?
+  - width of controls doesn't match the mockup
+  - hover styling with little arrow icons shown on mockup
+
+
+- Mouse cursor changes for clickable things like buttons and draggable things like sliders or dragnumbers?
+- Make one of the sliders in the spec page disabled so that we can see that
+- checkbox disabled column in the spec page doesn't need to be fake/static
+- make one of the radio buttons disabled
+
 - Go through the spec_page, check/implement/test each widget/aspect to make better match the mock-up and add interactivity as we go (https://claude.ai/design/p/1aab4e86-cbf2-497e-b379-44cf41de2b12?file=Framewise+Widgets.html)
   - Done 01-03
   - Add demo pages for each widget type (or possibly in groups?)

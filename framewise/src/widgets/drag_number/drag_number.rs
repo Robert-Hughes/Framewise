@@ -106,6 +106,10 @@ pub mod raw {
         text_backend: &mut T,
         cmds: &mut DrawCommands,
     ) -> DragNumberResult {
+        if spec.disabled {
+            state.is_dragging = false;
+        }
+
         let (focused, clicked) = if spec.disabled {
             (false, false)
         } else {
@@ -134,16 +138,24 @@ pub mod raw {
         let value_x = spec.rect.x + text_w;
         let value_w = (spec.rect.w - text_w).max(20.0);
 
+        let is_visible = spec.clip_rect.is_none_or(|c| c.contains(input.mouse_pos));
+        let contains = spec.rect.contains(input.mouse_pos) && is_visible;
+
+        if contains && !spec.disabled {
+            focus_system.claim_hover(state.focus_id);
+        }
+        let is_hover_active = focus_system.is_hover_active(state.focus_id);
+
+        let clamp_min = spec.min.min(spec.max);
+        let clamp_max = spec.min.max(spec.max);
+
+        let mut was_released = false;
+
         // Mouse drag interaction
         if !spec.disabled {
-            let is_visible = spec.clip_rect.is_none_or(|c| c.contains(input.mouse_pos));
-            let hovered_value_area = is_visible
-                && input.mouse_pos.x >= value_x
-                && input.mouse_pos.x <= spec.rect.x + spec.rect.w
-                && input.mouse_pos.y >= spec.rect.y
-                && input.mouse_pos.y <= spec.rect.y + spec.rect.h;
+            let hovered_control_area = contains && is_hover_active;
 
-            if input.mouse_pressed && hovered_value_area {
+            if input.mouse_pressed && hovered_control_area {
                 state.is_dragging = true;
                 state.drag_start_x = input.mouse_pos.x;
                 state.drag_start_value = state.value;
@@ -153,23 +165,24 @@ pub mod raw {
             if state.is_dragging {
                 if !input.mouse_down {
                     state.is_dragging = false;
+                    was_released = contains;
                 } else {
                     let dx = input.mouse_pos.x - state.drag_start_x;
                     let value_range = spec.max - spec.min;
                     let delta_val = (dx / value_w) * value_range;
-                    state.value = (state.drag_start_value + delta_val).clamp(spec.min, spec.max);
+                    state.value = (state.drag_start_value + delta_val).clamp(clamp_min, clamp_max);
                 }
             }
         }
 
         // Keyboard navigation when focused
         if focused && !spec.disabled {
-            let step = (spec.max - spec.min) * 0.01;
+            let step = (spec.max - spec.min).abs() * 0.01;
             if input.key_pressed_left {
-                state.value = (state.value - step).clamp(spec.min, spec.max);
+                state.value = (state.value - step).clamp(clamp_min, clamp_max);
             }
             if input.key_pressed_right {
-                state.value = (state.value + step).clamp(spec.min, spec.max);
+                state.value = (state.value + step).clamp(clamp_min, clamp_max);
             }
         }
 
@@ -186,7 +199,7 @@ pub mod raw {
                     spec.rect.inset(-outline.offset),
                     Some(focus_stroke),
                     BorderPlacement::Outside,
-                    spec.layer.get_z(),
+                    spec.layer.get_focus_z(),
                 );
             }
         }
@@ -196,13 +209,6 @@ pub mod raw {
             color: tint(s.background),
             z: spec.layer.get_z(),
         });
-        let tinted_border = s.border.map(|b| Stroke::new(tint(b.color), b.width));
-        cmds.push_border_rect(
-            spec.rect,
-            tinted_border,
-            BorderPlacement::Inside,
-            spec.layer.get_z(),
-        );
 
         // text section (ink/rust bg, paper text).
         let text_rect = Rect::new(spec.rect.x, spec.rect.y, text_w, spec.rect.h);
@@ -233,7 +239,13 @@ pub mod raw {
         );
 
         // Value area: rust_soft fill proportional to value fraction.
-        let frac = ((state.value - spec.min) / (spec.max - spec.min)).clamp(0.0, 1.0);
+        let frac = if spec.max > spec.min {
+            ((state.value - spec.min) / (spec.max - spec.min)).clamp(0.0, 1.0)
+        } else if spec.max < spec.min {
+            ((state.value - spec.max) / (spec.min - spec.max)).clamp(0.0, 1.0)
+        } else {
+            0.0
+        };
         if frac > 0.0 {
             cmds.push(DrawCmd::FillRect {
                 rect: Rect::new(value_x, spec.rect.y, value_w * frac, spec.rect.h),
@@ -266,12 +278,27 @@ pub mod raw {
             spec.layer.get_z(),
         );
 
+        // Border pushed at the very end to draw on top of the value fill.
+        let tinted_border = s.border.map(|b| Stroke::new(tint(b.color), b.width));
+        cmds.push_border_rect(
+            spec.rect,
+            tinted_border,
+            BorderPlacement::Inside,
+            spec.layer.get_z(),
+        );
+
+        let hovered = contains
+            && is_hover_active
+            && !spec.disabled
+            && (!input.mouse_down || state.is_dragging);
+        let report_clicked =
+            (clicked && !state.is_dragging) || (was_released && input.mouse_clicked);
+
         DragNumberResult {
             input: InputInfo {
-                hovered: spec.rect.contains(input.mouse_pos)
-                    && spec.clip_rect.is_none_or(|c| c.contains(input.mouse_pos)),
-                pressed: state.is_dragging,
-                clicked: clicked && !state.is_dragging,
+                hovered,
+                pressed: state.is_dragging && !spec.disabled,
+                clicked: report_clicked && !spec.disabled,
             },
             focused,
             content_bounds: spec.rect.inset(s.border.map_or(0.0, |b| b.width)),

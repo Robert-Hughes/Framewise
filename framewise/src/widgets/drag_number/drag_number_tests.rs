@@ -4,6 +4,60 @@ use crate::test_utils::TestTextBackend;
 use crate::types::Vec2;
 use crate::{DrawGlyph, PreparedGlyphToken};
 
+fn default_style() -> DragNumberStyle {
+    DragNumberStyle::from_theme(&crate::theme::Theme::framewise())
+}
+
+fn default_spec(rect: Rect) -> raw::DragNumberSpec<'static> {
+    raw::DragNumberSpec {
+        layer: Layer::default(),
+        rect,
+        text: "X",
+        min: 0.0,
+        max: 100.0,
+        disabled: false,
+        style: default_style(),
+        clip_rect: None,
+    }
+}
+
+fn run_raw(
+    spec: raw::DragNumberSpec<'_>,
+    state: &mut DragNumberState,
+    input: &Input,
+    focus_system: &mut FocusSystem,
+    text_backend: &mut TestTextBackend,
+    cmds: &mut DrawCommands,
+) -> raw::DragNumberResult {
+    raw::post_layout_drag_number(
+        spec,
+        raw::DragNumberPreLayoutResult {
+            size_request: crate::layout::SizeRequest::UNKNOWN,
+        },
+        state,
+        input,
+        focus_system,
+        text_backend,
+        cmds,
+    )
+}
+
+fn label_area_pos(rect: Rect, label: &str) -> Vec2 {
+    let char_width = 8.0; // default advance in TestTextBackend
+    let pad_x = 10.0;
+    let label_w = (label.len() as f32) * char_width + pad_x * 2.0;
+    Vec2::new(rect.x + label_w / 2.0, rect.y + rect.h / 2.0)
+}
+
+fn value_area_pos(rect: Rect, label: &str) -> Vec2 {
+    let char_width = 8.0; // default advance in TestTextBackend
+    let pad_x = 10.0;
+    let label_w = (label.len() as f32) * char_width + pad_x * 2.0;
+    let value_x = rect.x + label_w;
+    let value_w = (rect.w - label_w).max(20.0);
+    Vec2::new(value_x + value_w / 2.0, rect.y + rect.h / 2.0)
+}
+
 fn drag_num<'a>(spec: DragNumberSpec<'a>, value: f32) -> (raw::DragNumberResult, DrawCommands) {
     let mut cmds = DrawCommands::new(1.0);
     let mut text_backend = TestTextBackend::default();
@@ -48,13 +102,6 @@ fn test_drag_number_visual_normal() {
                 color: style.background,
                 z: 0,
             },
-            DrawCmd::BorderRect {
-                rect: Rect::new(10.0, 10.0, 100.0, 28.0),
-                color: style.border.unwrap().color,
-                width: style.border.unwrap().width,
-                placement: crate::BorderPlacement::Inside,
-                z: 0,
-            },
             DrawCmd::FillRect {
                 rect: Rect::new(10.0, 10.0, 28.0, 28.0),
                 color: style.text_bg,
@@ -73,6 +120,13 @@ fn test_drag_number_visual_normal() {
             DrawCmd::GlyphRun {
                 glyphs: 1..6,
                 color: style.value_text,
+                z: 0,
+            },
+            DrawCmd::BorderRect {
+                rect: Rect::new(10.0, 10.0, 100.0, 28.0),
+                color: style.border.unwrap().color,
+                width: style.border.unwrap().width,
+                placement: crate::BorderPlacement::Inside,
                 z: 0,
             },
         ]
@@ -135,7 +189,7 @@ fn test_drag_number_visual_active() {
     let mut cmds = DrawCommands::new(1.0);
     let mut text_backend = TestTextBackend::default();
     let _res = raw::post_layout_drag_number(
-        spec,
+        spec.clone(),
         raw::DragNumberPreLayoutResult {
             size_request: crate::layout::SizeRequest::UNKNOWN,
         },
@@ -146,26 +200,47 @@ fn test_drag_number_visual_active() {
         &mut cmds,
     );
 
+    // Extract focus ring command and assert its properties.
+    let focus_style = style.focus.unwrap();
+    let focus_color = focus_style.stroke.color;
+
+    let focus_cmd_idx = cmds
+        .commands()
+        .iter()
+        .position(|cmd| {
+            if let DrawCmd::BorderRect { color, width, .. } = cmd {
+                *color == focus_color && *width == focus_style.stroke.width
+            } else {
+                false
+            }
+        })
+        .expect("Focus ring border command should be present");
+
+    let focus_cmd = &cmds.commands()[focus_cmd_idx];
+    if let DrawCmd::BorderRect {
+        rect, placement, z, ..
+    } = focus_cmd
+    {
+        assert_eq!(*rect, spec.rect.inset(-focus_style.offset));
+        assert_eq!(*placement, crate::BorderPlacement::Outside);
+        assert_eq!(
+            *z,
+            spec.layer.get_focus_z(),
+            "Focus ring z must equal spec.layer.get_focus_z()"
+        );
+    } else {
+        panic!("Found command is not a BorderRect");
+    }
+
+    let mut other_cmds = cmds.commands().to_vec();
+    other_cmds.remove(focus_cmd_idx);
+
     assert_eq!(
-        cmds.commands(),
+        other_cmds,
         vec![
-            DrawCmd::BorderRect {
-                rect: Rect::new(11.0, 11.0, 98.0, 26.0),
-                color: style.focus.unwrap().stroke.color,
-                width: style.focus.unwrap().stroke.width,
-                placement: crate::BorderPlacement::Outside,
-                z: 0,
-            },
             DrawCmd::FillRect {
                 rect: Rect::new(10.0, 10.0, 100.0, 28.0),
                 color: style.background,
-                z: 0,
-            },
-            DrawCmd::BorderRect {
-                rect: Rect::new(10.0, 10.0, 100.0, 28.0),
-                color: style.border.unwrap().color,
-                width: style.border.unwrap().width,
-                placement: crate::BorderPlacement::Inside,
                 z: 0,
             },
             DrawCmd::FillRect {
@@ -186,6 +261,13 @@ fn test_drag_number_visual_active() {
             DrawCmd::GlyphRun {
                 glyphs: 1..6,
                 color: style.value_text,
+                z: 0,
+            },
+            DrawCmd::BorderRect {
+                rect: Rect::new(10.0, 10.0, 100.0, 28.0),
+                color: style.border.unwrap().color,
+                width: style.border.unwrap().width,
+                placement: crate::BorderPlacement::Inside,
                 z: 0,
             },
         ]
@@ -257,13 +339,6 @@ fn test_drag_number_visual_min_value() {
                 color: style.background,
                 z: 0,
             },
-            DrawCmd::BorderRect {
-                rect: Rect::new(10.0, 10.0, 100.0, 28.0),
-                color: style.border.unwrap().color,
-                width: style.border.unwrap().width,
-                placement: crate::BorderPlacement::Inside,
-                z: 0,
-            },
             DrawCmd::FillRect {
                 rect: Rect::new(10.0, 10.0, 28.0, 28.0),
                 color: style.text_bg,
@@ -277,6 +352,13 @@ fn test_drag_number_visual_min_value() {
             DrawCmd::GlyphRun {
                 glyphs: 1..5,
                 color: style.value_text,
+                z: 0,
+            },
+            DrawCmd::BorderRect {
+                rect: Rect::new(10.0, 10.0, 100.0, 28.0),
+                color: style.border.unwrap().color,
+                width: style.border.unwrap().width,
+                placement: crate::BorderPlacement::Inside,
                 z: 0,
             },
         ]
@@ -521,4 +603,466 @@ fn test_high_level_explicit_placement_via_manual_layout() {
         &mut dn_state,
     );
     assert_eq!(result.layout.bounds, placement);
+}
+
+#[test]
+fn test_drag_number_disabled_ignores_press_interaction() {
+    let rect = Rect::new(10.0, 10.0, 100.0, 28.0);
+    let mut state = DragNumberState {
+        value: 50.0,
+        ..Default::default()
+    };
+    let focus_id = state.focus_id;
+    let inside_pos = value_area_pos(rect, "X");
+
+    crate::widgets::test_helpers::assert_disabled_ignores_press_interaction(
+        &mut state,
+        focus_id,
+        inside_pos,
+        |state, input, focus_system, cmds| {
+            let mut spec = default_spec(rect);
+            spec.disabled = true;
+            let mut text_backend = TestTextBackend::default();
+            let res = run_raw(spec, state, input, focus_system, &mut text_backend, cmds);
+            res.input
+        },
+    );
+}
+
+#[test]
+fn test_drag_number_clipped_press_does_not_take_focus_with_helper() {
+    let rect = Rect::new(10.0, 10.0, 100.0, 28.0);
+    let mut state = DragNumberState {
+        value: 50.0,
+        ..Default::default()
+    };
+    let inside_pos = value_area_pos(rect, "X");
+
+    crate::widgets::test_helpers::assert_clipped_mouse_press_does_not_take_focus(
+        &mut state,
+        inside_pos,
+        |state, input, focus_system, cmds| {
+            let mut spec = default_spec(rect);
+            // clip_rect excludes inside_pos
+            spec.clip_rect = Some(Rect::new(500.0, 500.0, 10.0, 10.0));
+            let mut text_backend = TestTextBackend::default();
+            let res = run_raw(spec, state, input, focus_system, &mut text_backend, cmds);
+            res.input
+        },
+    );
+}
+
+#[test]
+fn test_drag_number_mouse_press_takes_focus_with_helper() {
+    let rect = Rect::new(10.0, 10.0, 100.0, 28.0);
+    let mut state = DragNumberState {
+        value: 50.0,
+        ..Default::default()
+    };
+    let focus_id = state.focus_id;
+    let inside_pos = value_area_pos(rect, "X");
+
+    crate::widgets::test_helpers::assert_mouse_press_takes_focus(
+        &mut state,
+        focus_id,
+        inside_pos,
+        |state, input, focus_system, cmds| {
+            let spec = default_spec(rect);
+            let mut text_backend = TestTextBackend::default();
+            let res = run_raw(spec, state, input, focus_system, &mut text_backend, cmds);
+            res.input
+        },
+    );
+}
+
+#[test]
+fn test_drag_number_drag_updates_value() {
+    let rect = Rect::new(0.0, 0.0, 100.0, 28.0);
+    let mut state = DragNumberState {
+        value: 50.0,
+        ..Default::default()
+    };
+    let mut focus_system = FocusSystem::new();
+    let mut text_backend = TestTextBackend::default();
+    let mut cmds = DrawCommands::new(1.0);
+    let spec = default_spec(rect);
+
+    // Warmup frame: Mouse inside value area
+    let mut input = Input {
+        mouse_pos: Vec2::new(50.0, 14.0),
+        ..Default::default()
+    };
+    focus_system.begin_frame();
+    let _ = run_raw(
+        spec.clone(),
+        &mut state,
+        &input,
+        &mut focus_system,
+        &mut text_backend,
+        &mut cmds,
+    );
+    focus_system.end_frame();
+
+    // Frame 1: Mouse press down in the value area at x = 50.0, y = 14.0
+    input.mouse_down = true;
+    input.mouse_pressed = true;
+
+    focus_system.begin_frame();
+    let _res = run_raw(
+        spec.clone(),
+        &mut state,
+        &input,
+        &mut focus_system,
+        &mut text_backend,
+        &mut cmds,
+    );
+    focus_system.end_frame();
+
+    assert!(state.is_dragging, "Should start dragging on mouse press");
+    assert_eq!(
+        state.value, 50.0,
+        "Value shouldn't change on the initial click frame"
+    );
+
+    // Frame 2: Mouse moved right to x = 68.0, with mouse_down still true
+    input.mouse_pressed = false;
+    input.mouse_pos = Vec2::new(68.0, 14.0);
+
+    focus_system.begin_frame();
+    let _res2 = run_raw(
+        spec,
+        &mut state,
+        &input,
+        &mut focus_system,
+        &mut text_backend,
+        &mut cmds,
+    );
+    focus_system.end_frame();
+
+    assert!(state.is_dragging, "Should still be dragging");
+    // dx = 68 - 50 = 18. value_w = 100 - (8 + 20) = 72. dx/value_w = 0.25. delta = 0.25 * 100 = 25.
+    assert_eq!(
+        state.value, 75.0,
+        "Value should update proportionally to mouse drag"
+    );
+}
+
+#[test]
+fn test_drag_number_drag_clamps_to_min_max() {
+    let rect = Rect::new(0.0, 0.0, 100.0, 28.0);
+    let mut state = DragNumberState {
+        value: 50.0,
+        ..Default::default()
+    };
+    let mut focus_system = FocusSystem::new();
+    let mut text_backend = TestTextBackend::default();
+    let mut cmds = DrawCommands::new(1.0);
+    let spec = default_spec(rect);
+
+    // Warmup frame: Mouse inside value area
+    let mut input = Input {
+        mouse_pos: Vec2::new(50.0, 14.0),
+        ..Default::default()
+    };
+    focus_system.begin_frame();
+    let _ = run_raw(
+        spec.clone(),
+        &mut state,
+        &input,
+        &mut focus_system,
+        &mut text_backend,
+        &mut cmds,
+    );
+    focus_system.end_frame();
+
+    // Frame 1: Mouse press down in the value area
+    input.mouse_down = true;
+    input.mouse_pressed = true;
+
+    focus_system.begin_frame();
+    let _ = run_raw(
+        spec.clone(),
+        &mut state,
+        &input,
+        &mut focus_system,
+        &mut text_backend,
+        &mut cmds,
+    );
+    focus_system.end_frame();
+
+    // Frame 2: Drag far right (e.g. x = 500.0)
+    input.mouse_pressed = false;
+    input.mouse_pos = Vec2::new(500.0, 14.0);
+    focus_system.begin_frame();
+    let _ = run_raw(
+        spec.clone(),
+        &mut state,
+        &input,
+        &mut focus_system,
+        &mut text_backend,
+        &mut cmds,
+    );
+    focus_system.end_frame();
+    assert_eq!(state.value, 100.0, "Value should clamp to max (100.0)");
+
+    // Frame 3: Drag far left (e.g. x = -500.0)
+    input.mouse_pos = Vec2::new(-500.0, 14.0);
+    focus_system.begin_frame();
+    let _ = run_raw(
+        spec,
+        &mut state,
+        &input,
+        &mut focus_system,
+        &mut text_backend,
+        &mut cmds,
+    );
+    focus_system.end_frame();
+    assert_eq!(state.value, 0.0, "Value should clamp to min (0.0)");
+}
+
+#[test]
+fn test_drag_number_drag_releases_when_mouse_up() {
+    let rect = Rect::new(0.0, 0.0, 100.0, 28.0);
+    let mut state = DragNumberState {
+        value: 50.0,
+        ..Default::default()
+    };
+    let mut focus_system = FocusSystem::new();
+    let mut text_backend = TestTextBackend::default();
+    let mut cmds = DrawCommands::new(1.0);
+    let spec = default_spec(rect);
+
+    // Warmup frame: Mouse inside value area
+    let mut input = Input {
+        mouse_pos: Vec2::new(50.0, 14.0),
+        ..Default::default()
+    };
+    focus_system.begin_frame();
+    let _ = run_raw(
+        spec.clone(),
+        &mut state,
+        &input,
+        &mut focus_system,
+        &mut text_backend,
+        &mut cmds,
+    );
+    focus_system.end_frame();
+
+    // Frame 1: Drag starts
+    input.mouse_down = true;
+    input.mouse_pressed = true;
+
+    focus_system.begin_frame();
+    let _ = run_raw(
+        spec.clone(),
+        &mut state,
+        &input,
+        &mut focus_system,
+        &mut text_backend,
+        &mut cmds,
+    );
+    focus_system.end_frame();
+    assert!(state.is_dragging);
+
+    // Frame 2: Mouse released
+    input.mouse_down = false;
+    input.mouse_pressed = false;
+    focus_system.begin_frame();
+    let _ = run_raw(
+        spec,
+        &mut state,
+        &input,
+        &mut focus_system,
+        &mut text_backend,
+        &mut cmds,
+    );
+    focus_system.end_frame();
+    assert!(
+        !state.is_dragging,
+        "Dragging should stop when mouse is released"
+    );
+}
+
+#[test]
+fn test_drag_number_min_greater_than_max_keyboard_does_not_panic() {
+    let rect = Rect::new(0.0, 0.0, 100.0, 28.0);
+    let spec = raw::DragNumberSpec {
+        layer: Layer::default(),
+        rect,
+        text: "X",
+        min: 100.0,
+        max: 0.0,
+        disabled: false,
+        style: default_style(),
+        clip_rect: None,
+    };
+
+    let run_res = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        let mut state = DragNumberState {
+            value: 50.0,
+            ..Default::default()
+        };
+        let mut focus_system = FocusSystem::new();
+        focus_system.take_keyboard_focus(state.focus_id);
+
+        let input = Input {
+            key_pressed_right: true,
+            ..Default::default()
+        };
+        let mut text_backend = TestTextBackend::default();
+        let mut cmds = DrawCommands::new(1.0);
+
+        focus_system.begin_frame();
+        let _ = run_raw(
+            spec,
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut text_backend,
+            &mut cmds,
+        );
+        focus_system.end_frame();
+    }));
+
+    assert!(
+        run_res.is_ok(),
+        "Keyboard adjustment when min > max should not panic"
+    );
+}
+
+#[test]
+fn test_drag_number_label_area_starts_dragging() {
+    let rect = Rect::new(0.0, 0.0, 100.0, 28.0);
+    let label = "X";
+    let mut state = DragNumberState {
+        value: 50.0,
+        ..Default::default()
+    };
+    let mut focus_system = FocusSystem::new();
+    let mut text_backend = TestTextBackend::default();
+    let mut cmds = DrawCommands::new(1.0);
+    let spec = default_spec(rect);
+
+    let press_pos = label_area_pos(rect, label);
+
+    // Warmup frame: Mouse inside label area
+    let mut input = Input {
+        mouse_pos: press_pos,
+        ..Default::default()
+    };
+    focus_system.begin_frame();
+    let _ = run_raw(
+        spec.clone(),
+        &mut state,
+        &input,
+        &mut focus_system,
+        &mut text_backend,
+        &mut cmds,
+    );
+    focus_system.end_frame();
+
+    // Mouse press inside the label area
+    input.mouse_down = true;
+    input.mouse_pressed = true;
+
+    focus_system.begin_frame();
+    let _ = run_raw(
+        spec,
+        &mut state,
+        &input,
+        &mut focus_system,
+        &mut text_backend,
+        &mut cmds,
+    );
+    focus_system.end_frame();
+
+    assert!(
+        state.is_dragging,
+        "Pressing inside label area should start dragging"
+    );
+}
+
+#[test]
+fn test_drag_number_overlapping_hover_uses_top_widget() {
+    let rect = Rect::new(10.0, 10.0, 100.0, 28.0);
+    let mut state_bottom = DragNumberState {
+        value: 50.0,
+        ..Default::default()
+    };
+    let mut state_top = DragNumberState {
+        value: 50.0,
+        ..Default::default()
+    };
+    let overlap_pos = value_area_pos(rect, "X");
+
+    crate::widgets::test_helpers::assert_overlapping_hover(
+        &mut state_bottom,
+        &mut state_top,
+        overlap_pos,
+        |state_b, state_t, input, focus_system, cmds| {
+            let mut text_backend = TestTextBackend::default();
+            let spec_b = default_spec(rect);
+            let spec_t = default_spec(rect);
+            let res_b = run_raw(
+                spec_b,
+                state_b,
+                input,
+                focus_system,
+                &mut text_backend,
+                cmds,
+            );
+            let res_t = run_raw(
+                spec_t,
+                state_t,
+                input,
+                focus_system,
+                &mut text_backend,
+                cmds,
+            );
+            (res_b.input, res_t.input)
+        },
+    );
+}
+
+#[test]
+fn test_drag_number_overlapping_press_uses_top_widget() {
+    let rect = Rect::new(10.0, 10.0, 100.0, 28.0);
+    let mut state_bottom = DragNumberState {
+        value: 50.0,
+        ..Default::default()
+    };
+    let mut state_top = DragNumberState {
+        value: 50.0,
+        ..Default::default()
+    };
+    let overlap_pos = value_area_pos(rect, "X");
+
+    crate::widgets::test_helpers::assert_overlapping_click(
+        &mut state_bottom,
+        &mut state_top,
+        overlap_pos,
+        true, // expect click on top
+        |state_b, state_t, input, focus_system, cmds| {
+            let mut text_backend = TestTextBackend::default();
+            let spec_b = default_spec(rect);
+            let spec_t = default_spec(rect);
+            let res_b = run_raw(
+                spec_b,
+                state_b,
+                input,
+                focus_system,
+                &mut text_backend,
+                cmds,
+            );
+            let res_t = run_raw(
+                spec_t,
+                state_t,
+                input,
+                focus_system,
+                &mut text_backend,
+                cmds,
+            );
+            (res_b.input, res_t.input)
+        },
+    );
 }

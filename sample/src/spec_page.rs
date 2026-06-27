@@ -2646,7 +2646,7 @@ fn section_04_sliders<CF>(
         b.finish();
     }
 
-    group_y(b, "drag-number (imgui-style)");
+    group_y(b, "drag-number");
     {
         let mut b = b.child_with_layout(ColumnLayoutParams::fixed(content_w, 42.0), ManualLayout);
         let mut x = 0.0;
