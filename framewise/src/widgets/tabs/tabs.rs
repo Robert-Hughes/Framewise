@@ -309,6 +309,12 @@ impl TabsStyle {
     }
 }
 
+impl Default for TabsStyle {
+    fn default() -> Self {
+        Self::from_theme(&crate::theme::Theme::minimal())
+    }
+}
+
 // ── State ─────────────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, Default, PartialEq)]
@@ -335,66 +341,57 @@ pub struct TabsSpec<'a> {
     pub disabled: bool,
 }
 
-// ── Spec Builder ─────────────────────────────────────────────────────────────
+impl<'a> TabsSpec<'a> {
+    pub fn new(items: &'a [&'a str]) -> Self {
+        Self {
+            items,
+            style: TabsStyle::default(),
+            disabled: false,
+        }
+    }
 
-#[derive(Debug, Clone, PartialEq, Default)]
-pub struct TabsSpecBuilder<'a> {
-    pub items: Option<&'a [&'a str]>,
-    pub style: Option<TabsStyle>,
-    pub disabled: Option<bool>,
-}
+    pub fn new_from_theme(items: &'a [&'a str], theme: &crate::theme::Theme) -> Self {
+        Self::new(items).theme(theme)
+    }
 
-impl<'a> TabsSpecBuilder<'a> {
-    pub fn new() -> Self {
-        Self::default()
+    pub fn theme(mut self, theme: &crate::theme::Theme) -> Self {
+        self.style = TabsStyle::from_theme(theme);
+        self
     }
 
     pub fn items(mut self, items: &'a [&'a str]) -> Self {
-        self.items = Some(items);
+        self.items = items;
         self
     }
+
     pub fn style(mut self, style: TabsStyle) -> Self {
-        self.style = Some(style);
+        self.style = style;
         self
     }
+
     pub fn disabled(mut self, disabled: bool) -> Self {
-        self.disabled = Some(disabled);
+        self.disabled = disabled;
         self
-    }
-
-    /// Fills unset fields from `theme`. Called automatically by high-level
-    /// context functions.
-    pub fn defaults_from_theme(mut self, theme: &crate::theme::Theme) -> Self {
-        if self.style.is_none() {
-            self.style = Some(TabsStyle::from_theme(theme));
-        }
-        self
-    }
-
-    pub fn build(self) -> TabsSpec<'a> {
-        TabsSpec {
-            items: self.items.expect("items not set — call .items()"),
-            style: self
-                .style
-                .expect("style not set — call .style() or defaults_from_theme()"),
-            disabled: self.disabled.unwrap_or(false),
-        }
     }
 }
 
-// ── High-level widget function ───────────────────────────────────────────────────
+// -- High-level widget function ---------------------------------------------------
 
 /// High-level tabs widget function using `WidgetContext`.
 ///
-/// Resolves defaults, runs the raw pre-layout phase to obtain a `SizeRequest`,
-/// resolves the final rect with layout, then runs the raw post-layout phase.
+/// Consumes a complete `TabsSpec`, runs the raw pre-layout phase to obtain a
+/// `SizeRequest`, resolves the final rect with layout, then runs the raw
+/// post-layout phase.
+///
+/// The widget is stateful: interaction, focus, and the active index state are
+/// tracked via `state`. Cursor icons are propagated to `ctx.output.cursor_icon`
+/// when appropriate.
 pub fn tabs<'a, T: TextBackend, S: LayoutState, CF>(
-    ctx: &mut WidgetContext<T, S, CF>,
-    builder: TabsSpecBuilder<'a>,
+    spec: TabsSpec<'a>,
     layout_params: S::Params,
     state: &mut TabsState,
+    ctx: &mut WidgetContext<T, S, CF>,
 ) -> TabsResult {
-    let spec = builder.defaults_from_theme(&ctx.theme).build();
     let pre_layout_spec = raw::TabsPreLayoutSpec {
         items: spec.items,
         style: spec.style,

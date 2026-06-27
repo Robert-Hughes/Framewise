@@ -102,7 +102,7 @@ pub use keycap::{keycap, KeycapResult, KeycapSpec, KeycapStyle};
 #[cfg(feature = "label")]
 pub use label::{label, LabelResult, LabelSpec, LabelStyle};
 #[cfg(feature = "menu")]
-pub use menu::{menu, MenuItem, MenuResult, MenuSpecBuilder, MenuStyle};
+pub use menu::{menu, MenuItem, MenuResult, MenuSpec, MenuStyle};
 #[cfg(feature = "meter")]
 pub use meter::{meter, MeterResult, MeterSpec, MeterStyle};
 #[cfg(feature = "progress_bar")]
@@ -114,11 +114,9 @@ pub use scroll_area::{
     begin_scroll_area, ScrollAreaResult, ScrollAreaSpec, ScrollState, ScrollbarVisibility,
 };
 #[cfg(feature = "segmented")]
-pub use segmented::{
-    segmented, SegmentedResult, SegmentedSpecBuilder, SegmentedState, SegmentedStyle,
-};
+pub use segmented::{segmented, SegmentedResult, SegmentedSpec, SegmentedState, SegmentedStyle};
 #[cfg(feature = "select")]
-pub use select::{select, SelectResult, SelectSpecBuilder, SelectState, SelectStyle};
+pub use select::{select, SelectResult, SelectSpec, SelectState, SelectStyle};
 #[cfg(feature = "slider")]
 pub use slider::{
     slider, CrossAxisSize, InteractiveColor, Orientation, ScrollClaimPolicy, SegmentStyle,
@@ -131,7 +129,7 @@ pub use status::{status, StatusResult, StatusSpec, StatusStyle, StatusVariant};
 #[cfg(feature = "switch")]
 pub use switch::{labelled_switch, switch, SwitchResult, SwitchSpec, SwitchState, SwitchStyle};
 #[cfg(feature = "tabs")]
-pub use tabs::{tabs, TabsResult, TabsSpecBuilder, TabsState, TabsStyle};
+pub use tabs::{tabs, TabsResult, TabsSpec, TabsState, TabsStyle};
 #[cfg(feature = "text_edit")]
 pub use text_edit::{
     text_edit, ClipboardAction, NewlinePolicy, TextEditResult, TextEditSpec, TextEditState,

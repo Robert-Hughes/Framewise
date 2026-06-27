@@ -2,22 +2,19 @@ use super::*;
 use crate::focus::FocusSystem;
 
 #[test]
-fn test_builder_defaults_from_theme_fills_unset_fields() {
+fn test_menu_spec_theme_overwrites_style() {
     let theme = crate::theme::Theme::framewise();
-    let builder = MenuSpecBuilder::new();
-    assert!(builder.style.is_none());
-    let builder = builder.defaults_from_theme(&theme);
-    assert_eq!(builder.style, Some(MenuStyle::from_theme(&theme)));
+    let spec = MenuSpec::new(&[]).theme(&theme);
+    assert_eq!(spec.style, MenuStyle::from_theme(&theme));
 }
 
 #[test]
-fn test_builder_defaults_from_theme_preserves_explicit_fields() {
+fn test_menu_spec_theme_preserves_items() {
     let theme = crate::theme::Theme::framewise();
-    let mut custom_style = MenuStyle::from_theme(&theme);
-    custom_style.label_style.size = 99.0;
-    let builder = MenuSpecBuilder::new().style(custom_style);
-    let builder = builder.defaults_from_theme(&theme);
-    assert_eq!(builder.style.unwrap().label_style.size, 99.0);
+    let items = [MenuItem::Separator];
+    let spec = MenuSpec::new(&items).theme(&theme);
+    assert_eq!(spec.items, &items);
+    assert_eq!(spec.style, MenuStyle::from_theme(&theme));
 }
 
 #[test]
@@ -40,7 +37,11 @@ fn test_user_rect_not_overridden() {
         Rect::new(0.0, 0.0, 800.0, 600.0),
         &mut cmds,
     );
-    let result = super::menu(&mut ctx, MenuSpecBuilder::new().items(&[]), custom_rect);
+    let result = super::menu(
+        MenuSpec::new_from_theme(&[], &ctx.theme),
+        custom_rect,
+        &mut ctx,
+    );
     // x and y come from the user-provided rect
     assert_eq!(result.layout.bounds.x, custom_rect.x);
     assert_eq!(result.layout.bounds.y, custom_rect.y);
@@ -66,7 +67,11 @@ fn test_menu_bounds_and_content_bounds() {
         Rect::new(0.0, 0.0, 800.0, 600.0),
         &mut cmds,
     );
-    let res = super::menu(&mut ctx, MenuSpecBuilder::new().items(&[]), layout_rect);
+    let res = super::menu(
+        MenuSpec::new_from_theme(&[], &ctx.theme),
+        layout_rect,
+        &mut ctx,
+    );
 
     let style = MenuStyle::from_theme(&ctx.theme);
     let expected_h = style.pad_y * 2.0;

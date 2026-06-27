@@ -340,6 +340,12 @@ impl MenuStyle {
     }
 }
 
+impl Default for MenuStyle {
+    fn default() -> Self {
+        Self::from_theme(&crate::theme::Theme::minimal())
+    }
+}
+
 // ── Result ───────────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, PartialEq)]
@@ -355,59 +361,44 @@ pub struct MenuSpec<'a> {
     pub style: MenuStyle,
 }
 
-// ── Spec Builder ─────────────────────────────────────────────────────────────
+impl<'a> MenuSpec<'a> {
+    pub fn new(items: &'a [MenuItem<'a>]) -> Self {
+        Self {
+            items,
+            style: MenuStyle::default(),
+        }
+    }
 
-#[derive(Debug, Clone, PartialEq, Default)]
-pub struct MenuSpecBuilder<'a> {
-    pub items: Option<&'a [MenuItem<'a>]>,
-    pub style: Option<MenuStyle>,
-}
+    pub fn new_from_theme(items: &'a [MenuItem<'a>], theme: &crate::theme::Theme) -> Self {
+        Self::new(items).theme(theme)
+    }
 
-impl<'a> MenuSpecBuilder<'a> {
-    pub fn new() -> Self {
-        Self::default()
+    pub fn theme(mut self, theme: &crate::theme::Theme) -> Self {
+        self.style = MenuStyle::from_theme(theme);
+        self
     }
 
     pub fn items(mut self, items: &'a [MenuItem<'a>]) -> Self {
-        self.items = Some(items);
+        self.items = items;
         self
     }
+
     pub fn style(mut self, style: MenuStyle) -> Self {
-        self.style = Some(style);
+        self.style = style;
         self
-    }
-
-    /// Fills unset fields from `theme`. Called automatically by high-level
-    /// context functions.
-    pub fn defaults_from_theme(mut self, theme: &crate::theme::Theme) -> Self {
-        if self.style.is_none() {
-            self.style = Some(MenuStyle::from_theme(theme));
-        }
-        self
-    }
-
-    pub fn build(self) -> MenuSpec<'a> {
-        MenuSpec {
-            items: self.items.expect("items not set — call .items()"),
-            style: self
-                .style
-                .expect("style not set — call .style() or defaults_from_theme()"),
-        }
     }
 }
 
-// ── High-level widget function ───────────────────────────────────────────────────
-
 /// High-level menu widget function using `WidgetContext`.
 ///
-/// Resolves defaults, runs the raw pre-layout phase to obtain a `SizeRequest`,
-/// resolves the final rect with layout, then runs the raw post-layout phase.
+/// Consumes a complete `MenuSpec`, runs the raw pre-layout phase to obtain a
+/// `SizeRequest`, resolves the final rect with layout, then runs the raw
+/// post-layout phase.
 pub fn menu<'a, T: TextBackend, S: LayoutState, CF>(
-    ctx: &mut WidgetContext<T, S, CF>,
-    builder: MenuSpecBuilder<'a>,
+    spec: MenuSpec<'a>,
     layout_params: S::Params,
+    ctx: &mut WidgetContext<T, S, CF>,
 ) -> MenuResult {
-    let spec = builder.defaults_from_theme(&ctx.theme).build();
     let pre_layout_spec = raw::MenuPreLayoutSpec {
         items: spec.items,
         style: spec.style,

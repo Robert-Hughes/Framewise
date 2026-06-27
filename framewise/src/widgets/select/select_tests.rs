@@ -584,22 +584,24 @@ fn test_select_keyboard_navigation() {
 }
 
 #[test]
-fn test_builder_defaults_from_theme_fills_unset_fields() {
+fn test_select_spec_theme_overwrites_style() {
     let theme = crate::theme::Theme::framewise();
-    let builder = SelectSpecBuilder::new();
-    assert!(builder.style.is_none());
-    let builder = builder.defaults_from_theme(&theme);
-    assert_eq!(builder.style, Some(SelectStyle::from_theme(&theme)));
+    let items = ["A"];
+    let spec = super::SelectSpec::new("A", &items).theme(&theme);
+    assert_eq!(spec.style, SelectStyle::from_theme(&theme));
 }
 
 #[test]
-fn test_builder_defaults_from_theme_preserves_explicit_fields() {
+fn test_select_spec_theme_preserves_semantic_fields() {
     let theme = crate::theme::Theme::framewise();
-    let mut custom_style = SelectStyle::from_theme(&theme);
-    custom_style.text_style.size = 99.0;
-    let builder = SelectSpecBuilder::new().style(custom_style);
-    let builder = builder.defaults_from_theme(&theme);
-    assert_eq!(builder.style.unwrap().text_style.size, 99.0);
+    let items = ["A"];
+    let spec = super::SelectSpec::new("A", &items)
+        .disabled(true)
+        .theme(&theme);
+    assert_eq!(spec.value, "A");
+    assert_eq!(spec.items, &items);
+    assert!(spec.disabled);
+    assert_eq!(spec.style, SelectStyle::from_theme(&theme));
 }
 
 #[test]
@@ -623,10 +625,10 @@ fn test_user_rect_not_overridden() {
     );
     let mut sel_state = SelectState::default();
     let result = super::select(
-        &mut ctx,
-        SelectSpecBuilder::new().items(&[]).value(""),
+        super::SelectSpec::new_from_theme("", &[], &ctx.theme),
         custom_rect,
         &mut sel_state,
+        &mut ctx,
     );
     assert_eq!(result.layout.bounds, custom_rect);
 }

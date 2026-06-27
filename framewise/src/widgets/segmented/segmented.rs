@@ -320,6 +320,12 @@ impl SegmentedStyle {
     }
 }
 
+impl Default for SegmentedStyle {
+    fn default() -> Self {
+        Self::from_theme(&crate::theme::Theme::minimal())
+    }
+}
+
 // ── State ─────────────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, Default, PartialEq)]
@@ -346,66 +352,57 @@ pub struct SegmentedSpec<'a> {
     pub disabled: bool,
 }
 
-// ── Spec Builder ─────────────────────────────────────────────────────────────
+impl<'a> SegmentedSpec<'a> {
+    pub fn new(items: &'a [&'a str]) -> Self {
+        Self {
+            items,
+            style: SegmentedStyle::default(),
+            disabled: false,
+        }
+    }
 
-#[derive(Debug, Clone, PartialEq, Default)]
-pub struct SegmentedSpecBuilder<'a> {
-    pub items: Option<&'a [&'a str]>,
-    pub style: Option<SegmentedStyle>,
-    pub disabled: Option<bool>,
-}
+    pub fn new_from_theme(items: &'a [&'a str], theme: &crate::theme::Theme) -> Self {
+        Self::new(items).theme(theme)
+    }
 
-impl<'a> SegmentedSpecBuilder<'a> {
-    pub fn new() -> Self {
-        Self::default()
+    pub fn theme(mut self, theme: &crate::theme::Theme) -> Self {
+        self.style = SegmentedStyle::from_theme(theme);
+        self
     }
 
     pub fn items(mut self, items: &'a [&'a str]) -> Self {
-        self.items = Some(items);
+        self.items = items;
         self
     }
+
     pub fn style(mut self, style: SegmentedStyle) -> Self {
-        self.style = Some(style);
+        self.style = style;
         self
     }
+
     pub fn disabled(mut self, disabled: bool) -> Self {
-        self.disabled = Some(disabled);
+        self.disabled = disabled;
         self
-    }
-
-    /// Fills unset fields from `theme`. Called automatically by high-level
-    /// context functions.
-    pub fn defaults_from_theme(mut self, theme: &crate::theme::Theme) -> Self {
-        if self.style.is_none() {
-            self.style = Some(SegmentedStyle::from_theme(theme));
-        }
-        self
-    }
-
-    pub fn build(self) -> SegmentedSpec<'a> {
-        SegmentedSpec {
-            items: self.items.expect("items not set — call .items()"),
-            style: self
-                .style
-                .expect("style not set — call .style() or defaults_from_theme()"),
-            disabled: self.disabled.unwrap_or(false),
-        }
     }
 }
 
-// ── High-level widget function ───────────────────────────────────────────────────
+// -- High-level widget function ---------------------------------------------------
 
 /// High-level segmented widget function using `WidgetContext`.
 ///
-/// Resolves defaults, runs the raw pre-layout phase to obtain a `SizeRequest`,
-/// resolves the final rect with layout, then runs the raw post-layout phase.
+/// Consumes a complete `SegmentedSpec`, runs the raw pre-layout phase to obtain a
+/// `SizeRequest`, resolves the final rect with layout, then runs the raw
+/// post-layout phase.
+///
+/// The widget is stateful: interaction, focus, and the active index state are
+/// tracked via `state`. Cursor icons are propagated to `ctx.output.cursor_icon`
+/// when appropriate.
 pub fn segmented<'a, T: TextBackend, S: LayoutState, CF>(
-    ctx: &mut WidgetContext<T, S, CF>,
-    builder: SegmentedSpecBuilder<'a>,
+    spec: SegmentedSpec<'a>,
     layout_params: S::Params,
     state: &mut SegmentedState,
+    ctx: &mut WidgetContext<T, S, CF>,
 ) -> SegmentedResult {
-    let spec = builder.defaults_from_theme(&ctx.theme).build();
     let pre_layout_spec = raw::SegmentedPreLayoutSpec {
         items: spec.items,
         style: spec.style,

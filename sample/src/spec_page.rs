@@ -60,7 +60,7 @@ use framewise::widgets::drag_number::{
 use framewise::widgets::keycap::{keycap, KeycapSpec};
 #[cfg(feature = "menu")]
 #[allow(unused_imports)]
-use framewise::widgets::menu::{menu, MenuItem, MenuSpecBuilder};
+use framewise::widgets::menu::{menu, MenuItem, MenuSpec};
 #[cfg(feature = "meter")]
 #[allow(unused_imports)]
 use framewise::widgets::meter::{meter, MeterSpec};
@@ -72,10 +72,10 @@ use framewise::widgets::progress_bar::{progress_bar, ProgressBarSpec};
 use framewise::widgets::radio::{labelled_radio, radio, RadioSpec, RadioState, RadioStyle};
 #[cfg(feature = "segmented")]
 #[allow(unused_imports)]
-use framewise::widgets::segmented::{segmented, SegmentedSpecBuilder, SegmentedState};
+use framewise::widgets::segmented::{segmented, SegmentedSpec, SegmentedState};
 #[cfg(feature = "select")]
 #[allow(unused_imports)]
-use framewise::widgets::select::{select, SelectSpecBuilder, SelectState, SelectStyle};
+use framewise::widgets::select::{select, SelectSpec, SelectState, SelectStyle};
 #[cfg(feature = "slider")]
 #[allow(unused_imports)]
 use framewise::widgets::slider::{
@@ -93,7 +93,7 @@ use framewise::widgets::status::{status, StatusSpec, StatusVariant};
 use framewise::widgets::switch::{labelled_switch, switch, SwitchSpec, SwitchState, SwitchStyle};
 #[cfg(feature = "tabs")]
 #[allow(unused_imports)]
-use framewise::widgets::tabs::{tabs, TabsSpecBuilder, TabsState};
+use framewise::widgets::tabs::{tabs, TabsSpec, TabsState};
 #[cfg(feature = "text_edit")]
 #[allow(unused_imports)]
 use framewise::widgets::text_edit::{
@@ -2862,10 +2862,10 @@ fn section_05_selection<CF>(
         let sel_state = &mut state.sel_state;
         let rect = Rect::new(0.0, 0.0, 180.0, b.theme.h_md);
         select(
-            &mut b,
-            SelectSpecBuilder::new().value(value).items(LAYOUT_OPTS),
+            SelectSpec::new_from_theme(value, LAYOUT_OPTS, &b.theme),
             rect,
             sel_state,
+            &mut b,
         );
 
         let badge_rect = b.layout(
@@ -2889,15 +2889,15 @@ fn section_05_selection<CF>(
         {
             let state = &mut state.seg1_state;
             let layout_params = Rect::new(220.0, 0.0, 0.0, b.theme.h_md);
-            let spec_builder = SegmentedSpecBuilder::new().items(SEGS1);
-            segmented(&mut b, spec_builder, layout_params, state);
+            let spec = SegmentedSpec::new_from_theme(SEGS1, &b.theme);
+            segmented(spec, layout_params, state, &mut b);
         };
         const SEGS2: &[&str] = &["start", "center", "end"];
         {
             let state = &mut state.seg2_state;
             let layout_params = Rect::new(220.0, b.theme.h_md + 8.0, 0.0, b.theme.h_md);
-            let spec_builder = SegmentedSpecBuilder::new().items(SEGS2);
-            segmented(&mut b, spec_builder, layout_params, state);
+            let spec = SegmentedSpec::new_from_theme(SEGS2, &b.theme);
+            segmented(spec, layout_params, state, &mut b);
         };
 
         let chip_labels = ["opengl", "vulkan", "metal", "wgpu"];
@@ -2998,9 +2998,9 @@ fn section_05_selection<CF>(
             },
         ];
         menu(
-            &mut b,
-            MenuSpecBuilder::new().items(ITEMS1),
+            MenuSpec::new_from_theme(ITEMS1, &b.theme),
             Rect::new(0.0, 0.0, 240.0, 0.0),
+            &mut b,
         );
 
         static ITEMS2: &[MenuItem<'static>] = &[
@@ -3031,9 +3031,9 @@ fn section_05_selection<CF>(
             },
         ];
         menu(
-            &mut b,
-            MenuSpecBuilder::new().items(ITEMS2),
+            MenuSpec::new_from_theme(ITEMS2, &b.theme),
             Rect::new(264.0, 0.0, 200.0, 0.0),
+            &mut b,
         );
         b.finish();
     }
@@ -3345,19 +3345,19 @@ fn section_07_tabs<CF>(
     {
         const TABS1: &[&str] = &["Inspector", "Layout", "Timing", "Logs", "Replay"];
         tabs(
-            b,
-            TabsSpecBuilder::new().items(TABS1),
+            TabsSpec::new_from_theme(TABS1, &b.theme),
             ColumnLayoutParams::fixed(content_w.min(640.0), 36.0),
             &mut state.tabs1_state,
+            b,
         );
         b.spacer(20.0);
 
         const TABS2: &[&str] = &["frame.rs", "layout.rs", "theme.rs", "state.rs"];
         tabs(
-            b,
-            TabsSpecBuilder::new().items(TABS2),
+            TabsSpec::new_from_theme(TABS2, &b.theme),
             ColumnLayoutParams::fixed(content_w.min(480.0), 36.0),
             &mut state.tabs2_state,
+            b,
         );
     }
 }
@@ -4152,8 +4152,8 @@ fn section_12_in_use<CF>(
             let state = &mut state.iu_tabs;
             let items: &[&str] = &tabs_items;
             let layout_params = Rect::new(0.0, 0.0, cr_w, 28.0);
-            let spec_builder = TabsSpecBuilder::new().items(items);
-            tabs(&mut win, spec_builder, layout_params, state)
+            let spec = TabsSpec::new_from_theme(items, &win.theme);
+            tabs(spec, layout_params, state, &mut win)
         };
 
         // Form rows
@@ -4185,8 +4185,8 @@ fn section_12_in_use<CF>(
             let state = &mut state.iu_backend;
             let items: &[&str] = &backends;
             let layout_params = Rect::new(widget_x, fy, 0.0, row_h);
-            let spec_builder = SegmentedSpecBuilder::new().items(items);
-            segmented(&mut win, spec_builder, layout_params, state)
+            let spec = SegmentedSpec::new_from_theme(items, &win.theme);
+            segmented(spec, layout_params, state, &mut win)
         };
         fy += row_h + row_gap;
 
@@ -4280,8 +4280,8 @@ fn section_12_in_use<CF>(
             let state = &mut state.iu_msaa;
             let items: &[&str] = &msaa_opts;
             let layout_params = Rect::new(widget_x, fy, 0.0, row_h);
-            let spec_builder = SegmentedSpecBuilder::new().items(items);
-            segmented(&mut win, spec_builder, layout_params, state)
+            let spec = SegmentedSpec::new_from_theme(items, &win.theme);
+            segmented(spec, layout_params, state, &mut win)
         };
         fy += row_h + row_gap;
 
@@ -4575,9 +4575,9 @@ fn section_12_in_use<CF>(
             },
         ];
         menu(
-            &mut qa_win,
-            MenuSpecBuilder::new().items(&qa_items),
+            MenuSpec::new_from_theme(&qa_items, &qa_win.theme),
             Rect::new(0.0, -8.0, qa_cr_w, 0.0),
+            &mut qa_win,
         );
         qa_win.finish();
         let _ = win_h_full;

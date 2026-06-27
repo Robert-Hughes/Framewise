@@ -468,6 +468,12 @@ impl SelectStyle {
     }
 }
 
+impl Default for SelectStyle {
+    fn default() -> Self {
+        Self::from_theme(&crate::theme::Theme::minimal())
+    }
+}
+
 // ── State ─────────────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, Default, PartialEq)]
@@ -498,68 +504,67 @@ pub struct SelectSpec<'a> {
     pub disabled: bool,
 }
 
-// ── Spec Builder ─────────────────────────────────────────────────────────────
+impl<'a> SelectSpec<'a> {
+    pub fn new(value: &'a str, items: &'a [&'a str]) -> Self {
+        Self {
+            value,
+            style: SelectStyle::default(),
+            items,
+            disabled: false,
+        }
+    }
 
-#[derive(Debug, Clone, PartialEq, Default)]
-pub struct SelectSpecBuilder<'a> {
-    pub value: Option<&'a str>,
-    pub style: Option<SelectStyle>,
-    pub items: Option<&'a [&'a str]>,
-    pub disabled: Option<bool>,
-}
+    pub fn new_from_theme(
+        value: &'a str,
+        items: &'a [&'a str],
+        theme: &crate::theme::Theme,
+    ) -> Self {
+        Self::new(value, items).theme(theme)
+    }
 
-impl<'a> SelectSpecBuilder<'a> {
-    pub fn new() -> Self {
-        Self::default()
+    pub fn theme(mut self, theme: &crate::theme::Theme) -> Self {
+        self.style = SelectStyle::from_theme(theme);
+        self
     }
 
     pub fn value(mut self, value: &'a str) -> Self {
-        self.value = Some(value);
+        self.value = value;
         self
     }
-    pub fn style(mut self, style: SelectStyle) -> Self {
-        self.style = Some(style);
-        self
-    }
+
     pub fn items(mut self, items: &'a [&'a str]) -> Self {
-        self.items = Some(items);
+        self.items = items;
         self
     }
+
+    pub fn style(mut self, style: SelectStyle) -> Self {
+        self.style = style;
+        self
+    }
+
     pub fn disabled(mut self, disabled: bool) -> Self {
-        self.disabled = Some(disabled);
+        self.disabled = disabled;
         self
-    }
-
-    /// Fills unset fields from `theme`. Called automatically by high-level
-    /// context functions.
-    pub fn defaults_from_theme(mut self, theme: &crate::theme::Theme) -> Self {
-        if self.style.is_none() {
-            self.style = Some(SelectStyle::from_theme(theme));
-        }
-        self
-    }
-
-    pub fn build(self) -> SelectSpec<'a> {
-        SelectSpec {
-            value: self.value.expect("value not set — call .value()"),
-            style: self
-                .style
-                .expect("style not set — call .style() or defaults_from_theme()"),
-            items: self.items.expect("items not set — call .items()"),
-            disabled: self.disabled.unwrap_or(false),
-        }
     }
 }
 
-// ── High-level widget function ───────────────────────────────────────────────────
+// -- High-level widget function ---------------------------------------------------
 
+/// High-level select widget function using `WidgetContext`.
+///
+/// Consumes a complete `SelectSpec`, runs the raw pre-layout phase to obtain a
+/// `SizeRequest`, resolves the final rect with layout, then runs the raw
+/// post-layout phase.
+///
+/// The widget is stateful: interaction, focus, and the selected index, open
+/// state, and hovered option state are tracked via `state`. Cursor icons are
+/// propagated to `ctx.output.cursor_icon` when appropriate.
 pub fn select<'a, T: TextBackend, S: LayoutState, CF>(
-    ctx: &mut WidgetContext<T, S, CF>,
-    builder: SelectSpecBuilder<'a>,
+    spec: SelectSpec<'a>,
     layout_params: S::Params,
     state: &mut SelectState,
+    ctx: &mut WidgetContext<T, S, CF>,
 ) -> SelectResult {
-    let spec = builder.defaults_from_theme(&ctx.theme).build();
     let pre_layout_spec = raw::SelectPreLayoutSpec {
         value: spec.value,
         style: spec.style,
