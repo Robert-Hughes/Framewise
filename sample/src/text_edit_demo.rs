@@ -7,7 +7,7 @@ use framewise::{
     theme::Theme,
     types::{Color, Rect, Stroke},
     widget::WidgetContext,
-    widgets::checkbox::{labelled_checkbox, CheckboxSpecBuilder, CheckboxState, CheckedState},
+    widgets::checkbox::{labelled_checkbox, CheckboxSpec, CheckboxState, CheckedState},
     widgets::label::{label, LabelSpecBuilder, LabelStyle},
     widgets::radio::{labelled_radio, RadioSpecBuilder, RadioState},
     widgets::text_edit::{
@@ -376,11 +376,11 @@ pub(crate) fn draw_text_edit_demo_content<'a, 'b, CF>(
         }
         col_a.spacer(8.0);
         labelled_checkbox(
-            &mut col_a,
-            CheckboxSpecBuilder::new(),
+            CheckboxSpec::default_from_theme(&col_a.theme),
             "Word wrap",
             ColumnLayoutParams::auto(),
             &mut state.te_playground_wrap,
+            &mut col_a,
         );
         col_a.finish();
 
@@ -729,11 +729,11 @@ pub(crate) fn draw_text_edit_demo_content<'a, 'b, CF>(
         );
         right.spacer(8.0);
         labelled_checkbox(
-            &mut right,
-            CheckboxSpecBuilder::new(),
+            CheckboxSpec::default_from_theme(&right.theme),
             "Word wrap",
             ColumnLayoutParams::auto(),
             &mut state.te_large_wrap,
+            &mut right,
         );
         right.spacer(10.0);
 

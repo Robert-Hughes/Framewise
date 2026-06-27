@@ -82,7 +82,7 @@ pub mod window;
 pub use button::{button, ButtonResult, ButtonSpec, ButtonState, ButtonStyle};
 #[cfg(feature = "checkbox")]
 pub use checkbox::{
-    checkbox, labelled_checkbox, CheckboxResult, CheckboxSpecBuilder, CheckboxState, CheckboxStyle,
+    checkbox, labelled_checkbox, CheckboxResult, CheckboxSpec, CheckboxState, CheckboxStyle,
     CheckedState,
 };
 #[cfg(feature = "chip")]

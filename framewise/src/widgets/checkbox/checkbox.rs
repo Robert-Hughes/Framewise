@@ -245,6 +245,12 @@ impl CheckboxStyle {
     }
 }
 
+impl Default for CheckboxStyle {
+    fn default() -> Self {
+        Self::from_theme(&crate::theme::Theme::minimal())
+    }
+}
+
 // ── State ─────────────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, Copy, PartialEq, Default)]
@@ -282,53 +288,39 @@ pub struct CheckboxSpec {
     pub style: CheckboxStyle,
 }
 
-// ── Spec Builder ─────────────────────────────────────────────────────────────
-
-#[derive(Debug, Clone, PartialEq, Default)]
-pub struct CheckboxSpecBuilder {
-    pub disabled: Option<bool>,
-    pub allowed_checked_states: Option<Vec<CheckedState>>,
-    pub style: Option<CheckboxStyle>,
+impl Default for CheckboxSpec {
+    fn default() -> Self {
+        Self {
+            disabled: false,
+            allowed_checked_states: vec![CheckedState::Unchecked, CheckedState::Checked],
+            style: CheckboxStyle::default(),
+        }
+    }
 }
-impl CheckboxSpecBuilder {
-    pub fn new() -> Self {
-        Self::default()
+
+impl CheckboxSpec {
+    pub fn default_from_theme(theme: &crate::theme::Theme) -> Self {
+        Self::default().theme(theme)
     }
 
-    pub fn disabled(mut self, disabled: bool) -> Self {
-        self.disabled = Some(disabled);
+    pub fn theme(mut self, theme: &crate::theme::Theme) -> Self {
+        self.style = CheckboxStyle::from_theme(theme);
         self
     }
 
-    pub fn style(mut self, style: CheckboxStyle) -> Self {
-        self.style = Some(style);
+    pub fn disabled(mut self, disabled: bool) -> Self {
+        self.disabled = disabled;
         self
     }
 
     pub fn allowed_checked_states(mut self, allowed_checked_states: Vec<CheckedState>) -> Self {
-        self.allowed_checked_states = Some(allowed_checked_states);
+        self.allowed_checked_states = allowed_checked_states;
         self
     }
 
-    /// Fills unset fields from `theme`. Called automatically by high-level
-    /// context functions.
-    pub fn defaults_from_theme(mut self, theme: &crate::theme::Theme) -> Self {
-        if self.style.is_none() {
-            self.style = Some(CheckboxStyle::from_theme(theme));
-        }
+    pub fn style(mut self, style: CheckboxStyle) -> Self {
+        self.style = style;
         self
-    }
-
-    pub fn build(self) -> CheckboxSpec {
-        CheckboxSpec {
-            disabled: self.disabled.unwrap_or(false),
-            allowed_checked_states: self
-                .allowed_checked_states
-                .unwrap_or_else(|| vec![CheckedState::Unchecked, CheckedState::Checked]),
-            style: self
-                .style
-                .expect("style not set — call .style() or defaults_from_theme()"),
-        }
     }
 }
 
@@ -336,15 +328,15 @@ impl CheckboxSpecBuilder {
 
 /// High-level checkbox widget function using `WidgetContext`.
 ///
-/// Resolves defaults, runs the raw pre-layout phase to obtain a `SizeRequest`,
-/// resolves the final rect with layout, then runs the raw post-layout phase.
+/// Consumes a complete `CheckboxSpec`, runs the raw pre-layout phase to obtain a
+/// `SizeRequest`, resolves the final rect with layout, then runs the raw
+/// post-layout phase.
 pub fn checkbox<T: TextBackend, S: LayoutState, CF>(
-    ctx: &mut WidgetContext<T, S, CF>,
-    builder: CheckboxSpecBuilder,
+    spec: CheckboxSpec,
     layout_params: S::Params,
     state: &mut CheckboxState,
+    ctx: &mut WidgetContext<T, S, CF>,
 ) -> CheckboxResult {
-    let spec = builder.defaults_from_theme(&ctx.theme).build();
     let pre_layout_spec = raw::CheckboxPreLayoutSpec { style: spec.style };
     let offer = ctx.peek_offer(layout_params.clone());
     let pre_layout = raw::pre_layout_checkbox(&pre_layout_spec, offer);
@@ -382,15 +374,15 @@ pub fn checkbox<T: TextBackend, S: LayoutState, CF>(
 /// This draws a checkbox along with a label by its side. Clicking the label
 /// behaves identically to clicking the checkbox, and all mouse interactions
 /// (hover, pressed, click-and-drag) span the combined bounds.
+///
+/// Consumes a complete `CheckboxSpec`.
 pub fn labelled_checkbox<T: TextBackend, S: LayoutState, CF>(
-    ctx: &mut WidgetContext<T, S, CF>,
-    builder: CheckboxSpecBuilder,
+    spec: CheckboxSpec,
     label_text: &str,
     layout_params: S::Params,
     state: &mut CheckboxState,
+    ctx: &mut WidgetContext<T, S, CF>,
 ) -> CheckboxResult {
-    let spec = builder.defaults_from_theme(&ctx.theme).build();
-
     // Resolve label style and measure text size
     let mut label_style = crate::widgets::label::LabelStyle::from_theme(&ctx.theme);
     label_style.content_placement = crate::text::TextContentPlacement::logical(

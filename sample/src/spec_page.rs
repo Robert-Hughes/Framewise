@@ -43,7 +43,7 @@ use framewise::widgets::button::{button, ButtonSpec, ButtonState, ButtonStyle};
 #[cfg(feature = "checkbox")]
 #[allow(unused_imports)]
 use framewise::widgets::checkbox::{
-    checkbox, labelled_checkbox, CheckboxSpecBuilder, CheckboxState, CheckboxStyle, CheckedState,
+    checkbox, labelled_checkbox, CheckboxSpec, CheckboxState, CheckboxStyle, CheckedState,
 };
 #[cfg(feature = "chip")]
 #[allow(unused_imports)]
@@ -2342,8 +2342,8 @@ fn section_03_toggles<CF>(
             if ci < 3 {
                 let _info = {
                     let state = &mut state.cb_matrix[ci];
-                    let spec_builder =
-                        CheckboxSpecBuilder::new().allowed_checked_states(if ci < 2 {
+                    let spec = CheckboxSpec::default_from_theme(&b.theme).allowed_checked_states(
+                        if ci < 2 {
                             vec![CheckedState::Unchecked, CheckedState::Checked]
                         } else {
                             vec![
@@ -2351,16 +2351,17 @@ fn section_03_toggles<CF>(
                                 CheckedState::Checked,
                                 CheckedState::Indeterminate,
                             ]
-                        });
-                    checkbox(&mut b, spec_builder, rect, state)
+                        },
+                    );
+                    checkbox(spec, rect, state, &mut b)
                 };
             } else if ci == 3 {
                 draw_checkbox_fake_state(&mut b, rect, *cs, *focused, *disabled);
             } else {
                 let _info = {
                     let state = &mut state.cb_matrix[3];
-                    let spec_builder = CheckboxSpecBuilder::new().disabled(true);
-                    checkbox(&mut b, spec_builder, rect, state)
+                    let spec = CheckboxSpec::default_from_theme(&b.theme).disabled(true);
+                    checkbox(spec, rect, state, &mut b)
                 };
             }
         }
@@ -2387,17 +2388,18 @@ fn section_03_toggles<CF>(
             if ci < 3 {
                 let state = &mut state.cb_matrix[4 + ci];
                 let layout_params = Rect::new(cx, y, cell_w, row_height);
-                let spec_builder = CheckboxSpecBuilder::new().allowed_checked_states(if ci < 2 {
-                    vec![CheckedState::Unchecked, CheckedState::Checked]
-                } else {
-                    vec![
-                        CheckedState::Unchecked,
-                        CheckedState::Checked,
-                        CheckedState::Indeterminate,
-                    ]
-                });
+                let spec =
+                    CheckboxSpec::default_from_theme(&b.theme).allowed_checked_states(if ci < 2 {
+                        vec![CheckedState::Unchecked, CheckedState::Checked]
+                    } else {
+                        vec![
+                            CheckedState::Unchecked,
+                            CheckedState::Checked,
+                            CheckedState::Indeterminate,
+                        ]
+                    });
 
-                labelled_checkbox(&mut b, spec_builder, "vsync", layout_params, state);
+                labelled_checkbox(spec, "vsync", layout_params, state, &mut b);
             } else if ci == 3 {
                 draw_checkbox_fake_state(
                     &mut b,
@@ -2427,8 +2429,8 @@ fn section_03_toggles<CF>(
             } else {
                 let state = &mut state.cb_matrix[7];
                 let layout_params = Rect::new(cx, y, cell_w, row_height);
-                let spec_builder = CheckboxSpecBuilder::new().disabled(true);
-                labelled_checkbox(&mut b, spec_builder, "vsync", layout_params, state);
+                let spec = CheckboxSpec::default_from_theme(&b.theme).disabled(true);
+                labelled_checkbox(spec, "vsync", layout_params, state, &mut b);
             }
         }
         b.finish();
@@ -3867,8 +3869,8 @@ fn section_11_window<CF>(
             let _cb_info = {
                 let state = &mut state.win11_cbs[i];
                 let layout_params = Rect::new(0.0, iy, 14.0, 14.0);
-                let spec_builder = CheckboxSpecBuilder::new();
-                checkbox(&mut win, spec_builder, layout_params, state)
+                let spec = CheckboxSpec::default_from_theme(&win.theme);
+                checkbox(spec, layout_params, state, &mut win)
             };
             {
                 let layout_params = Rect::new(18.0, iy, cr_w - 18.0, 14.0);
@@ -4431,8 +4433,8 @@ fn section_12_in_use<CF>(
             let _cb_res = {
                 let state = &mut state.iu_options[i];
                 let layout_params = Rect::new(widget_x, opt_y + 4.0, 14.0, 14.0);
-                let spec_builder = CheckboxSpecBuilder::new();
-                checkbox(&mut win, spec_builder, layout_params, state)
+                let spec = CheckboxSpec::default_from_theme(&win.theme);
+                checkbox(spec, layout_params, state, &mut win)
             };
 
             {

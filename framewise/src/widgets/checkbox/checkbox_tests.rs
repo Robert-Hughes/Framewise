@@ -1148,38 +1148,6 @@ fn test_checkbox_spacebar_loses_focus_does_not_click() {
 }
 
 #[test]
-fn test_builder_defaults_from_theme_fills_unset_style() {
-    let theme = crate::theme::Theme::framewise();
-    let builder = CheckboxSpecBuilder::new();
-    assert!(builder.style.is_none());
-    let builder = builder.defaults_from_theme(&theme);
-    assert_eq!(builder.style, Some(CheckboxStyle::from_theme(&theme)));
-}
-
-#[test]
-fn test_builder_defaults_from_theme_preserves_explicit_style() {
-    let theme = crate::theme::Theme::framewise();
-    let mut custom_style = CheckboxStyle::from_theme(&theme);
-    custom_style.size = 99.0;
-    let builder = CheckboxSpecBuilder::new().style(custom_style);
-    let builder = builder.defaults_from_theme(&theme);
-    assert_eq!(builder.style.unwrap().size, 99.0);
-}
-
-#[test]
-fn test_builder_preserves_allowed_checked_states() {
-    let theme = crate::theme::Theme::framewise();
-    let allowed_checked_states = vec![CheckedState::Checked, CheckedState::Indeterminate];
-
-    let spec = CheckboxSpecBuilder::new()
-        .allowed_checked_states(allowed_checked_states.clone())
-        .defaults_from_theme(&theme)
-        .build();
-
-    assert_eq!(spec.allowed_checked_states, allowed_checked_states);
-}
-
-#[test]
 fn test_high_level_explicit_placement_via_manual_layout() {
     use crate::layouts::ManualLayout;
     use crate::test_utils::TestTextBackend;
@@ -1201,10 +1169,10 @@ fn test_high_level_explicit_placement_via_manual_layout() {
     );
     let mut cb_state = CheckboxState::default();
     let result = super::checkbox(
-        &mut ctx,
-        CheckboxSpecBuilder::new(),
+        super::CheckboxSpec::default_from_theme(&ctx.theme),
         placement,
         &mut cb_state,
+        &mut ctx,
     );
     assert_eq!(result.layout.bounds, placement);
 }
@@ -1234,10 +1202,10 @@ fn test_high_level_honors_user_style() {
     };
     let mut cb_state = CheckboxState::default();
     super::checkbox(
-        &mut ctx,
-        CheckboxSpecBuilder::new().style(custom),
+        super::CheckboxSpec::default().style(custom),
         Rect::new(100.0, 100.0, 14.0, 14.0),
         &mut cb_state,
+        &mut ctx,
     );
 
     let has_custom_fill = cmds
@@ -1274,11 +1242,11 @@ fn test_high_level_honors_allowed_checked_states() {
     };
 
     super::checkbox(
-        &mut ctx,
-        CheckboxSpecBuilder::new()
+        super::CheckboxSpec::default_from_theme(&ctx.theme)
             .allowed_checked_states(vec![CheckedState::Checked, CheckedState::Indeterminate]),
         Rect::new(100.0, 100.0, 14.0, 14.0),
         &mut cb_state,
+        &mut ctx,
     );
 
     assert_eq!(
@@ -1322,11 +1290,11 @@ fn test_labelled_checkbox_request_size() {
     // Combined width: 14.0 + 8.0 + 40.0 = 62.0.
     // Combined height: max(14.0, 16.0) = 16.0.
     let result = super::labelled_checkbox(
-        &mut ctx,
-        CheckboxSpecBuilder::new(),
+        super::CheckboxSpec::default_from_theme(&ctx.theme),
         "vsync",
         Rect::new(0.0, 0.0, 100.0, 20.0),
         &mut state,
+        &mut ctx,
     );
 
     assert_eq!(result.layout.bounds, Rect::new(0.0, 0.0, 100.0, 20.0));
@@ -1354,11 +1322,11 @@ fn test_labelled_checkbox_click_label_toggles_state() {
                 cmds,
             );
             super::labelled_checkbox(
-                &mut ctx,
-                CheckboxSpecBuilder::new(),
+                super::CheckboxSpec::default_from_theme(&ctx.theme),
                 "vsync",
                 Rect::new(0.0, 0.0, 100.0, 20.0),
                 state,
+                &mut ctx,
             );
         },
     );
@@ -1389,11 +1357,11 @@ fn test_labelled_checkbox_disabled_label_visual() {
 
         let mut state = CheckboxState::default();
         super::labelled_checkbox(
-            &mut ctx,
-            CheckboxSpecBuilder::new().disabled(true),
+            super::CheckboxSpec::default_from_theme(&ctx.theme).disabled(true),
             "vsync",
             Rect::new(0.0, 0.0, 100.0, 20.0),
             &mut state,
+            &mut ctx,
         );
     }
 
