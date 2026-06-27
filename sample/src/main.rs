@@ -818,7 +818,16 @@ impl ApplicationHandler for App {
                 if self.last_cursor_icon != requested_cursor_icon {
                     if let Some(window) = &self.window {
                         let winit_cursor_icon = match requested_cursor_icon {
+                            Some(FramewiseCursorIcon::Pointer) => WinitCursorIcon::Pointer,
                             Some(FramewiseCursorIcon::Text) => WinitCursorIcon::Text,
+                            Some(FramewiseCursorIcon::Grab) => WinitCursorIcon::Grab,
+                            Some(FramewiseCursorIcon::Grabbing) => WinitCursorIcon::Grabbing,
+                            Some(FramewiseCursorIcon::EwResize) => WinitCursorIcon::EwResize,
+                            Some(FramewiseCursorIcon::NsResize) => WinitCursorIcon::NsResize,
+                            Some(FramewiseCursorIcon::NwseResize) => WinitCursorIcon::NwseResize,
+                            Some(FramewiseCursorIcon::Move) => WinitCursorIcon::Move,
+                            Some(FramewiseCursorIcon::NotAllowed) => WinitCursorIcon::NotAllowed,
+                            Some(FramewiseCursorIcon::AllScroll) => WinitCursorIcon::AllScroll,
                             None => WinitCursorIcon::Default,
                         };
                         window.set_cursor(Cursor::Icon(winit_cursor_icon));

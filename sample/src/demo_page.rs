@@ -33,7 +33,7 @@ pub fn begin_demo_page<'a, 'b, T: TextBackend, L: Layout, CF>(
     'b,
     T,
     framewise::layouts::OffsetState<L::State>,
-    impl FnOnce(&mut FocusSystem, &mut T, &mut DrawCommands, Rect) + 'b,
+    impl FnOnce(&mut FocusSystem, &mut T, &mut DrawCommands, &mut framewise::Output, Rect) + 'b,
 > {
     use framewise::types::Vec2;
 
@@ -159,6 +159,7 @@ pub fn begin_demo_page<'a, 'b, T: TextBackend, L: Layout, CF>(
     let on_finish = move |focus_system: &mut FocusSystem,
                           _text_backend: &mut T,
                           cmds: &mut DrawCommands,
+                          _output: &mut framewise::Output,
                           resolved_space: Rect| {
         let full_resolved_space = Rect::new(
             resolved_space.x - pad,
@@ -200,7 +201,7 @@ pub fn begin_demo_page<'a, 'b, T: TextBackend, L: Layout, CF>(
     'b,
     T,
     framewise::layouts::OffsetState<L::State>,
-    impl FnOnce(&mut FocusSystem, &mut T, &mut DrawCommands, Rect) + 'b,
+    impl FnOnce(&mut FocusSystem, &mut T, &mut DrawCommands, &mut framewise::Output, Rect) + 'b,
 > {
     let DemoPageNoScrollResult { ctx } =
         begin_demo_page_no_scroll(parent_ctx, title, debug_layout, false, inner_layout);
@@ -218,7 +219,7 @@ pub fn begin_demo_page_no_scroll<'a, 'b, T: TextBackend, L: Layout, CF>(
     'b,
     T,
     framewise::layouts::OffsetState<L::State>,
-    impl FnOnce(&mut FocusSystem, &mut T, &mut DrawCommands, Rect) + 'b,
+    impl FnOnce(&mut FocusSystem, &mut T, &mut DrawCommands, &mut framewise::Output, Rect) + 'b,
 > {
     use framewise::layouts::OffsetLayout;
     use framewise::types::Vec2;

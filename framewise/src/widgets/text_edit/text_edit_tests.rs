@@ -1784,7 +1784,7 @@ fn test_text_edit_scrollbar_interaction_scrolls_text_and_takes_focus_without_sel
     let mut drag_focus_system = FocusSystem::new();
 
     drag_focus_system.begin_frame();
-    raw::post_layout_text_edit(
+    let drag_result = raw::post_layout_text_edit(
         edit_spec.clone(),
         raw::post_layout_only_pre_layout_result(&mut drag_state),
         &mut drag_state,
@@ -1798,6 +1798,12 @@ fn test_text_edit_scrollbar_interaction_scrolls_text_and_takes_focus_without_sel
         &mut DrawCommands::new(1.0),
     );
     drag_focus_system.end_frame();
+
+    assert_eq!(
+        drag_result.cursor_icon,
+        Some(crate::output::CursorIcon::Grabbing),
+        "dragging the scrollbar thumb should set Grabbing cursor"
+    );
 
     assert_eq!(
         drag_focus_system.current_keyboard_focus(),

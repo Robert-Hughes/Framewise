@@ -236,13 +236,18 @@ impl FrameSpecBuilder {
 /// destructuring the parent `ctx` fields. This disjointly borrows `ctx.layout_state` (held by the `LayoutToken`
 /// inside `on_finish`) separately from `ctx.text_backend`, `ctx.focus_system`, etc., resulting in a perfectly
 /// compile-safe cursor-advance deferral.
+#[allow(clippy::type_complexity)]
 pub fn begin_frame<'a, 'b, T: TextBackend, S: LayoutState, L: Layout, CF>(
     ctx: &'b mut WidgetContext<'a, T, S, CF>,
     builder: FrameSpecBuilder,
     layout_params: S::Params,
     inner_layout: L,
-) -> FrameResult<'b, T, L::State, impl FnOnce(&mut FocusSystem, &mut T, &mut DrawCommands, Rect) + 'b>
-{
+) -> FrameResult<
+    'b,
+    T,
+    L::State,
+    impl FnOnce(&mut FocusSystem, &mut T, &mut DrawCommands, &mut crate::output::Output, Rect) + 'b,
+> {
     let spec = builder.defaults_from_theme(&ctx.theme).build();
     let border_width = spec.style.border.map_or(0.0, |b| b.width);
     let inset = border_width + spec.style.padding;

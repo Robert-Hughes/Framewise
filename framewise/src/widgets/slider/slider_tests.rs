@@ -1938,7 +1938,7 @@ fn test_slider_visual_normal() {
     let input = Input::new();
     focus_system.begin_frame();
     let mut cmds = DrawCommands::new(1.0);
-    let _result = raw::post_layout_slider(
+    let result = raw::post_layout_slider(
         spec.clone(),
         raw::SliderPreLayoutResult {
             size_request: crate::layout::SizeRequest::UNKNOWN,
@@ -1949,6 +1949,8 @@ fn test_slider_visual_normal() {
         &mut cmds,
     );
     focus_system.end_frame();
+
+    assert_eq!(result.cursor_icon, None);
 
     let theme = crate::theme::Theme::framewise();
     assert_eq!(
@@ -2012,7 +2014,7 @@ fn test_slider_visual_hovered() {
     // Second frame: hover is active, should resolve to theme.hover
     focus_system.begin_frame();
     let mut cmds = DrawCommands::new(1.0);
-    let _result = raw::post_layout_slider(
+    let result = raw::post_layout_slider(
         spec.clone(),
         raw::SliderPreLayoutResult {
             size_request: crate::layout::SizeRequest::UNKNOWN,
@@ -2023,6 +2025,45 @@ fn test_slider_visual_hovered() {
         &mut cmds,
     );
     focus_system.end_frame();
+
+    assert_eq!(result.cursor_icon, Some(crate::output::CursorIcon::Grab));
+
+    // Track hover sub-test: mouse pos at (10.0, 10.0) which is on the track but not thumb
+    {
+        let input_track = Input {
+            mouse_pos: crate::types::Vec2::new(10.0, 10.0),
+            ..Default::default()
+        };
+        // Frame 1: claim hover
+        focus_system.begin_frame();
+        let mut cmds = DrawCommands::new(1.0);
+        raw::post_layout_slider(
+            spec.clone(),
+            raw::SliderPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
+            &mut state,
+            &input_track,
+            &mut focus_system,
+            &mut cmds,
+        );
+        focus_system.end_frame();
+        // Frame 2: resolved track hover cursor
+        focus_system.begin_frame();
+        let mut cmds = DrawCommands::new(1.0);
+        let result = raw::post_layout_slider(
+            spec.clone(),
+            raw::SliderPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
+            &mut state,
+            &input_track,
+            &mut focus_system,
+            &mut cmds,
+        );
+        focus_system.end_frame();
+        assert_eq!(result.cursor_icon, Some(crate::output::CursorIcon::Pointer));
+    }
 
     let theme = crate::theme::Theme::framewise();
     assert_eq!(
@@ -2070,7 +2111,7 @@ fn test_slider_visual_drag() {
     };
     focus_system.begin_frame();
     let mut cmds = DrawCommands::new(1.0);
-    let _result = raw::post_layout_slider(
+    let result = raw::post_layout_slider(
         spec.clone(),
         raw::SliderPreLayoutResult {
             size_request: crate::layout::SizeRequest::UNKNOWN,
@@ -2081,6 +2122,11 @@ fn test_slider_visual_drag() {
         &mut cmds,
     );
     focus_system.end_frame();
+
+    assert_eq!(
+        result.cursor_icon,
+        Some(crate::output::CursorIcon::Grabbing)
+    );
 
     let theme = crate::theme::Theme::framewise();
     assert_eq!(

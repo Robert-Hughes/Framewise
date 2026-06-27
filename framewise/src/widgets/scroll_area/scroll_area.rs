@@ -66,6 +66,7 @@ pub mod raw {
     #[derive(Debug, Clone, Copy, Default, PartialEq)]
     pub struct ScrollAreaEndResult {
         pub scrollbar_pressed: bool,
+        pub cursor_icon: Option<crate::output::CursorIcon>,
     }
 
     /// Return the size this scroll area would request under `offer`.
@@ -237,6 +238,7 @@ pub mod raw {
         cmds.push(DrawCmd::PopClip);
 
         let mut scrollbar_pressed = false;
+        let mut cursor_icon = None;
 
         if token.needs_v {
             let span = token.content_bounds.h;
@@ -284,6 +286,9 @@ pub mod raw {
                 cmds,
             );
             scrollbar_pressed |= slider_result.input.pressed;
+            if let Some(c) = slider_result.cursor_icon {
+                cursor_icon = Some(c);
+            }
             state.offset.y = state.vert_slider_state.value.lower();
         }
 
@@ -331,6 +336,9 @@ pub mod raw {
                 cmds,
             );
             scrollbar_pressed |= slider_result.input.pressed;
+            if let Some(c) = slider_result.cursor_icon {
+                cursor_icon = Some(c);
+            }
             state.offset.x = state.horiz_slider_state.value.lower();
         }
 
@@ -471,7 +479,10 @@ pub mod raw {
             }
         }
 
-        ScrollAreaEndResult { scrollbar_pressed }
+        ScrollAreaEndResult {
+            scrollbar_pressed,
+            cursor_icon,
+        }
     }
 
     /// Route the wheel delta to the appropriate axis(es) based on mode, but only
@@ -803,7 +814,7 @@ pub fn begin_scroll_area<'a, 'b, T: TextBackend, S: LayoutState, L: Layout, CF>(
     'b,
     T,
     crate::layouts::OffsetState<L::State>,
-    impl FnOnce(&mut FocusSystem, &mut T, &mut DrawCommands, Rect) + 'b,
+    impl FnOnce(&mut FocusSystem, &mut T, &mut DrawCommands, &mut crate::output::Output, Rect) + 'b,
 > {
     let spec = builder.defaults_from_theme(&ctx.theme).build();
     let pre_layout_spec = raw::ScrollAreaPreLayoutSpec {};
@@ -850,9 +861,13 @@ pub fn begin_scroll_area<'a, 'b, T: TextBackend, S: LayoutState, L: Layout, CF>(
     let on_finish = move |focus_system: &mut FocusSystem,
                           _text_backend: &mut T,
                           cmds: &mut DrawCommands,
+                          output: &mut crate::output::Output,
                           resolved_space: Rect| {
         let content_extent = Vec2::new(resolved_space.w, resolved_space.h);
-        raw::end_scroll_area(token, content_extent, state, input, focus_system, cmds);
+        let res = raw::end_scroll_area(token, content_extent, state, input, focus_system, cmds);
+        if let Some(cursor_icon) = res.cursor_icon {
+            output.cursor_icon = Some(cursor_icon);
+        }
     };
 
     let child_ctx = ctx.child_with_layout_and_on_finish_and_clip_rect(

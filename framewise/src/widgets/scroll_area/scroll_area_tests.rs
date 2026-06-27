@@ -252,6 +252,10 @@ fn test_scroll_area_vertical_scrollbar_segment_drag_updates_offset_y() {
 
     assert!(state.offset.y > 0.0);
     assert!(end_result.scrollbar_pressed);
+    assert_eq!(
+        end_result.cursor_icon,
+        Some(crate::output::CursorIcon::Grabbing)
+    );
 }
 
 #[test]
@@ -281,6 +285,10 @@ fn test_scroll_area_horizontal_scrollbar_segment_drag_updates_offset_x() {
 
     assert!(state.offset.x > 0.0);
     assert!(end_result.scrollbar_pressed);
+    assert_eq!(
+        end_result.cursor_icon,
+        Some(crate::output::CursorIcon::Grabbing)
+    );
 }
 
 #[test]
@@ -672,7 +680,7 @@ fn test_slider_drag_with_wheel_drag_wins() {
         keyboard_focusable: true,
     };
     let token = begin_scroll_area(spec, &mut state, &input, &mut focus_system, &mut cmds).token;
-    raw::end_scroll_area(
+    let end_result = raw::end_scroll_area(
         token,
         Vec2::new(200.0, 1000.0),
         &mut state,
@@ -682,6 +690,10 @@ fn test_slider_drag_with_wheel_drag_wins() {
     );
     focus_system.end_frame();
     // drag: usable_track = 200 - (200 * 200/1000).max(20) = 200-40=160. delta=45 → val_delta=(45/160)*800≈225.
+    assert_eq!(
+        end_result.cursor_icon,
+        Some(crate::output::CursorIcon::Grabbing)
+    );
     let expected = (45.0 / 160.0) * 800.0;
     let actual = state.offset.y;
     let diff = (actual - expected).abs();
@@ -1812,7 +1824,7 @@ fn test_scrollbar_click_takes_focus() {
         keyboard_focusable: true,
     };
     let token = begin_scroll_area(spec, &mut state, &input, &mut focus_system, &mut cmds).token;
-    raw::end_scroll_area(
+    let end_result = raw::end_scroll_area(
         token,
         Vec2::new(200.0, 1000.0),
         &mut state,
@@ -1822,6 +1834,10 @@ fn test_scrollbar_click_takes_focus() {
     );
     focus_system.end_frame();
 
+    assert_eq!(
+        end_result.cursor_icon,
+        Some(crate::output::CursorIcon::Grabbing)
+    );
     assert_eq!(
         focus_system.current_keyboard_focus(),
         Some(state.vert_slider_state.focus_id),
@@ -1869,7 +1885,7 @@ fn test_scrollbar_clipped_click_does_not_take_focus() {
         &mut cmds,
     )
     .token;
-    raw::end_scroll_area(
+    let end_result = raw::end_scroll_area(
         token,
         Vec2::new(200.0, 1000.0),
         &mut state,
@@ -1919,6 +1935,7 @@ fn test_scrollbar_clipped_click_does_not_take_focus() {
     );
     focus_system.end_frame();
 
+    assert_eq!(end_result.cursor_icon, None);
     assert_eq!(
         focus_system.current_keyboard_focus(),
         None,

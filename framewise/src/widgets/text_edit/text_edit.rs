@@ -1255,7 +1255,10 @@ pub mod raw {
                 pressed: input.mouse_down && contains,
                 clicked: input.mouse_clicked && contains,
             },
-            cursor_icon: contains.then_some(CursorIcon::Text),
+            // Scrollbar interaction takes priority over the text cursor.
+            cursor_icon: scroll_end_result
+                .cursor_icon
+                .or_else(|| contains.then_some(CursorIcon::Text)),
         }
     }
 

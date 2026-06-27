@@ -36,6 +36,7 @@ pub mod raw {
         pub input: InputInfo,
         pub focused: bool,
         pub content_bounds: Rect,
+        pub cursor_icon: Option<crate::output::CursorIcon>,
     }
 
     /// Return the size this radio button would request under `offer`.
@@ -156,10 +157,17 @@ pub mod raw {
             });
         }
 
+        let cursor_icon = if input_info.hovered && !spec.disabled {
+            Some(crate::output::CursorIcon::Pointer)
+        } else {
+            None
+        };
+
         RadioResult {
             input: input_info,
             focused,
             content_bounds: r.inset(s.border.map_or(0.0, |st| st.width)),
+            cursor_icon,
         }
     }
 }
@@ -305,6 +313,10 @@ pub fn radio<T: TextBackend, S: LayoutState, CF>(
         ctx.cmds,
     );
 
+    if let Some(cursor_icon) = result.cursor_icon {
+        ctx.output.cursor_icon = Some(cursor_icon);
+    }
+
     RadioResult {
         layout: LayoutInfo::new(rect, result.content_bounds),
         input: result.input,
@@ -383,6 +395,10 @@ pub fn labelled_radio<T: TextBackend, S: LayoutState, CF>(
         ctx.focus_system,
         ctx.cmds,
     );
+
+    if let Some(cursor_icon) = result.cursor_icon {
+        ctx.output.cursor_icon = Some(cursor_icon);
+    }
 
     // Draw the label text to the right of the control track
     let label_rect = Rect::new(

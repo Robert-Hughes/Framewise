@@ -354,12 +354,18 @@ impl<'a> WindowSpecBuilder<'a> {
 /// and arranges for the raw end phase to run when the child context finishes.
 ///
 /// Note there is no low-level end_window - everything is handled by the on_finish callback of the child context, which calls raw::end_window internally.
+#[allow(clippy::type_complexity)]
 pub fn begin_window<'a, 'b, 'c, T: TextBackend, S: LayoutState, L: Layout, CF>(
     ctx: &'b mut WidgetContext<'a, T, S, CF>,
     builder: WindowSpecBuilder<'c>,
     layout_params: S::Params,
     inner_layout: L,
-) -> WindowResult<'b, T, L::State, impl FnOnce(&mut FocusSystem, &mut T, &mut DrawCommands, Rect)> {
+) -> WindowResult<
+    'b,
+    T,
+    L::State,
+    impl FnOnce(&mut FocusSystem, &mut T, &mut DrawCommands, &mut crate::output::Output, Rect),
+> {
     let buttons = builder.buttons.unwrap_or(&[]);
     let spec = builder
         .defaults_from_theme(&ctx.theme)
@@ -390,7 +396,11 @@ pub fn begin_window<'a, 'b, 'c, T: TextBackend, S: LayoutState, L: Layout, CF>(
     );
 
     // The window's cleanup doesn't depend on its content extent.
-    let on_finish = move |_: &mut FocusSystem, _: &mut T, cmds: &mut DrawCommands, _: Rect| {
+    let on_finish = move |_: &mut FocusSystem,
+                          _: &mut T,
+                          cmds: &mut DrawCommands,
+                          _: &mut crate::output::Output,
+                          _: Rect| {
         raw::end_window(cmds);
     };
 

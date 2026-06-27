@@ -147,7 +147,7 @@ pub struct WidgetContext<'a, T: TextBackend, LS: LayoutState, CF> {
 }
 
 impl<'a, T: TextBackend, LS: LayoutState>
-    WidgetContext<'a, T, LS, fn(&mut FocusSystem, &mut T, &mut DrawCommands, Rect)>
+    WidgetContext<'a, T, LS, fn(&mut FocusSystem, &mut T, &mut DrawCommands, &mut Output, Rect)>
 {
     /// Creates a root `WidgetContext`.
     ///
@@ -179,7 +179,7 @@ impl<'a, T: TextBackend, LS: LayoutState>
             layout_policy: LayoutViolationPolicy::default(),
             pending_violation: None,
             cmds,
-            on_finish: |_, _, _, _| (), // No cleanup for root context
+            on_finish: |_, _, _, _, _| (), // No cleanup for root context
         }
     }
 }
@@ -188,7 +188,7 @@ impl<'a, T: TextBackend, LS: LayoutState, CF> WidgetContext<'a, T, LS, CF> {
     pub fn child_with_layout_and_on_finish_and_clip_rect<
         'c,
         LS2: LayoutState,
-        CF2: FnOnce(&mut FocusSystem, &mut T, &mut DrawCommands, Rect),
+        CF2: FnOnce(&mut FocusSystem, &mut T, &mut DrawCommands, &mut Output, Rect),
     >(
         &'c mut self,
         inner_layout_state: LS2,
@@ -216,7 +216,7 @@ impl<'a, T: TextBackend, LS: LayoutState, CF> WidgetContext<'a, T, LS, CF> {
     pub fn child_with_layout_and_on_finish<
         'c,
         LS2: LayoutState,
-        CF2: FnOnce(&mut FocusSystem, &mut T, &mut DrawCommands, Rect),
+        CF2: FnOnce(&mut FocusSystem, &mut T, &mut DrawCommands, &mut Output, Rect),
     >(
         &'c mut self,
         inner_layout_state: LS2,
@@ -251,6 +251,7 @@ impl<'a, T: TextBackend, LS: LayoutState, CF> WidgetContext<'a, T, LS, CF> {
     /// the same rect — so existing fixed-size nesting is unchanged. Only auto-sized
     /// placement and fill-under-non-exact slots — which would otherwise panic for lack
     /// of a size request — now fit to their children's content.
+    #[allow(clippy::type_complexity)]
     pub fn child_with_layout<'c, L2: Layout>(
         &'c mut self,
         placement: LS::Params,
@@ -259,7 +260,7 @@ impl<'a, T: TextBackend, LS: LayoutState, CF> WidgetContext<'a, T, LS, CF> {
         'c,
         T,
         L2::State,
-        impl FnOnce(&mut FocusSystem, &mut T, &mut DrawCommands, Rect) + 'c,
+        impl FnOnce(&mut FocusSystem, &mut T, &mut DrawCommands, &mut Output, Rect) + 'c,
     > {
         // A bare nested layout has no chrome: the inner layout fills the provisional
         // space as-is, and its outer extent is exactly its measured content.
@@ -314,7 +315,7 @@ impl<'a, T: TextBackend, LS: LayoutState, CF> WidgetContext<'a, T, LS, CF> {
             'c,
             T,
             L2::State,
-            impl FnOnce(&mut FocusSystem, &mut T, &mut DrawCommands, Rect) + 'c,
+            impl FnOnce(&mut FocusSystem, &mut T, &mut DrawCommands, &mut Output, Rect) + 'c,
         >,
         LayoutSpace,
     )
@@ -346,6 +347,7 @@ impl<'a, T: TextBackend, LS: LayoutState, CF> WidgetContext<'a, T, LS, CF> {
         let on_finish = move |focus: &mut FocusSystem,
                               text_backend: &mut T,
                               cmds: &mut DrawCommands,
+                              _output: &mut Output,
                               resolved: Rect| {
             after_children(carried, token, resolved, focus, text_backend, cmds);
         };
@@ -438,7 +440,7 @@ impl<
         'a,
         T: TextBackend,
         LS: LayoutState,
-        CF: FnOnce(&mut FocusSystem, &mut T, &mut DrawCommands, Rect),
+        CF: FnOnce(&mut FocusSystem, &mut T, &mut DrawCommands, &mut Output, Rect),
     > WidgetContext<'a, T, LS, CF>
 {
     /// Consume the context, running the on_finish closure and appending its post-commands.
@@ -455,6 +457,7 @@ impl<
             self.focus_system,
             self.text_backend,
             self.cmds,
+            self.output,
             resolved_space,
         );
 

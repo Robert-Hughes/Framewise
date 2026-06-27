@@ -597,8 +597,10 @@ pub(crate) fn draw_text_edit_demo_content<'a, 'b, CF>(
             AxisBound::AtMost(playground_max_width),
             AxisBound::AtMost(playground_max_height),
         );
-        let mut playground_limit = ctx
-            .child_with_layout_and_on_finish(ColumnLayout.begin(playground_space), |_, _, _, _| {});
+        let mut playground_limit = ctx.child_with_layout_and_on_finish(
+            ColumnLayout.begin(playground_space),
+            |_, _, _, _, _| {},
+        );
         text_edit(
             &mut playground_limit,
             playground_builder,

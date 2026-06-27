@@ -1,8 +1,16 @@
 /// Cursor icon styles that widgets can request.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CursorIcon {
-    /// Text selection / I-beam style cursor.
+    Pointer,
     Text,
+    Grab,
+    Grabbing,
+    EwResize,
+    NsResize,
+    NwseResize,
+    Move,
+    NotAllowed,
+    AllScroll,
 }
 
 /// Per-frame side effects requested by widgets.

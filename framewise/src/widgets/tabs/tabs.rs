@@ -38,6 +38,7 @@ pub mod raw {
         pub input: InputInfo,
         pub focused: bool,
         pub content_bounds: Rect,
+        pub cursor_icon: Option<crate::output::CursorIcon>,
     }
 
     /// Return the size this tabs widget would request under `offer`.
@@ -219,16 +220,23 @@ pub mod raw {
             x += tab_w;
         }
 
+        let hovered = Rect::new(spec.rect.x, spec.rect.y, total_w, tab_h).contains(input.mouse_pos)
+            && spec.clip_rect.is_none_or(|c| c.contains(input.mouse_pos));
+        let cursor_icon = if hovered && !spec.disabled {
+            Some(crate::output::CursorIcon::Pointer)
+        } else {
+            None
+        };
+
         TabsResult {
             input: InputInfo {
-                hovered: Rect::new(spec.rect.x, spec.rect.y, total_w, tab_h)
-                    .contains(input.mouse_pos)
-                    && spec.clip_rect.is_none_or(|c| c.contains(input.mouse_pos)),
+                hovered,
                 pressed: clicked && input.mouse_down,
                 clicked: is_clicked,
             },
             focused,
             content_bounds: Rect::new(spec.rect.x, spec.rect.y, spec.rect.w, tab_h - border_width),
+            cursor_icon,
         }
     }
 }
@@ -386,6 +394,10 @@ pub fn tabs<'a, T: TextBackend, S: LayoutState, CF>(
         ctx.text_backend,
         ctx.cmds,
     );
+
+    if let Some(cursor_icon) = result.cursor_icon {
+        ctx.output.cursor_icon = Some(cursor_icon);
+    }
 
     TabsResult {
         layout: LayoutInfo::new(rect, result.content_bounds),

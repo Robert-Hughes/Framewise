@@ -39,6 +39,7 @@ pub mod raw {
         pub input: InputInfo,
         pub focused: bool,
         pub content_bounds: Rect,
+        pub cursor_icon: Option<crate::output::CursorIcon>,
     }
 
     /// Return the size this button would request under `offer`.
@@ -157,6 +158,7 @@ pub mod raw {
                     clicked: false,
                 },
                 focused: false,
+                cursor_icon: None,
             };
         }
 
@@ -220,10 +222,17 @@ pub mod raw {
             spec.layer.get_z(),
         );
 
+        let cursor_icon = if input_info.hovered && !spec.disabled {
+            Some(crate::output::CursorIcon::Pointer)
+        } else {
+            None
+        };
+
         ButtonResult {
             content_bounds: spec.rect.inset(spec.style.border.map_or(0.0, |s| s.width)),
             input: input_info,
             focused,
+            cursor_icon,
         }
     }
 }
@@ -470,6 +479,10 @@ pub fn button<'a, T: TextBackend, S: LayoutState, CF>(
         ctx.text_backend,
         ctx.cmds,
     );
+
+    if let Some(cursor_icon) = r.cursor_icon {
+        ctx.output.cursor_icon = Some(cursor_icon);
+    }
 
     ButtonResult {
         layout: LayoutInfo::new(rect, r.content_bounds),

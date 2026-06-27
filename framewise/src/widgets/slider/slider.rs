@@ -60,6 +60,7 @@ pub mod raw {
     pub struct SliderResult {
         pub input: InputInfo,
         pub focused: bool,
+        pub cursor_icon: Option<crate::output::CursorIcon>,
     }
 
     /// Return the size this slider would request under `offer`.
@@ -97,7 +98,43 @@ pub mod raw {
         }
     }
 
-    /// High-level wrappers should use this internally.
+    fn slider_cursor_icon(
+        spec: &SliderSpec,
+        state: &SliderState,
+        hit_part: Option<SliderPart>,
+        is_hover_active: bool,
+        is_visible: bool,
+    ) -> Option<crate::output::CursorIcon> {
+        if spec.disabled || !is_visible {
+            return None;
+        }
+
+        // If actively dragging:
+        if let Some(active_part) = state.active_part {
+            match active_part {
+                SliderPart::LowerThumb | SliderPart::UpperThumb | SliderPart::Segment => {
+                    return Some(crate::output::CursorIcon::Grabbing);
+                }
+            }
+        }
+
+        // If hovered but not dragging:
+        if is_hover_active {
+            match hit_part {
+                Some(SliderPart::LowerThumb)
+                | Some(SliderPart::UpperThumb)
+                | Some(SliderPart::Segment) => {
+                    return Some(crate::output::CursorIcon::Grab);
+                }
+                None => {
+                    return Some(crate::output::CursorIcon::Pointer);
+                }
+            }
+        }
+
+        None
+    }
+
     pub fn post_layout_slider(
         spec: SliderSpec,
         _pre_layout: SliderPreLayoutResult,
@@ -1004,6 +1041,8 @@ pub mod raw {
             }
         }
 
+        let cursor_icon = slider_cursor_icon(&spec, state, hit_part, is_hover_active, is_visible);
+
         SliderResult {
             focused,
             input: InputInfo {
@@ -1011,6 +1050,7 @@ pub mod raw {
                 pressed: !spec.disabled && (state.active_part.is_some() || state.is_track_clicking),
                 clicked: false,
             },
+            cursor_icon,
         }
     }
 }
@@ -2270,6 +2310,9 @@ pub fn slider<T: TextBackend, S: LayoutState, CF>(
         ctx.focus_system,
         ctx.cmds,
     );
+    if let Some(cursor_icon) = result.cursor_icon {
+        ctx.output.cursor_icon = Some(cursor_icon);
+    }
     SliderResult {
         layout: LayoutInfo::tight(rect),
         input: result.input,

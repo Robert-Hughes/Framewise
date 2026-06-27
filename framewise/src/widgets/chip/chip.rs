@@ -40,6 +40,7 @@ pub mod raw {
         pub input: InputInfo,
         pub focused: bool,
         pub content_bounds: Rect,
+        pub cursor_icon: Option<crate::output::CursorIcon>,
     }
 
     /// Return the size this chip would request under `offer`.
@@ -185,15 +186,23 @@ pub mod raw {
             spec.layer.get_z(),
         );
 
+        let hovered = spec.rect.contains(input.mouse_pos)
+            && spec.clip_rect.is_none_or(|c| c.contains(input.mouse_pos));
+        let cursor_icon = if hovered && !spec.disabled {
+            Some(crate::output::CursorIcon::Pointer)
+        } else {
+            None
+        };
+
         ChipResult {
             input: InputInfo {
-                hovered: spec.rect.contains(input.mouse_pos)
-                    && spec.clip_rect.is_none_or(|c| c.contains(input.mouse_pos)),
+                hovered,
                 pressed: (clicked && input.mouse_down) || state.space_is_active,
                 clicked: is_clicked,
             },
             focused,
             content_bounds: r.inset(s.border.map_or(0.0, |st| st.width)),
+            cursor_icon,
         }
     }
 }
@@ -351,6 +360,10 @@ pub fn chip<'a, T: TextBackend, S: LayoutState, CF>(
         ctx.text_backend,
         ctx.cmds,
     );
+
+    if let Some(cursor_icon) = result.cursor_icon {
+        ctx.output.cursor_icon = Some(cursor_icon);
+    }
 
     ChipResult {
         layout: LayoutInfo::new(rect, result.content_bounds),

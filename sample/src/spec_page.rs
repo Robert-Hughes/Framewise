@@ -1450,7 +1450,13 @@ pub fn draw_spec_page_inner<LS, CF>(
 ) where
     <LS as SpacerLayoutState>::SpacerParams: From<LinearSpacer>,
     LS: SpacerLayoutState<Params = RowLayoutParams>,
-    CF: FnOnce(&mut FocusSystem, &mut SampleTextBackend, &mut DrawCommands, framewise::Rect),
+    CF: FnOnce(
+        &mut FocusSystem,
+        &mut SampleTextBackend,
+        &mut DrawCommands,
+        &mut framewise::Output,
+        framewise::Rect,
+    ),
 {
     let content_w = w.min(1100.0);
 

@@ -38,6 +38,7 @@ pub mod raw {
         pub input: InputInfo,
         pub focused: bool,
         pub content_bounds: Rect,
+        pub cursor_icon: Option<crate::output::CursorIcon>,
     }
 
     /// Return the size this segmented control would request under `offer`.
@@ -100,6 +101,7 @@ pub mod raw {
                 },
                 focused: false,
                 content_bounds: spec.rect,
+                cursor_icon: None,
             };
         }
 
@@ -247,15 +249,23 @@ pub mod raw {
             x += w;
         }
 
+        let hovered = outer.contains(input.mouse_pos)
+            && spec.clip_rect.is_none_or(|c| c.contains(input.mouse_pos));
+        let cursor_icon = if hovered && !spec.disabled {
+            Some(crate::output::CursorIcon::Pointer)
+        } else {
+            None
+        };
+
         SegmentedResult {
             input: InputInfo {
-                hovered: outer.contains(input.mouse_pos)
-                    && spec.clip_rect.is_none_or(|c| c.contains(input.mouse_pos)),
+                hovered,
                 pressed: clicked && input.mouse_down,
                 clicked: is_clicked,
             },
             focused,
             content_bounds: outer.inset(border_width),
+            cursor_icon,
         }
     }
 }
@@ -412,6 +422,10 @@ pub fn segmented<'a, T: TextBackend, S: LayoutState, CF>(
         ctx.text_backend,
         ctx.cmds,
     );
+
+    if let Some(cursor_icon) = result.cursor_icon {
+        ctx.output.cursor_icon = Some(cursor_icon);
+    }
 
     SegmentedResult {
         layout: LayoutInfo::new(rect, result.content_bounds),

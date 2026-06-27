@@ -772,7 +772,13 @@ pub(crate) fn draw_layout_page_content<'a, 'b, CF>(
 /// A full-width label used as a heading/label. Generic over the
 /// column context's `on_finish` closure type, so it works inside any column.
 fn label_row<
-    CF: FnOnce(&mut FocusSystem, &mut SampleTextBackend, &mut framewise::DrawCommands, Rect),
+    CF: FnOnce(
+        &mut FocusSystem,
+        &mut SampleTextBackend,
+        &mut framewise::DrawCommands,
+        &mut framewise::Output,
+        Rect,
+    ),
 >(
     col: &mut WidgetContext<SampleTextBackend, ColumnState, CF>,
     text: &str,
@@ -786,7 +792,13 @@ fn label_row<
 }
 
 fn heading<
-    CF: FnOnce(&mut FocusSystem, &mut SampleTextBackend, &mut framewise::DrawCommands, Rect),
+    CF: FnOnce(
+        &mut FocusSystem,
+        &mut SampleTextBackend,
+        &mut framewise::DrawCommands,
+        &mut framewise::Output,
+        Rect,
+    ),
 >(
     col: &mut WidgetContext<SampleTextBackend, ColumnState, CF>,
     text: &str,
@@ -795,7 +807,13 @@ fn heading<
 }
 
 fn subheading<
-    CF: FnOnce(&mut FocusSystem, &mut SampleTextBackend, &mut framewise::DrawCommands, Rect),
+    CF: FnOnce(
+        &mut FocusSystem,
+        &mut SampleTextBackend,
+        &mut framewise::DrawCommands,
+        &mut framewise::Output,
+        Rect,
+    ),
 >(
     col: &mut WidgetContext<SampleTextBackend, ColumnState, CF>,
     text: &str,

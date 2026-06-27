@@ -506,7 +506,7 @@ fn test_button_visual_normal() {
     let mut state = state;
     focus_system.begin_frame();
     let mut cmds = DrawCommands::new(1.0);
-    let _res = raw::post_layout_button(
+    let res = raw::post_layout_button(
         spec,
         raw::ButtonPreLayoutResult {
             size_request: crate::layout::SizeRequest::UNKNOWN,
@@ -518,6 +518,8 @@ fn test_button_visual_normal() {
         &mut cmds,
     );
     focus_system.end_frame();
+
+    assert_eq!(res.cursor_icon, None);
 
     let style = ButtonStyle::primary_from_theme(&theme::Theme::default());
     let background = style.background;
@@ -596,7 +598,7 @@ fn test_button_visual_hovered() {
     // Evaluation frame
     focus_system.begin_frame();
     let mut cmds = DrawCommands::new(1.0);
-    let _res = raw::post_layout_button(
+    let res = raw::post_layout_button(
         btn_spec(Rect::new(10.0, 10.0, 100.0, 30.0)),
         raw::ButtonPreLayoutResult {
             size_request: crate::layout::SizeRequest::UNKNOWN,
@@ -608,6 +610,8 @@ fn test_button_visual_hovered() {
         &mut cmds,
     );
     focus_system.end_frame();
+
+    assert_eq!(res.cursor_icon, Some(crate::output::CursorIcon::Pointer));
 
     let ButtonStyle {
         hovered,
@@ -848,7 +852,7 @@ fn test_button_visual_disabled() {
     let mut state = state;
     focus_system.begin_frame();
     let mut cmds = DrawCommands::new(1.0);
-    let _res = raw::post_layout_button(
+    let res = raw::post_layout_button(
         spec,
         raw::ButtonPreLayoutResult {
             size_request: crate::layout::SizeRequest::UNKNOWN,
@@ -860,6 +864,8 @@ fn test_button_visual_disabled() {
         &mut cmds,
     );
     focus_system.end_frame();
+
+    assert_eq!(res.cursor_icon, None);
 
     let alpha = 0.32_f32;
     let tint = |c: Color| Color::linear_rgba(c.r, c.g, c.b, c.a * alpha);

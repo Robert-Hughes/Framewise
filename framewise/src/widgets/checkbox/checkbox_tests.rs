@@ -301,7 +301,7 @@ fn test_checkbox_visual_hovered() {
     // Evaluation frame
     focus_system.begin_frame();
     let mut cmds = DrawCommands::new(1.0);
-    raw::post_layout_checkbox(
+    let result = raw::post_layout_checkbox(
         checkbox_spec(Rect::new(10.0, 10.0, 14.0, 14.0)),
         raw::CheckboxPreLayoutResult {
             size_request: crate::layout::SizeRequest::UNKNOWN,
@@ -312,6 +312,8 @@ fn test_checkbox_visual_hovered() {
         &mut cmds,
     );
     focus_system.end_frame();
+
+    assert_eq!(result.cursor_icon, Some(crate::output::CursorIcon::Pointer));
 
     assert_eq!(
         cmds,

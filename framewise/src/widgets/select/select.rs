@@ -40,6 +40,7 @@ pub mod raw {
         pub input: InputInfo,
         pub focused: bool,
         pub content_bounds: Rect,
+        pub cursor_icon: Option<crate::output::CursorIcon>,
     }
 
     /// Return the size this select would request under `offer`.
@@ -204,6 +205,7 @@ pub mod raw {
         }
 
         // Mouse interaction with popup when open
+        let mut hovered_popup = false;
         if state.open && !spec.disabled && !spec.items.is_empty() {
             let row_h = s.row_height;
             let popup_h = spec.items.len() as f32 * row_h + s.popup_pad_y * 2.0;
@@ -211,6 +213,7 @@ pub mod raw {
 
             let is_visible = spec.clip_rect.is_none_or(|c| c.contains(input.mouse_pos));
             if is_visible && popup.contains(input.mouse_pos) {
+                hovered_popup = true;
                 let relative_y = input.mouse_pos.y - (popup.y + s.popup_pad_y);
                 let hovered_row = (relative_y / row_h).floor() as i32;
                 if hovered_row >= 0 && hovered_row < spec.items.len() as i32 {
@@ -370,15 +373,24 @@ pub mod raw {
             }
         }
 
+        let input_info = InputInfo {
+            hovered: spec.rect.contains(input.mouse_pos)
+                && spec.clip_rect.is_none_or(|c| c.contains(input.mouse_pos)),
+            pressed: (clicked && input.mouse_down) || state.space_is_active,
+            clicked: is_clicked,
+        };
+
+        let cursor_icon = if !spec.disabled && (input_info.hovered || hovered_popup) {
+            Some(crate::output::CursorIcon::Pointer)
+        } else {
+            None
+        };
+
         SelectResult {
-            input: InputInfo {
-                hovered: spec.rect.contains(input.mouse_pos)
-                    && spec.clip_rect.is_none_or(|c| c.contains(input.mouse_pos)),
-                pressed: (clicked && input.mouse_down) || state.space_is_active,
-                clicked: is_clicked,
-            },
+            input: input_info,
             focused,
             content_bounds: r.inset(s.border.map_or(0.0, |b| b.width)),
+            cursor_icon,
         }
     }
 }
@@ -566,6 +578,10 @@ pub fn select<'a, T: TextBackend, S: LayoutState, CF>(
         ctx.text_backend,
         ctx.cmds,
     );
+
+    if let Some(cursor_icon) = result.cursor_icon {
+        ctx.output.cursor_icon = Some(cursor_icon);
+    }
 
     SelectResult {
         layout: LayoutInfo::new(rect, result.content_bounds),

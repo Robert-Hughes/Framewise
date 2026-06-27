@@ -249,7 +249,7 @@ fn test_tabs_click_takes_focus() {
 
     focus_system.begin_frame();
     let mut cmds = DrawCommands::new(1.0);
-    raw::post_layout_tabs(
+    let result = raw::post_layout_tabs(
         spec,
         raw::TabsPreLayoutResult {
             size_request: crate::layout::SizeRequest::UNKNOWN,
@@ -262,6 +262,7 @@ fn test_tabs_click_takes_focus() {
     );
     focus_system.end_frame();
 
+    assert_eq!(result.cursor_icon, Some(crate::output::CursorIcon::Pointer));
     assert_eq!(
         focus_system.current_keyboard_focus(),
         Some(state.focus_id),
@@ -292,7 +293,7 @@ fn test_tabs_clipped_click_does_not_take_focus() {
 
     focus_system.begin_frame();
     let mut cmds = DrawCommands::new(1.0);
-    raw::post_layout_tabs(
+    let result = raw::post_layout_tabs(
         spec,
         raw::TabsPreLayoutResult {
             size_request: crate::layout::SizeRequest::UNKNOWN,
@@ -305,6 +306,7 @@ fn test_tabs_clipped_click_does_not_take_focus() {
     );
     focus_system.end_frame();
 
+    assert_eq!(result.cursor_icon, None);
     assert_eq!(
         focus_system.current_keyboard_focus(),
         None,

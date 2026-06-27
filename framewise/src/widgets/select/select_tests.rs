@@ -146,10 +146,14 @@ fn test_select_visual_open() {
 
     let mut state = state;
     let mut cmds = DrawCommands::new(1.0);
-    post_layout_select_for_test(
+    let input = Input {
+        mouse_pos: Vec2::new(10.0, 70.0),
+        ..Default::default()
+    };
+    let result = post_layout_select_for_test(
         spec,
         &mut state,
-        &Input::default(),
+        &input,
         &mut FocusSystem::new(),
         &mut text_backend,
         &mut cmds,
@@ -157,6 +161,8 @@ fn test_select_visual_open() {
 
     let r = Rect::new(0.0, 0.0, 180.0, 28.0);
     let popup = Rect::new(0.0, 30.0, 180.0, 86.0);
+
+    assert_eq!(result.cursor_icon, Some(crate::output::CursorIcon::Pointer));
 
     assert_eq!(
         cmds.commands(),
@@ -377,7 +383,7 @@ fn test_select_click_takes_focus_and_opens() {
     let mut state = state;
     focus_system.begin_frame();
     let mut cmds = DrawCommands::new(1.0);
-    post_layout_select_for_test(
+    let result = post_layout_select_for_test(
         spec,
         &mut state,
         &input,
@@ -387,6 +393,7 @@ fn test_select_click_takes_focus_and_opens() {
     );
     focus_system.end_frame();
 
+    assert_eq!(result.cursor_icon, Some(crate::output::CursorIcon::Pointer));
     assert_eq!(
         focus_system.current_keyboard_focus(),
         Some(state.focus_id),
@@ -420,7 +427,7 @@ fn test_select_clipped_click_does_not_take_focus() {
     let mut state = state;
     focus_system.begin_frame();
     let mut cmds = DrawCommands::new(1.0);
-    post_layout_select_for_test(
+    let result = post_layout_select_for_test(
         spec,
         &mut state,
         &input,
@@ -430,6 +437,7 @@ fn test_select_clipped_click_does_not_take_focus() {
     );
     focus_system.end_frame();
 
+    assert_eq!(result.cursor_icon, None);
     assert_eq!(
         focus_system.current_keyboard_focus(),
         None,

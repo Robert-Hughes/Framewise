@@ -257,7 +257,7 @@ fn test_switch_visual_hovered() {
     // Evaluation frame
     focus_system.begin_frame();
     let mut cmds = DrawCommands::new(1.0);
-    raw::post_layout_switch(
+    let result = raw::post_layout_switch(
         switch_spec(Rect::new(10.0, 10.0, 30.0, 16.0)),
         raw::SwitchPreLayoutResult {
             size_request: crate::layout::SizeRequest::UNKNOWN,
@@ -268,6 +268,8 @@ fn test_switch_visual_hovered() {
         &mut cmds,
     );
     focus_system.end_frame();
+
+    assert_eq!(result.cursor_icon, Some(crate::output::CursorIcon::Pointer));
 
     assert_eq!(
         cmds,

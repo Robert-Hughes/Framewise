@@ -42,6 +42,7 @@ pub mod raw {
         pub input: InputInfo,
         pub focused: bool,
         pub content_bounds: Rect,
+        pub cursor_icon: Option<crate::output::CursorIcon>,
     }
 
     /// Return the size this drag number would request under `offer`.
@@ -289,6 +290,12 @@ pub mod raw {
             && !spec.disabled
             && (!input.mouse_down || state.is_dragging);
 
+        let cursor_icon = if !spec.disabled && (contains || state.is_dragging) {
+            Some(crate::output::CursorIcon::EwResize)
+        } else {
+            None
+        };
+
         DragNumberResult {
             input: InputInfo {
                 hovered,
@@ -297,6 +304,7 @@ pub mod raw {
             },
             focused,
             content_bounds: spec.rect.inset(s.border.map_or(0.0, |b| b.width)),
+            cursor_icon,
         }
     }
 }
@@ -478,6 +486,10 @@ pub fn drag_number<'a, T: TextBackend, S: LayoutState, CF>(
         ctx.text_backend,
         ctx.cmds,
     );
+
+    if let Some(cursor_icon) = result.cursor_icon {
+        ctx.output.cursor_icon = Some(cursor_icon);
+    }
 
     DragNumberResult {
         layout: LayoutInfo::new(rect, result.content_bounds),

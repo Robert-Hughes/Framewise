@@ -11,13 +11,6 @@ Working notes, TODOs, open questions, and half-baked ideas.
   - double-click on text to edit it by typing?
   - configurable step increment
 
-- Mouse cursor changes for clickable things like buttons and draggable things like sliders or dragnumbers?
-
-- Spec page updates
-  - Make one of the sliders in the spec page disabled so that we can see that
-  - checkbox disabled column in the spec page doesn't need to be fake/static
-  - make one of the radio buttons disabled
-
 - Go through the spec_page, check/implement/test each widget/aspect to make better match the mock-up and add interactivity as we go (https://claude.ai/design/p/1aab4e86-cbf2-497e-b379-44cf41de2b12?file=Framewise+Widgets.html)
   - Done 01-03
   - Add demo pages for each widget type (or possibly in groups?)
@@ -330,6 +323,8 @@ continue to scroll up, and only when you move the mouse does it 'reset' onto the
 
 - Scrolling doesn't feel as 'smooth' as e.g. browser. Maybe need to interpolate somehow? Check how the scroll deltas are reported.
 
+- Focus outlines don't escape clip rects, so e.g. in the nested scroll area demo the inner scrollbar focus rings get clipped
+
 ## Text
 
 - Labels and text measurement
@@ -420,6 +415,9 @@ The "App-Managed State" option would require either a trait layer (so the widget
 - Within the same app
 - To/from the OS
 - Between different windows in the same app
+
+- grab/grabbing cursor icon in winit isn't mapped properly on windows - may need to use custom cursors? Already affects our slider cursors for example
+
 
 ## Accessibility
 

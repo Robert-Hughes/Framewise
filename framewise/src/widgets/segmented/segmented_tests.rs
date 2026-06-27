@@ -218,7 +218,7 @@ fn test_segmented_click_takes_focus() {
 
     let mut cmds = DrawCommands::new(1.0);
     focus_system.begin_frame();
-    raw::post_layout_segmented(
+    let result = raw::post_layout_segmented(
         spec,
         raw::SegmentedPreLayoutResult {
             size_request: crate::layout::SizeRequest::UNKNOWN,
@@ -231,6 +231,7 @@ fn test_segmented_click_takes_focus() {
     );
     focus_system.end_frame();
 
+    assert_eq!(result.cursor_icon, Some(crate::output::CursorIcon::Pointer));
     assert_eq!(
         focus_system.current_keyboard_focus(),
         Some(state.focus_id),
@@ -261,7 +262,7 @@ fn test_segmented_clipped_click_does_not_take_focus() {
 
     let mut cmds = DrawCommands::new(1.0);
     focus_system.begin_frame();
-    raw::post_layout_segmented(
+    let result = raw::post_layout_segmented(
         spec,
         raw::SegmentedPreLayoutResult {
             size_request: crate::layout::SizeRequest::UNKNOWN,
@@ -274,6 +275,7 @@ fn test_segmented_clipped_click_does_not_take_focus() {
     );
     focus_system.end_frame();
 
+    assert_eq!(result.cursor_icon, None);
     assert_eq!(
         focus_system.current_keyboard_focus(),
         None,

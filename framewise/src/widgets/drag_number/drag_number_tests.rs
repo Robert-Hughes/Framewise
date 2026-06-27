@@ -92,7 +92,9 @@ fn test_drag_number_visual_normal() {
     };
 
     let style = spec.style;
-    let (_res, cmds) = drag_num(spec, 50.0);
+    let (res, cmds) = drag_num(spec, 50.0);
+
+    assert_eq!(res.cursor_icon, None);
 
     assert_eq!(
         cmds.commands(),
@@ -188,7 +190,7 @@ fn test_drag_number_visual_active() {
     };
     let mut cmds = DrawCommands::new(1.0);
     let mut text_backend = TestTextBackend::default();
-    let _res = raw::post_layout_drag_number(
+    let res = raw::post_layout_drag_number(
         spec.clone(),
         raw::DragNumberPreLayoutResult {
             size_request: crate::layout::SizeRequest::UNKNOWN,
@@ -199,6 +201,8 @@ fn test_drag_number_visual_active() {
         &mut text_backend,
         &mut cmds,
     );
+
+    assert_eq!(res.cursor_icon, Some(crate::output::CursorIcon::EwResize));
 
     // Extract focus ring command and assert its properties.
     let focus_style = style.focus.unwrap();
@@ -418,7 +422,7 @@ fn test_drag_number_click_takes_focus() {
     let mut state = state;
     let mut cmds = DrawCommands::new(1.0);
     focus_system.begin_frame();
-    raw::post_layout_drag_number(
+    let result = raw::post_layout_drag_number(
         spec,
         raw::DragNumberPreLayoutResult {
             size_request: crate::layout::SizeRequest::UNKNOWN,
@@ -431,6 +435,10 @@ fn test_drag_number_click_takes_focus() {
     );
     focus_system.end_frame();
 
+    assert_eq!(
+        result.cursor_icon,
+        Some(crate::output::CursorIcon::EwResize)
+    );
     assert_eq!(
         focus_system.current_keyboard_focus(),
         Some(state.focus_id),
@@ -466,7 +474,7 @@ fn test_drag_number_clipped_click_does_not_take_focus() {
     let mut state = state;
     let mut cmds = DrawCommands::new(1.0);
     focus_system.begin_frame();
-    raw::post_layout_drag_number(
+    let result = raw::post_layout_drag_number(
         spec,
         raw::DragNumberPreLayoutResult {
             size_request: crate::layout::SizeRequest::UNKNOWN,
@@ -479,6 +487,7 @@ fn test_drag_number_clipped_click_does_not_take_focus() {
     );
     focus_system.end_frame();
 
+    assert_eq!(result.cursor_icon, None);
     assert_eq!(
         focus_system.current_keyboard_focus(),
         None,
