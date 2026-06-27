@@ -5,7 +5,6 @@ Working notes, TODOs, open questions, and half-baked ideas.
 ## Current Work
 
 - drag_number
-  - hover styling with little arrow icons shown on mockup. Can these be clickable (with hold-repeat) to increment/decrement by step?
   - double-click on text to edit it by typing?
 
 - slider track doesn't seem centred within the widget rect, but the thumb is. So the thumb isn't centred on the track!

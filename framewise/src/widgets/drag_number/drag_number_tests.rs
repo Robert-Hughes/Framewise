@@ -282,6 +282,153 @@ fn test_drag_number_visual_normal() {
 }
 
 #[test]
+fn test_drag_number_visual_hovered_value_area_draws_arrows() {
+    let spec = DragNumberSpec {
+        layer: Layer::default(),
+        rect: Rect::new(10.0, 10.0, 100.0, 28.0),
+        text: "X",
+        min: 0.0,
+        max: 100.0,
+        step: 1.0,
+        page_step: 10.0,
+        value_formatter: default_drag_number_value_formatter,
+        time: 0.0,
+        disabled: false,
+        style: DragNumberStyle::from_theme(&crate::theme::Theme::framewise()),
+        clip_rect: None,
+    };
+    let style = spec.style;
+    let arrow_color = Color::linear_rgba(
+        style.value_text.r,
+        style.value_text.g,
+        style.value_text.b,
+        style.value_text.a * 0.55,
+    );
+    let input = Input {
+        mouse_pos: value_area_pos(spec.rect, spec.text),
+        ..Default::default()
+    };
+    let mut state = DragNumberState {
+        value: 50.0,
+        ..Default::default()
+    };
+    let mut focus_system = FocusSystem::new();
+    let mut text_backend = TestTextBackend::default();
+    let mut cmds = DrawCommands::new(1.0);
+
+    // Warmup frame: claim hover for this widget so the next frame is active hover.
+    focus_system.begin_frame();
+    let _ = run_raw(
+        spec.clone(),
+        &mut state,
+        &input,
+        &mut focus_system,
+        &mut text_backend,
+        &mut cmds,
+    );
+    focus_system.end_frame();
+
+    // Hover frame: the value area should draw subtle left/right arrow glyphs.
+    let mut cmds = DrawCommands::new(1.0);
+    focus_system.begin_frame();
+    let res = run_raw(
+        spec,
+        &mut state,
+        &input,
+        &mut focus_system,
+        &mut text_backend,
+        &mut cmds,
+    );
+    focus_system.end_frame();
+
+    assert_eq!(res.cursor_icon, Some(crate::output::CursorIcon::EwResize));
+    assert_eq!(
+        cmds.commands(),
+        vec![
+            DrawCmd::FillRect {
+                rect: Rect::new(10.0, 10.0, 100.0, 28.0),
+                color: style.background,
+                z: 0,
+            },
+            DrawCmd::FillRect {
+                rect: Rect::new(10.0, 10.0, 28.0, 28.0),
+                color: style.text_bg,
+                z: 0,
+            },
+            DrawCmd::GlyphRun {
+                glyphs: 0..1,
+                color: style.text_text,
+                z: 0,
+            },
+            DrawCmd::FillRect {
+                rect: Rect::new(38.0, 10.0, 36.0, 28.0),
+                color: style.value_fill,
+                z: 0,
+            },
+            DrawCmd::GlyphRun {
+                glyphs: 1..6,
+                color: style.value_text,
+                z: 0,
+            },
+            DrawCmd::GlyphRun {
+                glyphs: 6..7,
+                color: arrow_color,
+                z: 0,
+            },
+            DrawCmd::GlyphRun {
+                glyphs: 7..8,
+                color: arrow_color,
+                z: 0,
+            },
+            DrawCmd::BorderRect {
+                rect: Rect::new(10.0, 10.0, 100.0, 28.0),
+                color: style.border.unwrap().color,
+                width: style.border.unwrap().width,
+                placement: crate::BorderPlacement::Inside,
+                z: 0,
+            },
+        ]
+    );
+    assert_eq!(
+        cmds.glyphs(),
+        vec![
+            DrawGlyph {
+                token: PreparedGlyphToken(88),
+                top_left: Vec2 { x: 20.0, y: 28.0 },
+            },
+            DrawGlyph {
+                token: PreparedGlyphToken(53),
+                top_left: Vec2 { x: 54.0, y: 28.0 },
+            },
+            DrawGlyph {
+                token: PreparedGlyphToken(48),
+                top_left: Vec2 { x: 62.0, y: 28.0 },
+            },
+            DrawGlyph {
+                token: PreparedGlyphToken(46),
+                top_left: Vec2 { x: 70.0, y: 28.0 },
+            },
+            DrawGlyph {
+                token: PreparedGlyphToken(48),
+                top_left: Vec2 { x: 78.0, y: 28.0 },
+            },
+            DrawGlyph {
+                token: PreparedGlyphToken(48),
+                top_left: Vec2 { x: 86.0, y: 28.0 },
+            },
+            DrawGlyph {
+                token: PreparedGlyphToken(8249),
+                top_left: Vec2 { x: 44.0, y: 28.0 },
+            },
+            DrawGlyph {
+                token: PreparedGlyphToken(8250),
+                top_left: Vec2 { x: 96.0, y: 28.0 },
+            },
+        ]
+    );
+}
+
+#[test]
 fn test_drag_number_visual_active() {
     let mut state = DragNumberState {
         value: 50.0,
