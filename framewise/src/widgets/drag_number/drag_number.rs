@@ -441,7 +441,7 @@ impl<'a> DragNumberSpec<'a> {
         }
     }
 
-    pub fn new_from_theme(theme: &crate::theme::Theme, text: &'a str) -> Self {
+    pub fn new_from_theme(text: &'a str, theme: &crate::theme::Theme) -> Self {
         Self::new(text).theme(theme)
     }
 

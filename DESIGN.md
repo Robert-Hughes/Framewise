@@ -1122,8 +1122,12 @@ Specs use these construction methods consistently:
   semantic inputs with no honest default, such as button text, label text, menu
   items, or select values. Required inputs are constructor parameters, not
   panics deferred to a later `build()`.
-- **`Spec::new_from_theme(&theme, required_args...)`** is the themed equivalent
+- **`Spec::new_from_theme(required_args..., &theme)`** is the themed equivalent
   of `new(...)`. It is equivalent to `Spec::new(required_args...).theme(&theme)`.
+  Constructor argument order should match application order: required
+  constructor inputs are applied first by `new(...)`, then the theme
+  transformation is applied by `.theme(&theme)`. `Spec::default_from_theme(&theme)`
+  remains theme-only because there are no required arguments before it.
 
 Use `new_from_theme`, not `new_with_theme`, so the name pairs naturally with
 `default_from_theme`.
@@ -1131,7 +1135,7 @@ Use `new_from_theme`, not `new_with_theme`, so the name pairs naturally with
 Examples:
 
 ```rust
-let spec = ButtonSpec::new_from_theme(&ctx.theme, "Save")
+let spec = ButtonSpec::new_from_theme("Save", &ctx.theme)
     .disabled(is_saving);
 
 let spec = LabelSpec::new("Ready")
@@ -1201,6 +1205,14 @@ WidgetSpec::new(required_args...)
     .visual_overrides(...)
     .callback_overrides(...)
 ```
+
+If a future widget needs theme-derived styling to depend on required
+constructor parameters, those parameters should appear before `theme` in
+`new_from_theme`, matching `Spec::new(required_args...).theme(&theme)`. If the
+desired order is actually "apply theme first, then override something", callers
+should express that directly with fluent methods, such as
+`Spec::default_from_theme(&theme).some_override(...)`, rather than encoding
+surprising behaviour into `new_from_theme`.
 
 For most widgets, `theme()` simply replaces `style` with
 `*Style::from_theme(theme)` or a variant such as
@@ -1418,7 +1430,7 @@ styling.
 
 **Theme constructors — no hidden fallback phase**
 
-`Spec::default_from_theme(&theme)` and `Spec::new_from_theme(&theme, ...)` are
+`Spec::default_from_theme(&theme)` and `Spec::new_from_theme(..., &theme)` are
 ordinary constructors. They call `theme()` explicitly as part of construction.
 The high-level widget function does not call `theme()` internally, because doing
 so would hide ordering, overwrite user visual overrides unexpectedly, and make
