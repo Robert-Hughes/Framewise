@@ -9,7 +9,7 @@ use framewise::{
     widget::WidgetContext,
     widgets::checkbox::{labelled_checkbox, CheckboxSpec, CheckboxState, CheckedState},
     widgets::label::{label, LabelSpec, LabelStyle},
-    widgets::radio::{labelled_radio, RadioSpecBuilder, RadioState},
+    widgets::radio::{labelled_radio, RadioSpec, RadioState},
     widgets::text_edit::{text_edit, NewlinePolicy, TextEditSpec, TextEditState, TextEditStyle},
     Align, LineHeight, TextLineAlign,
 };
@@ -315,11 +315,11 @@ pub(crate) fn draw_text_edit_demo_content<'a, 'b, CF>(
         state.playground_newline_radios[0].checked =
             state.playground_newline_policy == PlaygroundNewlinePolicy::Preserve;
         if labelled_radio(
-            &mut col_a,
-            RadioSpecBuilder::new(),
+            RadioSpec::default_from_theme(&col_a.theme),
             "Preserve",
             ColumnLayoutParams::auto(),
             &mut state.playground_newline_radios[0],
+            &mut col_a,
         )
         .input
         .clicked
@@ -329,11 +329,11 @@ pub(crate) fn draw_text_edit_demo_content<'a, 'b, CF>(
         state.playground_newline_radios[1].checked =
             state.playground_newline_policy == PlaygroundNewlinePolicy::ReplaceWithSpace;
         if labelled_radio(
-            &mut col_a,
-            RadioSpecBuilder::new(),
+            RadioSpec::default_from_theme(&col_a.theme),
             "Replace with spaces",
             ColumnLayoutParams::auto(),
             &mut state.playground_newline_radios[1],
+            &mut col_a,
         )
         .input
         .clicked
@@ -343,11 +343,11 @@ pub(crate) fn draw_text_edit_demo_content<'a, 'b, CF>(
         state.playground_newline_radios[2].checked =
             state.playground_newline_policy == PlaygroundNewlinePolicy::TrimAfterFirstNewline;
         if labelled_radio(
-            &mut col_a,
-            RadioSpecBuilder::new(),
+            RadioSpec::default_from_theme(&col_a.theme),
             "Trim after first newline",
             ColumnLayoutParams::auto(),
             &mut state.playground_newline_radios[2],
+            &mut col_a,
         )
         .input
         .clicked
@@ -374,11 +374,11 @@ pub(crate) fn draw_text_edit_demo_content<'a, 'b, CF>(
         state.playground_line_align_radios[0].checked =
             state.playground_line_align == TextLineAlign::Start;
         if labelled_radio(
-            &mut col_b,
-            RadioSpecBuilder::new(),
+            RadioSpec::default_from_theme(&col_b.theme),
             "Start",
             ColumnLayoutParams::auto(),
             &mut state.playground_line_align_radios[0],
+            &mut col_b,
         )
         .input
         .clicked
@@ -388,11 +388,11 @@ pub(crate) fn draw_text_edit_demo_content<'a, 'b, CF>(
         state.playground_line_align_radios[1].checked =
             state.playground_line_align == TextLineAlign::Center;
         if labelled_radio(
-            &mut col_b,
-            RadioSpecBuilder::new(),
+            RadioSpec::default_from_theme(&col_b.theme),
             "Center",
             ColumnLayoutParams::auto(),
             &mut state.playground_line_align_radios[1],
+            &mut col_b,
         )
         .input
         .clicked
@@ -402,11 +402,11 @@ pub(crate) fn draw_text_edit_demo_content<'a, 'b, CF>(
         state.playground_line_align_radios[2].checked =
             state.playground_line_align == TextLineAlign::End;
         if labelled_radio(
-            &mut col_b,
-            RadioSpecBuilder::new(),
+            RadioSpec::default_from_theme(&col_b.theme),
             "End",
             ColumnLayoutParams::auto(),
             &mut state.playground_line_align_radios[2],
+            &mut col_b,
         )
         .input
         .clicked
@@ -430,11 +430,11 @@ pub(crate) fn draw_text_edit_demo_content<'a, 'b, CF>(
         state.playground_vertical_align_radios[0].checked =
             state.playground_vertical_align == Align::Start;
         if labelled_radio(
-            &mut col_a,
-            RadioSpecBuilder::new(),
+            RadioSpec::default_from_theme(&col_a.theme),
             "Start",
             ColumnLayoutParams::auto(),
             &mut state.playground_vertical_align_radios[0],
+            &mut col_a,
         )
         .input
         .clicked
@@ -444,11 +444,11 @@ pub(crate) fn draw_text_edit_demo_content<'a, 'b, CF>(
         state.playground_vertical_align_radios[1].checked =
             state.playground_vertical_align == Align::Center;
         if labelled_radio(
-            &mut col_a,
-            RadioSpecBuilder::new(),
+            RadioSpec::default_from_theme(&col_a.theme),
             "Center",
             ColumnLayoutParams::auto(),
             &mut state.playground_vertical_align_radios[1],
+            &mut col_a,
         )
         .input
         .clicked
@@ -458,11 +458,11 @@ pub(crate) fn draw_text_edit_demo_content<'a, 'b, CF>(
         state.playground_vertical_align_radios[2].checked =
             state.playground_vertical_align == Align::End;
         if labelled_radio(
-            &mut col_a,
-            RadioSpecBuilder::new(),
+            RadioSpec::default_from_theme(&col_a.theme),
             "End",
             ColumnLayoutParams::auto(),
             &mut state.playground_vertical_align_radios[2],
+            &mut col_a,
         )
         .input
         .clicked
@@ -481,11 +481,11 @@ pub(crate) fn draw_text_edit_demo_content<'a, 'b, CF>(
         state.playground_width_radios[0].checked =
             state.playground_width_mode == PlaygroundSizeMode::Auto;
         if labelled_radio(
-            &mut col_b,
-            RadioSpecBuilder::new(),
+            RadioSpec::default_from_theme(&col_b.theme),
             "Auto width",
             ColumnLayoutParams::auto(),
             &mut state.playground_width_radios[0],
+            &mut col_b,
         )
         .input
         .clicked
@@ -495,11 +495,11 @@ pub(crate) fn draw_text_edit_demo_content<'a, 'b, CF>(
         state.playground_width_radios[1].checked =
             state.playground_width_mode == PlaygroundSizeMode::Fixed;
         if labelled_radio(
-            &mut col_b,
-            RadioSpecBuilder::new(),
+            RadioSpec::default_from_theme(&col_b.theme),
             "Fixed width",
             ColumnLayoutParams::auto(),
             &mut state.playground_width_radios[1],
+            &mut col_b,
         )
         .input
         .clicked
@@ -509,11 +509,11 @@ pub(crate) fn draw_text_edit_demo_content<'a, 'b, CF>(
         state.playground_height_radios[0].checked =
             state.playground_height_mode == PlaygroundSizeMode::Auto;
         if labelled_radio(
-            &mut col_b,
-            RadioSpecBuilder::new(),
+            RadioSpec::default_from_theme(&col_b.theme),
             "Auto height",
             ColumnLayoutParams::auto(),
             &mut state.playground_height_radios[0],
+            &mut col_b,
         )
         .input
         .clicked
@@ -523,11 +523,11 @@ pub(crate) fn draw_text_edit_demo_content<'a, 'b, CF>(
         state.playground_height_radios[1].checked =
             state.playground_height_mode == PlaygroundSizeMode::Fixed;
         if labelled_radio(
-            &mut col_b,
-            RadioSpecBuilder::new(),
+            RadioSpec::default_from_theme(&col_b.theme),
             "Fixed height",
             ColumnLayoutParams::auto(),
             &mut state.playground_height_radios[1],
+            &mut col_b,
         )
         .input
         .clicked

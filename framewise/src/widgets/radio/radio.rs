@@ -211,6 +211,12 @@ impl RadioStyle {
     }
 }
 
+impl Default for RadioStyle {
+    fn default() -> Self {
+        Self::from_theme(&crate::theme::Theme::minimal())
+    }
+}
+
 // ── State ─────────────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, Default, PartialEq)]
@@ -232,51 +238,31 @@ pub struct RadioResult {
 
 // ── Spec ─────────────────────────────────────────────────────────────────────
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Default, PartialEq)]
 pub struct RadioSpec {
     pub disabled: bool,
     pub style: RadioStyle,
 }
 
-// ── Spec Builder ─────────────────────────────────────────────────────────────
 
-#[derive(Debug, Clone, PartialEq, Default)]
-pub struct RadioSpecBuilder {
-    pub disabled: Option<bool>,
-    pub style: Option<RadioStyle>,
-}
+impl RadioSpec {
+    pub fn default_from_theme(theme: &crate::theme::Theme) -> Self {
+        Self::default().theme(theme)
+    }
 
-impl RadioSpecBuilder {
-    pub fn new() -> Self {
-        Self::default()
+    pub fn theme(mut self, theme: &crate::theme::Theme) -> Self {
+        self.style = RadioStyle::from_theme(theme);
+        self
     }
 
     pub fn disabled(mut self, disabled: bool) -> Self {
-        self.disabled = Some(disabled);
+        self.disabled = disabled;
         self
     }
 
     pub fn style(mut self, style: RadioStyle) -> Self {
-        self.style = Some(style);
+        self.style = style;
         self
-    }
-
-    /// Fills unset fields from `theme`. Called automatically by high-level
-    /// context functions.
-    pub fn defaults_from_theme(mut self, theme: &crate::theme::Theme) -> Self {
-        if self.style.is_none() {
-            self.style = Some(RadioStyle::from_theme(theme));
-        }
-        self
-    }
-
-    pub fn build(self) -> RadioSpec {
-        RadioSpec {
-            disabled: self.disabled.unwrap_or(false),
-            style: self
-                .style
-                .expect("style not set — call .style() or defaults_from_theme()"),
-        }
     }
 }
 
@@ -284,15 +270,15 @@ impl RadioSpecBuilder {
 
 /// High-level radio widget function using `WidgetContext`.
 ///
-/// Resolves defaults, runs the raw pre-layout phase to obtain a `SizeRequest`,
-/// resolves the final rect with layout, then runs the raw post-layout phase.
+/// Consumes a complete `RadioSpec`, runs the raw pre-layout phase to obtain a
+/// `SizeRequest`, resolves the final rect with layout, then runs the raw
+/// post-layout phase.
 pub fn radio<T: TextBackend, S: LayoutState, CF>(
-    ctx: &mut WidgetContext<T, S, CF>,
-    builder: RadioSpecBuilder,
+    spec: RadioSpec,
     layout_params: S::Params,
     state: &mut RadioState,
+    ctx: &mut WidgetContext<T, S, CF>,
 ) -> RadioResult {
-    let spec = builder.defaults_from_theme(&ctx.theme).build();
     let pre_layout_spec = raw::RadioPreLayoutSpec { style: spec.style };
     let offer = ctx.peek_offer(layout_params.clone());
     let pre_layout = raw::pre_layout_radio(&pre_layout_spec, offer);
@@ -329,15 +315,15 @@ pub fn radio<T: TextBackend, S: LayoutState, CF>(
 /// This draws a radio along with a label by its side. Clicking the label
 /// behaves identically to clicking the radio, and all mouse interactions
 /// (hover, pressed, click-and-drag) span the combined bounds.
+///
+/// Consumes a complete `RadioSpec`.
 pub fn labelled_radio<T: TextBackend, S: LayoutState, CF>(
-    ctx: &mut WidgetContext<T, S, CF>,
-    builder: RadioSpecBuilder,
+    spec: RadioSpec,
     label_text: &str,
     layout_params: S::Params,
     state: &mut RadioState,
+    ctx: &mut WidgetContext<T, S, CF>,
 ) -> RadioResult {
-    let spec = builder.defaults_from_theme(&ctx.theme).build();
-
     // Resolve label style and measure text size
     let mut label_style = crate::widgets::label::LabelStyle::from_theme(&ctx.theme);
     label_style.content_placement = crate::text::TextContentPlacement::logical(

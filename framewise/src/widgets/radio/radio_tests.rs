@@ -852,22 +852,19 @@ fn test_radio_spacebar_loses_focus_does_not_click() {
 }
 
 #[test]
-fn test_builder_defaults_from_theme_fills_unset_style() {
+fn test_spec_theme_overwrites_style() {
     let theme = crate::theme::Theme::framewise();
-    let builder = RadioSpecBuilder::new();
-    assert!(builder.style.is_none());
-    let builder = builder.defaults_from_theme(&theme);
-    assert_eq!(builder.style, Some(RadioStyle::from_theme(&theme)));
+    let spec = super::RadioSpec::default_from_theme(&theme);
+    assert_eq!(spec.style, RadioStyle::from_theme(&theme));
 }
 
 #[test]
-fn test_builder_defaults_from_theme_preserves_explicit_style() {
+fn test_spec_style_preserves_explicit_fields() {
     let theme = crate::theme::Theme::framewise();
     let mut custom_style = RadioStyle::from_theme(&theme);
     custom_style.radius = 99.0;
-    let builder = RadioSpecBuilder::new().style(custom_style);
-    let builder = builder.defaults_from_theme(&theme);
-    assert_eq!(builder.style.unwrap().radius, 99.0);
+    let spec = super::RadioSpec::default().style(custom_style);
+    assert_eq!(spec.style.radius, 99.0);
 }
 
 #[test]
@@ -892,10 +889,10 @@ fn test_high_level_explicit_placement_via_manual_layout() {
     );
     let mut radio_state = RadioState::default();
     let result = super::radio(
-        &mut ctx,
-        RadioSpecBuilder::new(),
+        super::RadioSpec::default_from_theme(&ctx.theme),
         placement,
         &mut radio_state,
+        &mut ctx,
     );
     assert_eq!(result.layout.bounds, placement);
 }
@@ -925,10 +922,10 @@ fn test_high_level_honors_user_style() {
     };
     let mut radio_state = RadioState::default();
     super::radio(
-        &mut ctx,
-        RadioSpecBuilder::new().style(custom),
+        super::RadioSpec::default().style(custom),
         Rect::new(100.0, 100.0, 14.0, 14.0),
         &mut radio_state,
+        &mut ctx,
     );
 
     let has_custom_fill = cmds
@@ -1015,11 +1012,11 @@ fn test_labelled_radio_request_size() {
     // Combined width: 14.0 + 8.0 + 40.0 = 62.0.
     // Combined height: max(14.0, 16.0) = 16.0.
     let result = super::labelled_radio(
-        &mut ctx,
-        RadioSpecBuilder::new(),
+        super::RadioSpec::default_from_theme(&ctx.theme),
         "vsync",
         Rect::new(0.0, 0.0, 100.0, 20.0),
         &mut state,
+        &mut ctx,
     );
 
     assert_eq!(result.layout.bounds, Rect::new(0.0, 0.0, 100.0, 20.0));
@@ -1047,11 +1044,11 @@ fn test_labelled_radio_click_label_toggles_state() {
                 cmds,
             );
             super::labelled_radio(
-                &mut ctx,
-                RadioSpecBuilder::new(),
+                super::RadioSpec::default_from_theme(&ctx.theme),
                 "vsync",
                 Rect::new(0.0, 0.0, 100.0, 20.0),
                 state,
+                &mut ctx,
             );
         },
     );
@@ -1082,11 +1079,11 @@ fn test_labelled_radio_disabled_label_visual() {
 
         let mut state = RadioState::default();
         super::labelled_radio(
-            &mut ctx,
-            RadioSpecBuilder::new().disabled(true),
+            super::RadioSpec::default_from_theme(&ctx.theme).disabled(true),
             "vsync",
             Rect::new(0.0, 0.0, 100.0, 20.0),
             &mut state,
+            &mut ctx,
         );
     }
 

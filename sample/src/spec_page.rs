@@ -69,7 +69,7 @@ use framewise::widgets::meter::{meter, MeterSpec};
 use framewise::widgets::progress_bar::{progress_bar, ProgressBarSpec};
 #[cfg(feature = "radio")]
 #[allow(unused_imports)]
-use framewise::widgets::radio::{labelled_radio, radio, RadioSpecBuilder, RadioState, RadioStyle};
+use framewise::widgets::radio::{labelled_radio, radio, RadioSpec, RadioState, RadioStyle};
 #[cfg(feature = "segmented")]
 #[allow(unused_imports)]
 use framewise::widgets::segmented::{segmented, SegmentedSpecBuilder, SegmentedState};
@@ -91,7 +91,7 @@ use framewise::widgets::status::{status, StatusSpec, StatusVariant};
 #[cfg(feature = "switch")]
 #[allow(unused_imports)]
 use framewise::widgets::switch::{
-    labelled_switch, switch, SwitchSpecBuilder, SwitchState, SwitchStyle,
+    labelled_switch, switch, SwitchSpec, SwitchState, SwitchStyle,
 };
 #[cfg(feature = "tabs")]
 #[allow(unused_imports)]
@@ -2431,13 +2431,12 @@ fn section_03_toggles<CF>(
                     0 | 1 => {
                         let info = {
                             let state = &mut state.radio_states[i];
-                            let spec_builder = RadioSpecBuilder::new();
                             labelled_radio(
-                                &mut b,
-                                spec_builder,
+                                RadioSpec::default_from_theme(&b.theme),
                                 radio_label,
                                 ColumnLayoutParams::auto(),
                                 state,
+                                &mut b,
                             )
                         };
                         if info.input.clicked {
@@ -2475,13 +2474,12 @@ fn section_03_toggles<CF>(
                     }
                     3 => {
                         let state = &mut state.radio_states[2];
-                        let spec_builder = RadioSpecBuilder::new().disabled(true);
                         labelled_radio(
-                            &mut b,
-                            spec_builder,
+                            RadioSpec::default_from_theme(&b.theme).disabled(true),
                             radio_label,
                             ColumnLayoutParams::auto(),
                             state,
+                            &mut b,
                         );
                     }
                     _ => unreachable!(),
@@ -2529,24 +2527,22 @@ fn section_03_toggles<CF>(
                     }
                     3 => {
                         let state = &mut state.switch_states[2];
-                        let spec_builder = SwitchSpecBuilder::new().disabled(true);
                         labelled_switch(
-                            &mut b,
-                            spec_builder,
+                            SwitchSpec::default_from_theme(&b.theme).disabled(true),
                             switch_label,
                             ColumnLayoutParams::auto(),
                             state,
+                            &mut b,
                         );
                     }
                     _ => {
                         let state = &mut state.switch_states[i];
-                        let spec_builder = SwitchSpecBuilder::new();
                         labelled_switch(
-                            &mut b,
-                            spec_builder,
+                            SwitchSpec::default_from_theme(&b.theme),
                             switch_label,
                             ColumnLayoutParams::auto(),
                             state,
+                            &mut b,
                         );
                     }
                 }
@@ -4252,13 +4248,12 @@ fn section_12_in_use<CF>(
         let _switch_res = {
             let state = &mut state.iu_vsync;
             let layout_params = Rect::new(widget_x, fy + 6.0, widget_w, 16.0);
-            let spec_builder = SwitchSpecBuilder::new();
             labelled_switch(
-                &mut win,
-                spec_builder,
+                SwitchSpec::default_from_theme(&win.theme),
                 "match display",
                 layout_params,
                 state,
+                &mut win,
             )
         };
         fy += row_h + row_gap;

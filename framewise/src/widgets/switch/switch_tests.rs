@@ -861,22 +861,19 @@ fn test_switch_spacebar_loses_focus_does_not_click() {
 }
 
 #[test]
-fn test_builder_defaults_from_theme_fills_unset_style() {
+fn test_spec_theme_overwrites_style() {
     let theme = crate::theme::Theme::framewise();
-    let builder = SwitchSpecBuilder::new();
-    assert!(builder.style.is_none());
-    let builder = builder.defaults_from_theme(&theme);
-    assert_eq!(builder.style, Some(SwitchStyle::from_theme(&theme)));
+    let spec = super::SwitchSpec::default_from_theme(&theme);
+    assert_eq!(spec.style, SwitchStyle::from_theme(&theme));
 }
 
 #[test]
-fn test_builder_defaults_from_theme_preserves_explicit_style() {
+fn test_spec_style_preserves_explicit_fields() {
     let theme = crate::theme::Theme::framewise();
     let mut custom_style = SwitchStyle::from_theme(&theme);
     custom_style.thumb_size = 99.0;
-    let builder = SwitchSpecBuilder::new().style(custom_style);
-    let builder = builder.defaults_from_theme(&theme);
-    assert_eq!(builder.style.unwrap().thumb_size, 99.0);
+    let spec = super::SwitchSpec::default().style(custom_style);
+    assert_eq!(spec.style.thumb_size, 99.0);
 }
 
 #[test]
@@ -900,7 +897,12 @@ fn test_high_level_explicit_placement_via_manual_layout() {
         &mut cmds,
     );
     let mut sw_state = SwitchState::default();
-    let result = super::switch(&mut ctx, SwitchSpecBuilder::new(), placement, &mut sw_state);
+    let result = super::switch(
+        super::SwitchSpec::default_from_theme(&ctx.theme),
+        placement,
+        &mut sw_state,
+        &mut ctx,
+    );
     assert_eq!(result.layout.bounds, placement);
 }
 
@@ -929,10 +931,10 @@ fn test_high_level_honors_user_style() {
     };
     let mut sw_state = SwitchState::default();
     super::switch(
-        &mut ctx,
-        SwitchSpecBuilder::new().style(custom),
+        super::SwitchSpec::default().style(custom),
         Rect::new(100.0, 100.0, 30.0, 16.0),
         &mut sw_state,
+        &mut ctx,
     );
 
     let has_custom_fill = cmds
@@ -1022,11 +1024,11 @@ fn test_labelled_switch_request_size() {
     // Combined width: 30.0 + 8.0 + 40.0 = 78.0.
     // Combined height: max(16.0, 16.0) = 16.0.
     let result = super::labelled_switch(
-        &mut ctx,
-        SwitchSpecBuilder::new(),
+        super::SwitchSpec::default_from_theme(&ctx.theme),
         "vsync",
         Rect::new(0.0, 0.0, 100.0, 20.0),
         &mut state,
+        &mut ctx,
     );
 
     assert_eq!(result.layout.bounds, Rect::new(0.0, 0.0, 100.0, 20.0));
@@ -1054,11 +1056,11 @@ fn test_labelled_switch_click_label_toggles_state() {
                 cmds,
             );
             super::labelled_switch(
-                &mut ctx,
-                SwitchSpecBuilder::new(),
+                super::SwitchSpec::default_from_theme(&ctx.theme),
                 "vsync",
                 Rect::new(0.0, 0.0, 100.0, 20.0),
                 state,
+                &mut ctx,
             );
         },
     );
@@ -1089,11 +1091,11 @@ fn test_labelled_switch_disabled_label_visual() {
 
         let mut state = SwitchState::default();
         super::labelled_switch(
-            &mut ctx,
-            SwitchSpecBuilder::new().disabled(true),
+            super::SwitchSpec::default_from_theme(&ctx.theme).disabled(true),
             "vsync",
             Rect::new(0.0, 0.0, 100.0, 20.0),
             &mut state,
+            &mut ctx,
         );
     }
 

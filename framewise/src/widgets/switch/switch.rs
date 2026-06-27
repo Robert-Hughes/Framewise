@@ -222,6 +222,12 @@ impl SwitchStyle {
     }
 }
 
+impl Default for SwitchStyle {
+    fn default() -> Self {
+        Self::from_theme(&crate::theme::Theme::minimal())
+    }
+}
+
 // ── State ─────────────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, Default, PartialEq)]
@@ -243,51 +249,31 @@ pub struct SwitchResult {
 
 // ── Spec ─────────────────────────────────────────────────────────────────────
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Default, PartialEq)]
 pub struct SwitchSpec {
     pub disabled: bool,
     pub style: SwitchStyle,
 }
 
-// ── Spec Builder ─────────────────────────────────────────────────────────────
 
-#[derive(Debug, Clone, PartialEq, Default)]
-pub struct SwitchSpecBuilder {
-    pub disabled: Option<bool>,
-    pub style: Option<SwitchStyle>,
-}
+impl SwitchSpec {
+    pub fn default_from_theme(theme: &crate::theme::Theme) -> Self {
+        Self::default().theme(theme)
+    }
 
-impl SwitchSpecBuilder {
-    pub fn new() -> Self {
-        Self::default()
+    pub fn theme(mut self, theme: &crate::theme::Theme) -> Self {
+        self.style = SwitchStyle::from_theme(theme);
+        self
     }
 
     pub fn disabled(mut self, disabled: bool) -> Self {
-        self.disabled = Some(disabled);
+        self.disabled = disabled;
         self
     }
 
     pub fn style(mut self, style: SwitchStyle) -> Self {
-        self.style = Some(style);
+        self.style = style;
         self
-    }
-
-    /// Fills unset fields from `theme`. Called automatically by high-level
-    /// context functions.
-    pub fn defaults_from_theme(mut self, theme: &crate::theme::Theme) -> Self {
-        if self.style.is_none() {
-            self.style = Some(SwitchStyle::from_theme(theme));
-        }
-        self
-    }
-
-    pub fn build(self) -> SwitchSpec {
-        SwitchSpec {
-            disabled: self.disabled.unwrap_or(false),
-            style: self
-                .style
-                .expect("style not set — call .style() or defaults_from_theme()"),
-        }
     }
 }
 
@@ -295,15 +281,15 @@ impl SwitchSpecBuilder {
 
 /// High-level switch widget function using `WidgetContext`.
 ///
-/// Resolves defaults, runs the raw pre-layout phase to obtain a `SizeRequest`,
-/// resolves the final rect with layout, then runs the raw post-layout phase.
+/// Consumes a complete `SwitchSpec`, runs the raw pre-layout phase to obtain a
+/// `SizeRequest`, resolves the final rect with layout, then runs the raw
+/// post-layout phase.
 pub fn switch<T: TextBackend, S: LayoutState, CF>(
-    ctx: &mut WidgetContext<T, S, CF>,
-    builder: SwitchSpecBuilder,
+    spec: SwitchSpec,
     layout_params: S::Params,
     state: &mut SwitchState,
+    ctx: &mut WidgetContext<T, S, CF>,
 ) -> SwitchResult {
-    let spec = builder.defaults_from_theme(&ctx.theme).build();
     let pre_layout_spec = raw::SwitchPreLayoutSpec { style: spec.style };
     let offer = ctx.peek_offer(layout_params.clone());
     let pre_layout = raw::pre_layout_switch(&pre_layout_spec, offer);
@@ -340,15 +326,15 @@ pub fn switch<T: TextBackend, S: LayoutState, CF>(
 /// This draws a switch along with a label by its side. Clicking the label
 /// behaves identically to clicking the switch, and all mouse interactions
 /// (hover, pressed, click-and-drag) span the combined bounds.
+///
+/// Consumes a complete `SwitchSpec`.
 pub fn labelled_switch<T: TextBackend, S: LayoutState, CF>(
-    ctx: &mut WidgetContext<T, S, CF>,
-    builder: SwitchSpecBuilder,
+    spec: SwitchSpec,
     label_text: &str,
     layout_params: S::Params,
     state: &mut SwitchState,
+    ctx: &mut WidgetContext<T, S, CF>,
 ) -> SwitchResult {
-    let spec = builder.defaults_from_theme(&ctx.theme).build();
-
     // Resolve label style and measure text size
     let mut label_style = crate::widgets::label::LabelStyle::from_theme(&ctx.theme);
     label_style.content_placement = crate::text::TextContentPlacement::logical(

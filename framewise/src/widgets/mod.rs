@@ -108,7 +108,7 @@ pub use meter::{meter, MeterResult, MeterSpec, MeterStyle};
 #[cfg(feature = "progress_bar")]
 pub use progress_bar::{progress_bar, ProgressBarResult, ProgressBarSpec, ProgressBarStyle};
 #[cfg(feature = "radio")]
-pub use radio::{labelled_radio, radio, RadioResult, RadioSpecBuilder, RadioState, RadioStyle};
+pub use radio::{labelled_radio, radio, RadioResult, RadioSpec, RadioState, RadioStyle};
 #[cfg(feature = "scroll_area")]
 pub use scroll_area::{
     begin_scroll_area, ScrollAreaResult, ScrollAreaSpec, ScrollState, ScrollbarVisibility,
@@ -130,7 +130,7 @@ pub use spinner::{spinner, SpinnerResult, SpinnerSpec, SpinnerStyle};
 pub use status::{status, StatusResult, StatusSpec, StatusStyle, StatusVariant};
 #[cfg(feature = "switch")]
 pub use switch::{
-    labelled_switch, switch, SwitchResult, SwitchSpecBuilder, SwitchState, SwitchStyle,
+    labelled_switch, switch, SwitchResult, SwitchSpec, SwitchState, SwitchStyle,
 };
 #[cfg(feature = "tabs")]
 pub use tabs::{tabs, TabsResult, TabsSpecBuilder, TabsState, TabsStyle};
