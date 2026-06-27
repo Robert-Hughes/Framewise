@@ -2718,9 +2718,7 @@ fn section_04_sliders<CF>(
         let mut x = 0.0;
         let rect = Rect::new(x, 14.0, DRAG_W, b.theme.h_md);
         drag_number(
-            DragNumberSpec::default_from_theme(&b.theme)
-                .text("X")
-                .max(800.0),
+            DragNumberSpec::new_from_theme("X", &b.theme).max(800.0),
             rect,
             &mut state.dn_showcase[0],
             &mut b,
@@ -2728,9 +2726,7 @@ fn section_04_sliders<CF>(
         x += DRAG_W + GAP;
         let rect = Rect::new(x, 14.0, DRAG_W, b.theme.h_md);
         drag_number(
-            DragNumberSpec::default_from_theme(&b.theme)
-                .text("Y")
-                .max(600.0),
+            DragNumberSpec::new_from_theme("Y", &b.theme).max(600.0),
             rect,
             &mut state.dn_showcase[1],
             &mut b,
@@ -2743,8 +2739,7 @@ fn section_04_sliders<CF>(
         x += DRAG_W + GAP;
         let rect = Rect::new(x, 14.0, DRAG_W, b.theme.h_md);
         drag_number(
-            DragNumberSpec::default_from_theme(&b.theme)
-                .text("H")
+            DragNumberSpec::new_from_theme("H", &b.theme)
                 .max(600.0)
                 .disabled(true),
             rect,
@@ -3838,8 +3833,7 @@ fn section_11_window<CF>(
                 let min = *min;
                 let max = *max;
                 let layout_params = Rect::new(drx, iy, (cr_w / 2.0) - 4.0, win.theme.h_md);
-                let spec = DragNumberSpec::default_from_theme(&win.theme)
-                    .text(label)
+                let spec = DragNumberSpec::new_from_theme(label, &win.theme)
                     .min(min)
                     .max(max);
                 drag_number(spec, layout_params, state, &mut win)
@@ -3857,8 +3851,7 @@ fn section_11_window<CF>(
                 let min = *min;
                 let max = *max;
                 let layout_params = Rect::new(drx, iy, (cr_w / 2.0) - 4.0, win.theme.h_md);
-                let spec = DragNumberSpec::default_from_theme(&win.theme)
-                    .text(label)
+                let spec = DragNumberSpec::new_from_theme(label, &win.theme)
                     .min(min)
                     .max(max);
                 drag_number(spec, layout_params, state, &mut win)
@@ -4360,8 +4353,7 @@ fn section_12_in_use<CF>(
         let _w_res = {
             let state = &mut state.iu_vp_w;
             let layout_params = Rect::new(widget_x, fy, (widget_w / 2.0) - 4.0, row_h);
-            let spec = DragNumberSpec::default_from_theme(&win.theme)
-                .text("W")
+            let spec = DragNumberSpec::new_from_theme("W", &win.theme)
                 .max(7680.0)
                 .value_formatter(|v: f32| format!("{v:.0}"));
             drag_number(spec, layout_params, state, &mut win)
@@ -4375,8 +4367,7 @@ fn section_12_in_use<CF>(
                 (widget_w / 2.0) - 4.0,
                 row_h,
             );
-            let spec = DragNumberSpec::default_from_theme(&win.theme)
-                .text("H")
+            let spec = DragNumberSpec::new_from_theme("H", &win.theme)
                 .max(7680.0)
                 .value_formatter(|v: f32| format!("{v:.0}"));
             drag_number(spec, layout_params, state, &mut win)

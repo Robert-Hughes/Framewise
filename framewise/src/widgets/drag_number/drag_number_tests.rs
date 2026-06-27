@@ -814,7 +814,7 @@ fn test_high_level_explicit_placement_via_manual_layout() {
     );
     let mut dn_state = DragNumberState::default();
     let result = super::drag_number(
-        super::DragNumberSpec::default_from_theme(&ctx.theme).text("x"),
+        super::DragNumberSpec::new_from_theme("x", &ctx.theme),
         placement,
         &mut dn_state,
         &mut ctx,

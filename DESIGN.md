@@ -966,10 +966,9 @@ mutable context borrow is evaluated:
 
 ```rust
 drag_number(
-    DragNumberSpec::new("Width")
+    DragNumberSpec::new_from_theme("Width", &ctx.theme)
         .max(1920.0)
-        .theme(&ctx.theme)
-        .format_value(|v: f32| format!("{v:.0}px")),
+        .value_formatter(|v: f32| format!("{v:.0}px")),
     rect,
     &mut state,
     &mut ctx,
@@ -1275,7 +1274,7 @@ where
     pub max: f32,
     pub step: f32,
     pub page_step: f32,
-    pub format_value: F,
+    pub value_formatter: F,
     pub disabled: bool,
 }
 ```
@@ -1284,16 +1283,16 @@ The default callback is a real function pointer value, not `None` and not a
 hidden fallback inside the widget:
 
 ```rust
-impl<'a> DragNumberSpec<'a, DefaultDragNumberValueFormatter> {
-    pub fn new(text: &'a str) -> Self {
+impl<'a> Default for DragNumberSpec<'a, DefaultDragNumberValueFormatter> {
+    fn default() -> Self {
         Self {
-            text,
-            style: DragNumberStyle::fallback(),
+            text: "",
+            style: DragNumberStyle::default(),
             min: 0.0,
             max: 100.0,
             step: 1.0,
             page_step: 10.0,
-            format_value: default_drag_number_value_formatter,
+            value_formatter: default_drag_number_value_formatter,
             disabled: false,
         }
     }
@@ -1307,7 +1306,7 @@ impl<'a, F> DragNumberSpec<'a, F>
 where
     F: Fn(f32) -> String,
 {
-    pub fn format_value<G>(self, format_value: G) -> DragNumberSpec<'a, G>
+    pub fn value_formatter<G>(self, value_formatter: G) -> DragNumberSpec<'a, G>
     where
         G: Fn(f32) -> String,
     {
@@ -1318,7 +1317,7 @@ where
             max: self.max,
             step: self.step,
             page_step: self.page_step,
-            format_value,
+            value_formatter,
             disabled: self.disabled,
         }
     }
@@ -1329,23 +1328,23 @@ Call site:
 
 ```rust
 drag_number(
-    DragNumberSpec::new("Width")
+    DragNumberSpec::new_from_theme("Width", &ctx.theme)
         .max(1920.0)
-        .theme(&ctx.theme)
-        .format_value(|v: f32| format!("{v:.0}px")),
+        .value_formatter(|v: f32| format!("{v:.0}px")),
     rect,
     &mut state,
     &mut ctx,
 );
 ```
 
-Callbacks should be named as actions the widget performs, such as
-`format_value`, `map_drag_delta`, or `accessibility_label`, rather than vague
-names such as `formatter` or `callback`. The field name should read well at both
-the call site and the use site:
+Callback fields should be named for the role they play in the spec. For pure
+strategy-style callbacks, prefer noun phrases such as `value_formatter`,
+`drag_mapper`, or `accessibility_label_provider`. For imperative side-effect
+callbacks, event/action names such as `on_commit` or `on_change` may be
+appropriate. The fluent setter should normally match the field name:
 
 ```rust
-let value_text = (spec.format_value)(state.value);
+let value_text = (spec.value_formatter)(state.value);
 ```
 
 A separate `*Callbacks` struct is appropriate only if a widget has enough code
