@@ -209,7 +209,7 @@ fn test_drag_number_visual_normal() {
     };
 
     let style = spec.style;
-    let (res, cmds) = drag_num(spec, 50.0);
+    let (res, cmds) = drag_num(spec, 50.5);
 
     assert_eq!(res.cursor_icon, None);
 
@@ -232,7 +232,7 @@ fn test_drag_number_visual_normal() {
                 z: 0,
             },
             DrawCmd::FillRect {
-                rect: Rect::new(38.0, 10.0, 36.0, 28.0),
+                rect: Rect::new(38.0, 10.0, 36.36, 28.0),
                 color: style.value_fill,
                 z: 0,
             },
@@ -270,7 +270,7 @@ fn test_drag_number_visual_normal() {
                 top_left: Vec2 { x: 70.0, y: 28.0 },
             },
             DrawGlyph {
-                token: PreparedGlyphToken(48),
+                token: PreparedGlyphToken(53),
                 top_left: Vec2 { x: 78.0, y: 28.0 },
             },
             DrawGlyph {

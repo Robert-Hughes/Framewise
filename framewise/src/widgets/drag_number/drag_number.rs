@@ -1,7 +1,5 @@
-#[cfg(test)]
-use crate::draw::DrawCmd;
 use crate::{
-    draw::{BorderPlacement, DrawCommands},
+    draw::{BorderPlacement, DrawCmd, DrawCommands},
     focus::{FocusId, FocusSystem},
     input::Input,
     layout::{LayoutState, SizeOffer},
@@ -336,17 +334,19 @@ pub mod raw {
             0.0
         };
         if frac > 0.0 {
-            let draw_value_r = cmds.snap_to_physical_pixel(value_x + value_w * frac);
-            cmds.push_crisp_fill_rect(
-                Rect::from_ltrb(
+            // Keep the leading, top, and bottom edges crisp, but leave the moving
+            // right edge unsnapped so the fill can animate smoothly between pixels.
+            let draw_value_r = value_x + value_w * frac;
+            cmds.push(DrawCmd::FillRect {
+                rect: Rect::from_ltrb(
                     draw_split_x,
                     draw_outer.y,
                     draw_value_r,
                     draw_outer.bottom(),
                 ),
-                tint(s.value_fill),
-                spec.layer.get_z(),
-            );
+                color: tint(s.value_fill),
+                z: spec.layer.get_z(),
+            });
         }
 
         let value_text = (spec.value_formatter)(state.value);
