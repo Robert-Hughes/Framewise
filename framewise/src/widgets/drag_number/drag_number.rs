@@ -132,7 +132,7 @@ pub mod raw {
             state.is_dragging = false;
             state.is_arrow_stepping = false;
             state.arrow_step_direction = None;
-            state.edit = None;
+            state.edit = DragNumberEditState::Inactive;
         }
 
         let s = spec.style;
@@ -204,18 +204,22 @@ pub mod raw {
             contains_value && is_hover_active && hovered_arrow_direction.is_none();
         // The embedded TextEdit reuses the DragNumber focus id. Entering edit mode
         // happens before normal focus registration so only one widget registers it.
-        if state.edit.is_none()
+        if !state.edit.is_editing()
             && !spec.disabled
             && input.mouse_pressed
             && input.mouse_click_count == 2
             && hovered_drag_region
         {
-            let mut text_edit = TextEditState::new(&drag_number_raw_edit_text(state.value));
-            text_edit.focus_id = state.focus_id;
-            state.edit = Some(DragNumberEditState {
+            let draft = match std::mem::take(&mut state.edit) {
+                DragNumberEditState::Inactive => drag_number_raw_edit_text(state.value),
+                DragNumberEditState::Remembered { draft } => draft,
+                DragNumberEditState::Editing { .. } => unreachable!("guarded by !is_editing"),
+            };
+            let text_edit = make_drag_number_text_edit_state(state, &draft);
+            state.edit = DragNumberEditState::Editing {
                 text_edit,
                 error: false,
-            });
+            };
             state.is_dragging = false;
             state.is_arrow_stepping = false;
             state.arrow_step_direction = None;
@@ -226,7 +230,7 @@ pub mod raw {
         let mut text_edit_result = None;
         // In display mode the DragNumber owns focus registration; in edit mode raw
         // TextEdit registers the same focus id instead.
-        let focused = if state.edit.is_some() || spec.disabled {
+        let focused = if state.edit.is_editing() || spec.disabled {
             false
         } else {
             crate::focus::handle_widget_keyboard_focus(
@@ -243,7 +247,7 @@ pub mod raw {
 
         // Display-mode mouse interaction: arrow stepping, repeat, and scrub drag.
         // Edit mode bypasses this so typed values do not also trigger value changes.
-        if !spec.disabled && state.edit.is_none() {
+        if !spec.disabled && !state.edit.is_editing() {
             let hovered_value_area = contains_value && is_hover_active;
 
             if state.is_arrow_stepping && !input.mouse_down {
@@ -301,7 +305,7 @@ pub mod raw {
         }
 
         // Display-mode keyboard stepping. TextEdit consumes caret movement while editing.
-        if focused && !spec.disabled && state.edit.is_none() {
+        if focused && !spec.disabled && !state.edit.is_editing() {
             focus_system.claim_pgup_vert(state.focus_id);
             focus_system.claim_pgdn_vert(state.focus_id);
             focus_system.claim_pgup_horiz(state.focus_id);
@@ -388,7 +392,7 @@ pub mod raw {
         } else {
             0.0
         };
-        if frac > 0.0 && state.edit.is_none() {
+        if frac > 0.0 && !state.edit.is_editing() {
             // Keep the leading, top, and bottom edges crisp, but leave the moving
             // right edge unsnapped so the fill can animate smoothly between pixels.
             let draw_value_r = value_x + value_w * frac;
@@ -404,7 +408,7 @@ pub mod raw {
             });
         }
 
-        if let Some(edit) = &mut state.edit {
+        if let DragNumberEditState::Editing { text_edit, error } = &mut state.edit {
             // Suppress the activation click for the inner TextEdit. The shared focus id
             // is intentional, but the initial double-click must not become word selection.
             let mut edit_input;
@@ -418,14 +422,14 @@ pub mod raw {
             } else {
                 input
             };
-            let old_edit_value = edit.text_edit.value.clone();
+            let old_edit_value = text_edit.value.clone();
             // Run raw TextEdit after layout because value_rect only exists in
             // DragNumber's post-layout phase.
             let pre_layout_spec = text_edit::raw::TextEditPreLayoutSpec {
                 style: s.text_edit_style,
                 wrap: false,
                 line_align: TextLineAlign::Center,
-                error: edit.error,
+                error: *error,
                 disabled: spec.disabled,
                 newline_policy: NewlinePolicy::TrimAfterFirstNewline,
             };
@@ -436,20 +440,20 @@ pub mod raw {
             let pre_layout = text_edit::raw::pre_layout_text_edit(
                 &pre_layout_spec,
                 offer,
-                &mut edit.text_edit,
+                text_edit,
                 input_for_text_edit,
                 focus_system,
                 text_backend,
             );
-            if edit.text_edit.value != old_edit_value {
-                edit.error = false;
+            if text_edit.value != old_edit_value {
+                *error = false;
             }
             let text_edit_spec = text_edit::raw::TextEditSpec {
                 rect: value_rect,
                 style: s.text_edit_style,
                 placeholder: None,
                 clip_rect: spec.clip_rect,
-                error: edit.error,
+                error: *error,
                 disabled: spec.disabled,
                 time: spec.time,
                 layer: spec.layer,
@@ -461,7 +465,7 @@ pub mod raw {
             text_edit_result = Some(text_edit::raw::post_layout_text_edit(
                 text_edit_spec,
                 pre_layout,
-                &mut edit.text_edit,
+                text_edit,
                 input_for_text_edit,
                 focus_system,
                 text_backend,
@@ -477,7 +481,7 @@ pub mod raw {
             );
         }
 
-        if state.edit.is_none()
+        if !state.edit.is_editing()
             && !spec.disabled
             && (contains_value && is_hover_active || state.is_arrow_stepping)
         {
@@ -545,11 +549,11 @@ pub mod raw {
             edit_cursor_icon = result.cursor_icon;
         }
 
-        if state.edit.is_some() && !spec.disabled {
+        if state.edit.is_editing() && !spec.disabled {
             let clicked_outside_text_edit =
                 input.mouse_pressed && !value_rect.contains(input.mouse_pos);
             if input.key_pressed_escape {
-                state.edit = None;
+                state.edit = DragNumberEditState::Inactive;
                 focus_system.take_keyboard_focus(state.focus_id);
                 edit_focused = true;
             } else if input.key_pressed_enter {
@@ -558,17 +562,17 @@ pub mod raw {
                     edit_focused = true;
                 }
             } else if clicked_outside_text_edit {
-                commit_or_discard_drag_number_edit_on_focus_loss(state, clamp_min, clamp_max);
+                commit_or_remember_drag_number_edit_on_focus_loss(state, clamp_min, clamp_max);
                 edit_focused = false;
             } else if !edit_focused {
-                commit_or_discard_drag_number_edit_on_focus_loss(state, clamp_min, clamp_max);
+                commit_or_remember_drag_number_edit_on_focus_loss(state, clamp_min, clamp_max);
             }
         }
 
         let hovered = contains
             && is_hover_active
             && !spec.disabled
-            && (!input.mouse_down || state.is_dragging || state.edit.is_some());
+            && (!input.mouse_down || state.is_dragging || state.edit.is_editing());
 
         let active_arrow = state.is_arrow_stepping && !spec.disabled;
         let hovered_arrow = !spec.disabled
@@ -576,7 +580,7 @@ pub mod raw {
             && is_hover_active
             && (left_arrow_rect.contains(input.mouse_pos)
                 || right_arrow_rect.contains(input.mouse_pos));
-        let cursor_icon = if state.edit.is_some() {
+        let cursor_icon = if state.edit.is_editing() {
             edit_cursor_icon
         } else if active_arrow || hovered_arrow {
             Some(crate::output::CursorIcon::Pointer)
@@ -678,13 +682,48 @@ pub struct DragNumberState {
     pub arrow_step_direction: Option<DragNumberStepDirection>,
     pub next_repeat_time: f64,
     pub focus_id: FocusId,
-    pub edit: Option<DragNumberEditState>,
+    pub edit: DragNumberEditState,
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct DragNumberEditState {
-    pub text_edit: TextEditState,
-    pub error: bool,
+#[allow(clippy::large_enum_variant)]
+pub enum DragNumberEditState {
+    /// No active editor and no remembered invalid draft.
+    ///
+    /// Entering edit mode from this state starts from the committed numeric
+    /// `DragNumberState::value`, formatted as raw editable text.
+    Inactive,
+
+    /// The value field is currently being edited by the embedded raw TextEdit.
+    ///
+    /// The committed numeric value remains in `DragNumberState::value` until a
+    /// valid commit succeeds. Invalid Enter keeps this state active and sets
+    /// `error = true`.
+    Editing {
+        text_edit: TextEditState,
+        error: bool,
+    },
+
+    /// A previous edit was abandoned by click-away or focus loss while invalid.
+    ///
+    /// The widget is not currently editing and should not keep keyboard focus
+    /// because of this state. The committed numeric value remains in
+    /// `DragNumberState::value`. The `draft` should be restored the next time
+    /// the user enters edit mode.
+    Remembered { draft: String },
+}
+
+#[allow(clippy::derivable_impls)]
+impl Default for DragNumberEditState {
+    fn default() -> Self {
+        Self::Inactive
+    }
+}
+
+impl DragNumberEditState {
+    fn is_editing(&self) -> bool {
+        matches!(self, Self::Editing { .. })
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -711,6 +750,12 @@ fn drag_number_raw_edit_text(value: f32) -> String {
     value.to_string()
 }
 
+fn make_drag_number_text_edit_state(state: &DragNumberState, draft: &str) -> TextEditState {
+    let mut text_edit = TextEditState::new(draft);
+    text_edit.focus_id = state.focus_id;
+    text_edit
+}
+
 fn parse_drag_number_edit_text(text: &str) -> Option<f32> {
     let value = text.trim().parse::<f32>().ok()?;
     value.is_finite().then_some(value)
@@ -721,31 +766,41 @@ fn try_commit_drag_number_edit(
     clamp_min: f32,
     clamp_max: f32,
 ) -> bool {
-    let Some(edit) = state.edit.as_mut() else {
+    let DragNumberEditState::Editing { text_edit, error } = &mut state.edit else {
         return true;
     };
-    if let Some(value) = parse_drag_number_edit_text(&edit.text_edit.value) {
+    if let Some(value) = parse_drag_number_edit_text(&text_edit.value) {
         state.value = value.clamp(clamp_min, clamp_max);
-        state.edit = None;
+        state.edit = DragNumberEditState::Inactive;
         true
     } else {
-        edit.error = true;
+        *error = true;
         false
     }
 }
 
-fn commit_or_discard_drag_number_edit_on_focus_loss(
+fn commit_or_remember_drag_number_edit_on_focus_loss(
     state: &mut DragNumberState,
     clamp_min: f32,
     clamp_max: f32,
 ) {
-    let Some(edit) = state.edit.as_ref() else {
-        return;
-    };
-    if let Some(value) = parse_drag_number_edit_text(&edit.text_edit.value) {
-        state.value = value.clamp(clamp_min, clamp_max);
+    let edit = std::mem::take(&mut state.edit);
+
+    match edit {
+        DragNumberEditState::Editing { text_edit, .. } => {
+            if let Some(value) = parse_drag_number_edit_text(&text_edit.value) {
+                state.value = value.clamp(clamp_min, clamp_max);
+                state.edit = DragNumberEditState::Inactive;
+            } else {
+                state.edit = DragNumberEditState::Remembered {
+                    draft: text_edit.value,
+                };
+            }
+        }
+        other => {
+            state.edit = other;
+        }
     }
-    state.edit = None;
 }
 
 // ── Result ───────────────────────────────────────────────────────────────────
