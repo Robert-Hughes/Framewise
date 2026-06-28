@@ -1,5 +1,7 @@
 use super::raw::DragNumberSpec;
 use super::*;
+use crate::focus::FocusId;
+use crate::input::TextEvent;
 use crate::test_utils::TestTextBackend;
 use crate::types::Vec2;
 use crate::{DrawGlyph, PreparedGlyphToken};
@@ -97,6 +99,28 @@ fn right_arrow_pos(rect: Rect, label: &str) -> Vec2 {
     let value_x = rect.x + label_w;
     let value_w = (rect.w - label_w).max(20.0);
     Vec2::new(value_x + value_w - 10.0, rect.y + rect.h / 2.0)
+}
+
+fn value_text_pos(rect: Rect, label: &str, formatted_value: &str) -> Vec2 {
+    let char_width = 8.0; // default advance in TestTextBackend
+    let pad_x = 10.0;
+    let label_w = (label.len() as f32) * char_width + pad_x * 2.0;
+    let value_x = rect.x + label_w;
+    let value_w = (rect.w - label_w).max(20.0);
+    let text_w = formatted_value.len() as f32 * char_width;
+    Vec2::new(
+        value_x + (value_w - text_w) * 0.5 + text_w * 0.5,
+        rect.y + rect.h * 0.5,
+    )
+}
+
+fn enter_edit_state(state: &mut DragNumberState, text: &str) {
+    let mut text_edit = TextEditState::new(text);
+    text_edit.focus_id = state.focus_id;
+    state.edit = Some(DragNumberEditState {
+        text_edit,
+        error: false,
+    });
 }
 
 fn drag_num<'a, F>(spec: DragNumberSpec<'a, F>, value: f32) -> (raw::DragNumberResult, DrawCommands)
@@ -276,6 +300,131 @@ fn test_drag_number_visual_normal() {
             DrawGlyph {
                 token: PreparedGlyphToken(48),
                 top_left: Vec2 { x: 86.0, y: 28.0 },
+            },
+        ]
+    );
+}
+
+#[test]
+fn test_drag_number_visual_editing() {
+    let spec = DragNumberSpec {
+        layer: Layer::default(),
+        rect: Rect::new(10.0, 10.0, 100.0, 28.0),
+        text: "X",
+        min: 0.0,
+        max: 100.0,
+        step: 1.0,
+        page_step: 10.0,
+        value_formatter: default_drag_number_value_formatter,
+        time: 0.0,
+        disabled: false,
+        style: DragNumberStyle::from_theme(&crate::theme::Theme::framewise()),
+        clip_rect: None,
+    };
+    let style = spec.style;
+    let mut state = DragNumberState {
+        value: 50.5,
+        ..Default::default()
+    };
+    enter_edit_state(&mut state, "50.5");
+
+    let mut focus_system = FocusSystem::new();
+    focus_system.take_keyboard_focus(state.focus_id);
+    let mut text_backend = TestTextBackend::default();
+    let mut cmds = DrawCommands::new(1.0);
+
+    focus_system.begin_frame();
+    let _ = run_raw(
+        spec,
+        &mut state,
+        &Input::default(),
+        &mut focus_system,
+        &mut text_backend,
+        &mut cmds,
+    );
+    focus_system.end_frame();
+
+    let focus_style = style.focus.unwrap();
+    assert_eq!(
+        cmds.commands(),
+        vec![
+            DrawCmd::BorderRect {
+                rect: Rect::new(11.0, 11.0, 98.0, 26.0),
+                color: focus_style.stroke.color,
+                width: focus_style.stroke.width,
+                placement: crate::BorderPlacement::Outside,
+                z: 1,
+            },
+            DrawCmd::FillRect {
+                rect: Rect::new(10.0, 10.0, 100.0, 28.0),
+                color: style.background,
+                z: 0,
+            },
+            DrawCmd::FillRect {
+                rect: Rect::new(10.0, 10.0, 28.0, 28.0),
+                color: style.active_text_bg,
+                z: 0,
+            },
+            DrawCmd::GlyphRun {
+                glyphs: 0..1,
+                color: style.text_text,
+                z: 0,
+            },
+            DrawCmd::FillRect {
+                rect: Rect::new(38.0, 10.0, 72.0, 28.0),
+                color: style.text_edit_style.background,
+                z: 0,
+            },
+            DrawCmd::PushClip {
+                rect: Rect::new(38.0, 10.0, 72.0, 28.0),
+            },
+            DrawCmd::FillRect {
+                rect: Rect::new(58.0, 16.0, 32.0, 16.0),
+                color: style.text_edit_style.select_color,
+                z: 0,
+            },
+            DrawCmd::GlyphRun {
+                glyphs: 1..5,
+                color: style.text_edit_style.text_color,
+                z: 0,
+            },
+            DrawCmd::FillRect {
+                rect: Rect::new(90.0, 16.0, 2.0, 16.0),
+                color: style.text_edit_style.caret_color,
+                z: 0,
+            },
+            DrawCmd::PopClip,
+            DrawCmd::BorderRect {
+                rect: Rect::new(10.0, 10.0, 100.0, 28.0),
+                color: style.border.unwrap().color,
+                width: style.border.unwrap().width,
+                placement: crate::BorderPlacement::Inside,
+                z: 0,
+            },
+        ]
+    );
+    assert_eq!(
+        cmds.glyphs(),
+        vec![
+            DrawGlyph {
+                token: PreparedGlyphToken(88),
+                top_left: Vec2 { x: 20.0, y: 28.0 },
+            },
+            DrawGlyph {
+                token: PreparedGlyphToken(53),
+                top_left: Vec2 { x: 58.0, y: 28.0 },
+            },
+            DrawGlyph {
+                token: PreparedGlyphToken(48),
+                top_left: Vec2 { x: 66.0, y: 28.0 },
+            },
+            DrawGlyph {
+                token: PreparedGlyphToken(46),
+                top_left: Vec2 { x: 74.0, y: 28.0 },
+            },
+            DrawGlyph {
+                token: PreparedGlyphToken(53),
+                top_left: Vec2 { x: 82.0, y: 28.0 },
             },
         ]
     );
@@ -1798,5 +1947,433 @@ fn test_drag_number_arrow_keys_no_traversal_but_tab_traverses() {
         focus_system.current_keyboard_focus(),
         Some(state2.focus_id),
         "Focus should traverse to the second widget after Tab"
+    );
+}
+
+#[test]
+fn test_drag_number_double_click_value_text_enters_text_edit() {
+    let rect = Rect::new(0.0, 0.0, 140.0, 28.0);
+    let mut state = DragNumberState {
+        value: 72.0,
+        ..Default::default()
+    };
+    let mut focus_system = FocusSystem::new();
+    let mut text_backend = TestTextBackend::default();
+    let formatter: fn(f32) -> String = |v| format!("{v:.0} px");
+    let spec = raw::DragNumberSpec {
+        value_formatter: formatter,
+        ..default_spec(rect)
+    };
+    let pos = value_text_pos(rect, "X", "72 px");
+
+    let warmup_input = Input {
+        mouse_pos: pos,
+        ..Default::default()
+    };
+    let mut cmds = DrawCommands::new(1.0);
+    focus_system.begin_frame();
+    let _ = run_raw(
+        spec.clone(),
+        &mut state,
+        &warmup_input,
+        &mut focus_system,
+        &mut text_backend,
+        &mut cmds,
+    );
+    focus_system.end_frame();
+
+    let input = Input {
+        mouse_pos: pos,
+        mouse_down: true,
+        mouse_pressed: true,
+        mouse_click_count: 2,
+        ..Default::default()
+    };
+    let mut cmds = DrawCommands::new(1.0);
+    focus_system.begin_frame();
+    let _ = run_raw(
+        spec,
+        &mut state,
+        &input,
+        &mut focus_system,
+        &mut text_backend,
+        &mut cmds,
+    );
+    focus_system.end_frame();
+
+    let edit = state.edit.as_ref().expect("double-click enters edit mode");
+    assert_eq!(edit.text_edit.focus_id, state.focus_id);
+    assert_eq!(focus_system.current_keyboard_focus(), Some(state.focus_id));
+    assert_eq!(edit.text_edit.value, "72");
+}
+
+#[test]
+fn test_drag_number_double_click_value_area_outside_text_enters_text_edit() {
+    let rect = Rect::new(0.0, 0.0, 300.0, 28.0);
+    let mut state = DragNumberState {
+        value: 5.0,
+        ..Default::default()
+    };
+    let mut focus_system = FocusSystem::new();
+    let mut text_backend = TestTextBackend::default();
+    let formatter: fn(f32) -> String = |v| format!("{v:.0}");
+    let spec = raw::DragNumberSpec {
+        value_formatter: formatter,
+        ..default_spec(rect)
+    };
+    let pos = Vec2::new(60.0, rect.y + rect.h * 0.5);
+
+    let warmup_input = Input {
+        mouse_pos: pos,
+        ..Default::default()
+    };
+    let mut cmds = DrawCommands::new(1.0);
+    focus_system.begin_frame();
+    let _ = run_raw(
+        spec.clone(),
+        &mut state,
+        &warmup_input,
+        &mut focus_system,
+        &mut text_backend,
+        &mut cmds,
+    );
+    focus_system.end_frame();
+
+    let input = Input {
+        mouse_pos: pos,
+        mouse_down: true,
+        mouse_pressed: true,
+        mouse_click_count: 2,
+        ..Default::default()
+    };
+    focus_system.begin_frame();
+    let _ = run_raw(
+        spec,
+        &mut state,
+        &input,
+        &mut focus_system,
+        &mut text_backend,
+        &mut cmds,
+    );
+    focus_system.end_frame();
+
+    assert!(state.edit.is_some());
+}
+
+#[test]
+fn test_drag_number_double_click_arrow_does_not_enter_text_edit() {
+    let rect = Rect::new(0.0, 0.0, 140.0, 28.0);
+    let mut state = DragNumberState {
+        value: 50.0,
+        ..Default::default()
+    };
+    let mut focus_system = FocusSystem::new();
+    let mut text_backend = TestTextBackend::default();
+    let spec = default_spec(rect);
+    let pos = right_arrow_pos(rect, "X");
+    let warmup_input = Input {
+        mouse_pos: pos,
+        ..Default::default()
+    };
+    let mut cmds = DrawCommands::new(1.0);
+    focus_system.begin_frame();
+    let _ = run_raw(
+        spec.clone(),
+        &mut state,
+        &warmup_input,
+        &mut focus_system,
+        &mut text_backend,
+        &mut cmds,
+    );
+    focus_system.end_frame();
+
+    let input = Input {
+        mouse_pos: pos,
+        mouse_down: true,
+        mouse_pressed: true,
+        mouse_click_count: 2,
+        ..Default::default()
+    };
+    focus_system.begin_frame();
+    let _ = run_raw(
+        spec,
+        &mut state,
+        &input,
+        &mut focus_system,
+        &mut text_backend,
+        &mut cmds,
+    );
+    focus_system.end_frame();
+
+    assert!(state.edit.is_none());
+}
+
+#[test]
+fn test_drag_number_text_edit_enter_commits_valid_value() {
+    let rect = Rect::new(0.0, 0.0, 140.0, 28.0);
+    let mut state = DragNumberState {
+        value: 10.0,
+        ..Default::default()
+    };
+    enter_edit_state(&mut state, "42.5");
+    let mut focus_system = FocusSystem::new();
+    focus_system.take_keyboard_focus(state.focus_id);
+
+    run_key(default_spec(rect), &mut state, &mut focus_system, |input| {
+        input.key_pressed_enter = true;
+    });
+
+    assert_eq!(state.value, 42.5);
+    assert!(state.edit.is_none());
+    assert_eq!(focus_system.current_keyboard_focus(), Some(state.focus_id));
+}
+
+#[test]
+fn test_drag_number_text_edit_enter_clamps_valid_value() {
+    let rect = Rect::new(0.0, 0.0, 140.0, 28.0);
+    let mut state = DragNumberState {
+        value: 10.0,
+        ..Default::default()
+    };
+    enter_edit_state(&mut state, "150");
+    let mut focus_system = FocusSystem::new();
+    focus_system.take_keyboard_focus(state.focus_id);
+    run_key(default_spec(rect), &mut state, &mut focus_system, |input| {
+        input.key_pressed_enter = true;
+    });
+    assert_eq!(state.value, 100.0);
+    assert!(state.edit.is_none());
+
+    enter_edit_state(&mut state, "-20");
+    focus_system.take_keyboard_focus(state.focus_id);
+    run_key(default_spec(rect), &mut state, &mut focus_system, |input| {
+        input.key_pressed_enter = true;
+    });
+    assert_eq!(state.value, 0.0);
+    assert!(state.edit.is_none());
+}
+
+#[test]
+fn test_drag_number_text_edit_enter_invalid_keeps_editing_and_sets_error() {
+    let rect = Rect::new(0.0, 0.0, 140.0, 28.0);
+    let mut state = DragNumberState {
+        value: 10.0,
+        ..Default::default()
+    };
+    enter_edit_state(&mut state, "NaN");
+    let mut focus_system = FocusSystem::new();
+    focus_system.take_keyboard_focus(state.focus_id);
+
+    run_key(default_spec(rect), &mut state, &mut focus_system, |input| {
+        input.key_pressed_enter = true;
+    });
+
+    assert_eq!(state.value, 10.0);
+    assert!(state.edit.is_some());
+    assert!(state.edit.as_ref().unwrap().error);
+    assert_eq!(focus_system.current_keyboard_focus(), Some(state.focus_id));
+}
+
+#[test]
+fn test_drag_number_text_edit_escape_cancels() {
+    let rect = Rect::new(0.0, 0.0, 140.0, 28.0);
+    let mut state = DragNumberState {
+        value: 10.0,
+        ..Default::default()
+    };
+    enter_edit_state(&mut state, "42.5");
+    let mut focus_system = FocusSystem::new();
+    focus_system.take_keyboard_focus(state.focus_id);
+
+    run_key(default_spec(rect), &mut state, &mut focus_system, |input| {
+        input.key_pressed_escape = true;
+    });
+
+    assert_eq!(state.value, 10.0);
+    assert!(state.edit.is_none());
+    assert_eq!(focus_system.current_keyboard_focus(), Some(state.focus_id));
+}
+
+#[test]
+fn test_drag_number_text_edit_click_outside_commits_valid_value() {
+    let rect = Rect::new(0.0, 0.0, 140.0, 28.0);
+    let mut state = DragNumberState {
+        value: 10.0,
+        ..Default::default()
+    };
+    enter_edit_state(&mut state, "42.5");
+    let mut focus_system = FocusSystem::new();
+    focus_system.take_keyboard_focus(state.focus_id);
+
+    run_key(default_spec(rect), &mut state, &mut focus_system, |input| {
+        input.mouse_pos = Vec2::new(5.0, 14.0);
+        input.mouse_pressed = true;
+        input.mouse_down = true;
+    });
+
+    assert_eq!(state.value, 42.5);
+    assert!(state.edit.is_none());
+    assert_eq!(focus_system.current_keyboard_focus(), Some(state.focus_id));
+}
+
+#[test]
+fn test_drag_number_text_edit_click_outside_invalid_keeps_editing_and_sets_error() {
+    let rect = Rect::new(0.0, 0.0, 140.0, 28.0);
+    let mut state = DragNumberState {
+        value: 10.0,
+        ..Default::default()
+    };
+    enter_edit_state(&mut state, "abc");
+    let mut focus_system = FocusSystem::new();
+    focus_system.take_keyboard_focus(state.focus_id);
+
+    run_key(default_spec(rect), &mut state, &mut focus_system, |input| {
+        input.mouse_pos = Vec2::new(5.0, 14.0);
+        input.mouse_pressed = true;
+        input.mouse_down = true;
+    });
+
+    assert_eq!(state.value, 10.0);
+    assert!(state.edit.is_some());
+    assert!(state.edit.as_ref().unwrap().error);
+    assert_eq!(focus_system.current_keyboard_focus(), Some(state.focus_id));
+}
+
+#[test]
+fn test_drag_number_text_edit_focus_lost_commits_valid_value() {
+    let rect = Rect::new(0.0, 0.0, 140.0, 28.0);
+    let mut state = DragNumberState {
+        value: 10.0,
+        ..Default::default()
+    };
+    enter_edit_state(&mut state, "42.5");
+    let mut focus_system = FocusSystem::new();
+    focus_system.take_keyboard_focus(FocusId::new());
+
+    run_key(default_spec(rect), &mut state, &mut focus_system, |_| {});
+
+    assert_eq!(state.value, 42.5);
+    assert!(state.edit.is_none());
+}
+
+#[test]
+fn test_drag_number_text_edit_focus_lost_invalid_discards() {
+    let rect = Rect::new(0.0, 0.0, 140.0, 28.0);
+    let mut state = DragNumberState {
+        value: 10.0,
+        ..Default::default()
+    };
+    enter_edit_state(&mut state, "abc");
+    let mut focus_system = FocusSystem::new();
+    focus_system.take_keyboard_focus(FocusId::new());
+
+    run_key(default_spec(rect), &mut state, &mut focus_system, |_| {});
+
+    assert_eq!(state.value, 10.0);
+    assert!(state.edit.is_none());
+}
+
+#[test]
+fn test_drag_number_text_edit_arrow_keys_do_not_step_value() {
+    let rect = Rect::new(0.0, 0.0, 140.0, 28.0);
+    let mut state = DragNumberState {
+        value: 10.0,
+        ..Default::default()
+    };
+    enter_edit_state(&mut state, "10");
+    let mut focus_system = FocusSystem::new();
+    focus_system.take_keyboard_focus(state.focus_id);
+
+    run_key(default_spec(rect), &mut state, &mut focus_system, |input| {
+        input.key_pressed_right = true;
+        input.text_events.push(TextEvent::CaretRight {
+            shift: false,
+            ctrl: false,
+        });
+    });
+
+    assert_eq!(state.value, 10.0);
+    assert!(state.edit.is_some());
+}
+
+#[test]
+fn test_drag_number_text_edit_disabled_exits_edit_mode() {
+    let rect = Rect::new(0.0, 0.0, 140.0, 28.0);
+    let mut state = DragNumberState {
+        value: 10.0,
+        is_dragging: true,
+        is_arrow_stepping: true,
+        arrow_step_direction: Some(DragNumberStepDirection::Increment),
+        ..Default::default()
+    };
+    enter_edit_state(&mut state, "42.5");
+    let mut focus_system = FocusSystem::new();
+    let mut spec = default_spec(rect);
+    spec.disabled = true;
+
+    run_key(spec, &mut state, &mut focus_system, |_| {});
+
+    assert_eq!(state.value, 10.0);
+    assert!(state.edit.is_none());
+    assert!(!state.is_dragging);
+    assert!(!state.is_arrow_stepping);
+}
+
+#[test]
+fn test_drag_number_activation_frame_does_not_text_edit_double_click_select_word() {
+    let rect = Rect::new(0.0, 0.0, 160.0, 28.0);
+    let mut state = DragNumberState {
+        value: 12.34,
+        ..Default::default()
+    };
+    let mut focus_system = FocusSystem::new();
+    let mut text_backend = TestTextBackend::default();
+    let spec = default_spec(rect);
+    let pos = value_text_pos(rect, "X", "12.34");
+
+    let warmup_input = Input {
+        mouse_pos: pos,
+        ..Default::default()
+    };
+    let mut cmds = DrawCommands::new(1.0);
+    focus_system.begin_frame();
+    let _ = run_raw(
+        spec.clone(),
+        &mut state,
+        &warmup_input,
+        &mut focus_system,
+        &mut text_backend,
+        &mut cmds,
+    );
+    focus_system.end_frame();
+
+    let input = Input {
+        mouse_pos: pos,
+        mouse_down: true,
+        mouse_pressed: true,
+        mouse_click_count: 2,
+        ..Default::default()
+    };
+    let mut cmds = DrawCommands::new(1.0);
+    focus_system.begin_frame();
+    let _ = run_raw(
+        spec,
+        &mut state,
+        &input,
+        &mut focus_system,
+        &mut text_backend,
+        &mut cmds,
+    );
+    focus_system.end_frame();
+
+    let edit = state.edit.as_ref().unwrap();
+    let caret = edit.text_edit.caret.insertion_byte_hint();
+    let selection = edit
+        .text_edit
+        .selection_anchor
+        .map(|anchor| anchor.insertion_byte_hint());
+    assert!(
+        selection.is_none() || selection == Some(0) && caret == edit.text_edit.value.len(),
+        "activation double-click should not create a partial word selection"
     );
 }

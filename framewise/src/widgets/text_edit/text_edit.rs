@@ -1745,13 +1745,15 @@ impl TextEditStyle {
                 crate::widgets::slider::CrossAxisSize::FillTrack { margin: 0.0 };
         }
 
+        let error_background = theme.err.with_srgb_alpha_over(theme.paper_elev, 0.18);
+
         Self {
             background: theme.paper_elev,
             background_hovered: Color::WHITE,
-            error_background: theme.rust_soft_on_paper_elev,
+            error_background,
             border: Some(Stroke::new(theme.ink, theme.border)),
             focus_border: Some(Stroke::new(theme.rust, theme.focus_width)),
-            error_border: Some(Stroke::new(theme.rust, theme.border)),
+            error_border: Some(Stroke::new(theme.err, theme.border)),
             error_stripe_width: 4.0,
             min_height: theme.h_md,
             padding_x: 10.0,
