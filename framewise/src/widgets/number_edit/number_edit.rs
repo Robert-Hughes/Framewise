@@ -884,28 +884,16 @@ where
 
 // ── High-level widget function ───────────────────────────────────────────────────
 
-/// High-level number edit widget function using `WidgetContext`.
-///
-/// Runs the raw pre-layout phase to obtain a `SizeRequest`, resolves the final
-/// rect with layout, then runs the raw post-layout phase.
-pub fn number_edit<T: TextBackend, S: LayoutState, CF, F>(
+fn run_number_edit_resolved_rect<T: TextBackend, S: LayoutState, CF, F>(
     spec: NumberEditSpec<F>,
-    layout_params: S::Params,
+    rect: Rect,
+    pre_layout: raw::NumberEditPreLayoutResult,
     state: &mut NumberEditState,
     ctx: &mut WidgetContext<T, S, CF>,
 ) -> NumberEditResult
 where
     F: Fn(f32) -> String,
 {
-    let pre_layout_spec = raw::NumberEditPreLayoutSpec {
-        style: spec.style,
-        min: spec.min,
-        max: spec.max,
-        value_formatter: &spec.value_formatter,
-    };
-    let offer = ctx.peek_offer(layout_params.clone());
-    let pre_layout = raw::pre_layout_number_edit(&pre_layout_spec, offer, ctx.text_backend);
-    let rect = ctx.layout(layout_params, pre_layout.size_request);
     let raw_spec = raw::NumberEditSpec {
         layer: ctx.layer,
         rect,
@@ -938,6 +926,31 @@ where
         input: result.input,
         focused: result.focused,
     }
+}
+
+/// High-level number edit widget function using `WidgetContext`.
+///
+/// Runs the raw pre-layout phase to obtain a `SizeRequest`, resolves the final
+/// rect with layout, then runs the raw post-layout phase.
+pub fn number_edit<T: TextBackend, S: LayoutState, CF, F>(
+    spec: NumberEditSpec<F>,
+    layout_params: S::Params,
+    state: &mut NumberEditState,
+    ctx: &mut WidgetContext<T, S, CF>,
+) -> NumberEditResult
+where
+    F: Fn(f32) -> String,
+{
+    let pre_layout_spec = raw::NumberEditPreLayoutSpec {
+        style: spec.style,
+        min: spec.min,
+        max: spec.max,
+        value_formatter: &spec.value_formatter,
+    };
+    let offer = ctx.peek_offer(layout_params.clone());
+    let pre_layout = raw::pre_layout_number_edit(&pre_layout_spec, offer, ctx.text_backend);
+    let rect = ctx.layout(layout_params, pre_layout.size_request);
+    run_number_edit_resolved_rect(spec, rect, pre_layout, state, ctx)
 }
 
 /// High-level number edit with an integrated leading prefix segment.
@@ -1005,44 +1018,29 @@ where
     child_style.text_edit_style.border = None;
     child_style.text_edit_style.focus_border = None;
 
-    let raw_spec = raw::NumberEditSpec {
-        layer: ctx.layer,
-        rect: layout.child_rect,
+    let child_spec = NumberEditSpec {
         style: child_style,
         min: spec.min,
         max: spec.max,
         step: spec.step,
         page_step: spec.page_step,
         value_formatter: spec.value_formatter,
-        time: ctx.time,
         disabled: spec.disabled,
-        clip_rect: ctx.clip_rect,
     };
-    let result = raw::post_layout_number_edit(
-        raw_spec,
-        pre_layout,
-        state,
-        ctx.input,
-        ctx.focus_system,
-        ctx.text_backend,
-        ctx.cmds,
-    );
+    let result =
+        run_number_edit_resolved_rect(child_spec, layout.child_rect, pre_layout, state, ctx);
 
     draw_prefixed_control_chrome(
         outer_rect,
         prefix_style,
-        result.focused,
+        result.focused || state.is_dragging || state.is_arrow_stepping,
         spec.disabled,
         ctx.layer,
         ctx.cmds,
     );
 
-    if let Some(cursor_icon) = result.cursor_icon {
-        ctx.output.cursor_icon = Some(cursor_icon);
-    }
-
     NumberEditResult {
-        layout: LayoutInfo::new(outer_rect, result.content_bounds),
+        layout: LayoutInfo::new(outer_rect, result.layout.content_bounds),
         input: InputInfo {
             hovered: result.input.hovered || prefix_contains,
             pressed: result.input.pressed,

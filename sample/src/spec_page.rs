@@ -21,7 +21,7 @@ use framewise::{
     types::{Color, Rect, Stroke, Vec2},
     widget::WidgetContext,
     Align, ColumnLayout, ColumnLayoutParams, ColumnState, LayoutViolationPolicy, LinearSpacer,
-    ManualState, RowLayout, RowLayoutParams, TextLineAlign,
+    ManualState, Output, RowLayout, RowLayoutParams, TextLineAlign,
 };
 
 // Core widgets — required by the page scaffolding (section headers, captions,
@@ -299,10 +299,10 @@ fn draw_select_fake_state<'s, T: TextBackend, LS: LayoutState, CF>(
 }
 
 #[cfg(feature = "number_edit")]
-fn draw_number_edit_fake_state<T: TextBackend, LS: LayoutState, CF>(
+fn draw_prefixed_number_edit_fake_state<T: TextBackend, LS: LayoutState, CF>(
     b: &mut WidgetContext<T, LS, CF>,
     layout_params: LS::Params,
-    _label: &str,
+    prefix: &str,
     val: f32,
     min: f32,
     max: f32,
@@ -323,47 +323,40 @@ fn draw_number_edit_fake_state<T: TextBackend, LS: LayoutState, CF>(
         dummy_input.mouse_down = true;
     }
 
-    let spec = framewise::widgets::number_edit::raw::NumberEditSpec {
-        rect,
-        min,
-        max,
-        step: 1.0,
-        page_step: 10.0,
-        value_formatter: framewise::widgets::number_edit::default_number_edit_value_formatter,
-        time: b.time,
-        disabled,
-        style: NumberEditStyle::from_theme(&b.theme),
-        clip_rect: b.clip_rect,
-        layer: b.layer,
-    };
-
     let mut dummy_focus_sys = if is_focused {
         FocusSystem::new_mocked(Some(state.focus_id), None)
     } else {
         FocusSystem::new()
     };
+    let mut dummy_output = Output::default();
 
-    let pre_layout = framewise::widgets::number_edit::raw::pre_layout_number_edit(
-        &framewise::widgets::number_edit::raw::NumberEditPreLayoutSpec {
-            style: spec.style,
-            min: spec.min,
-            max: spec.max,
-            value_formatter: &spec.value_formatter,
-        },
-        framewise::layout::SizeOffer::UNBOUNDED,
+    let mut fake_ctx = WidgetContext::root(
+        b.theme,
         b.text_backend,
-    );
-
-    let result = framewise::widgets::number_edit::raw::post_layout_number_edit(
-        spec,
-        pre_layout,
-        &mut state,
-        &dummy_input,
         &mut dummy_focus_sys,
-        b.text_backend,
+        &dummy_input,
+        &mut dummy_output,
+        ManualLayout,
+        rect,
         b.cmds,
     );
-    let _ = result;
+    fake_ctx.time = b.time;
+    fake_ctx.clip_rect = b.clip_rect;
+    fake_ctx.layer = b.layer;
+    fake_ctx.debug_layout = b.debug_layout;
+    fake_ctx.layout_policy = b.layout_policy;
+
+    prefixed_number_edit(
+        prefix,
+        NumberEditSpec::new_from_theme(&b.theme)
+            .min(min)
+            .max(max)
+            .disabled(disabled),
+        Rect::new(0.0, 0.0, rect.w, rect.h),
+        &mut state,
+        &mut fake_ctx,
+    );
+    fake_ctx.finish();
 }
 
 #[cfg(feature = "slider")]
@@ -2668,7 +2661,9 @@ fn section_04_sliders<CF>(
         let badge_rect = b.layout(Rect::new(x, 0.0, 72.0, 12.0), SizeRequest::UNKNOWN);
         static_badge(&mut b, badge_rect);
         let rect = Rect::new(x, 14.0, DRAG_W, b.theme.h_md);
-        draw_number_edit_fake_state(&mut b, rect, "W", 576.0, 0.0, 800.0, false, true, false);
+        draw_prefixed_number_edit_fake_state(
+            &mut b, rect, "W", 576.0, 0.0, 800.0, false, true, false,
+        );
         x += DRAG_W + GAP;
         let rect = Rect::new(x, 14.0, DRAG_W, b.theme.h_md);
         prefixed_number_edit(
