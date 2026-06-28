@@ -10,7 +10,14 @@ use crate::{
     },
     types::{ClipRect, Color, Layer, Rect, Stroke, Vec2},
     widget::{InputInfo, LayoutInfo, WidgetContext},
-    widgets::scroll_area::{ScrollAreaStyle, ScrollState},
+    widgets::{
+        scroll_area::{ScrollAreaStyle, ScrollState},
+        widget_helpers::{
+            draw_prefixed_control_base, draw_prefixed_control_chrome, layout_prefixed_control,
+            prefixed_control_child_offer, prefixed_control_prefix_width,
+            prefixed_control_size_request, PrefixedControlStyle,
+        },
+    },
 };
 
 const TEXT_EDIT_SCROLLBAR_WIDTH: f32 = 5.0;
@@ -2283,6 +2290,147 @@ pub fn text_edit<T: TextBackend, S: LayoutState, CF>(
     TextEditResult {
         layout: LayoutInfo::new(rect, result.content_bounds),
         input: result.input,
+        focused: result.focused,
+    }
+}
+
+/// High-level text edit with an integrated leading prefix segment.
+///
+/// The prefix is control chrome, not an external label: it shares the same outer
+/// background, border, and focus outline as the editable field.
+pub fn prefixed_text_edit<T: TextBackend, S: LayoutState, CF>(
+    prefix: &str,
+    spec: TextEditSpec,
+    layout_params: S::Params,
+    state: &mut TextEditState,
+    ctx: &mut WidgetContext<T, S, CF>,
+) -> TextEditResult {
+    let focus_outline = spec
+        .style
+        .focus_border
+        .map(|stroke| crate::types::Outline::new(stroke.color, stroke.width, 0.0));
+    let mut prefix_style = PrefixedControlStyle {
+        background: if spec.error {
+            spec.style.error_background
+        } else {
+            spec.style.background
+        },
+        border: if spec.error {
+            spec.style.error_border
+        } else {
+            spec.style.border
+        },
+        focus: focus_outline,
+        disabled_alpha: spec.style.disabled_alpha,
+        ..PrefixedControlStyle::from_theme(&ctx.theme)
+    };
+    let prefix_width = prefixed_control_prefix_width(prefix, prefix_style, ctx.text_backend);
+    let offer = ctx.peek_offer(layout_params.clone());
+    let child_offer = prefixed_control_child_offer(offer, prefix_width);
+    let pre_layout_spec = raw::TextEditPreLayoutSpec {
+        style: spec.style,
+        wrap: spec.wrap,
+        line_align: spec.line_align,
+        error: spec.error,
+        disabled: spec.disabled,
+        newline_policy: spec.newline_policy,
+    };
+    let pre_layout = raw::pre_layout_text_edit(
+        &pre_layout_spec,
+        child_offer,
+        state,
+        ctx.input,
+        ctx.focus_system,
+        ctx.text_backend,
+    );
+    let size_request = prefixed_control_size_request(pre_layout.size_request, prefix_width);
+    let outer_rect = ctx.layout(layout_params, size_request);
+    let layout = layout_prefixed_control(outer_rect, prefix_width);
+
+    let is_visible = ctx
+        .clip_rect
+        .is_none_or(|c| c.contains(ctx.input.mouse_pos));
+    let prefix_contains = layout.prefix_rect.contains(ctx.input.mouse_pos) && is_visible;
+    if prefix_contains && !spec.disabled {
+        ctx.focus_system.claim_hover(state.focus_id);
+        if ctx.input.mouse_pressed {
+            state.suppress_select_all_on_next_focus = true;
+            ctx.focus_system.take_keyboard_focus(state.focus_id);
+        }
+    }
+
+    draw_prefixed_control_base(
+        layout,
+        prefix,
+        prefix_style,
+        spec.disabled,
+        ctx.layer,
+        ctx.text_backend,
+        ctx.cmds,
+    );
+
+    let mut child_style = spec.style;
+    child_style.background = Color::TRANSPARENT;
+    child_style.background_hovered = Color::TRANSPARENT;
+    child_style.border = None;
+    child_style.focus_border = None;
+
+    let raw_spec = raw::TextEditSpec {
+        rect: layout.child_rect,
+        style: child_style,
+        placeholder: spec.placeholder,
+        clip_rect: ctx.clip_rect,
+        error: spec.error,
+        disabled: spec.disabled,
+        time: ctx.time,
+        layer: ctx.layer,
+        newline_policy: spec.newline_policy,
+        wrap: spec.wrap,
+        vertical_align: spec.vertical_align,
+        line_align: spec.line_align,
+    };
+    let result = raw::post_layout_text_edit(
+        raw_spec,
+        pre_layout,
+        state,
+        ctx.input,
+        ctx.focus_system,
+        ctx.text_backend,
+        ctx.cmds,
+    );
+
+    if result.focused && !spec.error {
+        prefix_style.border = spec.style.focus_border.or(spec.style.border);
+        prefix_style.focus = None;
+    }
+    draw_prefixed_control_chrome(
+        outer_rect,
+        prefix_style,
+        false,
+        spec.disabled,
+        ctx.layer,
+        ctx.cmds,
+    );
+
+    if let Some(action) = result.clipboard_action.as_ref() {
+        match action {
+            ClipboardAction::Copy(text) | ClipboardAction::Cut(text) => {
+                ctx.output.new_clipboard_contents = Some(text.clone());
+            }
+        }
+    }
+
+    if let Some(cursor_icon) = result.cursor_icon {
+        ctx.output.cursor_icon = Some(cursor_icon);
+    }
+
+    TextEditResult {
+        layout: LayoutInfo::new(outer_rect, result.content_bounds),
+        input: InputInfo {
+            hovered: result.input.hovered || prefix_contains,
+            pressed: result.input.pressed,
+            clicked: result.input.clicked,
+        },
         focused: result.focused,
     }
 }

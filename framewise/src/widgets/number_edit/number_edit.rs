@@ -6,21 +6,27 @@ use crate::{
     text::{layout_text, TextBackend, TextLineAlign},
     types::{ClipRect, Color, Layer, Outline, Rect, Stroke, Vec2},
     widget::{InputInfo, LayoutInfo, WidgetContext},
-    widgets::text_edit::{self, NewlinePolicy, TextEditState, TextEditStyle},
+    widgets::{
+        text_edit::{self, NewlinePolicy, TextEditState, TextEditStyle},
+        widget_helpers::{
+            draw_prefixed_control_base, draw_prefixed_control_chrome, layout_prefixed_control,
+            prefixed_control_child_offer, prefixed_control_prefix_width,
+            prefixed_control_size_request, PrefixedControlStyle,
+        },
+    },
 };
 
 pub mod raw {
     use super::*;
 
     #[derive(Debug, Clone, PartialEq)]
-    pub struct NumberEditSpec<'a, F = super::DefaultNumberEditValueFormatter>
+    pub struct NumberEditSpec<F = super::DefaultNumberEditValueFormatter>
     where
         F: Fn(f32) -> String,
     {
         pub layer: Layer,
-        /// Full bounding rect (height typically h_md = 28).
+        /// Bounding rect for the editable numeric value area.
         pub rect: Rect,
-        pub text: &'a str,
         pub style: super::NumberEditStyle,
         pub min: f32,
         pub max: f32,
@@ -33,11 +39,10 @@ pub mod raw {
     }
 
     #[derive(Debug, Clone, PartialEq)]
-    pub struct NumberEditPreLayoutSpec<'a, 'f, F>
+    pub struct NumberEditPreLayoutSpec<'f, F>
     where
         F: Fn(f32) -> String,
     {
-        pub text: &'a str,
         pub style: super::NumberEditStyle,
         pub min: f32,
         pub max: f32,
@@ -62,7 +67,7 @@ pub mod raw {
     /// This currently measures text with unbounded bounds; offer-sensitive
     /// wrapping is future work.
     pub fn pre_layout_number_edit<T: TextBackend, F>(
-        spec: &NumberEditPreLayoutSpec<'_, '_, F>,
+        spec: &NumberEditPreLayoutSpec<'_, F>,
         offer: SizeOffer,
         text_backend: &mut T,
     ) -> NumberEditPreLayoutResult
@@ -75,7 +80,7 @@ pub mod raw {
     }
 
     fn number_edit_size_request<T: TextBackend, F>(
-        spec: &NumberEditPreLayoutSpec<'_, '_, F>,
+        spec: &NumberEditPreLayoutSpec<'_, F>,
         _offer: SizeOffer,
         text_backend: &mut T,
     ) -> crate::layout::SizeRequest
@@ -83,13 +88,6 @@ pub mod raw {
         F: Fn(f32) -> String,
     {
         let s = spec.style;
-        let label_layout = layout_text(
-            text_backend,
-            spec.text,
-            s.text_style,
-            crate::text::TextBounds::UNBOUNDED,
-        );
-        let label_metrics = label_layout.metrics();
         let min_text = (spec.value_formatter)(spec.min);
         let max_text = (spec.value_formatter)(spec.max);
         let min_layout = layout_text(
@@ -108,16 +106,15 @@ pub mod raw {
         let max_metrics = max_layout.metrics();
         let value_w =
             min_metrics.logical_size.x.max(max_metrics.logical_size.x) + s.text_pad_x * 2.0;
-        let label_w = label_metrics.logical_size.x + s.text_pad_x * 2.0;
-        crate::layout::SizeRequest::preferred(Vec2::new(label_w + value_w, s.height))
+        crate::layout::SizeRequest::preferred(Vec2::new(value_w, s.height))
     }
 
     /// Low-level number edit widget function.
     ///
     /// This is the raw implementation that takes all parameters explicitly.
     /// High-level wrappers should use this internally.
-    pub fn post_layout_number_edit<'a, T: TextBackend, F>(
-        spec: NumberEditSpec<'a, F>,
+    pub fn post_layout_number_edit<T: TextBackend, F>(
+        spec: NumberEditSpec<F>,
         _pre_layout: NumberEditPreLayoutResult,
         state: &mut NumberEditState,
         input: &Input,
@@ -137,18 +134,10 @@ pub mod raw {
 
         let s = spec.style;
 
-        // Resolve the fixed label/value split first; all interaction and drawing below
-        // depends on the final value rect, especially the embedded edit field.
-        let text_layout = layout_text(
-            text_backend,
-            spec.text,
-            s.text_style,
-            crate::text::TextBounds::UNBOUNDED,
-        );
-        let text_metrics = text_layout.metrics();
-        let text_w = text_metrics.logical_size.x + s.text_pad_x * 2.0;
-        let value_x = spec.rect.x + text_w;
-        let value_w = (spec.rect.w - text_w).max(20.0);
+        // All interaction and drawing below use the final value rect, especially
+        // the embedded edit field.
+        let value_x = spec.rect.x;
+        let value_w = spec.rect.w.max(20.0);
         let value_rect = Rect::new(value_x, spec.rect.y, value_w, spec.rect.h);
         let arrow_w = value_w.min(20.0).min(value_w * 0.5);
         let left_arrow_rect = Rect::new(value_x, spec.rect.y, arrow_w, spec.rect.h);
@@ -336,13 +325,7 @@ pub mod raw {
             || state.is_dragging
             || focus_system.current_keyboard_focus() == Some(state.focus_id);
         let draw_outer = cmds.snap_rect_edges_to_physical_pixel(spec.rect);
-        let draw_split_x = cmds.snap_to_physical_pixel(value_x);
-        let draw_label_rect = Rect::from_ltrb(
-            draw_outer.x,
-            draw_outer.y,
-            draw_split_x,
-            draw_outer.bottom(),
-        );
+        let draw_value_x = cmds.snap_to_physical_pixel(value_x);
 
         // Focus / active ring.
         if visually_active && !spec.disabled {
@@ -359,29 +342,6 @@ pub mod raw {
 
         cmds.push_crisp_fill_rect(draw_outer, tint(s.background), spec.layer.get_z());
 
-        // text section (ink/rust bg, paper text).
-        let text_bg = if visually_active {
-            s.active_text_bg
-        } else {
-            s.text_bg
-        };
-        cmds.push_crisp_fill_rect(draw_label_rect, tint(text_bg), spec.layer.get_z());
-
-        let lty = spec.rect.y + (spec.rect.h - text_metrics.logical_size.y) * 0.5;
-        let text_rect = Rect::new(
-            spec.rect.x + s.text_pad_x,
-            lty,
-            text_metrics.logical_size.x,
-            text_metrics.logical_size.y,
-        );
-        text_layout.emit_glyphs(
-            cmds,
-            text_backend,
-            Vec2::new(text_rect.x, text_rect.y),
-            tint(s.text_text),
-            spec.layer.get_z(),
-        );
-
         // Value area: rust_soft fill proportional to value fraction.
         let frac = if spec.max > spec.min {
             ((state.value - spec.min) / (spec.max - spec.min)).clamp(0.0, 1.0)
@@ -396,7 +356,7 @@ pub mod raw {
             let draw_value_r = value_x + value_w * frac;
             cmds.push(DrawCmd::FillRect {
                 rect: Rect::from_ltrb(
-                    draw_split_x,
+                    draw_value_x,
                     draw_outer.y,
                     draw_value_r,
                     draw_outer.bottom(),
@@ -614,9 +574,6 @@ pub struct NumberEditStyle {
     pub background: Color,
     pub border: Option<Stroke>,
     pub focus: Option<Outline>,
-    pub text_bg: Color,
-    pub active_text_bg: Color,
-    pub text_text: Color,
     pub value_text: Color,
     pub value_fill: Color,
     pub text_edit_style: TextEditStyle,
@@ -651,9 +608,6 @@ impl NumberEditStyle {
                 theme.focus_width,
                 -theme.focus_offset_tight,
             )),
-            text_bg: theme.ink,
-            active_text_bg: theme.rust,
-            text_text: theme.paper,
             value_text: theme.ink,
             value_fill: theme.rust_soft_on_paper_elev,
             text_edit_style,
@@ -832,11 +786,10 @@ pub fn default_number_edit_value_formatter(value: f32) -> String {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct NumberEditSpec<'a, F = DefaultNumberEditValueFormatter>
+pub struct NumberEditSpec<F = DefaultNumberEditValueFormatter>
 where
     F: Fn(f32) -> String,
 {
-    pub text: &'a str,
     pub style: NumberEditStyle,
     pub min: f32,
     pub max: f32,
@@ -846,10 +799,9 @@ where
     pub disabled: bool,
 }
 
-impl<'a> Default for NumberEditSpec<'a, DefaultNumberEditValueFormatter> {
+impl Default for NumberEditSpec<DefaultNumberEditValueFormatter> {
     fn default() -> Self {
         Self {
-            text: "",
             style: NumberEditStyle::default(),
             min: 0.0,
             max: 100.0,
@@ -861,16 +813,13 @@ impl<'a> Default for NumberEditSpec<'a, DefaultNumberEditValueFormatter> {
     }
 }
 
-impl<'a> NumberEditSpec<'a, DefaultNumberEditValueFormatter> {
-    pub fn new(text: &'a str) -> Self {
-        Self {
-            text,
-            ..Self::default()
-        }
+impl NumberEditSpec<DefaultNumberEditValueFormatter> {
+    pub fn new() -> Self {
+        Self::default()
     }
 
-    pub fn new_from_theme(text: &'a str, theme: &crate::theme::Theme) -> Self {
-        Self::new(text).theme(theme)
+    pub fn new_from_theme(theme: &crate::theme::Theme) -> Self {
+        Self::new().theme(theme)
     }
 
     pub fn default_from_theme(theme: &crate::theme::Theme) -> Self {
@@ -878,17 +827,12 @@ impl<'a> NumberEditSpec<'a, DefaultNumberEditValueFormatter> {
     }
 }
 
-impl<'a, F> NumberEditSpec<'a, F>
+impl<F> NumberEditSpec<F>
 where
     F: Fn(f32) -> String,
 {
     pub fn theme(mut self, theme: &crate::theme::Theme) -> Self {
         self.style = NumberEditStyle::from_theme(theme);
-        self
-    }
-
-    pub fn text(mut self, text: &'a str) -> Self {
-        self.text = text;
         self
     }
 
@@ -917,12 +861,11 @@ where
         self
     }
 
-    pub fn value_formatter<G>(self, value_formatter: G) -> NumberEditSpec<'a, G>
+    pub fn value_formatter<G>(self, value_formatter: G) -> NumberEditSpec<G>
     where
         G: Fn(f32) -> String,
     {
         NumberEditSpec {
-            text: self.text,
             style: self.style,
             min: self.min,
             max: self.max,
@@ -945,8 +888,8 @@ where
 ///
 /// Runs the raw pre-layout phase to obtain a `SizeRequest`, resolves the final
 /// rect with layout, then runs the raw post-layout phase.
-pub fn number_edit<'a, T: TextBackend, S: LayoutState, CF, F>(
-    spec: NumberEditSpec<'a, F>,
+pub fn number_edit<T: TextBackend, S: LayoutState, CF, F>(
+    spec: NumberEditSpec<F>,
     layout_params: S::Params,
     state: &mut NumberEditState,
     ctx: &mut WidgetContext<T, S, CF>,
@@ -955,7 +898,6 @@ where
     F: Fn(f32) -> String,
 {
     let pre_layout_spec = raw::NumberEditPreLayoutSpec {
-        text: spec.text,
         style: spec.style,
         min: spec.min,
         max: spec.max,
@@ -967,7 +909,6 @@ where
     let raw_spec = raw::NumberEditSpec {
         layer: ctx.layer,
         rect,
-        text: spec.text,
         style: spec.style,
         min: spec.min,
         max: spec.max,
@@ -995,6 +936,118 @@ where
     NumberEditResult {
         layout: LayoutInfo::new(rect, result.content_bounds),
         input: result.input,
+        focused: result.focused,
+    }
+}
+
+/// High-level number edit with an integrated leading prefix segment.
+///
+/// The prefix is control chrome, not an external label: it shares the same outer
+/// background, border, and focus outline as the numeric value editor.
+pub fn prefixed_number_edit<T: TextBackend, S: LayoutState, CF, F>(
+    prefix: &str,
+    spec: NumberEditSpec<F>,
+    layout_params: S::Params,
+    state: &mut NumberEditState,
+    ctx: &mut WidgetContext<T, S, CF>,
+) -> NumberEditResult
+where
+    F: Fn(f32) -> String,
+{
+    let prefix_style = PrefixedControlStyle {
+        background: spec.style.background,
+        border: spec.style.border,
+        focus: spec.style.focus,
+        disabled_alpha: spec.style.disabled_alpha,
+        ..PrefixedControlStyle::from_theme(&ctx.theme)
+    };
+    let prefix_width = prefixed_control_prefix_width(prefix, prefix_style, ctx.text_backend);
+    let offer = ctx.peek_offer(layout_params.clone());
+    let child_offer = prefixed_control_child_offer(offer, prefix_width);
+    let pre_layout_spec = raw::NumberEditPreLayoutSpec {
+        style: spec.style,
+        min: spec.min,
+        max: spec.max,
+        value_formatter: &spec.value_formatter,
+    };
+    let pre_layout = raw::pre_layout_number_edit(&pre_layout_spec, child_offer, ctx.text_backend);
+    let size_request = prefixed_control_size_request(pre_layout.size_request, prefix_width);
+    let outer_rect = ctx.layout(layout_params, size_request);
+    let layout = layout_prefixed_control(outer_rect, prefix_width);
+
+    let is_visible = ctx
+        .clip_rect
+        .is_none_or(|c| c.contains(ctx.input.mouse_pos));
+    let prefix_contains = layout.prefix_rect.contains(ctx.input.mouse_pos) && is_visible;
+    if prefix_contains && !spec.disabled {
+        ctx.focus_system.claim_hover(state.focus_id);
+        if ctx.input.mouse_pressed {
+            ctx.focus_system.take_keyboard_focus(state.focus_id);
+        }
+    }
+
+    draw_prefixed_control_base(
+        layout,
+        prefix,
+        prefix_style,
+        spec.disabled,
+        ctx.layer,
+        ctx.text_backend,
+        ctx.cmds,
+    );
+
+    let mut child_style = spec.style;
+    child_style.background = Color::TRANSPARENT;
+    child_style.border = None;
+    child_style.focus = None;
+    child_style.text_edit_style.background = Color::TRANSPARENT;
+    child_style.text_edit_style.background_hovered = Color::TRANSPARENT;
+    child_style.text_edit_style.border = None;
+    child_style.text_edit_style.focus_border = None;
+
+    let raw_spec = raw::NumberEditSpec {
+        layer: ctx.layer,
+        rect: layout.child_rect,
+        style: child_style,
+        min: spec.min,
+        max: spec.max,
+        step: spec.step,
+        page_step: spec.page_step,
+        value_formatter: spec.value_formatter,
+        time: ctx.time,
+        disabled: spec.disabled,
+        clip_rect: ctx.clip_rect,
+    };
+    let result = raw::post_layout_number_edit(
+        raw_spec,
+        pre_layout,
+        state,
+        ctx.input,
+        ctx.focus_system,
+        ctx.text_backend,
+        ctx.cmds,
+    );
+
+    draw_prefixed_control_chrome(
+        outer_rect,
+        prefix_style,
+        result.focused,
+        spec.disabled,
+        ctx.layer,
+        ctx.cmds,
+    );
+
+    if let Some(cursor_icon) = result.cursor_icon {
+        ctx.output.cursor_icon = Some(cursor_icon);
+    }
+
+    NumberEditResult {
+        layout: LayoutInfo::new(outer_rect, result.content_bounds),
+        input: InputInfo {
+            hovered: result.input.hovered || prefix_contains,
+            pressed: result.input.pressed,
+            clicked: result.input.clicked,
+        },
         focused: result.focused,
     }
 }

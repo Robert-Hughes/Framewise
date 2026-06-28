@@ -39,6 +39,57 @@ fn test_spec_theme_uses_multiline_vertical_padding() {
 }
 
 #[test]
+fn test_prefixed_text_edit_draws_theme_prefix_and_combined_bounds() {
+    use crate::layouts::ManualLayout;
+
+    let theme = Theme::framewise();
+    let mut text_backend = TestTextBackend::default();
+    let mut focus = crate::focus::FocusSystem::new();
+    let input = crate::Input::default();
+    let mut output = crate::Output::default();
+    let mut cmds = crate::draw::DrawCommands::new(1.0);
+    let placement = crate::Rect::new(10.0, 20.0, 160.0, 28.0);
+    let mut ctx = crate::widget::WidgetContext::root(
+        theme,
+        &mut text_backend,
+        &mut focus,
+        &input,
+        &mut output,
+        ManualLayout,
+        crate::Rect::new(0.0, 0.0, 800.0, 600.0),
+        &mut cmds,
+    );
+    let mut state = TextEditState::new("0.1.0");
+
+    let result = super::prefixed_text_edit(
+        "v",
+        super::TextEditSpec::default_from_theme(&theme),
+        placement,
+        &mut state,
+        &mut ctx,
+    );
+
+    assert_eq!(result.layout.bounds, placement);
+    assert!(ctx.cmds.commands().contains(&DrawCmd::FillRect {
+        rect: crate::Rect::new(10.0, 20.0, 28.0, 28.0),
+        color: theme.ink,
+        z: 0,
+    }));
+    assert!(ctx.cmds.commands().contains(&DrawCmd::GlyphRun {
+        glyphs: 0..1,
+        color: theme.paper,
+        z: 0,
+    }));
+    assert_eq!(
+        ctx.cmds.glyphs().first(),
+        Some(&DrawGlyph {
+            token: PreparedGlyphToken(118),
+            top_left: crate::Vec2 { x: 20.0, y: 38.0 },
+        })
+    );
+}
+
+#[test]
 fn test_spec_style_setter_sets_style() {
     let mut custom_style = TextEditStyle::from_theme(&crate::theme::Theme::framewise());
     custom_style.size = 99.0;

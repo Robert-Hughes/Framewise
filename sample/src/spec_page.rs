@@ -62,7 +62,7 @@ use framewise::widgets::meter::{meter, MeterSpec};
 #[cfg(feature = "number_edit")]
 #[allow(unused_imports)]
 use framewise::widgets::number_edit::{
-    number_edit, NumberEditSpec, NumberEditState, NumberEditStyle,
+    number_edit, prefixed_number_edit, NumberEditSpec, NumberEditState, NumberEditStyle,
 };
 #[cfg(feature = "progress_bar")]
 #[allow(unused_imports)]
@@ -97,7 +97,7 @@ use framewise::widgets::tabs::{tabs, TabsSpec, TabsState};
 #[cfg(feature = "text_edit")]
 #[allow(unused_imports)]
 use framewise::widgets::text_edit::{
-    text_edit, NewlinePolicy, TextEditSpec, TextEditState, TextEditStyle,
+    prefixed_text_edit, text_edit, NewlinePolicy, TextEditSpec, TextEditState, TextEditStyle,
 };
 #[cfg(feature = "tooltip")]
 #[allow(unused_imports)]
@@ -302,7 +302,7 @@ fn draw_select_fake_state<'s, T: TextBackend, LS: LayoutState, CF>(
 fn draw_number_edit_fake_state<T: TextBackend, LS: LayoutState, CF>(
     b: &mut WidgetContext<T, LS, CF>,
     layout_params: LS::Params,
-    label: &str,
+    _label: &str,
     val: f32,
     min: f32,
     max: f32,
@@ -325,7 +325,6 @@ fn draw_number_edit_fake_state<T: TextBackend, LS: LayoutState, CF>(
 
     let spec = framewise::widgets::number_edit::raw::NumberEditSpec {
         rect,
-        text: label,
         min,
         max,
         step: 1.0,
@@ -346,7 +345,6 @@ fn draw_number_edit_fake_state<T: TextBackend, LS: LayoutState, CF>(
 
     let pre_layout = framewise::widgets::number_edit::raw::pre_layout_number_edit(
         &framewise::widgets::number_edit::raw::NumberEditPreLayoutSpec {
-            text: spec.text,
             style: spec.style,
             min: spec.min,
             max: spec.max,
@@ -2101,7 +2099,7 @@ fn section_02_text_inputs<CF>(
             label(spec, layout_params, &mut b)
         };
 
-        // Prefixed field (draw prefix addon manually)
+        // Prefixed field
         let pf_x = 248.0;
         {
             let layout_params = Rect::new(pf_x, y, 240.0, 20.0);
@@ -2116,58 +2114,16 @@ fn section_02_text_inputs<CF>(
             });
             label(spec, layout_params, &mut b)
         };
-        {
-            let layout_params = Rect::new(pf_x, y + 18.0, 24.0, b.theme.h_md);
-            let rect = b.layout(layout_params, SizeRequest::UNKNOWN);
-            let cmds = DrawCommands::from_vec(
-                vec![
-                    DrawCmd::FillRect {
-                        rect,
-                        color: b.theme.ink,
-                        z: 0,
-                    },
-                    DrawCmd::BorderRect {
-                        rect,
-                        color: b.theme.line_on_paper,
-                        width: 1.0,
-                        placement: framewise::BorderPlacement::Inside,
-                        z: 0,
-                    },
-                ],
-                b.cmds.physical_pixels_per_logical_pixel(),
-            );
-            b.append_cmds(cmds);
-        };
-        {
-            let layout_params = Rect::new(pf_x, y + 18.0, 24.0, b.theme.h_md);
-            let color = b.theme.paper;
-            let spec = LabelSpec::new("v").style(LabelStyle {
-                text_style: framewise::TextStyle::new(
-                    b.theme.mono_font,
-                    b.theme.text_mono,
-                    b.theme.sans_weight_regular,
-                    framewise::TextFlow::single_line(),
-                )
-                .with_letter_spacing(0.04),
-                text_color: color,
-                content_placement: framewise::TextContentPlacement::logical(
-                    framewise::ContentPlacement::Align(Align::Center),
-                    framewise::ContentPlacement::Align(Align::Center),
-                ),
-                ..LabelStyle::from_theme(&b.theme)
-            });
-            label(spec, layout_params, &mut b)
-        };
         let _info = {
             let state = &mut state.te_prefixed;
-            let layout_params = Rect::new(pf_x + 24.0, y + 18.0, 216.0, b.theme.h_md);
+            let layout_params = Rect::new(pf_x, y + 18.0, 240.0, b.theme.h_md);
             let style = {
                 let mut s = TextEditStyle::from_theme(&b.theme);
                 s.size = b.theme.text_md;
                 s
             };
             let spec = TextEditSpec::default().style(style);
-            text_edit(spec, layout_params, state, &mut b)
+            prefixed_text_edit("v", spec, layout_params, state, &mut b)
         };
         let err_y = y + 18.0 + b.theme.h_md + 4.0;
         {
@@ -2692,16 +2648,18 @@ fn section_04_sliders<CF>(
         let mut b = b.child_with_layout(ColumnLayoutParams::fixed(content_w, 42.0), ManualLayout);
         let mut x = 0.0;
         let rect = Rect::new(x, 14.0, DRAG_W, b.theme.h_md);
-        number_edit(
-            NumberEditSpec::new_from_theme("X", &b.theme).max(800.0),
+        prefixed_number_edit(
+            "X",
+            NumberEditSpec::new_from_theme(&b.theme).max(800.0),
             rect,
             &mut state.number_edit_state[0],
             &mut b,
         );
         x += DRAG_W + GAP;
         let rect = Rect::new(x, 14.0, DRAG_W, b.theme.h_md);
-        number_edit(
-            NumberEditSpec::new_from_theme("Y", &b.theme).max(600.0),
+        prefixed_number_edit(
+            "Y",
+            NumberEditSpec::new_from_theme(&b.theme).max(600.0),
             rect,
             &mut state.number_edit_state[1],
             &mut b,
@@ -2713,8 +2671,9 @@ fn section_04_sliders<CF>(
         draw_number_edit_fake_state(&mut b, rect, "W", 576.0, 0.0, 800.0, false, true, false);
         x += DRAG_W + GAP;
         let rect = Rect::new(x, 14.0, DRAG_W, b.theme.h_md);
-        number_edit(
-            NumberEditSpec::new_from_theme("H", &b.theme)
+        prefixed_number_edit(
+            "H",
+            NumberEditSpec::new_from_theme(&b.theme)
                 .max(600.0)
                 .disabled(true),
             rect,
@@ -3798,10 +3757,8 @@ fn section_11_window<CF>(
                 let min = *min;
                 let max = *max;
                 let layout_params = Rect::new(drx, iy, (cr_w / 2.0) - 4.0, win.theme.h_md);
-                let spec = NumberEditSpec::new_from_theme(label, &win.theme)
-                    .min(min)
-                    .max(max);
-                number_edit(spec, layout_params, state, &mut win)
+                let spec = NumberEditSpec::new_from_theme(&win.theme).min(min).max(max);
+                prefixed_number_edit(label, spec, layout_params, state, &mut win)
             };
             drx += (cr_w / 2.0) + 4.0;
         }
@@ -3816,10 +3773,8 @@ fn section_11_window<CF>(
                 let min = *min;
                 let max = *max;
                 let layout_params = Rect::new(drx, iy, (cr_w / 2.0) - 4.0, win.theme.h_md);
-                let spec = NumberEditSpec::new_from_theme(label, &win.theme)
-                    .min(min)
-                    .max(max);
-                number_edit(spec, layout_params, state, &mut win)
+                let spec = NumberEditSpec::new_from_theme(&win.theme).min(min).max(max);
+                prefixed_number_edit(label, spec, layout_params, state, &mut win)
             };
             drx += (cr_w / 2.0) + 4.0;
         }
@@ -4302,10 +4257,10 @@ fn section_12_in_use<CF>(
         let _w_res = {
             let state = &mut state.iu_vp_w;
             let layout_params = Rect::new(widget_x, fy, (widget_w / 2.0) - 4.0, row_h);
-            let spec = NumberEditSpec::new_from_theme("W", &win.theme)
+            let spec = NumberEditSpec::new_from_theme(&win.theme)
                 .max(7680.0)
                 .value_formatter(|v: f32| format!("{v:.0}"));
-            number_edit(spec, layout_params, state, &mut win)
+            prefixed_number_edit("W", spec, layout_params, state, &mut win)
         };
 
         let _h_res = {
@@ -4316,10 +4271,10 @@ fn section_12_in_use<CF>(
                 (widget_w / 2.0) - 4.0,
                 row_h,
             );
-            let spec = NumberEditSpec::new_from_theme("H", &win.theme)
+            let spec = NumberEditSpec::new_from_theme(&win.theme)
                 .max(7680.0)
                 .value_formatter(|v: f32| format!("{v:.0}"));
-            number_edit(spec, layout_params, state, &mut win)
+            prefixed_number_edit("H", spec, layout_params, state, &mut win)
         };
         fy += row_h + row_gap;
 

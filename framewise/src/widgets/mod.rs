@@ -103,7 +103,8 @@ pub use menu::{menu, MenuItem, MenuResult, MenuSpec, MenuStyle};
 pub use meter::{meter, MeterResult, MeterSpec, MeterStyle};
 #[cfg(feature = "number_edit")]
 pub use number_edit::{
-    number_edit, NumberEditResult, NumberEditSpec, NumberEditState, NumberEditStyle,
+    number_edit, prefixed_number_edit, NumberEditResult, NumberEditSpec, NumberEditState,
+    NumberEditStyle,
 };
 #[cfg(feature = "progress_bar")]
 pub use progress_bar::{progress_bar, ProgressBarResult, ProgressBarSpec, ProgressBarStyle};
@@ -132,8 +133,8 @@ pub use switch::{labelled_switch, switch, SwitchResult, SwitchSpec, SwitchState,
 pub use tabs::{tabs, TabsResult, TabsSpec, TabsState, TabsStyle};
 #[cfg(feature = "text_edit")]
 pub use text_edit::{
-    text_edit, ClipboardAction, NewlinePolicy, TextEditResult, TextEditSpec, TextEditState,
-    TextEditStyle,
+    prefixed_text_edit, text_edit, ClipboardAction, NewlinePolicy, TextEditResult, TextEditSpec,
+    TextEditState, TextEditStyle,
 };
 #[cfg(feature = "tooltip")]
 pub use tooltip::{tooltip, TooltipResult, TooltipSpec, TooltipStyle, TooltipVariant};
