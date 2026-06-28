@@ -558,9 +558,8 @@ pub mod raw {
                     edit_focused = true;
                 }
             } else if clicked_outside_text_edit {
-                let _ = try_commit_drag_number_edit(state, clamp_min, clamp_max);
-                focus_system.take_keyboard_focus(state.focus_id);
-                edit_focused = true;
+                commit_or_discard_drag_number_edit_on_focus_loss(state, clamp_min, clamp_max);
+                edit_focused = false;
             } else if !edit_focused {
                 commit_or_discard_drag_number_edit_on_focus_loss(state, clamp_min, clamp_max);
             }

@@ -2195,7 +2195,7 @@ fn test_drag_number_text_edit_escape_cancels() {
 }
 
 #[test]
-fn test_drag_number_text_edit_click_outside_commits_valid_value() {
+fn test_drag_number_text_edit_click_outside_valid_commits_without_stealing_focus() {
     let rect = Rect::new(0.0, 0.0, 140.0, 28.0);
     let mut state = DragNumberState {
         value: 10.0,
@@ -2203,7 +2203,8 @@ fn test_drag_number_text_edit_click_outside_commits_valid_value() {
     };
     enter_edit_state(&mut state, "42.5");
     let mut focus_system = FocusSystem::new();
-    focus_system.take_keyboard_focus(state.focus_id);
+    let other_focus = FocusId::new();
+    focus_system.take_keyboard_focus(other_focus);
 
     run_key(default_spec(rect), &mut state, &mut focus_system, |input| {
         input.mouse_pos = Vec2::new(5.0, 14.0);
@@ -2213,11 +2214,11 @@ fn test_drag_number_text_edit_click_outside_commits_valid_value() {
 
     assert_eq!(state.value, 42.5);
     assert!(state.edit.is_none());
-    assert_eq!(focus_system.current_keyboard_focus(), Some(state.focus_id));
+    assert_eq!(focus_system.current_keyboard_focus(), Some(other_focus));
 }
 
 #[test]
-fn test_drag_number_text_edit_click_outside_invalid_keeps_editing_and_sets_error() {
+fn test_drag_number_text_edit_click_outside_invalid_discards_without_stealing_focus() {
     let rect = Rect::new(0.0, 0.0, 140.0, 28.0);
     let mut state = DragNumberState {
         value: 10.0,
@@ -2225,7 +2226,8 @@ fn test_drag_number_text_edit_click_outside_invalid_keeps_editing_and_sets_error
     };
     enter_edit_state(&mut state, "abc");
     let mut focus_system = FocusSystem::new();
-    focus_system.take_keyboard_focus(state.focus_id);
+    let other_focus = FocusId::new();
+    focus_system.take_keyboard_focus(other_focus);
 
     run_key(default_spec(rect), &mut state, &mut focus_system, |input| {
         input.mouse_pos = Vec2::new(5.0, 14.0);
@@ -2234,9 +2236,8 @@ fn test_drag_number_text_edit_click_outside_invalid_keeps_editing_and_sets_error
     });
 
     assert_eq!(state.value, 10.0);
-    assert!(state.edit.is_some());
-    assert!(state.edit.as_ref().unwrap().error);
-    assert_eq!(focus_system.current_keyboard_focus(), Some(state.focus_id));
+    assert!(state.edit.is_none());
+    assert_eq!(focus_system.current_keyboard_focus(), Some(other_focus));
 }
 
 #[test]
