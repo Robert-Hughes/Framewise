@@ -9,9 +9,9 @@ use crate::{
     widgets::{
         text_edit::{self, NewlinePolicy, TextEditState, TextEditStyle},
         widget_helpers::{
-            draw_prefixed_control_base, draw_prefixed_control_chrome, layout_prefixed_control,
+            draw_prefixed_control_prefix_and_chrome, layout_prefixed_control,
             prefixed_control_child_offer, prefixed_control_prefix_width,
-            prefixed_control_size_request, PrefixedControlStyle,
+            prefixed_control_size_request, PrefixedControlDrawSpec, PrefixedControlStyle,
         },
     },
 };
@@ -967,8 +967,7 @@ pub fn prefixed_number_edit<T: TextBackend, S: LayoutState, CF, F>(
 where
     F: Fn(f32) -> String,
 {
-    let mut prefix_style = PrefixedControlStyle {
-        background: spec.style.background,
+    let prefix_style = PrefixedControlStyle {
         border: spec.style.border,
         focus: spec.style.focus,
         disabled_alpha: spec.style.disabled_alpha,
@@ -999,27 +998,9 @@ where
         }
     }
 
-    let active = ctx.focus_system.current_keyboard_focus() == Some(state.focus_id);
-    if active && !spec.disabled {
-        prefix_style.prefix_background = ctx.theme.rust;
-    }
-
-    draw_prefixed_control_base(
-        layout,
-        prefix,
-        prefix_style,
-        spec.disabled,
-        ctx.layer,
-        ctx.text_backend,
-        ctx.cmds,
-    );
-
     let mut child_style = spec.style;
-    child_style.background = Color::TRANSPARENT;
     child_style.border = None;
     child_style.focus = None;
-    child_style.text_edit_style.background = Color::TRANSPARENT;
-    child_style.text_edit_style.background_hovered = Color::TRANSPARENT;
     child_style.text_edit_style.border = None;
     child_style.text_edit_style.focus_border = None;
 
@@ -1035,12 +1016,16 @@ where
     let result =
         run_number_edit_resolved_rect(child_spec, layout.child_rect, pre_layout, state, ctx);
 
-    draw_prefixed_control_chrome(
-        outer_rect,
-        prefix_style,
-        result.focused,
-        spec.disabled,
-        ctx.layer,
+    draw_prefixed_control_prefix_and_chrome(
+        PrefixedControlDrawSpec {
+            layout,
+            prefix,
+            style: prefix_style,
+            active: result.focused,
+            disabled: spec.disabled,
+            layer: ctx.layer,
+        },
+        ctx.text_backend,
         ctx.cmds,
     );
 

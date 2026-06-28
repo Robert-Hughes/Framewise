@@ -116,20 +116,29 @@ pub(crate) struct PrefixedControlLayout {
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub(crate) struct PrefixedControlStyle {
-    pub background: Color,
     pub border: Option<Stroke>,
     pub focus: Option<Outline>,
     pub prefix_background: Color,
+    pub prefix_active_background: Color,
     pub prefix_text: Color,
     pub prefix_text_style: TextStyle,
     pub prefix_pad_x: f32,
     pub disabled_alpha: f32,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub(crate) struct PrefixedControlDrawSpec<'a> {
+    pub layout: PrefixedControlLayout,
+    pub prefix: &'a str,
+    pub style: PrefixedControlStyle,
+    pub active: bool,
+    pub disabled: bool,
+    pub layer: Layer,
+}
+
 impl PrefixedControlStyle {
     pub(crate) fn from_theme(theme: &crate::theme::Theme) -> Self {
         Self {
-            background: theme.paper_elev,
             border: Some(Stroke::new(theme.ink, theme.border)),
             focus: Some(Outline::new(
                 theme.rust,
@@ -137,6 +146,7 @@ impl PrefixedControlStyle {
                 -theme.focus_offset_tight,
             )),
             prefix_background: theme.ink,
+            prefix_active_background: theme.rust,
             prefix_text: theme.paper,
             prefix_text_style: TextStyle::new(
                 theme.mono_font,
@@ -202,26 +212,31 @@ pub(crate) fn layout_prefixed_control(
     }
 }
 
-pub(crate) fn draw_prefixed_control_base<T: TextBackend>(
-    layout: PrefixedControlLayout,
-    prefix: &str,
-    style: PrefixedControlStyle,
-    disabled: bool,
-    layer: Layer,
+pub(crate) fn draw_prefixed_control_prefix_and_chrome<T: TextBackend>(
+    spec: PrefixedControlDrawSpec<'_>,
     text_backend: &mut T,
     cmds: &mut DrawCommands,
 ) {
-    let alpha = if disabled { style.disabled_alpha } else { 1.0 };
+    let layout = spec.layout;
+    let style = spec.style;
+    let alpha = if spec.disabled {
+        style.disabled_alpha
+    } else {
+        1.0
+    };
     let tint = |c: Color| Color::linear_rgba(c.r, c.g, c.b, c.a * alpha);
-    let outer = cmds.snap_rect_edges_to_physical_pixel(layout.outer_rect);
     let prefix_rect = cmds.snap_rect_edges_to_physical_pixel(layout.prefix_rect);
+    let prefix_background = if spec.active {
+        style.prefix_active_background
+    } else {
+        style.prefix_background
+    };
 
-    cmds.push_crisp_fill_rect(outer, tint(style.background), layer.get_z());
-    cmds.push_crisp_fill_rect(prefix_rect, tint(style.prefix_background), layer.get_z());
+    cmds.push_crisp_fill_rect(prefix_rect, tint(prefix_background), spec.layer.get_z());
 
     let prefix_layout = layout_text(
         text_backend,
-        prefix,
+        spec.prefix,
         style.prefix_text_style,
         TextBounds::UNBOUNDED,
     );
@@ -233,37 +248,84 @@ pub(crate) fn draw_prefixed_control_base<T: TextBackend>(
         text_backend,
         Vec2::new(x, y),
         tint(style.prefix_text),
-        layer.get_z(),
+        spec.layer.get_z(),
     );
-}
 
-pub(crate) fn draw_prefixed_control_chrome(
-    outer_rect: Rect,
-    style: PrefixedControlStyle,
-    focused: bool,
-    disabled: bool,
-    layer: Layer,
-    cmds: &mut DrawCommands,
-) {
-    let alpha = if disabled { style.disabled_alpha } else { 1.0 };
-    let tint = |c: Color| Color::linear_rgba(c.r, c.g, c.b, c.a * alpha);
-    if focused && !disabled {
+    if spec.active && !spec.disabled {
         if let Some(outline) = style.focus {
             cmds.push_crisp_border_rect(
-                outer_rect.inset(-outline.offset),
+                layout.outer_rect.inset(-outline.offset),
                 Some(Stroke::new(
                     tint(outline.stroke.color),
                     outline.stroke.width,
                 )),
                 BorderPlacement::Outside,
-                layer.get_focus_z(),
+                spec.layer.get_focus_z(),
             );
         }
     }
     cmds.push_crisp_border_rect(
-        outer_rect,
+        layout.outer_rect,
         style.border.map(|b| Stroke::new(tint(b.color), b.width)),
         BorderPlacement::Inside,
-        layer.get_z(),
+        spec.layer.get_z(),
     );
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_prefixed_control_size_request_adds_prefix_width() {
+        let child = SizeRequest {
+            min: Some(Vec2::new(10.0, 20.0)),
+            preferred: Some(Vec2::new(30.0, 40.0)),
+            max: Some(Vec2::new(50.0, 60.0)),
+        };
+
+        let result = prefixed_control_size_request(child, 7.0);
+
+        assert_eq!(result.min, Some(Vec2::new(17.0, 20.0)));
+        assert_eq!(result.preferred, Some(Vec2::new(37.0, 40.0)));
+        assert_eq!(result.max, Some(Vec2::new(57.0, 60.0)));
+    }
+
+    #[test]
+    fn test_prefixed_control_child_offer_subtracts_prefix_width_and_clamps() {
+        let exact = prefixed_control_child_offer(
+            SizeOffer::new(AxisBound::Exact(12.0), AxisBound::AtMost(20.0)),
+            5.0,
+        );
+        assert_eq!(exact.width, AxisBound::Exact(7.0));
+        assert_eq!(exact.height, AxisBound::AtMost(20.0));
+
+        let clamped = prefixed_control_child_offer(
+            SizeOffer::new(AxisBound::AtMost(3.0), AxisBound::Exact(9.0)),
+            5.0,
+        );
+        assert_eq!(clamped.width, AxisBound::AtMost(0.0));
+        assert_eq!(clamped.height, AxisBound::Exact(9.0));
+
+        let unbounded = prefixed_control_child_offer(
+            SizeOffer::new(AxisBound::Unbounded, AxisBound::Unbounded),
+            5.0,
+        );
+        assert_eq!(unbounded.width, AxisBound::Unbounded);
+        assert_eq!(unbounded.height, AxisBound::Unbounded);
+    }
+
+    #[test]
+    fn test_layout_prefixed_control_splits_outer_prefix_and_child_rects() {
+        let outer = Rect::new(10.0, 20.0, 100.0, 30.0);
+        let layout = layout_prefixed_control(outer, 25.0);
+
+        assert_eq!(layout.outer_rect, outer);
+        assert_eq!(layout.prefix_rect, Rect::new(10.0, 20.0, 25.0, 30.0));
+        assert_eq!(layout.child_rect, Rect::new(35.0, 20.0, 75.0, 30.0));
+
+        let clamped = layout_prefixed_control(outer, 125.0);
+        assert_eq!(clamped.prefix_rect, Rect::new(10.0, 20.0, 100.0, 30.0));
+        assert_eq!(clamped.child_rect, Rect::new(110.0, 20.0, 0.0, 30.0));
+    }
 }

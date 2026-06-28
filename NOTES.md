@@ -4,10 +4,7 @@ Working notes, TODOs, open questions, and half-baked ideas.
 
 ## Current Work
 
-- If you want the prefix block itself to become rust when focused/dragging, we need to make draw_prefixed_control_base(...) or prefixed_number_edit(...) active-aware.
-
 - figure out numeric editing controls and ink label prefix
-  1. [x] Rename DragNumber → NumberEdit
   2. Extract the prefix/addon label into a generic wrapper
   3. Add behaviour/style settings to NumberEdit
   - Go back to section 01 and 02 and use these widgets properly there

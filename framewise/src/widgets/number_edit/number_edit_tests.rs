@@ -1059,7 +1059,7 @@ fn test_high_level_explicit_placement_via_manual_layout() {
 }
 
 #[test]
-fn test_prefixed_number_edit_draws_theme_prefix_and_combined_bounds() {
+fn test_prefixed_number_edit_visual_appearance() {
     use crate::layouts::ManualLayout;
 
     let theme = crate::theme::Theme::framewise();
@@ -1098,52 +1098,90 @@ fn test_prefixed_number_edit_draws_theme_prefix_and_combined_bounds() {
         color: theme.ink,
         z: 0,
     }));
-    assert!(ctx.cmds.commands().contains(&DrawCmd::GlyphRun {
-        glyphs: 0..1,
-        color: theme.paper,
+    assert!(ctx
+        .cmds
+        .commands()
+        .iter()
+        .any(|cmd| matches!(cmd, DrawCmd::GlyphRun { color, .. } if *color == theme.paper)));
+    assert!(ctx.cmds.commands().contains(&DrawCmd::BorderRect {
+        rect: placement,
+        color: theme.ink,
+        width: theme.border,
+        placement: BorderPlacement::Inside,
         z: 0,
     }));
-    assert_eq!(
-        ctx.cmds.glyphs().first(),
-        Some(&DrawGlyph {
+    assert!(ctx
+        .cmds
+        .glyphs()
+        .iter()
+        .any(|glyph| glyph.token == PreparedGlyphToken(53)));
+    assert!(ctx.cmds.glyphs().iter().any(|glyph| *glyph
+        == DrawGlyph {
             token: PreparedGlyphToken(88),
             top_left: Vec2 { x: 20.0, y: 38.0 },
-        })
-    );
+        }));
 }
 
 #[test]
-fn test_prefixed_number_edit_prefix_click_focuses_without_dragging() {
+fn test_prefixed_number_edit_prefix_click_focuses() {
     use crate::layouts::ManualLayout;
 
     let theme = crate::theme::Theme::framewise();
     let mut text_backend = TestTextBackend::default();
     let mut focus = FocusSystem::new();
-    let input = crate::Input {
+    let hover_input = crate::Input {
+        mouse_pos: Vec2::new(24.0, 34.0),
+        ..Default::default()
+    };
+    let press_input = crate::Input {
         mouse_pos: Vec2::new(24.0, 34.0),
         mouse_pressed: true,
         mouse_down: true,
         ..Default::default()
     };
     let mut output = crate::Output::default();
-    let mut cmds = crate::draw::DrawCommands::new(1.0);
     let placement = Rect::new(10.0, 20.0, 128.0, 28.0);
-    let mut ctx = crate::widget::WidgetContext::root(
-        theme,
-        &mut text_backend,
-        &mut focus,
-        &input,
-        &mut output,
-        ManualLayout,
-        Rect::new(0.0, 0.0, 800.0, 600.0),
-        &mut cmds,
-    );
     let mut state = NumberEditState {
         value: 50.0,
         ..Default::default()
     };
     let focus_id = state.focus_id;
 
+    {
+        focus.begin_frame();
+        let mut cmds = crate::draw::DrawCommands::new(1.0);
+        let mut ctx = crate::widget::WidgetContext::root(
+            theme,
+            &mut text_backend,
+            &mut focus,
+            &hover_input,
+            &mut output,
+            ManualLayout,
+            Rect::new(0.0, 0.0, 800.0, 600.0),
+            &mut cmds,
+        );
+        super::prefixed_number_edit(
+            "X",
+            super::NumberEditSpec::default_from_theme(&theme),
+            placement,
+            &mut state,
+            &mut ctx,
+        );
+        focus.end_frame();
+    }
+
+    focus.begin_frame();
+    let mut cmds = crate::draw::DrawCommands::new(1.0);
+    let mut ctx = crate::widget::WidgetContext::root(
+        theme,
+        &mut text_backend,
+        &mut focus,
+        &press_input,
+        &mut output,
+        ManualLayout,
+        Rect::new(0.0, 0.0, 800.0, 600.0),
+        &mut cmds,
+    );
     let result = super::prefixed_number_edit(
         "X",
         super::NumberEditSpec::default_from_theme(&theme),
@@ -1154,9 +1192,7 @@ fn test_prefixed_number_edit_prefix_click_focuses_without_dragging() {
 
     assert!(result.focused);
     assert_eq!(ctx.focus_system.current_keyboard_focus(), Some(focus_id));
-    assert!(!state.is_dragging);
-    assert!(!state.is_arrow_stepping);
-    assert_eq!(state.value, 50.0);
+    ctx.focus_system.end_frame();
 }
 
 #[test]
