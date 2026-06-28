@@ -385,6 +385,7 @@ fn test_enter_clicks_raw_button() {
     // Frame 1: Register and take focus explicitly
     let mut input = Input::default();
     let mut cmds = DrawCommands::new(1.0);
+    focus_system.begin_frame();
     raw::post_layout_button(
         spec(),
         raw::ButtonPreLayoutResult {
@@ -401,6 +402,7 @@ fn test_enter_clicks_raw_button() {
 
     // Frame 2: Press Enter
     input.key_pressed_enter = true;
+    focus_system.begin_frame();
     let res = raw::post_layout_button(
         spec(),
         raw::ButtonPreLayoutResult {
@@ -412,6 +414,7 @@ fn test_enter_clicks_raw_button() {
         &mut text_backend,
         &mut cmds,
     );
+    focus_system.end_frame();
     assert!(res.input.clicked, "Button should be clicked by Enter key");
 }
 

@@ -134,6 +134,29 @@ fn focused_text_edit_state(text: &str, focus_system: &mut FocusSystem) -> TextEd
     state
 }
 
+fn run_raw_text_edit_frame(
+    edit_spec: TextEditSpec,
+    state: &mut TextEditState,
+    input: &Input,
+    focus_system: &mut FocusSystem,
+    text_backend: &mut TestTextBackend,
+    cmds: &mut DrawCommands,
+) -> raw::TextEditResult {
+    focus_system.begin_frame();
+    let pre_layout = raw::post_layout_only_pre_layout_result(state);
+    let result = raw::post_layout_text_edit(
+        edit_spec,
+        pre_layout,
+        state,
+        input,
+        focus_system,
+        text_backend,
+        cmds,
+    );
+    focus_system.end_frame();
+    result
+}
+
 fn has_text_edit_scrollbar(cmds: &DrawCommands, bounds: Rect) -> bool {
     cmds.iter().any(|cmd| match cmd {
         DrawCmd::FillRect { rect, .. } => {
@@ -434,9 +457,8 @@ fn test_typing_and_cursor() {
     input.text_events.push(TextEvent::Char('b'));
     input.text_events.push(TextEvent::Char('c'));
 
-    raw::post_layout_text_edit(
+    run_raw_text_edit_frame(
         spec(),
-        raw::post_layout_only_pre_layout_result(&mut state),
         &mut state,
         &input,
         &mut focus_system,
@@ -452,9 +474,8 @@ fn test_typing_and_cursor() {
         shift: false,
         ctrl: false,
     });
-    raw::post_layout_text_edit(
+    run_raw_text_edit_frame(
         spec(),
-        raw::post_layout_only_pre_layout_result(&mut state),
         &mut state,
         &input,
         &mut focus_system,
@@ -466,9 +487,8 @@ fn test_typing_and_cursor() {
     // Insert at cursor
     input.text_events.clear();
     input.text_events.push(TextEvent::Char('x'));
-    raw::post_layout_text_edit(
+    run_raw_text_edit_frame(
         spec(),
-        raw::post_layout_only_pre_layout_result(&mut state),
         &mut state,
         &input,
         &mut focus_system,
@@ -492,9 +512,8 @@ fn test_backspace_and_delete() {
     let mut input = Input::default();
     input.text_events.push(TextEvent::Backspace { ctrl: false });
 
-    raw::post_layout_text_edit(
+    run_raw_text_edit_frame(
         spec(),
-        raw::post_layout_only_pre_layout_result(&mut state),
         &mut state,
         &input,
         &mut focus_system,
@@ -506,9 +525,8 @@ fn test_backspace_and_delete() {
 
     input.text_events.clear();
     input.text_events.push(TextEvent::Delete { ctrl: false });
-    raw::post_layout_text_edit(
+    run_raw_text_edit_frame(
         spec(),
-        raw::post_layout_only_pre_layout_result(&mut state),
         &mut state,
         &input,
         &mut focus_system,
@@ -532,9 +550,8 @@ fn test_ctrl_backspace_and_delete() {
     let mut input = Input::default();
     input.text_events.push(TextEvent::Backspace { ctrl: true });
 
-    raw::post_layout_text_edit(
+    run_raw_text_edit_frame(
         spec(),
-        raw::post_layout_only_pre_layout_result(&mut state),
         &mut state,
         &input,
         &mut focus_system,
@@ -546,9 +563,8 @@ fn test_ctrl_backspace_and_delete() {
 
     input.text_events.clear();
     input.text_events.push(TextEvent::Delete { ctrl: true });
-    raw::post_layout_text_edit(
+    run_raw_text_edit_frame(
         spec(),
-        raw::post_layout_only_pre_layout_result(&mut state),
         &mut state,
         &input,
         &mut focus_system,
@@ -579,9 +595,8 @@ fn test_selection_and_replacement() {
         ctrl: false,
     });
 
-    raw::post_layout_text_edit(
+    run_raw_text_edit_frame(
         spec(),
-        raw::post_layout_only_pre_layout_result(&mut state),
         &mut state,
         &input,
         &mut focus_system,
@@ -593,9 +608,8 @@ fn test_selection_and_replacement() {
 
     input.text_events.clear();
     input.text_events.push(TextEvent::Char('a'));
-    raw::post_layout_text_edit(
+    run_raw_text_edit_frame(
         spec(),
-        raw::post_layout_only_pre_layout_result(&mut state),
         &mut state,
         &input,
         &mut focus_system,
@@ -625,9 +639,8 @@ fn test_text_edit_left_right_skip_same_byte_visual_side() {
         ctrl: false,
     });
 
-    raw::post_layout_text_edit(
+    run_raw_text_edit_frame(
         spec(),
-        raw::post_layout_only_pre_layout_result(&mut state),
         &mut state,
         &input,
         &mut focus_system,
@@ -648,9 +661,8 @@ fn test_text_edit_left_right_skip_same_byte_visual_side() {
         ctrl: false,
     });
 
-    raw::post_layout_text_edit(
+    run_raw_text_edit_frame(
         spec(),
-        raw::post_layout_only_pre_layout_result(&mut state),
         &mut state,
         &input,
         &mut focus_system,
@@ -751,9 +763,8 @@ fn test_empty_mouse_click_keeps_empty_caret() {
     };
 
     focus_system.begin_frame();
-    raw::post_layout_text_edit(
+    run_raw_text_edit_frame(
         spec(),
-        raw::post_layout_only_pre_layout_result(&mut state),
         &mut state,
         &input,
         &mut focus_system,
@@ -1323,12 +1334,11 @@ fn test_caret_blink_reset_on_move() {
     assert!(has_caret, "Caret should be visible initially");
 
     let mut cmds = DrawCommands::new(1.0);
-    raw::post_layout_text_edit(
+    run_raw_text_edit_frame(
         TextEditSpec {
             time: 0.6,
             ..spec()
         },
-        raw::post_layout_only_pre_layout_result(&mut state),
         &mut state,
         &input,
         &mut focus_system,
@@ -1345,12 +1355,11 @@ fn test_caret_blink_reset_on_move() {
         ctrl: false,
     });
     let mut cmds = DrawCommands::new(1.0);
-    raw::post_layout_text_edit(
+    run_raw_text_edit_frame(
         TextEditSpec {
             time: 0.6,
             ..spec()
         },
-        raw::post_layout_only_pre_layout_result(&mut state),
         &mut state,
         &input,
         &mut focus_system,
@@ -1369,12 +1378,11 @@ fn test_caret_blink_reset_on_move() {
 
     input.text_events.clear();
     let mut cmds = DrawCommands::new(1.0);
-    raw::post_layout_text_edit(
+    run_raw_text_edit_frame(
         TextEditSpec {
             time: 1.0,
             ..spec()
         },
-        raw::post_layout_only_pre_layout_result(&mut state),
         &mut state,
         &input,
         &mut focus_system,
@@ -1387,12 +1395,11 @@ fn test_caret_blink_reset_on_move() {
     assert!(has_caret, "Caret should stay visible for 0.5s after moving");
 
     let mut cmds = DrawCommands::new(1.0);
-    raw::post_layout_text_edit(
+    run_raw_text_edit_frame(
         TextEditSpec {
             time: 1.2,
             ..spec()
         },
-        raw::post_layout_only_pre_layout_result(&mut state),
         &mut state,
         &input,
         &mut focus_system,
@@ -1875,9 +1882,8 @@ fn test_clipboard_actions() {
 
     let mut input = Input::default();
     input.text_events.push(TextEvent::Copy);
-    let res = raw::post_layout_text_edit(
+    let res = run_raw_text_edit_frame(
         spec(),
-        raw::post_layout_only_pre_layout_result(&mut state),
         &mut state,
         &input,
         &mut focus_system,
@@ -1889,9 +1895,8 @@ fn test_clipboard_actions() {
 
     input.text_events.clear();
     input.text_events.push(TextEvent::Cut);
-    let res = raw::post_layout_text_edit(
+    let res = run_raw_text_edit_frame(
         spec(),
-        raw::post_layout_only_pre_layout_result(&mut state),
         &mut state,
         &input,
         &mut focus_system,
@@ -1905,9 +1910,8 @@ fn test_clipboard_actions() {
 
     input.text_events.clear();
     input.text_events.push(TextEvent::Paste("rust".to_string()));
-    let res = raw::post_layout_text_edit(
+    let res = run_raw_text_edit_frame(
         spec(),
-        raw::post_layout_only_pre_layout_result(&mut state),
         &mut state,
         &input,
         &mut focus_system,
@@ -2478,7 +2482,6 @@ fn test_user_rect_not_overridden() {
 fn test_text_edit_caret_auto_scrolling() {
     let mut text_backend = TestTextBackend::default();
     let mut focus_system = FocusSystem::new();
-    focus_system.begin_frame();
 
     // 36 characters. Width = 36 * 8 = 288. Inner scroll width = 288 + 8 = 296.
     // Viewport width = 200 - 2 = 198.
@@ -2492,9 +2495,8 @@ fn test_text_edit_caret_auto_scrolling() {
 
     // 1. Caret at start (0): scroll should be 0.0
     set_caret_byte(&mut state, 0);
-    raw::post_layout_text_edit(
+    run_raw_text_edit_frame(
         spec(),
-        raw::post_layout_only_pre_layout_result(&mut state),
         &mut state,
         &input,
         &mut focus_system,
@@ -2510,9 +2512,8 @@ fn test_text_edit_caret_auto_scrolling() {
         shift: false,
         ctrl: false,
     }];
-    raw::post_layout_text_edit(
+    run_raw_text_edit_frame(
         spec(),
-        raw::post_layout_only_pre_layout_result(&mut state),
         &mut state,
         &input,
         &mut focus_system,
@@ -2530,9 +2531,8 @@ fn test_text_edit_caret_auto_scrolling() {
         ctrl: false,
     }];
     let mut cmds = DrawCommands::new(1.0);
-    raw::post_layout_text_edit(
+    run_raw_text_edit_frame(
         spec(),
-        raw::post_layout_only_pre_layout_result(&mut state),
         &mut state,
         &input,
         &mut focus_system,
@@ -2551,9 +2551,8 @@ fn test_text_edit_caret_auto_scrolling() {
         shift: false,
         ctrl: false,
     }];
-    raw::post_layout_text_edit(
+    run_raw_text_edit_frame(
         spec(),
-        raw::post_layout_only_pre_layout_result(&mut state),
         &mut state,
         &input,
         &mut focus_system,
@@ -2567,7 +2566,6 @@ fn test_text_edit_caret_auto_scrolling() {
     // caret with that updated scroll offset in the same frame.
     let mut state =
         focused_text_edit_state("hello world how are you today doing", &mut focus_system);
-    focus_system.begin_frame();
     let end = state.value.len();
     set_caret_byte(&mut state, end);
     state.scroll.offset.x = 0.0;
@@ -2578,9 +2576,8 @@ fn test_text_edit_caret_auto_scrolling() {
     };
 
     let mut cmds = DrawCommands::new(1.0);
-    raw::post_layout_text_edit(
+    run_raw_text_edit_frame(
         spec(),
-        raw::post_layout_only_pre_layout_result(&mut state),
         &mut state,
         &input,
         &mut focus_system,
@@ -2606,7 +2603,6 @@ fn test_text_edit_caret_auto_scrolling() {
 
     let mut state =
         focused_text_edit_state("hello world how are you today doing", &mut focus_system);
-    focus_system.begin_frame();
     let end = state.value.len();
     set_caret_byte(&mut state, end - 1);
     state.scroll.offset.x = 0.0;
@@ -2620,9 +2616,8 @@ fn test_text_edit_caret_auto_scrolling() {
     };
 
     let mut cmds = DrawCommands::new(1.0);
-    raw::post_layout_text_edit(
+    run_raw_text_edit_frame(
         edit_spec.clone(),
-        raw::post_layout_only_pre_layout_result(&mut state),
         &mut state,
         &input,
         &mut focus_system,
@@ -2645,7 +2640,6 @@ fn test_text_edit_caret_auto_scrolling() {
 
     let mut state =
         focused_text_edit_state("x\nhello world how are you today doing", &mut focus_system);
-    focus_system.begin_frame();
     let end = state.value.len();
     set_caret_byte(&mut state, end - 1);
     state.scroll.offset.x = 0.0;
@@ -2659,9 +2653,8 @@ fn test_text_edit_caret_auto_scrolling() {
     };
 
     let mut cmds = DrawCommands::new(1.0);
-    raw::post_layout_text_edit(
+    run_raw_text_edit_frame(
         edit_spec.clone(),
-        raw::post_layout_only_pre_layout_result(&mut state),
         &mut state,
         &input,
         &mut focus_system,
@@ -2907,7 +2900,6 @@ fn test_text_edit_vertical_scroll_coordinate_translation() {
     let mut state = TextEditState::new("line1\nline2\nline3\nline4");
     focus_system.take_keyboard_focus(state.focus_id);
     focus_system.end_frame();
-    focus_system.begin_frame();
     state.had_keyboard_focus = true;
 
     let edit_spec = TextEditSpec {
@@ -2924,9 +2916,8 @@ fn test_text_edit_vertical_scroll_coordinate_translation() {
 
     let input = Input::default();
     let mut cmds = DrawCommands::new(1.0);
-    raw::post_layout_text_edit(
+    run_raw_text_edit_frame(
         edit_spec.clone(),
-        raw::post_layout_only_pre_layout_result(&mut state),
         &mut state,
         &input,
         &mut focus_system,
@@ -2960,9 +2951,8 @@ fn test_text_edit_vertical_scroll_coordinate_translation() {
     // Expected text_y = outer_rect.y + padding - offset.y = 1.0 + 4.0 - 0.0 = 5.0
     state.scroll.offset.y = 0.0;
     let mut cmds = DrawCommands::new(1.0);
-    raw::post_layout_text_edit(
+    run_raw_text_edit_frame(
         edit_spec.clone(),
-        raw::post_layout_only_pre_layout_result(&mut state),
         &mut state,
         &input,
         &mut focus_system,
@@ -3054,7 +3044,6 @@ fn test_text_edit_vertical_click_with_scroll_offset() {
 fn test_text_edit_vertical_caret_auto_scrolling() {
     let mut text_backend = TestTextBackend::default();
     let mut focus_system = FocusSystem::new();
-    focus_system.begin_frame();
 
     // 10 lines of 16px: total height = 160px. Padding = 4px. Inner scroll height = 160 + 8 = 168px.
     // Viewport height = 60 - 2 = 58px.
@@ -3074,9 +3063,8 @@ fn test_text_edit_vertical_caret_auto_scrolling() {
 
     // 1. Caret at start (Line 0, index 0): scroll should be 0.0
     set_caret_byte(&mut state, 0);
-    raw::post_layout_text_edit(
+    run_raw_text_edit_frame(
         edit_spec.clone(),
-        raw::post_layout_only_pre_layout_result(&mut state),
         &mut state,
         &input,
         &mut focus_system,
@@ -3089,9 +3077,8 @@ fn test_text_edit_vertical_caret_auto_scrolling() {
     // Expected scroll = (64 + 4.0) - 58 + 16 = 26.0
     set_caret_byte(&mut state, 6);
     input.text_events = vec![TextEvent::CaretDown { shift: false }];
-    raw::post_layout_text_edit(
+    run_raw_text_edit_frame(
         edit_spec.clone(),
-        raw::post_layout_only_pre_layout_result(&mut state),
         &mut state,
         &input,
         &mut focus_system,
@@ -3104,9 +3091,8 @@ fn test_text_edit_vertical_caret_auto_scrolling() {
     // Expected scroll = 160 - 58 + 16 = 118.0, clamped to max_scroll (110.0)
     set_caret_byte(&mut state, 27);
     input.text_events = vec![TextEvent::CaretDown { shift: false }];
-    raw::post_layout_text_edit(
+    run_raw_text_edit_frame(
         edit_spec.clone(),
-        raw::post_layout_only_pre_layout_result(&mut state),
         &mut state,
         &input,
         &mut focus_system,
@@ -3119,9 +3105,8 @@ fn test_text_edit_vertical_caret_auto_scrolling() {
     // Expected scroll = (16 + 4.0) - 16 = 4.0
     set_caret_byte(&mut state, 6);
     input.text_events = vec![TextEvent::CaretUp { shift: false }];
-    raw::post_layout_text_edit(
+    run_raw_text_edit_frame(
         edit_spec.clone(),
-        raw::post_layout_only_pre_layout_result(&mut state),
         &mut state,
         &input,
         &mut focus_system,
@@ -3254,9 +3239,8 @@ fn test_text_edit_caret_movement_with_selection() {
             shift: false,
             ctrl: false,
         });
-        raw::post_layout_text_edit(
+        run_raw_text_edit_frame(
             spec(),
-            raw::post_layout_only_pre_layout_result(&mut state),
             &mut state,
             &input,
             &mut focus_system,
@@ -3281,9 +3265,8 @@ fn test_text_edit_caret_movement_with_selection() {
             shift: false,
             ctrl: false,
         });
-        raw::post_layout_text_edit(
+        run_raw_text_edit_frame(
             spec(),
-            raw::post_layout_only_pre_layout_result(&mut state),
             &mut state,
             &input,
             &mut focus_system,
@@ -3308,9 +3291,8 @@ fn test_text_edit_caret_movement_with_selection() {
             shift: false,
             ctrl: false,
         });
-        raw::post_layout_text_edit(
+        run_raw_text_edit_frame(
             spec(),
-            raw::post_layout_only_pre_layout_result(&mut state),
             &mut state,
             &input,
             &mut focus_system,
@@ -3335,9 +3317,8 @@ fn test_text_edit_caret_movement_with_selection() {
             shift: false,
             ctrl: false,
         });
-        raw::post_layout_text_edit(
+        run_raw_text_edit_frame(
             spec(),
-            raw::post_layout_only_pre_layout_result(&mut state),
             &mut state,
             &input,
             &mut focus_system,
@@ -3364,9 +3345,8 @@ fn test_text_edit_caret_movement_with_selection() {
             shift: false,
             ctrl: true,
         });
-        raw::post_layout_text_edit(
+        run_raw_text_edit_frame(
             spec(),
-            raw::post_layout_only_pre_layout_result(&mut state),
             &mut state,
             &input,
             &mut focus_system,
@@ -3391,9 +3371,8 @@ fn test_text_edit_caret_movement_with_selection() {
             shift: false,
             ctrl: true,
         });
-        raw::post_layout_text_edit(
+        run_raw_text_edit_frame(
             spec(),
-            raw::post_layout_only_pre_layout_result(&mut state),
             &mut state,
             &input,
             &mut focus_system,
@@ -3419,9 +3398,8 @@ fn test_text_edit_caret_movement_with_selection() {
             shift: true,
             ctrl: false,
         });
-        raw::post_layout_text_edit(
+        run_raw_text_edit_frame(
             spec(),
-            raw::post_layout_only_pre_layout_result(&mut state),
             &mut state,
             &input,
             &mut focus_system,
@@ -3446,9 +3424,8 @@ fn test_text_edit_caret_movement_with_selection() {
             shift: true,
             ctrl: false,
         });
-        raw::post_layout_text_edit(
+        run_raw_text_edit_frame(
             spec(),
-            raw::post_layout_only_pre_layout_result(&mut state),
             &mut state,
             &input,
             &mut focus_system,
@@ -3472,9 +3449,8 @@ fn test_text_edit_caret_movement_with_selection() {
             shift: true,
             ctrl: false,
         });
-        raw::post_layout_text_edit(
+        run_raw_text_edit_frame(
             spec(),
-            raw::post_layout_only_pre_layout_result(&mut state),
             &mut state,
             &input,
             &mut focus_system,
@@ -3499,9 +3475,8 @@ fn test_text_edit_caret_movement_with_selection() {
             shift: true,
             ctrl: false,
         });
-        raw::post_layout_text_edit(
+        run_raw_text_edit_frame(
             spec(),
-            raw::post_layout_only_pre_layout_result(&mut state),
             &mut state,
             &input,
             &mut focus_system,
@@ -3528,9 +3503,8 @@ fn test_text_edit_caret_movement_with_selection() {
             shift: true,
             ctrl: true,
         });
-        raw::post_layout_text_edit(
+        run_raw_text_edit_frame(
             spec(),
-            raw::post_layout_only_pre_layout_result(&mut state),
             &mut state,
             &input,
             &mut focus_system,
@@ -3555,9 +3529,8 @@ fn test_text_edit_caret_movement_with_selection() {
             shift: true,
             ctrl: true,
         });
-        raw::post_layout_text_edit(
+        run_raw_text_edit_frame(
             spec(),
-            raw::post_layout_only_pre_layout_result(&mut state),
             &mut state,
             &input,
             &mut focus_system,
@@ -3583,9 +3556,8 @@ fn test_text_edit_caret_movement_with_selection() {
             shift: true,
             ctrl: false,
         });
-        raw::post_layout_text_edit(
+        run_raw_text_edit_frame(
             spec(),
-            raw::post_layout_only_pre_layout_result(&mut state),
             &mut state,
             &input,
             &mut focus_system,
@@ -3609,9 +3581,8 @@ fn test_text_edit_caret_movement_with_selection() {
             shift: true,
             ctrl: false,
         });
-        raw::post_layout_text_edit(
+        run_raw_text_edit_frame(
             spec(),
-            raw::post_layout_only_pre_layout_result(&mut state),
             &mut state,
             &input,
             &mut focus_system,
@@ -3637,12 +3608,11 @@ fn test_text_edit_caret_movement_with_selection() {
 
         let mut input = Input::default();
         input.text_events.push(TextEvent::CaretUp { shift: false });
-        raw::post_layout_text_edit(
+        run_raw_text_edit_frame(
             TextEditSpec {
                 newline_policy: NewlinePolicy::Preserve,
                 ..spec()
             },
-            raw::post_layout_only_pre_layout_result(&mut state),
             &mut state,
             &input,
             &mut focus_system,
@@ -3666,12 +3636,11 @@ fn test_text_edit_caret_movement_with_selection() {
 
         let mut input = Input::default();
         input.text_events.push(TextEvent::CaretUp { shift: false });
-        raw::post_layout_text_edit(
+        run_raw_text_edit_frame(
             TextEditSpec {
                 newline_policy: NewlinePolicy::Preserve,
                 ..spec()
             },
-            raw::post_layout_only_pre_layout_result(&mut state),
             &mut state,
             &input,
             &mut focus_system,
@@ -3697,12 +3666,11 @@ fn test_text_edit_caret_movement_with_selection() {
         input
             .text_events
             .push(TextEvent::CaretDown { shift: false });
-        raw::post_layout_text_edit(
+        run_raw_text_edit_frame(
             TextEditSpec {
                 newline_policy: NewlinePolicy::Preserve,
                 ..spec()
             },
-            raw::post_layout_only_pre_layout_result(&mut state),
             &mut state,
             &input,
             &mut focus_system,
@@ -3728,12 +3696,11 @@ fn test_text_edit_caret_movement_with_selection() {
         input
             .text_events
             .push(TextEvent::CaretDown { shift: false });
-        raw::post_layout_text_edit(
+        run_raw_text_edit_frame(
             TextEditSpec {
                 newline_policy: NewlinePolicy::Preserve,
                 ..spec()
             },
-            raw::post_layout_only_pre_layout_result(&mut state),
             &mut state,
             &input,
             &mut focus_system,
@@ -3766,9 +3733,8 @@ fn test_text_edit_caret_movement_with_selection() {
         // Shift+Up
         let mut input = Input::default();
         input.text_events.push(TextEvent::CaretUp { shift: true });
-        raw::post_layout_text_edit(
+        run_raw_text_edit_frame(
             edit_spec.clone(),
-            raw::post_layout_only_pre_layout_result(&mut state),
             &mut state,
             &input,
             &mut focus_system,
@@ -3781,9 +3747,8 @@ fn test_text_edit_caret_movement_with_selection() {
         // Shift+Down
         input.text_events.clear();
         input.text_events.push(TextEvent::CaretDown { shift: true });
-        raw::post_layout_text_edit(
+        run_raw_text_edit_frame(
             edit_spec.clone(),
-            raw::post_layout_only_pre_layout_result(&mut state),
             &mut state,
             &input,
             &mut focus_system,
@@ -3796,9 +3761,8 @@ fn test_text_edit_caret_movement_with_selection() {
         // Shift+Down again
         input.text_events.clear();
         input.text_events.push(TextEvent::CaretDown { shift: true });
-        raw::post_layout_text_edit(
+        run_raw_text_edit_frame(
             edit_spec,
-            raw::post_layout_only_pre_layout_result(&mut state),
             &mut state,
             &input,
             &mut focus_system,
@@ -3822,9 +3786,8 @@ fn test_text_edit_caret_movement_with_selection() {
 
         let mut input = Input::default();
         input.text_events.push(TextEvent::CaretUp { shift: false });
-        raw::post_layout_text_edit(
+        run_raw_text_edit_frame(
             spec(),
-            raw::post_layout_only_pre_layout_result(&mut state),
             &mut state,
             &input,
             &mut focus_system,
@@ -3850,9 +3813,8 @@ fn test_text_edit_caret_movement_with_selection() {
             shift: false,
             ctrl: false,
         });
-        raw::post_layout_text_edit(
+        run_raw_text_edit_frame(
             spec(),
-            raw::post_layout_only_pre_layout_result(&mut state),
             &mut state,
             &input,
             &mut focus_system,
@@ -4167,7 +4129,6 @@ fn test_caret_up_down_navigation() {
     // Line 2: "line3"   -> byte_start=12, byte_end=17
     let mut state = TextEditState::new("line1\nline2\nline3");
     let mut input = Input::default();
-    focus_system.begin_frame();
     focus_system.take_keyboard_focus(state.focus_id);
 
     let edit_spec = TextEditSpec {
@@ -4176,9 +4137,8 @@ fn test_caret_up_down_navigation() {
     };
 
     // Initialize/prepare the layout once
-    raw::post_layout_text_edit(
+    run_raw_text_edit_frame(
         edit_spec.clone(),
-        raw::post_layout_only_pre_layout_result(&mut state),
         &mut state,
         &input,
         &mut focus_system,
@@ -4190,9 +4150,8 @@ fn test_caret_up_down_navigation() {
     set_caret_byte(&mut state, 5);
     set_selection_byte(&mut state, None);
     input.text_events = vec![TextEvent::CaretDown { shift: false }];
-    raw::post_layout_text_edit(
+    run_raw_text_edit_frame(
         edit_spec.clone(),
-        raw::post_layout_only_pre_layout_result(&mut state),
         &mut state,
         &input,
         &mut focus_system,
@@ -4203,9 +4162,8 @@ fn test_caret_up_down_navigation() {
 
     // 2. Arrow Up from Line 1 to Line 0
     input.text_events = vec![TextEvent::CaretUp { shift: false }];
-    raw::post_layout_text_edit(
+    run_raw_text_edit_frame(
         edit_spec.clone(),
-        raw::post_layout_only_pre_layout_result(&mut state),
         &mut state,
         &input,
         &mut focus_system,
@@ -4217,9 +4175,8 @@ fn test_caret_up_down_navigation() {
     // 3. Boundary Condition: Arrow Up on first line
     set_caret_byte(&mut state, 2);
     input.text_events = vec![TextEvent::CaretUp { shift: false }];
-    raw::post_layout_text_edit(
+    run_raw_text_edit_frame(
         edit_spec.clone(),
-        raw::post_layout_only_pre_layout_result(&mut state),
         &mut state,
         &input,
         &mut focus_system,
@@ -4231,9 +4188,8 @@ fn test_caret_up_down_navigation() {
     // 4. Boundary Condition: Arrow Down on last line
     set_caret_byte(&mut state, 14);
     input.text_events = vec![TextEvent::CaretDown { shift: false }];
-    raw::post_layout_text_edit(
+    run_raw_text_edit_frame(
         edit_spec.clone(),
-        raw::post_layout_only_pre_layout_result(&mut state),
         &mut state,
         &input,
         &mut focus_system,
@@ -4246,9 +4202,8 @@ fn test_caret_up_down_navigation() {
     set_caret_byte(&mut state, 2);
     set_selection_byte(&mut state, None);
     input.text_events = vec![TextEvent::CaretDown { shift: true }];
-    raw::post_layout_text_edit(
+    run_raw_text_edit_frame(
         edit_spec.clone(),
-        raw::post_layout_only_pre_layout_result(&mut state),
         &mut state,
         &input,
         &mut focus_system,
@@ -4276,12 +4231,10 @@ fn test_page_up_down_moves_by_outer_scroll_height_whole_lines() {
 
     let mut state = TextEditState::new("line0\nline1\nline2\nline3\nline4\nline5");
     let mut input = Input::default();
-    focus_system.begin_frame();
     focus_system.take_keyboard_focus(state.focus_id);
 
-    raw::post_layout_text_edit(
+    run_raw_text_edit_frame(
         edit_spec.clone(),
-        raw::post_layout_only_pre_layout_result(&mut state),
         &mut state,
         &input,
         &mut focus_system,
@@ -4292,9 +4245,8 @@ fn test_page_up_down_moves_by_outer_scroll_height_whole_lines() {
     set_caret_byte(&mut state, 2);
     set_selection_byte(&mut state, None);
     input.key_pressed_page_down = true;
-    raw::post_layout_text_edit(
+    run_raw_text_edit_frame(
         edit_spec.clone(),
-        raw::post_layout_only_pre_layout_result(&mut state),
         &mut state,
         &input,
         &mut focus_system,
@@ -4306,9 +4258,8 @@ fn test_page_up_down_moves_by_outer_scroll_height_whole_lines() {
 
     input.key_pressed_page_down = false;
     input.key_pressed_page_up = true;
-    raw::post_layout_text_edit(
+    run_raw_text_edit_frame(
         edit_spec.clone(),
-        raw::post_layout_only_pre_layout_result(&mut state),
         &mut state,
         &input,
         &mut focus_system,
@@ -4320,9 +4271,8 @@ fn test_page_up_down_moves_by_outer_scroll_height_whole_lines() {
     set_caret_byte(&mut state, 29);
     input.key_pressed_page_up = false;
     input.key_pressed_page_down = true;
-    raw::post_layout_text_edit(
+    run_raw_text_edit_frame(
         edit_spec.clone(),
-        raw::post_layout_only_pre_layout_result(&mut state),
         &mut state,
         &input,
         &mut focus_system,
@@ -4334,9 +4284,8 @@ fn test_page_up_down_moves_by_outer_scroll_height_whole_lines() {
     set_caret_byte(&mut state, 9);
     input.key_pressed_page_down = false;
     input.key_pressed_page_up = true;
-    raw::post_layout_text_edit(
+    run_raw_text_edit_frame(
         edit_spec,
-        raw::post_layout_only_pre_layout_result(&mut state),
         &mut state,
         &input,
         &mut focus_system,
@@ -4361,12 +4310,10 @@ fn test_page_up_down_preserves_caret_x_with_short_target_lines() {
 
     let mut state = TextEditState::new("000000\n1\n222222\n333\n444444\n5");
     let mut input = Input::default();
-    focus_system.begin_frame();
     focus_system.take_keyboard_focus(state.focus_id);
 
-    raw::post_layout_text_edit(
+    run_raw_text_edit_frame(
         edit_spec.clone(),
-        raw::post_layout_only_pre_layout_result(&mut state),
         &mut state,
         &input,
         &mut focus_system,
@@ -4379,9 +4326,8 @@ fn test_page_up_down_preserves_caret_x_with_short_target_lines() {
     set_caret_byte(&mut state, 5);
     set_selection_byte(&mut state, None);
     input.key_pressed_page_down = true;
-    raw::post_layout_text_edit(
+    run_raw_text_edit_frame(
         edit_spec.clone(),
-        raw::post_layout_only_pre_layout_result(&mut state),
         &mut state,
         &input,
         &mut focus_system,
@@ -4395,9 +4341,8 @@ fn test_page_up_down_preserves_caret_x_with_short_target_lines() {
     set_caret_byte(&mut state, 25);
     input.key_pressed_page_down = false;
     input.key_pressed_page_up = true;
-    raw::post_layout_text_edit(
+    run_raw_text_edit_frame(
         edit_spec,
-        raw::post_layout_only_pre_layout_result(&mut state),
         &mut state,
         &input,
         &mut focus_system,
@@ -4422,12 +4367,10 @@ fn test_shift_page_down_extends_selection() {
 
     let mut state = TextEditState::new("line0\nline1\nline2\nline3\nline4\nline5");
     let mut input = Input::default();
-    focus_system.begin_frame();
     focus_system.take_keyboard_focus(state.focus_id);
 
-    raw::post_layout_text_edit(
+    run_raw_text_edit_frame(
         edit_spec.clone(),
-        raw::post_layout_only_pre_layout_result(&mut state),
         &mut state,
         &input,
         &mut focus_system,
@@ -4439,9 +4382,8 @@ fn test_shift_page_down_extends_selection() {
     set_selection_byte(&mut state, None);
     input.key_pressed_page_down = true;
     input.modifier_shift = true;
-    raw::post_layout_text_edit(
+    run_raw_text_edit_frame(
         edit_spec,
-        raw::post_layout_only_pre_layout_result(&mut state),
         &mut state,
         &input,
         &mut focus_system,
@@ -4573,9 +4515,8 @@ fn test_home_end_multiline() {
     };
 
     // Warm-up frame so the widget knows the layout.
-    raw::post_layout_text_edit(
+    run_raw_text_edit_frame(
         edit_spec.clone(),
-        raw::post_layout_only_pre_layout_result(&mut state),
         &mut state,
         &Input::default(),
         &mut focus_system,
@@ -4592,9 +4533,8 @@ fn test_home_end_multiline() {
         shift: false,
         ctrl: false,
     }];
-    raw::post_layout_text_edit(
+    run_raw_text_edit_frame(
         edit_spec.clone(),
-        raw::post_layout_only_pre_layout_result(&mut state),
         &mut state,
         &input,
         &mut focus_system,
@@ -4615,9 +4555,8 @@ fn test_home_end_multiline() {
         shift: false,
         ctrl: false,
     }];
-    raw::post_layout_text_edit(
+    run_raw_text_edit_frame(
         edit_spec.clone(),
-        raw::post_layout_only_pre_layout_result(&mut state),
         &mut state,
         &input,
         &mut focus_system,
@@ -4638,9 +4577,8 @@ fn test_home_end_multiline() {
         shift: false,
         ctrl: false,
     }];
-    raw::post_layout_text_edit(
+    run_raw_text_edit_frame(
         edit_spec.clone(),
-        raw::post_layout_only_pre_layout_result(&mut state),
         &mut state,
         &input,
         &mut focus_system,
@@ -4660,9 +4598,8 @@ fn test_home_end_multiline() {
         shift: false,
         ctrl: false,
     }];
-    raw::post_layout_text_edit(
+    run_raw_text_edit_frame(
         edit_spec.clone(),
-        raw::post_layout_only_pre_layout_result(&mut state),
         &mut state,
         &input,
         &mut focus_system,
@@ -4682,9 +4619,8 @@ fn test_home_end_multiline() {
         shift: true,
         ctrl: false,
     }];
-    raw::post_layout_text_edit(
+    run_raw_text_edit_frame(
         edit_spec.clone(),
-        raw::post_layout_only_pre_layout_result(&mut state),
         &mut state,
         &input,
         &mut focus_system,
@@ -4709,9 +4645,8 @@ fn test_home_end_multiline() {
         shift: true,
         ctrl: false,
     }];
-    raw::post_layout_text_edit(
+    run_raw_text_edit_frame(
         edit_spec.clone(),
-        raw::post_layout_only_pre_layout_result(&mut state),
         &mut state,
         &input,
         &mut focus_system,
@@ -4736,9 +4671,8 @@ fn test_home_end_multiline() {
         shift: false,
         ctrl: true,
     }];
-    raw::post_layout_text_edit(
+    run_raw_text_edit_frame(
         edit_spec.clone(),
-        raw::post_layout_only_pre_layout_result(&mut state),
         &mut state,
         &input,
         &mut focus_system,
@@ -4759,9 +4693,8 @@ fn test_home_end_multiline() {
         shift: false,
         ctrl: true,
     }];
-    raw::post_layout_text_edit(
+    run_raw_text_edit_frame(
         edit_spec.clone(),
-        raw::post_layout_only_pre_layout_result(&mut state),
         &mut state,
         &input,
         &mut focus_system,
@@ -4782,9 +4715,8 @@ fn test_home_end_multiline() {
         shift: true,
         ctrl: true,
     }];
-    raw::post_layout_text_edit(
+    run_raw_text_edit_frame(
         edit_spec.clone(),
-        raw::post_layout_only_pre_layout_result(&mut state),
         &mut state,
         &input,
         &mut focus_system,
@@ -4809,9 +4741,8 @@ fn test_home_end_multiline() {
         shift: true,
         ctrl: true,
     }];
-    raw::post_layout_text_edit(
+    run_raw_text_edit_frame(
         edit_spec.clone(),
-        raw::post_layout_only_pre_layout_result(&mut state),
         &mut state,
         &input,
         &mut focus_system,

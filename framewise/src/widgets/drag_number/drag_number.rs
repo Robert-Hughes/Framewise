@@ -215,6 +215,16 @@ pub mod raw {
             started_editing_this_frame = true;
         }
 
+        let keyboard_enter_starts_editing = !state.edit.is_editing()
+            && !spec.disabled
+            && input.key_pressed_enter
+            && focus_system.current_keyboard_focus() == Some(state.focus_id);
+        if keyboard_enter_starts_editing {
+            enter_drag_number_edit_mode(state);
+            focus_system.take_keyboard_focus(state.focus_id);
+            started_editing_this_frame = true;
+        }
+
         let mut text_edit_result = None;
         // In display mode the DragNumber owns focus registration; in edit mode raw
         // TextEdit registers the same focus id instead.
@@ -232,12 +242,6 @@ pub mod raw {
             )
             .0
         };
-
-        if focused && !spec.disabled && !state.edit.is_editing() && input.key_pressed_enter {
-            enter_drag_number_edit_mode(state);
-            focus_system.take_keyboard_focus(state.focus_id);
-            started_editing_this_frame = true;
-        }
 
         // Display-mode mouse interaction: arrow stepping, repeat, and scrub drag.
         // Edit mode bypasses this so typed values do not also trigger value changes.

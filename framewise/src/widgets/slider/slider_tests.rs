@@ -145,6 +145,7 @@ fn test_slider_page_up_down_keyboard() {
     assert_eq!(state.value.lower(), 50.0);
     focus_system.end_frame();
 
+    focus_system.begin_frame();
     input.key_pressed_page_down = false;
     input.key_pressed_home = true;
     raw::post_layout_slider(
@@ -158,7 +159,9 @@ fn test_slider_page_up_down_keyboard() {
         &mut cmds,
     );
     assert_eq!(state.value.lower(), 0.0);
+    focus_system.end_frame();
 
+    focus_system.begin_frame();
     input.key_pressed_home = false;
     input.key_pressed_end = true;
     raw::post_layout_slider(
@@ -172,6 +175,7 @@ fn test_slider_page_up_down_keyboard() {
         &mut cmds,
     );
     assert_eq!(state.value.lower(), 100.0);
+    focus_system.end_frame();
 }
 
 #[test]
@@ -388,6 +392,7 @@ fn test_slider_arrow_keys() {
     // Up decrements
     input.key_pressed_up = true;
     let mut cmds = DrawCommands::new(1.0);
+    focus_system.begin_frame();
     raw::post_layout_slider(
         spec.clone(),
         raw::SliderPreLayoutResult {
@@ -404,10 +409,12 @@ fn test_slider_arrow_keys() {
         Some(state.focus_id),
         "Up arrow must not move focus away from slider"
     );
+    focus_system.end_frame();
 
     // Down increments
     input.key_pressed_up = false;
     input.key_pressed_down = true;
+    focus_system.begin_frame();
     raw::post_layout_slider(
         spec.clone(),
         raw::SliderPreLayoutResult {
@@ -424,10 +431,12 @@ fn test_slider_arrow_keys() {
         Some(state.focus_id),
         "Down arrow must not move focus away from slider"
     );
+    focus_system.end_frame();
 
     // Left decrements (same as Up)
     input.key_pressed_down = false;
     input.key_pressed_left = true;
+    focus_system.begin_frame();
     raw::post_layout_slider(
         spec.clone(),
         raw::SliderPreLayoutResult {
@@ -444,10 +453,12 @@ fn test_slider_arrow_keys() {
         Some(state.focus_id),
         "Left arrow must not move focus away from slider"
     );
+    focus_system.end_frame();
 
     // Right increments (same as Down)
     input.key_pressed_left = false;
     input.key_pressed_right = true;
+    focus_system.begin_frame();
     raw::post_layout_slider(
         spec.clone(),
         raw::SliderPreLayoutResult {
@@ -464,6 +475,7 @@ fn test_slider_arrow_keys() {
         Some(state.focus_id),
         "Right arrow must not move focus away from slider"
     );
+    focus_system.end_frame();
 
     // Left/Right also work on a horizontal slider
     input.key_pressed_right = false;
@@ -479,6 +491,7 @@ fn test_slider_arrow_keys() {
     focus_system.take_keyboard_focus(horiz_state.focus_id);
 
     input.key_pressed_left = true;
+    focus_system.begin_frame();
     raw::post_layout_slider(
         horiz_spec.clone(),
         raw::SliderPreLayoutResult {
@@ -490,9 +503,11 @@ fn test_slider_arrow_keys() {
         &mut cmds,
     );
     assert_eq!(horiz_state.value.lower(), 45.0);
+    focus_system.end_frame();
 
     input.key_pressed_left = false;
     input.key_pressed_right = true;
+    focus_system.begin_frame();
     raw::post_layout_slider(
         horiz_spec.clone(),
         raw::SliderPreLayoutResult {
@@ -504,6 +519,7 @@ fn test_slider_arrow_keys() {
         &mut cmds,
     );
     assert_eq!(horiz_state.value.lower(), 50.0);
+    focus_system.end_frame();
 }
 
 #[test]
@@ -5632,6 +5648,7 @@ fn test_slider_value_snap_preserves_home_end_exact_endpoints() {
         key_pressed_home: true,
         ..Default::default()
     };
+    focus_system.begin_frame();
     raw::post_layout_slider(
         spec.clone(),
         test_pre_layout(),
@@ -5641,11 +5658,13 @@ fn test_slider_value_snap_preserves_home_end_exact_endpoints() {
         &mut cmds,
     );
     assert_eq!(state.value.lower(), 0.0);
+    focus_system.end_frame();
 
     let input = Input {
         key_pressed_end: true,
         ..Default::default()
     };
+    focus_system.begin_frame();
     raw::post_layout_slider(
         spec,
         test_pre_layout(),
@@ -5655,4 +5674,5 @@ fn test_slider_value_snap_preserves_home_end_exact_endpoints() {
         &mut cmds,
     );
     assert_eq!(state.value.lower(), 10.0);
+    focus_system.end_frame();
 }

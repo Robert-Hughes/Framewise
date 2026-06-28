@@ -206,9 +206,11 @@ impl FocusSystem {
     pub fn register_keyboard(&mut self, id: FocusId, rect: Rect, clip_rect: ClipRect) -> bool {
         #[cfg(debug_assertions)]
         {
-            if !self.seen_ids.insert(id) && !cfg!(test) {
-                panic!("FocusId {:?} registered twice in the same frame! This usually means widget state is being reused incorrectly.", id);
-            }
+            assert!(
+                self.seen_ids.insert(id),
+                "FocusId {:?} registered twice in the same frame! This usually means widget state is being reused incorrectly.",
+                id
+            );
         }
 
         self.keyboard_frame_order.push(id);
