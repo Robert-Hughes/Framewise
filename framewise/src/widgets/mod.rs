@@ -17,9 +17,6 @@ pub mod color_swatch;
 #[cfg(feature = "divider")]
 #[path = "divider/divider.rs"]
 pub mod divider;
-#[cfg(feature = "drag_number")]
-#[path = "drag_number/drag_number.rs"]
-pub mod drag_number;
 #[cfg(feature = "frame")]
 #[path = "frame/frame.rs"]
 pub mod frame;
@@ -35,6 +32,9 @@ pub mod menu;
 #[cfg(feature = "meter")]
 #[path = "meter/meter.rs"]
 pub mod meter;
+#[cfg(feature = "number_edit")]
+#[path = "number_edit/number_edit.rs"]
+pub mod number_edit;
 #[cfg(feature = "progress_bar")]
 #[path = "progress_bar/progress_bar.rs"]
 pub mod progress_bar;
@@ -91,10 +91,6 @@ pub use chip::{chip, ChipResult, ChipSpec, ChipState, ChipStyle};
 pub use color_swatch::{color_swatch, ColorSwatchResult, ColorSwatchSpec};
 #[cfg(feature = "divider")]
 pub use divider::{divider, DividerResult, DividerSpec};
-#[cfg(feature = "drag_number")]
-pub use drag_number::{
-    drag_number, DragNumberResult, DragNumberSpec, DragNumberState, DragNumberStyle,
-};
 #[cfg(feature = "frame")]
 pub use frame::{begin_frame, FrameResult, FrameSpec, FrameStyle};
 #[cfg(feature = "keycap")]
@@ -105,6 +101,10 @@ pub use label::{label, LabelResult, LabelSpec, LabelStyle};
 pub use menu::{menu, MenuItem, MenuResult, MenuSpec, MenuStyle};
 #[cfg(feature = "meter")]
 pub use meter::{meter, MeterResult, MeterSpec, MeterStyle};
+#[cfg(feature = "number_edit")]
+pub use number_edit::{
+    number_edit, NumberEditResult, NumberEditSpec, NumberEditState, NumberEditStyle,
+};
 #[cfg(feature = "progress_bar")]
 pub use progress_bar::{progress_bar, ProgressBarResult, ProgressBarSpec, ProgressBarStyle};
 #[cfg(feature = "radio")]

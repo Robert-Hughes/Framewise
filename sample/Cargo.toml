@@ -11,14 +11,14 @@ path = "src/main.rs"
 # Phase 1 intrinsic-sizing work: only the button page builds against the
 # button-only framewise. Restore the other pages as widgets are migrated.
 default = ["page_button_demo", "page_scroll_demo", "page_frame_demo", "page_layout_demo", "page_spec", "page_label_demo", "page_text_edit",
-    "button", "slider", "scroll_area", "frame", "label", "keycap", "status", "tooltip", "checkbox", "radio", "switch", "color_swatch", "divider", "meter", "progress_bar", "spinner", "tree", "tabs", "chip", "drag_number", "segmented", "select", "menu", "window", "text_edit"]
+    "button", "slider", "scroll_area", "frame", "label", "keycap", "status", "tooltip", "checkbox", "radio", "switch", "color_swatch", "divider", "meter", "progress_bar", "spinner", "tree", "tabs", "chip", "number_edit", "segmented", "select", "menu", "window", "text_edit"]
 
 button       = ["framewise/button"]
 checkbox     = ["framewise/checkbox"]
 chip         = ["framewise/chip"]
 color_swatch = ["framewise/color_swatch"]
 divider      = ["framewise/divider"]
-drag_number  = ["framewise/drag_number"]
+number_edit  = ["framewise/number_edit"]
 frame        = ["framewise/frame"]
 keycap       = ["framewise/keycap"]
 label        = ["framewise/label"]
@@ -52,16 +52,16 @@ page_text_edit = ["text_edit", "label", "button", "checkbox", "radio"]
 #   01 Buttons ............ button
 #   02 Text inputs ........ text_edit
 #   03 Checks/radios/sw ... checkbox + radio + switch
-#   04 Sliders & drags .... slider + drag_number + color_swatch
+#   04 Sliders & drags .... slider + number_edit + color_swatch
 #   05 Selection .......... select + segmented + chip + menu
 #   06 Scrollbars ......... (core: scroll_area)
 #   07 Tabs ............... tabs
 #   08 Progress/meters .... progress_bar + meter + spinner + status
 #   09 Tree & list ........ tree
 #   10 Tooltips/keycaps ... tooltip + keycap
-#   11 Window chrome ...... window + drag_number + checkbox
+#   11 Window chrome ...... window + number_edit + checkbox
 #   12 In use ............. window + tabs + segmented + slider + switch +
-#                           drag_number + color_swatch + checkbox + button + menu
+#                           number_edit + color_swatch + checkbox + button + menu
 page_spec = ["label", "divider", "scroll_area"]
 
 # Convenience: enable the spec page with every section turned on. NOTE: this only
@@ -71,7 +71,7 @@ page_spec = ["label", "divider", "scroll_area"]
 # rest light up as their widgets are migrated.
 page_spec_full = [
     "page_spec",
-    "button", "checkbox", "chip", "color_swatch", "drag_number",
+    "button", "checkbox", "chip", "color_swatch", "number_edit",
     "keycap", "menu", "meter", "progress_bar", "radio",
     "segmented", "select", "slider", "spinner", "status",
     "switch", "tabs", "text_edit", "tooltip", "tree", "window",

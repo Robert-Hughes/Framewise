@@ -13,7 +13,7 @@ pub mod raw {
     use super::*;
 
     #[derive(Debug, Clone, PartialEq)]
-    pub struct DragNumberSpec<'a, F = super::DefaultDragNumberValueFormatter>
+    pub struct NumberEditSpec<'a, F = super::DefaultNumberEditValueFormatter>
     where
         F: Fn(f32) -> String,
     {
@@ -21,7 +21,7 @@ pub mod raw {
         /// Full bounding rect (height typically h_md = 28).
         pub rect: Rect,
         pub text: &'a str,
-        pub style: super::DragNumberStyle,
+        pub style: super::NumberEditStyle,
         pub min: f32,
         pub max: f32,
         pub step: f32,
@@ -33,49 +33,49 @@ pub mod raw {
     }
 
     #[derive(Debug, Clone, PartialEq)]
-    pub struct DragNumberPreLayoutSpec<'a, 'f, F>
+    pub struct NumberEditPreLayoutSpec<'a, 'f, F>
     where
         F: Fn(f32) -> String,
     {
         pub text: &'a str,
-        pub style: super::DragNumberStyle,
+        pub style: super::NumberEditStyle,
         pub min: f32,
         pub max: f32,
         pub value_formatter: &'f F,
     }
 
     #[derive(Debug, Clone, PartialEq)]
-    pub struct DragNumberPreLayoutResult {
+    pub struct NumberEditPreLayoutResult {
         pub size_request: crate::layout::SizeRequest,
     }
 
     #[derive(Debug, Clone, PartialEq)]
-    pub struct DragNumberResult {
+    pub struct NumberEditResult {
         pub input: InputInfo,
         pub focused: bool,
         pub content_bounds: Rect,
         pub cursor_icon: Option<crate::output::CursorIcon>,
     }
 
-    /// Return the size this drag number would request under `offer`.
+    /// Return the size this number edit would request under `offer`.
     ///
     /// This currently measures text with unbounded bounds; offer-sensitive
     /// wrapping is future work.
-    pub fn pre_layout_drag_number<T: TextBackend, F>(
-        spec: &DragNumberPreLayoutSpec<'_, '_, F>,
+    pub fn pre_layout_number_edit<T: TextBackend, F>(
+        spec: &NumberEditPreLayoutSpec<'_, '_, F>,
         offer: SizeOffer,
         text_backend: &mut T,
-    ) -> DragNumberPreLayoutResult
+    ) -> NumberEditPreLayoutResult
     where
         F: Fn(f32) -> String,
     {
-        DragNumberPreLayoutResult {
-            size_request: drag_number_size_request(spec, offer, text_backend),
+        NumberEditPreLayoutResult {
+            size_request: number_edit_size_request(spec, offer, text_backend),
         }
     }
 
-    fn drag_number_size_request<T: TextBackend, F>(
-        spec: &DragNumberPreLayoutSpec<'_, '_, F>,
+    fn number_edit_size_request<T: TextBackend, F>(
+        spec: &NumberEditPreLayoutSpec<'_, '_, F>,
         _offer: SizeOffer,
         text_backend: &mut T,
     ) -> crate::layout::SizeRequest
@@ -112,19 +112,19 @@ pub mod raw {
         crate::layout::SizeRequest::preferred(Vec2::new(label_w + value_w, s.height))
     }
 
-    /// Low-level drag number widget function.
+    /// Low-level number edit widget function.
     ///
     /// This is the raw implementation that takes all parameters explicitly.
     /// High-level wrappers should use this internally.
-    pub fn post_layout_drag_number<'a, T: TextBackend, F>(
-        spec: DragNumberSpec<'a, F>,
-        _pre_layout: DragNumberPreLayoutResult,
-        state: &mut DragNumberState,
+    pub fn post_layout_number_edit<'a, T: TextBackend, F>(
+        spec: NumberEditSpec<'a, F>,
+        _pre_layout: NumberEditPreLayoutResult,
+        state: &mut NumberEditState,
         input: &Input,
         focus_system: &mut FocusSystem,
         text_backend: &mut T,
         cmds: &mut DrawCommands,
-    ) -> DragNumberResult
+    ) -> NumberEditResult
     where
         F: Fn(f32) -> String,
     {
@@ -132,7 +132,7 @@ pub mod raw {
             state.is_dragging = false;
             state.is_arrow_stepping = false;
             state.arrow_step_direction = None;
-            state.edit = DragNumberEditState::Inactive;
+            state.edit = NumberEditEditState::Inactive;
         }
 
         let s = spec.style;
@@ -194,15 +194,15 @@ pub mod raw {
         let hovered_left_arrow = contains_value && left_arrow_rect.contains(input.mouse_pos);
         let hovered_right_arrow = contains_value && right_arrow_rect.contains(input.mouse_pos);
         let hovered_arrow_direction = if hovered_left_arrow {
-            Some(DragNumberStepDirection::Decrement)
+            Some(NumberEditStepDirection::Decrement)
         } else if hovered_right_arrow {
-            Some(DragNumberStepDirection::Increment)
+            Some(NumberEditStepDirection::Increment)
         } else {
             None
         };
         let hovered_drag_region =
             contains_value && is_hover_active && hovered_arrow_direction.is_none();
-        // The embedded TextEdit reuses the DragNumber focus id. Entering edit mode
+        // The embedded TextEdit reuses the NumberEdit focus id. Entering edit mode
         // happens before normal focus registration so only one widget registers it.
         if !state.edit.is_editing()
             && !spec.disabled
@@ -210,7 +210,7 @@ pub mod raw {
             && input.mouse_click_count == 2
             && hovered_drag_region
         {
-            enter_drag_number_edit_mode(state);
+            enter_number_edit_mode(state);
             focus_system.take_keyboard_focus(state.focus_id);
             started_editing_this_frame = true;
         }
@@ -220,13 +220,13 @@ pub mod raw {
             && input.key_pressed_enter
             && focus_system.current_keyboard_focus() == Some(state.focus_id);
         if keyboard_enter_starts_editing {
-            enter_drag_number_edit_mode(state);
+            enter_number_edit_mode(state);
             focus_system.take_keyboard_focus(state.focus_id);
             started_editing_this_frame = true;
         }
 
         let mut text_edit_result = None;
-        // In display mode the DragNumber owns focus registration; in edit mode raw
+        // In display mode the NumberEdit owns focus registration; in edit mode raw
         // TextEdit registers the same focus id instead.
         let focused = if state.edit.is_editing() || spec.disabled {
             false
@@ -406,7 +406,7 @@ pub mod raw {
             });
         }
 
-        if let DragNumberEditState::Editing { text_edit, error } = &mut state.edit {
+        if let NumberEditEditState::Editing { text_edit, error } = &mut state.edit {
             // Suppress the activation click for the inner TextEdit. The shared focus id
             // is intentional, but the initial double-click must not become word selection.
             let mut edit_input;
@@ -423,7 +423,7 @@ pub mod raw {
             };
             let old_edit_value = text_edit.value.clone();
             // Run raw TextEdit after layout because value_rect only exists in
-            // DragNumber's post-layout phase.
+            // NumberEdit's post-layout phase.
             let pre_layout_spec = text_edit::raw::TextEditPreLayoutSpec {
                 style: s.text_edit_style,
                 wrap: false,
@@ -552,19 +552,19 @@ pub mod raw {
             let clicked_outside_text_edit =
                 input.mouse_pressed && !value_rect.contains(input.mouse_pos);
             if input.key_pressed_escape {
-                state.edit = DragNumberEditState::Inactive;
+                state.edit = NumberEditEditState::Inactive;
                 focus_system.take_keyboard_focus(state.focus_id);
                 edit_focused = true;
             } else if input.key_pressed_enter && !started_editing_this_frame {
-                if try_commit_drag_number_edit(state, clamp_min, clamp_max) {
+                if try_commit_number_edit(state, clamp_min, clamp_max) {
                     focus_system.take_keyboard_focus(state.focus_id);
                     edit_focused = true;
                 }
             } else if clicked_outside_text_edit {
-                commit_or_remember_drag_number_edit_on_focus_loss(state, clamp_min, clamp_max);
+                commit_or_remember_number_edit_on_focus_loss(state, clamp_min, clamp_max);
                 edit_focused = false;
             } else if !edit_focused {
-                commit_or_remember_drag_number_edit_on_focus_loss(state, clamp_min, clamp_max);
+                commit_or_remember_number_edit_on_focus_loss(state, clamp_min, clamp_max);
             }
         }
 
@@ -589,7 +589,7 @@ pub mod raw {
             None
         };
 
-        DragNumberResult {
+        NumberEditResult {
             input: edit_input_info.unwrap_or(InputInfo {
                 hovered,
                 pressed: state.is_dragging && !spec.disabled,
@@ -607,7 +607,7 @@ pub mod raw {
 // ── Style ─────────────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub struct DragNumberStyle {
+pub struct NumberEditStyle {
     pub height: f32,
     pub text_pad_x: f32,
     pub text_style: crate::text::TextStyle,
@@ -623,7 +623,7 @@ pub struct DragNumberStyle {
     pub disabled_alpha: f32,
 }
 
-impl DragNumberStyle {
+impl NumberEditStyle {
     pub fn from_theme(theme: &crate::theme::Theme) -> Self {
         let mut text_edit_style = TextEditStyle::from_theme(theme);
         text_edit_style.min_height = theme.h_md;
@@ -662,7 +662,7 @@ impl DragNumberStyle {
     }
 }
 
-impl Default for DragNumberStyle {
+impl Default for NumberEditStyle {
     fn default() -> Self {
         Self::from_theme(&crate::theme::Theme::minimal())
     }
@@ -671,31 +671,31 @@ impl Default for DragNumberStyle {
 // ── State ─────────────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, Default, PartialEq)]
-pub struct DragNumberState {
+pub struct NumberEditState {
     pub value: f32,
     pub is_dragging: bool,
     pub drag_start_x: f32,
     pub drag_start_value: f32,
     pub is_arrow_stepping: bool,
     pub arrow_step_start_mouse_pos: Vec2,
-    pub arrow_step_direction: Option<DragNumberStepDirection>,
+    pub arrow_step_direction: Option<NumberEditStepDirection>,
     pub next_repeat_time: f64,
     pub focus_id: FocusId,
-    pub edit: DragNumberEditState,
+    pub edit: NumberEditEditState,
 }
 
 #[derive(Debug, Clone, PartialEq)]
 #[allow(clippy::large_enum_variant)]
-pub enum DragNumberEditState {
+pub enum NumberEditEditState {
     /// No active editor and no remembered invalid draft.
     ///
     /// Entering edit mode from this state starts from the committed numeric
-    /// `DragNumberState::value`, formatted as raw editable text.
+    /// `NumberEditState::value`, formatted as raw editable text.
     Inactive,
 
     /// The value field is currently being edited by the embedded raw TextEdit.
     ///
-    /// The committed numeric value remains in `DragNumberState::value` until a
+    /// The committed numeric value remains in `NumberEditState::value` until a
     /// valid commit succeeds. Invalid Enter keeps this state active and sets
     /// `error = true`.
     Editing {
@@ -707,62 +707,62 @@ pub enum DragNumberEditState {
     ///
     /// The widget is not currently editing and should not keep keyboard focus
     /// because of this state. The committed numeric value remains in
-    /// `DragNumberState::value`. The `draft` should be restored the next time
+    /// `NumberEditState::value`. The `draft` should be restored the next time
     /// the user enters edit mode.
     Remembered { draft: String },
 }
 
 #[allow(clippy::derivable_impls)]
-impl Default for DragNumberEditState {
+impl Default for NumberEditEditState {
     fn default() -> Self {
         Self::Inactive
     }
 }
 
-impl DragNumberEditState {
+impl NumberEditEditState {
     fn is_editing(&self) -> bool {
         matches!(self, Self::Editing { .. })
     }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum DragNumberStepDirection {
+pub enum NumberEditStepDirection {
     Decrement,
     Increment,
 }
 
 fn step_value(
-    state: &mut DragNumberState,
-    direction: DragNumberStepDirection,
+    state: &mut NumberEditState,
+    direction: NumberEditStepDirection,
     step: f32,
     clamp_min: f32,
     clamp_max: f32,
 ) {
     let delta = match direction {
-        DragNumberStepDirection::Decrement => -step,
-        DragNumberStepDirection::Increment => step,
+        NumberEditStepDirection::Decrement => -step,
+        NumberEditStepDirection::Increment => step,
     };
     state.value = (state.value + delta).clamp(clamp_min, clamp_max);
 }
 
-fn drag_number_raw_edit_text(value: f32) -> String {
+fn number_edit_raw_edit_text(value: f32) -> String {
     value.to_string()
 }
 
-fn make_drag_number_text_edit_state(state: &DragNumberState, draft: &str) -> TextEditState {
+fn make_number_edit_text_edit_state(state: &NumberEditState, draft: &str) -> TextEditState {
     let mut text_edit = TextEditState::new(draft);
     text_edit.focus_id = state.focus_id;
     text_edit
 }
 
-fn enter_drag_number_edit_mode(state: &mut DragNumberState) {
+fn enter_number_edit_mode(state: &mut NumberEditState) {
     let draft = match std::mem::take(&mut state.edit) {
-        DragNumberEditState::Inactive => drag_number_raw_edit_text(state.value),
-        DragNumberEditState::Remembered { draft } => draft,
-        DragNumberEditState::Editing { .. } => unreachable!("guarded by !is_editing"),
+        NumberEditEditState::Inactive => number_edit_raw_edit_text(state.value),
+        NumberEditEditState::Remembered { draft } => draft,
+        NumberEditEditState::Editing { .. } => unreachable!("guarded by !is_editing"),
     };
-    let text_edit = make_drag_number_text_edit_state(state, &draft);
-    state.edit = DragNumberEditState::Editing {
+    let text_edit = make_number_edit_text_edit_state(state, &draft);
+    state.edit = NumberEditEditState::Editing {
         text_edit,
         error: false,
     };
@@ -771,22 +771,18 @@ fn enter_drag_number_edit_mode(state: &mut DragNumberState) {
     state.arrow_step_direction = None;
 }
 
-fn parse_drag_number_edit_text(text: &str) -> Option<f32> {
+fn parse_number_edit_text(text: &str) -> Option<f32> {
     let value = text.trim().parse::<f32>().ok()?;
     value.is_finite().then_some(value)
 }
 
-fn try_commit_drag_number_edit(
-    state: &mut DragNumberState,
-    clamp_min: f32,
-    clamp_max: f32,
-) -> bool {
-    let DragNumberEditState::Editing { text_edit, error } = &mut state.edit else {
+fn try_commit_number_edit(state: &mut NumberEditState, clamp_min: f32, clamp_max: f32) -> bool {
+    let NumberEditEditState::Editing { text_edit, error } = &mut state.edit else {
         return true;
     };
-    if let Some(value) = parse_drag_number_edit_text(&text_edit.value) {
+    if let Some(value) = parse_number_edit_text(&text_edit.value) {
         state.value = value.clamp(clamp_min, clamp_max);
-        state.edit = DragNumberEditState::Inactive;
+        state.edit = NumberEditEditState::Inactive;
         true
     } else {
         *error = true;
@@ -794,20 +790,20 @@ fn try_commit_drag_number_edit(
     }
 }
 
-fn commit_or_remember_drag_number_edit_on_focus_loss(
-    state: &mut DragNumberState,
+fn commit_or_remember_number_edit_on_focus_loss(
+    state: &mut NumberEditState,
     clamp_min: f32,
     clamp_max: f32,
 ) {
     let edit = std::mem::take(&mut state.edit);
 
     match edit {
-        DragNumberEditState::Editing { text_edit, .. } => {
-            if let Some(value) = parse_drag_number_edit_text(&text_edit.value) {
+        NumberEditEditState::Editing { text_edit, .. } => {
+            if let Some(value) = parse_number_edit_text(&text_edit.value) {
                 state.value = value.clamp(clamp_min, clamp_max);
-                state.edit = DragNumberEditState::Inactive;
+                state.edit = NumberEditEditState::Inactive;
             } else {
-                state.edit = DragNumberEditState::Remembered {
+                state.edit = NumberEditEditState::Remembered {
                     draft: text_edit.value,
                 };
             }
@@ -821,7 +817,7 @@ fn commit_or_remember_drag_number_edit_on_focus_loss(
 // ── Result ───────────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct DragNumberResult {
+pub struct NumberEditResult {
     pub layout: LayoutInfo,
     pub input: InputInfo,
     pub focused: bool,
@@ -829,19 +825,19 @@ pub struct DragNumberResult {
 
 // ── Spec ─────────────────────────────────────────────────────────────────────
 
-pub type DefaultDragNumberValueFormatter = fn(f32) -> String;
+pub type DefaultNumberEditValueFormatter = fn(f32) -> String;
 
-pub fn default_drag_number_value_formatter(value: f32) -> String {
+pub fn default_number_edit_value_formatter(value: f32) -> String {
     format!("{value:.2}")
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct DragNumberSpec<'a, F = DefaultDragNumberValueFormatter>
+pub struct NumberEditSpec<'a, F = DefaultNumberEditValueFormatter>
 where
     F: Fn(f32) -> String,
 {
     pub text: &'a str,
-    pub style: DragNumberStyle,
+    pub style: NumberEditStyle,
     pub min: f32,
     pub max: f32,
     pub step: f32,
@@ -850,22 +846,22 @@ where
     pub disabled: bool,
 }
 
-impl<'a> Default for DragNumberSpec<'a, DefaultDragNumberValueFormatter> {
+impl<'a> Default for NumberEditSpec<'a, DefaultNumberEditValueFormatter> {
     fn default() -> Self {
         Self {
             text: "",
-            style: DragNumberStyle::default(),
+            style: NumberEditStyle::default(),
             min: 0.0,
             max: 100.0,
             step: 1.0,
             page_step: 10.0,
-            value_formatter: default_drag_number_value_formatter,
+            value_formatter: default_number_edit_value_formatter,
             disabled: false,
         }
     }
 }
 
-impl<'a> DragNumberSpec<'a, DefaultDragNumberValueFormatter> {
+impl<'a> NumberEditSpec<'a, DefaultNumberEditValueFormatter> {
     pub fn new(text: &'a str) -> Self {
         Self {
             text,
@@ -882,12 +878,12 @@ impl<'a> DragNumberSpec<'a, DefaultDragNumberValueFormatter> {
     }
 }
 
-impl<'a, F> DragNumberSpec<'a, F>
+impl<'a, F> NumberEditSpec<'a, F>
 where
     F: Fn(f32) -> String,
 {
     pub fn theme(mut self, theme: &crate::theme::Theme) -> Self {
-        self.style = DragNumberStyle::from_theme(theme);
+        self.style = NumberEditStyle::from_theme(theme);
         self
     }
 
@@ -896,7 +892,7 @@ where
         self
     }
 
-    pub fn style(mut self, style: DragNumberStyle) -> Self {
+    pub fn style(mut self, style: NumberEditStyle) -> Self {
         self.style = style;
         self
     }
@@ -921,11 +917,11 @@ where
         self
     }
 
-    pub fn value_formatter<G>(self, value_formatter: G) -> DragNumberSpec<'a, G>
+    pub fn value_formatter<G>(self, value_formatter: G) -> NumberEditSpec<'a, G>
     where
         G: Fn(f32) -> String,
     {
-        DragNumberSpec {
+        NumberEditSpec {
             text: self.text,
             style: self.style,
             min: self.min,
@@ -945,20 +941,20 @@ where
 
 // ── High-level widget function ───────────────────────────────────────────────────
 
-/// High-level drag number widget function using `WidgetContext`.
+/// High-level number edit widget function using `WidgetContext`.
 ///
 /// Runs the raw pre-layout phase to obtain a `SizeRequest`, resolves the final
 /// rect with layout, then runs the raw post-layout phase.
-pub fn drag_number<'a, T: TextBackend, S: LayoutState, CF, F>(
-    spec: DragNumberSpec<'a, F>,
+pub fn number_edit<'a, T: TextBackend, S: LayoutState, CF, F>(
+    spec: NumberEditSpec<'a, F>,
     layout_params: S::Params,
-    state: &mut DragNumberState,
+    state: &mut NumberEditState,
     ctx: &mut WidgetContext<T, S, CF>,
-) -> DragNumberResult
+) -> NumberEditResult
 where
     F: Fn(f32) -> String,
 {
-    let pre_layout_spec = raw::DragNumberPreLayoutSpec {
+    let pre_layout_spec = raw::NumberEditPreLayoutSpec {
         text: spec.text,
         style: spec.style,
         min: spec.min,
@@ -966,9 +962,9 @@ where
         value_formatter: &spec.value_formatter,
     };
     let offer = ctx.peek_offer(layout_params.clone());
-    let pre_layout = raw::pre_layout_drag_number(&pre_layout_spec, offer, ctx.text_backend);
+    let pre_layout = raw::pre_layout_number_edit(&pre_layout_spec, offer, ctx.text_backend);
     let rect = ctx.layout(layout_params, pre_layout.size_request);
-    let raw_spec = raw::DragNumberSpec {
+    let raw_spec = raw::NumberEditSpec {
         layer: ctx.layer,
         rect,
         text: spec.text,
@@ -982,7 +978,7 @@ where
         disabled: spec.disabled,
         clip_rect: ctx.clip_rect,
     };
-    let result = raw::post_layout_drag_number(
+    let result = raw::post_layout_number_edit(
         raw_spec,
         pre_layout,
         state,
@@ -996,7 +992,7 @@ where
         ctx.output.cursor_icon = Some(cursor_icon);
     }
 
-    DragNumberResult {
+    NumberEditResult {
         layout: LayoutInfo::new(rect, result.content_bounds),
         input: result.input,
         focused: result.focused,
@@ -1004,5 +1000,5 @@ where
 }
 
 #[cfg(test)]
-#[path = "drag_number_tests.rs"]
+#[path = "number_edit_tests.rs"]
 mod tests;

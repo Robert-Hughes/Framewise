@@ -4,6 +4,13 @@ Working notes, TODOs, open questions, and half-baked ideas.
 
 ## Current Work
 
+- figure out numeric editing controls and ink label prefix
+  1. [x] Rename DragNumber → NumberEdit
+  2. Extract the prefix/addon label into a generic wrapper
+  3. Add behaviour/style settings to NumberEdit
+  - Go back to section 01 and 02 and use these widgets properly there
+  - Continue with section 04 and put them here too
+
 - Go through the spec_page, check/implement/test each widget/aspect to make better match the mock-up and add interactivity as we go (https://claude.ai/design/p/1aab4e86-cbf2-497e-b379-44cf41de2b12?file=Framewise+Widgets.html)
   - Done 01-03
   - Add demo pages for each widget type (or possibly in groups?)
@@ -41,7 +48,7 @@ Is useful when using builder cos the rect is calculated by the layout, so then m
 
 - Mouse-capture flag — inconsistent, contradicts DESIGN
 button: is_active
-slider/text_edit/drag_number: is_dragging
+slider/text_edit/number_edit: is_dragging
 checkbox/radio/switch/chip/segmented/tabs/select: no capture flag
 chip, segmented, tabs, and select should use handle_press_interaction
 DESIGN treats mouse-capture-via-state as foundational robustness mechanism. Toggles drop it. Partly justified (toggles fire on click, no drag), BUT button keeps is_active for drag-off-cancel while checkbox doesn't → clicking checkbox + dragging off still fires. UX inconsistency not stated as deliberate. Name is_active vs is_dragging also arbitrary for same concept.
@@ -61,7 +68,7 @@ Focus got a shared helper. Activation did NOT:
 
 - Space/Enter activate (~15 lines): repeated verbatim in checkbox, radio, switch, chip, select.
 Left/Right arrow nav: repeated near-verbatim in segmented + tabs.
-Up/Down arrow nav: select + drag_number.
+Up/Down arrow nav: select + number_edit.
 All copy-paste. Surprising that focus is DRY but activation is not.
 
 ## Layout
@@ -363,7 +370,7 @@ The "App-Managed State" option would require either a trait layer (so the widget
   - In 'scrollbar form', if the bar becomes too small it may be impossible to grab! Maybe need to figure out a minimum size somehow
   - Logarithmic (or otherwise custom) scales? Perhaps a user-defined 'value to linear' mapping function (and reverse), and everything else can be figured out automatically?
   - For horirzontal orientation up/down pg up/down seems the wrong way round? Up makes lower?
-- Drag number
+- Number edit
   - Logarithmic (or otherwise custom) scales? Perhaps a user-defined 'value to linear' mapping function (and reverse), and everything else can be figured out automatically?
   - up/down pg up/down seems the wrong way round? Up makes lower?
 
@@ -373,6 +380,8 @@ The "App-Managed State" option would require either a trait layer (so the widget
 - Try to refactor widgets into small composable functions so that they can be easily customised by users (e.g. you can re-use all the bits that you want to keep the same and change just one or two bits)
 
 - WidgetContext can have a disabled field, which when set is used by all of the high-level widget fns. Makes it easy to disable a whole set of widgets.
+
+- Consider extracting a common "NumericDomain { min, max, step, page_step, snap_value }" thing from Slider and NumericEdit
 
 ## Popups & Menus
 

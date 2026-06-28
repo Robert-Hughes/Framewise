@@ -50,11 +50,6 @@ use framewise::widgets::chip::{chip, ChipSpec, ChipState, ChipStyle};
 #[cfg(feature = "color_swatch")]
 #[allow(unused_imports)]
 use framewise::widgets::color_swatch::{color_swatch, ColorSwatchSpec};
-#[cfg(feature = "drag_number")]
-#[allow(unused_imports)]
-use framewise::widgets::drag_number::{
-    drag_number, DragNumberSpec, DragNumberState, DragNumberStyle,
-};
 #[cfg(feature = "keycap")]
 #[allow(unused_imports)]
 use framewise::widgets::keycap::{keycap, KeycapSpec};
@@ -64,6 +59,11 @@ use framewise::widgets::menu::{menu, MenuItem, MenuSpec};
 #[cfg(feature = "meter")]
 #[allow(unused_imports)]
 use framewise::widgets::meter::{meter, MeterSpec};
+#[cfg(feature = "number_edit")]
+#[allow(unused_imports)]
+use framewise::widgets::number_edit::{
+    number_edit, NumberEditSpec, NumberEditState, NumberEditStyle,
+};
 #[cfg(feature = "progress_bar")]
 #[allow(unused_imports)]
 use framewise::widgets::progress_bar::{progress_bar, ProgressBarSpec};
@@ -298,8 +298,8 @@ fn draw_select_fake_state<'s, T: TextBackend, LS: LayoutState, CF>(
     );
 }
 
-#[cfg(feature = "drag_number")]
-fn draw_drag_number_fake_state<T: TextBackend, LS: LayoutState, CF>(
+#[cfg(feature = "number_edit")]
+fn draw_number_edit_fake_state<T: TextBackend, LS: LayoutState, CF>(
     b: &mut WidgetContext<T, LS, CF>,
     layout_params: LS::Params,
     label: &str,
@@ -311,7 +311,7 @@ fn draw_drag_number_fake_state<T: TextBackend, LS: LayoutState, CF>(
     disabled: bool,
 ) {
     let rect = b.layout(layout_params, SizeRequest::UNKNOWN);
-    let mut state = DragNumberState {
+    let mut state = NumberEditState {
         value: val,
         is_dragging,
         drag_start_value: val,
@@ -323,17 +323,17 @@ fn draw_drag_number_fake_state<T: TextBackend, LS: LayoutState, CF>(
         dummy_input.mouse_down = true;
     }
 
-    let spec = framewise::widgets::drag_number::raw::DragNumberSpec {
+    let spec = framewise::widgets::number_edit::raw::NumberEditSpec {
         rect,
         text: label,
         min,
         max,
         step: 1.0,
         page_step: 10.0,
-        value_formatter: framewise::widgets::drag_number::default_drag_number_value_formatter,
+        value_formatter: framewise::widgets::number_edit::default_number_edit_value_formatter,
         time: b.time,
         disabled,
-        style: DragNumberStyle::from_theme(&b.theme),
+        style: NumberEditStyle::from_theme(&b.theme),
         clip_rect: b.clip_rect,
         layer: b.layer,
     };
@@ -344,8 +344,8 @@ fn draw_drag_number_fake_state<T: TextBackend, LS: LayoutState, CF>(
         FocusSystem::new()
     };
 
-    let pre_layout = framewise::widgets::drag_number::raw::pre_layout_drag_number(
-        &framewise::widgets::drag_number::raw::DragNumberPreLayoutSpec {
+    let pre_layout = framewise::widgets::number_edit::raw::pre_layout_number_edit(
+        &framewise::widgets::number_edit::raw::NumberEditPreLayoutSpec {
             text: spec.text,
             style: spec.style,
             min: spec.min,
@@ -356,7 +356,7 @@ fn draw_drag_number_fake_state<T: TextBackend, LS: LayoutState, CF>(
         b.text_backend,
     );
 
-    let result = framewise::widgets::drag_number::raw::post_layout_drag_number(
+    let result = framewise::widgets::number_edit::raw::post_layout_number_edit(
         spec,
         pre_layout,
         &mut state,
@@ -639,18 +639,18 @@ pub struct SpecWidgetsState {
     pub switch_states: Vec<SwitchState>, // items 0,1,3 — item 2 (focused) stays fake
 
     // 04 Sliders & numeric drags
-    #[cfg(all(feature = "slider", feature = "drag_number", feature = "color_swatch"))]
+    #[cfg(all(feature = "slider", feature = "number_edit", feature = "color_swatch"))]
     pub slider1_state: SliderState,
-    #[cfg(all(feature = "slider", feature = "drag_number", feature = "color_swatch"))]
+    #[cfg(all(feature = "slider", feature = "number_edit", feature = "color_swatch"))]
     pub slider2_state: SliderState,
-    #[cfg(all(feature = "slider", feature = "drag_number", feature = "color_swatch"))]
+    #[cfg(all(feature = "slider", feature = "number_edit", feature = "color_swatch"))]
     pub slider3_state: SliderState,
-    #[cfg(all(feature = "slider", feature = "drag_number", feature = "color_swatch"))]
+    #[cfg(all(feature = "slider", feature = "number_edit", feature = "color_swatch"))]
     pub slider4_state: SliderState, // stepped 0–9
-    #[cfg(all(feature = "slider", feature = "drag_number", feature = "color_swatch"))]
+    #[cfg(all(feature = "slider", feature = "number_edit", feature = "color_swatch"))]
     pub slider_range_state: SliderState,
-    #[cfg(all(feature = "slider", feature = "drag_number", feature = "color_swatch"))]
-    pub dn_showcase: Vec<DragNumberState>, // X(320), Y(144), H(400, disabled) — W stays fake
+    #[cfg(all(feature = "slider", feature = "number_edit", feature = "color_swatch"))]
+    pub dn_showcase: Vec<NumberEditState>, // X(320), Y(144), H(400, disabled) — W stays fake
 
     // 05 Selection
     #[cfg(all(
@@ -689,9 +689,9 @@ pub struct SpecWidgetsState {
     pub tabs2_state: TabsState,
 
     // 11 Window chrome (Inspector inner content)
-    #[cfg(all(feature = "window", feature = "drag_number", feature = "checkbox"))]
-    pub win11_drags: Vec<DragNumberState>, // X(320), Y(144), W(576), H(400)
-    #[cfg(all(feature = "window", feature = "drag_number", feature = "checkbox"))]
+    #[cfg(all(feature = "window", feature = "number_edit", feature = "checkbox"))]
+    pub win11_drags: Vec<NumberEditState>, // X(320), Y(144), W(576), H(400)
+    #[cfg(all(feature = "window", feature = "number_edit", feature = "checkbox"))]
     pub win11_cbs: Vec<CheckboxState>, // clip to parent (On), debug overlay (Off)
 
     // 06 Scroll areas
@@ -711,7 +711,7 @@ pub struct SpecWidgetsState {
         feature = "segmented",
         feature = "slider",
         feature = "switch",
-        feature = "drag_number",
+        feature = "number_edit",
         feature = "color_swatch",
         feature = "checkbox",
         feature = "button",
@@ -724,7 +724,7 @@ pub struct SpecWidgetsState {
         feature = "segmented",
         feature = "slider",
         feature = "switch",
-        feature = "drag_number",
+        feature = "number_edit",
         feature = "color_swatch",
         feature = "checkbox",
         feature = "button",
@@ -737,7 +737,7 @@ pub struct SpecWidgetsState {
         feature = "segmented",
         feature = "slider",
         feature = "switch",
-        feature = "drag_number",
+        feature = "number_edit",
         feature = "color_swatch",
         feature = "checkbox",
         feature = "button",
@@ -750,7 +750,7 @@ pub struct SpecWidgetsState {
         feature = "segmented",
         feature = "slider",
         feature = "switch",
-        feature = "drag_number",
+        feature = "number_edit",
         feature = "color_swatch",
         feature = "checkbox",
         feature = "button",
@@ -763,7 +763,7 @@ pub struct SpecWidgetsState {
         feature = "segmented",
         feature = "slider",
         feature = "switch",
-        feature = "drag_number",
+        feature = "number_edit",
         feature = "color_swatch",
         feature = "checkbox",
         feature = "button",
@@ -776,7 +776,7 @@ pub struct SpecWidgetsState {
         feature = "segmented",
         feature = "slider",
         feature = "switch",
-        feature = "drag_number",
+        feature = "number_edit",
         feature = "color_swatch",
         feature = "checkbox",
         feature = "button",
@@ -789,7 +789,7 @@ pub struct SpecWidgetsState {
         feature = "segmented",
         feature = "slider",
         feature = "switch",
-        feature = "drag_number",
+        feature = "number_edit",
         feature = "color_swatch",
         feature = "checkbox",
         feature = "button",
@@ -802,33 +802,33 @@ pub struct SpecWidgetsState {
         feature = "segmented",
         feature = "slider",
         feature = "switch",
-        feature = "drag_number",
+        feature = "number_edit",
         feature = "color_swatch",
         feature = "checkbox",
         feature = "button",
         feature = "menu"
     ))]
-    pub iu_vp_w: DragNumberState,
+    pub iu_vp_w: NumberEditState,
     #[cfg(all(
         feature = "window",
         feature = "tabs",
         feature = "segmented",
         feature = "slider",
         feature = "switch",
-        feature = "drag_number",
+        feature = "number_edit",
         feature = "color_swatch",
         feature = "checkbox",
         feature = "button",
         feature = "menu"
     ))]
-    pub iu_vp_h: DragNumberState,
+    pub iu_vp_h: NumberEditState,
     #[cfg(all(
         feature = "window",
         feature = "tabs",
         feature = "segmented",
         feature = "slider",
         feature = "switch",
-        feature = "drag_number",
+        feature = "number_edit",
         feature = "color_swatch",
         feature = "checkbox",
         feature = "button",
@@ -911,27 +911,27 @@ impl Default for SpecWidgetsState {
             te_multiline: TextEditState::new(
                 "A small, procedural Rust library that helps an application describe and draw GUI elements for the current frame.",
             ),
-            #[cfg(all(feature = "slider", feature = "drag_number", feature = "color_swatch"))]
+            #[cfg(all(feature = "slider", feature = "number_edit", feature = "color_swatch"))]
             slider1_state: SliderState {
                 value: SliderValue::Single(0.14),
                 ..Default::default()
             },
-            #[cfg(all(feature = "slider", feature = "drag_number", feature = "color_swatch"))]
+            #[cfg(all(feature = "slider", feature = "number_edit", feature = "color_swatch"))]
             slider2_state: SliderState {
                 value: SliderValue::Single(0.62),
                 ..Default::default()
             },
-            #[cfg(all(feature = "slider", feature = "drag_number", feature = "color_swatch"))]
+            #[cfg(all(feature = "slider", feature = "number_edit", feature = "color_swatch"))]
             slider3_state: SliderState {
                 value: SliderValue::Single(0.88),
                 ..Default::default()
             },
-            #[cfg(all(feature = "slider", feature = "drag_number", feature = "color_swatch"))]
+            #[cfg(all(feature = "slider", feature = "number_edit", feature = "color_swatch"))]
             slider4_state: SliderState {
                 value: SliderValue::Single(3.0),
                 ..Default::default()
             },
-            #[cfg(all(feature = "slider", feature = "drag_number", feature = "color_swatch"))]
+            #[cfg(all(feature = "slider", feature = "number_edit", feature = "color_swatch"))]
             slider_range_state: SliderState {
                 value: SliderValue::Range {
                     lower: 0.24,
@@ -969,17 +969,17 @@ impl Default for SpecWidgetsState {
                     ..Default::default()
                 },
             ],
-            #[cfg(all(feature = "slider", feature = "drag_number", feature = "color_swatch"))]
+            #[cfg(all(feature = "slider", feature = "number_edit", feature = "color_swatch"))]
             dn_showcase: vec![
-                DragNumberState {
+                NumberEditState {
                     value: 320.0,
                     ..Default::default()
                 },
-                DragNumberState {
+                NumberEditState {
                     value: 144.0,
                     ..Default::default()
                 },
-                DragNumberState {
+                NumberEditState {
                     value: 400.0,
                     ..Default::default()
                 },
@@ -1049,26 +1049,26 @@ impl Default for SpecWidgetsState {
                 active_index: 1,
                 ..Default::default()
             },
-            #[cfg(all(feature = "window", feature = "drag_number", feature = "checkbox"))]
+            #[cfg(all(feature = "window", feature = "number_edit", feature = "checkbox"))]
             win11_drags: vec![
-                DragNumberState {
+                NumberEditState {
                     value: 320.0,
                     ..Default::default()
                 },
-                DragNumberState {
+                NumberEditState {
                     value: 144.0,
                     ..Default::default()
                 },
-                DragNumberState {
+                NumberEditState {
                     value: 576.0,
                     ..Default::default()
                 },
-                DragNumberState {
+                NumberEditState {
                     value: 400.0,
                     ..Default::default()
                 },
             ],
-            #[cfg(all(feature = "window", feature = "drag_number", feature = "checkbox"))]
+            #[cfg(all(feature = "window", feature = "number_edit", feature = "checkbox"))]
             win11_cbs: vec![
                 CheckboxState {
                     checked: CheckedState::Checked,
@@ -1093,7 +1093,7 @@ impl Default for SpecWidgetsState {
                 feature = "segmented",
                 feature = "slider",
                 feature = "switch",
-                feature = "drag_number",
+                feature = "number_edit",
                 feature = "color_swatch",
                 feature = "checkbox",
                 feature = "button",
@@ -1109,7 +1109,7 @@ impl Default for SpecWidgetsState {
                 feature = "segmented",
                 feature = "slider",
                 feature = "switch",
-                feature = "drag_number",
+                feature = "number_edit",
                 feature = "color_swatch",
                 feature = "checkbox",
                 feature = "button",
@@ -1125,7 +1125,7 @@ impl Default for SpecWidgetsState {
                 feature = "segmented",
                 feature = "slider",
                 feature = "switch",
-                feature = "drag_number",
+                feature = "number_edit",
                 feature = "color_swatch",
                 feature = "checkbox",
                 feature = "button",
@@ -1141,7 +1141,7 @@ impl Default for SpecWidgetsState {
                 feature = "segmented",
                 feature = "slider",
                 feature = "switch",
-                feature = "drag_number",
+                feature = "number_edit",
                 feature = "color_swatch",
                 feature = "checkbox",
                 feature = "button",
@@ -1154,7 +1154,7 @@ impl Default for SpecWidgetsState {
                 feature = "segmented",
                 feature = "slider",
                 feature = "switch",
-                feature = "drag_number",
+                feature = "number_edit",
                 feature = "color_swatch",
                 feature = "checkbox",
                 feature = "button",
@@ -1167,7 +1167,7 @@ impl Default for SpecWidgetsState {
                 feature = "segmented",
                 feature = "slider",
                 feature = "switch",
-                feature = "drag_number",
+                feature = "number_edit",
                 feature = "color_swatch",
                 feature = "checkbox",
                 feature = "button",
@@ -1183,7 +1183,7 @@ impl Default for SpecWidgetsState {
                 feature = "segmented",
                 feature = "slider",
                 feature = "switch",
-                feature = "drag_number",
+                feature = "number_edit",
                 feature = "color_swatch",
                 feature = "checkbox",
                 feature = "button",
@@ -1199,13 +1199,13 @@ impl Default for SpecWidgetsState {
                 feature = "segmented",
                 feature = "slider",
                 feature = "switch",
-                feature = "drag_number",
+                feature = "number_edit",
                 feature = "color_swatch",
                 feature = "checkbox",
                 feature = "button",
                 feature = "menu"
             ))]
-            iu_vp_w: DragNumberState {
+            iu_vp_w: NumberEditState {
                 value: 1920.0,
                 ..Default::default()
             },
@@ -1215,13 +1215,13 @@ impl Default for SpecWidgetsState {
                 feature = "segmented",
                 feature = "slider",
                 feature = "switch",
-                feature = "drag_number",
+                feature = "number_edit",
                 feature = "color_swatch",
                 feature = "checkbox",
                 feature = "button",
                 feature = "menu"
             ))]
-            iu_vp_h: DragNumberState {
+            iu_vp_h: NumberEditState {
                 value: 1080.0,
                 ..Default::default()
             },
@@ -1231,7 +1231,7 @@ impl Default for SpecWidgetsState {
                 feature = "segmented",
                 feature = "slider",
                 feature = "switch",
-                feature = "drag_number",
+                feature = "number_edit",
                 feature = "color_swatch",
                 feature = "checkbox",
                 feature = "button",
@@ -1493,7 +1493,7 @@ pub fn draw_spec_page_inner<LS, CF>(
             {
                 section_03_toggles(b, content_w, state);
             }
-            #[cfg(all(feature = "slider", feature = "drag_number", feature = "color_swatch"))]
+            #[cfg(all(feature = "slider", feature = "number_edit", feature = "color_swatch"))]
             {
                 section_04_sliders(b, content_w, state);
             }
@@ -1531,7 +1531,7 @@ pub fn draw_spec_page_inner<LS, CF>(
             {
                 section_10_tooltips(b, content_w);
             }
-            #[cfg(all(feature = "window", feature = "drag_number", feature = "checkbox"))]
+            #[cfg(all(feature = "window", feature = "number_edit", feature = "checkbox"))]
             {
                 section_11_window(b, content_w, state);
             }
@@ -1541,7 +1541,7 @@ pub fn draw_spec_page_inner<LS, CF>(
                 feature = "segmented",
                 feature = "slider",
                 feature = "switch",
-                feature = "drag_number",
+                feature = "number_edit",
                 feature = "color_swatch",
                 feature = "checkbox",
                 feature = "button",
@@ -2552,7 +2552,7 @@ fn section_03_toggles<CF>(
     }
 }
 
-#[cfg(all(feature = "slider", feature = "drag_number", feature = "color_swatch"))]
+#[cfg(all(feature = "slider", feature = "number_edit", feature = "color_swatch"))]
 fn section_04_sliders<CF>(
     b: &mut WidgetContext<SampleTextBackend, ColumnState, CF>,
     content_w: f32,
@@ -2692,16 +2692,16 @@ fn section_04_sliders<CF>(
         let mut b = b.child_with_layout(ColumnLayoutParams::fixed(content_w, 42.0), ManualLayout);
         let mut x = 0.0;
         let rect = Rect::new(x, 14.0, DRAG_W, b.theme.h_md);
-        drag_number(
-            DragNumberSpec::new_from_theme("X", &b.theme).max(800.0),
+        number_edit(
+            NumberEditSpec::new_from_theme("X", &b.theme).max(800.0),
             rect,
             &mut state.dn_showcase[0],
             &mut b,
         );
         x += DRAG_W + GAP;
         let rect = Rect::new(x, 14.0, DRAG_W, b.theme.h_md);
-        drag_number(
-            DragNumberSpec::new_from_theme("Y", &b.theme).max(600.0),
+        number_edit(
+            NumberEditSpec::new_from_theme("Y", &b.theme).max(600.0),
             rect,
             &mut state.dn_showcase[1],
             &mut b,
@@ -2710,11 +2710,11 @@ fn section_04_sliders<CF>(
         let badge_rect = b.layout(Rect::new(x, 0.0, 72.0, 12.0), SizeRequest::UNKNOWN);
         static_badge(&mut b, badge_rect);
         let rect = Rect::new(x, 14.0, DRAG_W, b.theme.h_md);
-        draw_drag_number_fake_state(&mut b, rect, "W", 576.0, 0.0, 800.0, false, true, false);
+        draw_number_edit_fake_state(&mut b, rect, "W", 576.0, 0.0, 800.0, false, true, false);
         x += DRAG_W + GAP;
         let rect = Rect::new(x, 14.0, DRAG_W, b.theme.h_md);
-        drag_number(
-            DragNumberSpec::new_from_theme("H", &b.theme)
+        number_edit(
+            NumberEditSpec::new_from_theme("H", &b.theme)
                 .max(600.0)
                 .disabled(true),
             rect,
@@ -3762,7 +3762,7 @@ fn section_10_tooltips<CF>(
     }
 }
 
-#[cfg(all(feature = "window", feature = "drag_number", feature = "checkbox"))]
+#[cfg(all(feature = "window", feature = "number_edit", feature = "checkbox"))]
 fn section_11_window<CF>(
     b: &mut WidgetContext<SampleTextBackend, ColumnState, CF>,
     content_w: f32,
@@ -3798,10 +3798,10 @@ fn section_11_window<CF>(
                 let min = *min;
                 let max = *max;
                 let layout_params = Rect::new(drx, iy, (cr_w / 2.0) - 4.0, win.theme.h_md);
-                let spec = DragNumberSpec::new_from_theme(label, &win.theme)
+                let spec = NumberEditSpec::new_from_theme(label, &win.theme)
                     .min(min)
                     .max(max);
-                drag_number(spec, layout_params, state, &mut win)
+                number_edit(spec, layout_params, state, &mut win)
             };
             drx += (cr_w / 2.0) + 4.0;
         }
@@ -3816,10 +3816,10 @@ fn section_11_window<CF>(
                 let min = *min;
                 let max = *max;
                 let layout_params = Rect::new(drx, iy, (cr_w / 2.0) - 4.0, win.theme.h_md);
-                let spec = DragNumberSpec::new_from_theme(label, &win.theme)
+                let spec = NumberEditSpec::new_from_theme(label, &win.theme)
                     .min(min)
                     .max(max);
-                drag_number(spec, layout_params, state, &mut win)
+                number_edit(spec, layout_params, state, &mut win)
             };
             drx += (cr_w / 2.0) + 4.0;
         }
@@ -4111,7 +4111,7 @@ fn section_11_window<CF>(
     feature = "segmented",
     feature = "slider",
     feature = "switch",
-    feature = "drag_number",
+    feature = "number_edit",
     feature = "color_swatch",
     feature = "checkbox",
     feature = "button",
@@ -4284,7 +4284,7 @@ fn section_12_in_use<CF>(
         };
         fy += row_h + row_gap;
 
-        // viewport (drag numbers)
+        // viewport (number edits)
         {
             let layout_params = Rect::new(0.0, fy + 7.0, label_w, 14.0);
             let size = win.theme.text_sm;
@@ -4302,10 +4302,10 @@ fn section_12_in_use<CF>(
         let _w_res = {
             let state = &mut state.iu_vp_w;
             let layout_params = Rect::new(widget_x, fy, (widget_w / 2.0) - 4.0, row_h);
-            let spec = DragNumberSpec::new_from_theme("W", &win.theme)
+            let spec = NumberEditSpec::new_from_theme("W", &win.theme)
                 .max(7680.0)
                 .value_formatter(|v: f32| format!("{v:.0}"));
-            drag_number(spec, layout_params, state, &mut win)
+            number_edit(spec, layout_params, state, &mut win)
         };
 
         let _h_res = {
@@ -4316,10 +4316,10 @@ fn section_12_in_use<CF>(
                 (widget_w / 2.0) - 4.0,
                 row_h,
             );
-            let spec = DragNumberSpec::new_from_theme("H", &win.theme)
+            let spec = NumberEditSpec::new_from_theme("H", &win.theme)
                 .max(7680.0)
                 .value_formatter(|v: f32| format!("{v:.0}"));
-            drag_number(spec, layout_params, state, &mut win)
+            number_edit(spec, layout_params, state, &mut win)
         };
         fy += row_h + row_gap;
 

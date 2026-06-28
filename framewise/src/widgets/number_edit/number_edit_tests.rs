@@ -1,4 +1,4 @@
-use super::raw::DragNumberSpec;
+use super::raw::NumberEditSpec;
 use super::*;
 use crate::focus::FocusId;
 use crate::input::TextEvent;
@@ -6,12 +6,12 @@ use crate::test_utils::TestTextBackend;
 use crate::types::Vec2;
 use crate::{DrawGlyph, PreparedGlyphToken};
 
-fn default_style() -> DragNumberStyle {
-    DragNumberStyle::from_theme(&crate::theme::Theme::framewise())
+fn default_style() -> NumberEditStyle {
+    NumberEditStyle::from_theme(&crate::theme::Theme::framewise())
 }
 
-fn default_spec(rect: Rect) -> raw::DragNumberSpec<'static> {
-    raw::DragNumberSpec {
+fn default_spec(rect: Rect) -> raw::NumberEditSpec<'static> {
+    raw::NumberEditSpec {
         layer: Layer::default(),
         rect,
         text: "X",
@@ -19,7 +19,7 @@ fn default_spec(rect: Rect) -> raw::DragNumberSpec<'static> {
         max: 100.0,
         step: 1.0,
         page_step: 10.0,
-        value_formatter: default_drag_number_value_formatter,
+        value_formatter: default_number_edit_value_formatter,
         time: 0.0,
         disabled: false,
         style: default_style(),
@@ -28,19 +28,19 @@ fn default_spec(rect: Rect) -> raw::DragNumberSpec<'static> {
 }
 
 fn run_raw<F>(
-    spec: raw::DragNumberSpec<'_, F>,
-    state: &mut DragNumberState,
+    spec: raw::NumberEditSpec<'_, F>,
+    state: &mut NumberEditState,
     input: &Input,
     focus_system: &mut FocusSystem,
     text_backend: &mut TestTextBackend,
     cmds: &mut DrawCommands,
-) -> raw::DragNumberResult
+) -> raw::NumberEditResult
 where
     F: Fn(f32) -> String,
 {
-    raw::post_layout_drag_number(
+    raw::post_layout_number_edit(
         spec,
-        raw::DragNumberPreLayoutResult {
+        raw::NumberEditPreLayoutResult {
             size_request: crate::layout::SizeRequest::UNKNOWN,
         },
         state,
@@ -52,8 +52,8 @@ where
 }
 
 fn run_key<F>(
-    spec: raw::DragNumberSpec<'_, F>,
-    state: &mut DragNumberState,
+    spec: raw::NumberEditSpec<'_, F>,
+    state: &mut NumberEditState,
     focus_system: &mut FocusSystem,
     set_key: impl FnOnce(&mut Input),
 ) where
@@ -114,55 +114,55 @@ fn value_text_pos(rect: Rect, label: &str, formatted_value: &str) -> Vec2 {
     )
 }
 
-fn enter_edit_state(state: &mut DragNumberState, text: &str) {
+fn enter_edit_state(state: &mut NumberEditState, text: &str) {
     let mut text_edit = TextEditState::new(text);
     text_edit.focus_id = state.focus_id;
-    state.edit = DragNumberEditState::Editing {
+    state.edit = NumberEditEditState::Editing {
         text_edit,
         error: false,
     };
 }
 
-fn assert_inactive(edit: &DragNumberEditState) {
+fn assert_inactive(edit: &NumberEditEditState) {
     assert!(
-        matches!(edit, DragNumberEditState::Inactive),
+        matches!(edit, NumberEditEditState::Inactive),
         "expected Inactive, got {edit:?}"
     );
 }
 
-fn assert_remembered(edit: &DragNumberEditState, expected: &str) {
+fn assert_remembered(edit: &NumberEditEditState, expected: &str) {
     match edit {
-        DragNumberEditState::Remembered { draft } => assert_eq!(draft, expected),
+        NumberEditEditState::Remembered { draft } => assert_eq!(draft, expected),
         other => panic!("expected Remembered {{ draft: {expected:?} }}, got {other:?}"),
     }
 }
 
-fn assert_editing(edit: &DragNumberEditState) -> (&TextEditState, bool) {
+fn assert_editing(edit: &NumberEditEditState) -> (&TextEditState, bool) {
     match edit {
-        DragNumberEditState::Editing { text_edit, error } => (text_edit, *error),
+        NumberEditEditState::Editing { text_edit, error } => (text_edit, *error),
         other => panic!("expected Editing, got {other:?}"),
     }
 }
 
-fn assert_editing_mut(edit: &mut DragNumberEditState) -> (&mut TextEditState, &mut bool) {
+fn assert_editing_mut(edit: &mut NumberEditEditState) -> (&mut TextEditState, &mut bool) {
     match edit {
-        DragNumberEditState::Editing { text_edit, error } => (text_edit, error),
+        NumberEditEditState::Editing { text_edit, error } => (text_edit, error),
         other => panic!("expected Editing, got {other:?}"),
     }
 }
 
-fn drag_num<'a, F>(spec: DragNumberSpec<'a, F>, value: f32) -> (raw::DragNumberResult, DrawCommands)
+fn drag_num<'a, F>(spec: NumberEditSpec<'a, F>, value: f32) -> (raw::NumberEditResult, DrawCommands)
 where
     F: Fn(f32) -> String,
 {
     let mut cmds = DrawCommands::new(1.0);
     let mut text_backend = TestTextBackend::default();
-    let res = raw::post_layout_drag_number(
+    let res = raw::post_layout_number_edit(
         spec,
-        raw::DragNumberPreLayoutResult {
+        raw::NumberEditPreLayoutResult {
             size_request: crate::layout::SizeRequest::UNKNOWN,
         },
-        &mut DragNumberState {
+        &mut NumberEditState {
             value,
             ..Default::default()
         },
@@ -175,18 +175,18 @@ where
 }
 
 #[test]
-fn test_drag_number_custom_formatter_affects_measurement_and_rendering() {
-    let style = DragNumberStyle::from_theme(&crate::theme::Theme::framewise());
-    let default_formatter = default_drag_number_value_formatter;
+fn test_number_edit_custom_formatter_affects_measurement_and_rendering() {
+    let style = NumberEditStyle::from_theme(&crate::theme::Theme::framewise());
+    let default_formatter = default_number_edit_value_formatter;
     let integer_formatter = |v: f32| format!("{v:.0}");
-    let default_spec = raw::DragNumberPreLayoutSpec {
+    let default_spec = raw::NumberEditPreLayoutSpec {
         text: "X",
         style,
         min: 0.0,
         max: 100.0,
         value_formatter: &default_formatter,
     };
-    let integer_spec = raw::DragNumberPreLayoutSpec {
+    let integer_spec = raw::NumberEditPreLayoutSpec {
         text: "X",
         style,
         min: 0.0,
@@ -194,13 +194,13 @@ fn test_drag_number_custom_formatter_affects_measurement_and_rendering() {
         value_formatter: &integer_formatter,
     };
     let mut text_backend = TestTextBackend::default();
-    let default_size = raw::pre_layout_drag_number(
+    let default_size = raw::pre_layout_number_edit(
         &default_spec,
         crate::layout::SizeOffer::UNBOUNDED,
         &mut text_backend,
     )
     .size_request;
-    let integer_size = raw::pre_layout_drag_number(
+    let integer_size = raw::pre_layout_number_edit(
         &integer_spec,
         crate::layout::SizeOffer::UNBOUNDED,
         &mut text_backend,
@@ -212,7 +212,7 @@ fn test_drag_number_custom_formatter_affects_measurement_and_rendering() {
         "integer formatter should request less width than 2dp formatter"
     );
 
-    let spec = raw::DragNumberSpec {
+    let spec = raw::NumberEditSpec {
         layer: Layer::default(),
         rect: Rect::new(10.0, 10.0, 100.0, 28.0),
         text: "X",
@@ -244,8 +244,8 @@ fn test_drag_number_custom_formatter_affects_measurement_and_rendering() {
 }
 
 #[test]
-fn test_drag_number_visual_normal() {
-    let spec = DragNumberSpec {
+fn test_number_edit_visual_normal() {
+    let spec = NumberEditSpec {
         layer: Layer::default(),
         rect: Rect::new(10.0, 10.0, 100.0, 28.0),
         text: "X",
@@ -253,10 +253,10 @@ fn test_drag_number_visual_normal() {
         max: 100.0,
         step: 1.0,
         page_step: 10.0,
-        value_formatter: default_drag_number_value_formatter,
+        value_formatter: default_number_edit_value_formatter,
         time: 0.0,
         disabled: false,
-        style: DragNumberStyle::from_theme(&crate::theme::Theme::framewise()),
+        style: NumberEditStyle::from_theme(&crate::theme::Theme::framewise()),
         clip_rect: None,
     };
 
@@ -334,8 +334,8 @@ fn test_drag_number_visual_normal() {
 }
 
 #[test]
-fn test_drag_number_visual_editing() {
-    let spec = DragNumberSpec {
+fn test_number_edit_visual_editing() {
+    let spec = NumberEditSpec {
         layer: Layer::default(),
         rect: Rect::new(10.0, 10.0, 100.0, 28.0),
         text: "X",
@@ -343,14 +343,14 @@ fn test_drag_number_visual_editing() {
         max: 100.0,
         step: 1.0,
         page_step: 10.0,
-        value_formatter: default_drag_number_value_formatter,
+        value_formatter: default_number_edit_value_formatter,
         time: 0.0,
         disabled: false,
-        style: DragNumberStyle::from_theme(&crate::theme::Theme::framewise()),
+        style: NumberEditStyle::from_theme(&crate::theme::Theme::framewise()),
         clip_rect: None,
     };
     let style = spec.style;
-    let mut state = DragNumberState {
+    let mut state = NumberEditState {
         value: 50.5,
         ..Default::default()
     };
@@ -459,8 +459,8 @@ fn test_drag_number_visual_editing() {
 }
 
 #[test]
-fn test_drag_number_visual_hovered_value_area_draws_arrows() {
-    let spec = DragNumberSpec {
+fn test_number_edit_visual_hovered_value_area_draws_arrows() {
+    let spec = NumberEditSpec {
         layer: Layer::default(),
         rect: Rect::new(10.0, 10.0, 100.0, 28.0),
         text: "X",
@@ -468,10 +468,10 @@ fn test_drag_number_visual_hovered_value_area_draws_arrows() {
         max: 100.0,
         step: 1.0,
         page_step: 10.0,
-        value_formatter: default_drag_number_value_formatter,
+        value_formatter: default_number_edit_value_formatter,
         time: 0.0,
         disabled: false,
-        style: DragNumberStyle::from_theme(&crate::theme::Theme::framewise()),
+        style: NumberEditStyle::from_theme(&crate::theme::Theme::framewise()),
         clip_rect: None,
     };
     let style = spec.style;
@@ -485,7 +485,7 @@ fn test_drag_number_visual_hovered_value_area_draws_arrows() {
         mouse_pos: value_area_pos(spec.rect, spec.text),
         ..Default::default()
     };
-    let mut state = DragNumberState {
+    let mut state = NumberEditState {
         value: 50.0,
         ..Default::default()
     };
@@ -606,14 +606,14 @@ fn test_drag_number_visual_hovered_value_area_draws_arrows() {
 }
 
 #[test]
-fn test_drag_number_visual_active() {
-    let mut state = DragNumberState {
+fn test_number_edit_visual_active() {
+    let mut state = NumberEditState {
         value: 50.0,
         is_dragging: true,
         drag_start_value: 50.0,
         ..Default::default()
     };
-    let spec = DragNumberSpec {
+    let spec = NumberEditSpec {
         layer: Layer::default(),
         rect: Rect::new(10.0, 10.0, 100.0, 28.0),
         text: "X",
@@ -621,10 +621,10 @@ fn test_drag_number_visual_active() {
         max: 100.0,
         step: 1.0,
         page_step: 10.0,
-        value_formatter: default_drag_number_value_formatter,
+        value_formatter: default_number_edit_value_formatter,
         time: 0.0,
         disabled: false,
-        style: DragNumberStyle::from_theme(&crate::theme::Theme::framewise()),
+        style: NumberEditStyle::from_theme(&crate::theme::Theme::framewise()),
         clip_rect: None,
     };
 
@@ -635,9 +635,9 @@ fn test_drag_number_visual_active() {
     };
     let mut cmds = DrawCommands::new(1.0);
     let mut text_backend = TestTextBackend::default();
-    let res = raw::post_layout_drag_number(
+    let res = raw::post_layout_number_edit(
         spec.clone(),
-        raw::DragNumberPreLayoutResult {
+        raw::NumberEditPreLayoutResult {
             size_request: crate::layout::SizeRequest::UNKNOWN,
         },
         &mut state,
@@ -753,9 +753,9 @@ fn test_drag_number_visual_active() {
 }
 
 #[test]
-fn test_drag_number_visual_min_value() {
+fn test_number_edit_visual_min_value() {
     let mut text_backend = TestTextBackend::default();
-    let spec = DragNumberSpec {
+    let spec = NumberEditSpec {
         layer: Layer::default(),
         rect: Rect::new(10.0, 10.0, 100.0, 28.0),
         text: "X",
@@ -763,21 +763,21 @@ fn test_drag_number_visual_min_value() {
         max: 100.0,
         step: 1.0,
         page_step: 10.0,
-        value_formatter: default_drag_number_value_formatter,
+        value_formatter: default_number_edit_value_formatter,
         time: 0.0,
         disabled: false,
-        style: DragNumberStyle::from_theme(&crate::theme::Theme::framewise()),
+        style: NumberEditStyle::from_theme(&crate::theme::Theme::framewise()),
         clip_rect: None,
     };
 
     let style = spec.style;
     let mut cmds = DrawCommands::new(1.0);
-    let _res = raw::post_layout_drag_number(
+    let _res = raw::post_layout_number_edit(
         spec,
-        raw::DragNumberPreLayoutResult {
+        raw::NumberEditPreLayoutResult {
             size_request: crate::layout::SizeRequest::UNKNOWN,
         },
-        &mut DragNumberState::default(),
+        &mut NumberEditState::default(),
         &Input::default(),
         &mut FocusSystem::new(),
         &mut text_backend,
@@ -844,9 +844,9 @@ fn test_drag_number_visual_min_value() {
 }
 
 #[test]
-fn test_drag_number_click_takes_focus() {
+fn test_number_edit_click_takes_focus() {
     let mut focus_system = FocusSystem::new();
-    let state = DragNumberState {
+    let state = NumberEditState {
         value: 50.0,
         ..Default::default()
     };
@@ -857,7 +857,7 @@ fn test_drag_number_click_takes_focus() {
     };
 
     let mut text_backend = TestTextBackend::default();
-    let spec = DragNumberSpec {
+    let spec = NumberEditSpec {
         layer: Layer::default(),
         rect: Rect::new(0.0, 0.0, 100.0, 28.0),
         text: "X",
@@ -865,19 +865,19 @@ fn test_drag_number_click_takes_focus() {
         max: 100.0,
         step: 1.0,
         page_step: 10.0,
-        value_formatter: default_drag_number_value_formatter,
+        value_formatter: default_number_edit_value_formatter,
         time: 0.0,
         disabled: false,
-        style: DragNumberStyle::from_theme(&crate::theme::Theme::framewise()),
+        style: NumberEditStyle::from_theme(&crate::theme::Theme::framewise()),
         clip_rect: None,
     };
 
     let mut state = state;
     let mut cmds = DrawCommands::new(1.0);
     focus_system.begin_frame();
-    let result = raw::post_layout_drag_number(
+    let result = raw::post_layout_number_edit(
         spec,
-        raw::DragNumberPreLayoutResult {
+        raw::NumberEditPreLayoutResult {
             size_request: crate::layout::SizeRequest::UNKNOWN,
         },
         &mut state,
@@ -892,14 +892,14 @@ fn test_drag_number_click_takes_focus() {
     assert_eq!(
         focus_system.current_keyboard_focus(),
         Some(state.focus_id),
-        "Clicking drag number must request focus"
+        "Clicking number edit must request focus"
     );
 }
 
 #[test]
-fn test_drag_number_clipped_click_does_not_take_focus() {
+fn test_number_edit_clipped_click_does_not_take_focus() {
     let mut focus_system = FocusSystem::new();
-    let state = DragNumberState {
+    let state = NumberEditState {
         value: 50.0,
         ..Default::default()
     };
@@ -910,7 +910,7 @@ fn test_drag_number_clipped_click_does_not_take_focus() {
     };
 
     let mut text_backend = TestTextBackend::default();
-    let spec = DragNumberSpec {
+    let spec = NumberEditSpec {
         layer: Layer::default(),
         rect: Rect::new(0.0, 0.0, 100.0, 28.0),
         text: "X",
@@ -918,19 +918,19 @@ fn test_drag_number_clipped_click_does_not_take_focus() {
         max: 100.0,
         step: 1.0,
         page_step: 10.0,
-        value_formatter: default_drag_number_value_formatter,
+        value_formatter: default_number_edit_value_formatter,
         time: 0.0,
         disabled: false,
-        style: DragNumberStyle::from_theme(&crate::theme::Theme::framewise()),
+        style: NumberEditStyle::from_theme(&crate::theme::Theme::framewise()),
         clip_rect: Some(Rect::new(500.0, 500.0, 100.0, 28.0)),
     };
 
     let mut state = state;
     let mut cmds = DrawCommands::new(1.0);
     focus_system.begin_frame();
-    let result = raw::post_layout_drag_number(
+    let result = raw::post_layout_number_edit(
         spec,
-        raw::DragNumberPreLayoutResult {
+        raw::NumberEditPreLayoutResult {
             size_request: crate::layout::SizeRequest::UNKNOWN,
         },
         &mut state,
@@ -945,14 +945,14 @@ fn test_drag_number_clipped_click_does_not_take_focus() {
     assert_eq!(
         focus_system.current_keyboard_focus(),
         None,
-        "Clicking a clipped-away drag number must not take focus"
+        "Clicking a clipped-away number edit must not take focus"
     );
 }
 
 #[test]
-fn test_drag_number_focused_step_keys() {
+fn test_number_edit_focused_step_keys() {
     let mut focus_system = FocusSystem::new();
-    let mut state = DragNumberState {
+    let mut state = NumberEditState {
         value: 50.0,
         ..Default::default()
     };
@@ -983,9 +983,9 @@ fn test_drag_number_focused_step_keys() {
 }
 
 #[test]
-fn test_drag_number_focused_page_home_end_keys() {
+fn test_number_edit_focused_page_home_end_keys() {
     let mut focus_system = FocusSystem::new();
-    let mut state = DragNumberState {
+    let mut state = NumberEditState {
         value: 50.0,
         ..Default::default()
     };
@@ -1020,9 +1020,9 @@ fn test_drag_number_focused_page_home_end_keys() {
 }
 
 #[test]
-fn test_drag_number_keyboard_adjustment_clamps_to_bounds() {
+fn test_number_edit_keyboard_adjustment_clamps_to_bounds() {
     let mut focus_system = FocusSystem::new();
-    let mut state = DragNumberState {
+    let mut state = NumberEditState {
         value: 95.0,
         ..Default::default()
     };
@@ -1044,9 +1044,9 @@ fn test_drag_number_keyboard_adjustment_clamps_to_bounds() {
 }
 
 #[test]
-fn test_drag_number_keyboard_adjustment_ignored_when_not_focused() {
+fn test_number_edit_keyboard_adjustment_ignored_when_not_focused() {
     let mut focus_system = FocusSystem::new();
-    let mut state = DragNumberState {
+    let mut state = NumberEditState {
         value: 50.0,
         ..Default::default()
     };
@@ -1069,9 +1069,9 @@ fn test_drag_number_keyboard_adjustment_ignored_when_not_focused() {
 }
 
 #[test]
-fn test_drag_number_keyboard_adjustment_ignored_when_disabled() {
+fn test_number_edit_keyboard_adjustment_ignored_when_disabled() {
     let mut focus_system = FocusSystem::new();
-    let mut state = DragNumberState {
+    let mut state = NumberEditState {
         value: 50.0,
         ..Default::default()
     };
@@ -1098,8 +1098,8 @@ fn test_drag_number_keyboard_adjustment_ignored_when_disabled() {
 #[test]
 fn test_spec_default_from_theme_applies_theme_style() {
     let theme = crate::theme::Theme::framewise();
-    let spec = super::DragNumberSpec::default_from_theme(&theme);
-    assert_eq!(spec.style, DragNumberStyle::from_theme(&theme));
+    let spec = super::NumberEditSpec::default_from_theme(&theme);
+    assert_eq!(spec.style, NumberEditStyle::from_theme(&theme));
     assert_eq!(spec.min, 0.0);
     assert_eq!(spec.max, 100.0);
     assert_eq!(spec.step, 1.0);
@@ -1110,9 +1110,9 @@ fn test_spec_default_from_theme_applies_theme_style() {
 #[test]
 fn test_spec_theme_overwrites_style_only() {
     let theme = crate::theme::Theme::framewise();
-    let mut custom_style = DragNumberStyle::from_theme(&theme);
+    let mut custom_style = NumberEditStyle::from_theme(&theme);
     custom_style.text_style.size = 99.0;
-    let spec = super::DragNumberSpec::default()
+    let spec = super::NumberEditSpec::default()
         .text("x")
         .style(custom_style)
         .min(5.0)
@@ -1121,7 +1121,7 @@ fn test_spec_theme_overwrites_style_only() {
         .page_step(7.0)
         .disabled(true)
         .theme(&theme);
-    assert_eq!(spec.style, DragNumberStyle::from_theme(&theme));
+    assert_eq!(spec.style, NumberEditStyle::from_theme(&theme));
     assert_eq!(spec.text, "x");
     assert_eq!(spec.min, 5.0);
     assert_eq!(spec.max, 10.0);
@@ -1149,9 +1149,9 @@ fn test_high_level_explicit_placement_via_manual_layout() {
         Rect::new(0.0, 0.0, 800.0, 600.0),
         &mut cmds,
     );
-    let mut dn_state = DragNumberState::default();
-    let result = super::drag_number(
-        super::DragNumberSpec::new_from_theme("x", &ctx.theme),
+    let mut dn_state = NumberEditState::default();
+    let result = super::number_edit(
+        super::NumberEditSpec::new_from_theme("x", &ctx.theme),
         placement,
         &mut dn_state,
         &mut ctx,
@@ -1160,9 +1160,9 @@ fn test_high_level_explicit_placement_via_manual_layout() {
 }
 
 #[test]
-fn test_drag_number_disabled_ignores_press_interaction() {
+fn test_number_edit_disabled_ignores_press_interaction() {
     let rect = Rect::new(10.0, 10.0, 100.0, 28.0);
-    let mut state = DragNumberState {
+    let mut state = NumberEditState {
         value: 50.0,
         ..Default::default()
     };
@@ -1184,9 +1184,9 @@ fn test_drag_number_disabled_ignores_press_interaction() {
 }
 
 #[test]
-fn test_drag_number_clipped_press_does_not_take_focus_with_helper() {
+fn test_number_edit_clipped_press_does_not_take_focus_with_helper() {
     let rect = Rect::new(10.0, 10.0, 100.0, 28.0);
-    let mut state = DragNumberState {
+    let mut state = NumberEditState {
         value: 50.0,
         ..Default::default()
     };
@@ -1207,9 +1207,9 @@ fn test_drag_number_clipped_press_does_not_take_focus_with_helper() {
 }
 
 #[test]
-fn test_drag_number_mouse_press_takes_focus_with_helper() {
+fn test_number_edit_mouse_press_takes_focus_with_helper() {
     let rect = Rect::new(10.0, 10.0, 100.0, 28.0);
-    let mut state = DragNumberState {
+    let mut state = NumberEditState {
         value: 50.0,
         ..Default::default()
     };
@@ -1230,9 +1230,9 @@ fn test_drag_number_mouse_press_takes_focus_with_helper() {
 }
 
 #[test]
-fn test_drag_number_drag_updates_value() {
+fn test_number_edit_drag_updates_value() {
     let rect = Rect::new(0.0, 0.0, 100.0, 28.0);
-    let mut state = DragNumberState {
+    let mut state = NumberEditState {
         value: 50.0,
         ..Default::default()
     };
@@ -1302,9 +1302,9 @@ fn test_drag_number_drag_updates_value() {
 }
 
 #[test]
-fn test_drag_number_drag_clamps_to_min_max() {
+fn test_number_edit_drag_clamps_to_min_max() {
     let rect = Rect::new(0.0, 0.0, 100.0, 28.0);
-    let mut state = DragNumberState {
+    let mut state = NumberEditState {
         value: 50.0,
         ..Default::default()
     };
@@ -1375,9 +1375,9 @@ fn test_drag_number_drag_clamps_to_min_max() {
 }
 
 #[test]
-fn test_drag_number_drag_releases_when_mouse_up() {
+fn test_number_edit_drag_releases_when_mouse_up() {
     let rect = Rect::new(0.0, 0.0, 100.0, 28.0);
-    let mut state = DragNumberState {
+    let mut state = NumberEditState {
         value: 50.0,
         ..Default::default()
     };
@@ -1438,9 +1438,9 @@ fn test_drag_number_drag_releases_when_mouse_up() {
 }
 
 #[test]
-fn test_drag_number_arrow_hold_repeat_sequence() {
+fn test_number_edit_arrow_hold_repeat_sequence() {
     let rect = Rect::new(0.0, 0.0, 100.0, 28.0);
-    let mut state = DragNumberState {
+    let mut state = NumberEditState {
         value: 50.0,
         ..Default::default()
     };
@@ -1485,7 +1485,7 @@ fn test_drag_number_arrow_hold_repeat_sequence() {
     assert!(state.is_arrow_stepping);
     assert_eq!(
         state.arrow_step_direction,
-        Some(DragNumberStepDirection::Increment)
+        Some(NumberEditStepDirection::Increment)
     );
     assert_eq!(state.next_repeat_time, 0.5);
 
@@ -1550,9 +1550,9 @@ fn test_drag_number_arrow_hold_repeat_sequence() {
 }
 
 #[test]
-fn test_drag_number_arrow_step_promotes_to_drag_after_motion_threshold() {
+fn test_number_edit_arrow_step_promotes_to_drag_after_motion_threshold() {
     let rect = Rect::new(0.0, 0.0, 100.0, 28.0);
-    let mut state = DragNumberState {
+    let mut state = NumberEditState {
         value: 50.0,
         ..Default::default()
     };
@@ -1630,7 +1630,7 @@ fn test_drag_number_arrow_step_promotes_to_drag_after_motion_threshold() {
     assert_eq!(state.drag_start_x, input.mouse_pos.x);
     assert_eq!(state.drag_start_value, 55.0);
 
-    // Frame 4: keep dragging; value follows the existing drag-number scrub formula.
+    // Frame 4: keep dragging; value follows the existing number-edit scrub formula.
     input.mouse_pos = Vec2::new(arrow_pos.x + 13.0, arrow_pos.y);
     focus_system.begin_frame();
     let _ = run_raw(
@@ -1661,9 +1661,9 @@ fn test_drag_number_arrow_step_promotes_to_drag_after_motion_threshold() {
 }
 
 #[test]
-fn test_drag_number_min_greater_than_max_keyboard_does_not_panic() {
+fn test_number_edit_min_greater_than_max_keyboard_does_not_panic() {
     let rect = Rect::new(0.0, 0.0, 100.0, 28.0);
-    let spec = raw::DragNumberSpec {
+    let spec = raw::NumberEditSpec {
         layer: Layer::default(),
         rect,
         text: "X",
@@ -1671,7 +1671,7 @@ fn test_drag_number_min_greater_than_max_keyboard_does_not_panic() {
         max: 0.0,
         step: 1.0,
         page_step: 10.0,
-        value_formatter: default_drag_number_value_formatter,
+        value_formatter: default_number_edit_value_formatter,
         time: 0.0,
         disabled: false,
         style: default_style(),
@@ -1679,7 +1679,7 @@ fn test_drag_number_min_greater_than_max_keyboard_does_not_panic() {
     };
 
     let run_res = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-        let mut state = DragNumberState {
+        let mut state = NumberEditState {
             value: 50.0,
             ..Default::default()
         };
@@ -1712,10 +1712,10 @@ fn test_drag_number_min_greater_than_max_keyboard_does_not_panic() {
 }
 
 #[test]
-fn test_drag_number_label_area_takes_focus_without_dragging() {
+fn test_number_edit_label_area_takes_focus_without_dragging() {
     let rect = Rect::new(0.0, 0.0, 100.0, 28.0);
     let label = "X";
-    let mut state = DragNumberState {
+    let mut state = NumberEditState {
         value: 50.0,
         ..Default::default()
     };
@@ -1769,13 +1769,13 @@ fn test_drag_number_label_area_takes_focus_without_dragging() {
 }
 
 #[test]
-fn test_drag_number_overlapping_hover_uses_top_widget() {
+fn test_number_edit_overlapping_hover_uses_top_widget() {
     let rect = Rect::new(10.0, 10.0, 100.0, 28.0);
-    let mut state_bottom = DragNumberState {
+    let mut state_bottom = NumberEditState {
         value: 50.0,
         ..Default::default()
     };
-    let mut state_top = DragNumberState {
+    let mut state_top = NumberEditState {
         value: 50.0,
         ..Default::default()
     };
@@ -1811,13 +1811,13 @@ fn test_drag_number_overlapping_hover_uses_top_widget() {
 }
 
 #[test]
-fn test_drag_number_overlapping_press_uses_top_widget() {
+fn test_number_edit_overlapping_press_uses_top_widget() {
     let rect = Rect::new(10.0, 10.0, 100.0, 28.0);
-    let mut state_bottom = DragNumberState {
+    let mut state_bottom = NumberEditState {
         value: 50.0,
         ..Default::default()
     };
-    let mut state_top = DragNumberState {
+    let mut state_top = NumberEditState {
         value: 50.0,
         ..Default::default()
     };
@@ -1826,7 +1826,7 @@ fn test_drag_number_overlapping_press_uses_top_widget() {
     let mut text_backend = TestTextBackend::default();
     let mut cmds = DrawCommands::new(1.0);
 
-    // Warm up hover over two overlapping drag-numbers
+    // Warm up hover over two overlapping number-edits
     let warmup_input = Input {
         mouse_pos: overlap_pos,
         ..Default::default()
@@ -1891,13 +1891,13 @@ fn test_drag_number_overlapping_press_uses_top_widget() {
 }
 
 #[test]
-fn test_drag_number_arrow_keys_no_traversal_but_tab_traverses() {
+fn test_number_edit_arrow_keys_no_traversal_but_tab_traverses() {
     let mut focus_system = FocusSystem::new();
-    let mut state1 = DragNumberState {
+    let mut state1 = NumberEditState {
         value: 50.0,
         ..Default::default()
     };
-    let mut state2 = DragNumberState {
+    let mut state2 = NumberEditState {
         value: 50.0,
         ..Default::default()
     };
@@ -1979,16 +1979,16 @@ fn test_drag_number_arrow_keys_no_traversal_but_tab_traverses() {
 }
 
 #[test]
-fn test_drag_number_double_click_value_text_enters_text_edit() {
+fn test_number_edit_double_click_value_text_enters_text_edit() {
     let rect = Rect::new(0.0, 0.0, 140.0, 28.0);
-    let mut state = DragNumberState {
+    let mut state = NumberEditState {
         value: 72.0,
         ..Default::default()
     };
     let mut focus_system = FocusSystem::new();
     let mut text_backend = TestTextBackend::default();
     let formatter: fn(f32) -> String = |v| format!("{v:.0} px");
-    let spec = raw::DragNumberSpec {
+    let spec = raw::NumberEditSpec {
         value_formatter: formatter,
         ..default_spec(rect)
     };
@@ -2037,9 +2037,9 @@ fn test_drag_number_double_click_value_text_enters_text_edit() {
 }
 
 #[test]
-fn test_drag_number_focused_enter_enters_text_edit() {
+fn test_number_edit_focused_enter_enters_text_edit() {
     let rect = Rect::new(0.0, 0.0, 140.0, 28.0);
-    let mut state = DragNumberState {
+    let mut state = NumberEditState {
         value: 72.0,
         ..Default::default()
     };
@@ -2047,7 +2047,7 @@ fn test_drag_number_focused_enter_enters_text_edit() {
     focus_system.take_keyboard_focus(state.focus_id);
 
     let formatter: fn(f32) -> String = |v| format!("{v:.0} px");
-    let spec = raw::DragNumberSpec {
+    let spec = raw::NumberEditSpec {
         value_formatter: formatter,
         ..default_spec(rect)
     };
@@ -2064,16 +2064,16 @@ fn test_drag_number_focused_enter_enters_text_edit() {
 }
 
 #[test]
-fn test_drag_number_double_click_value_drag_region_enters_text_edit() {
+fn test_number_edit_double_click_value_drag_region_enters_text_edit() {
     let rect = Rect::new(0.0, 0.0, 300.0, 28.0);
-    let mut state = DragNumberState {
+    let mut state = NumberEditState {
         value: 5.0,
         ..Default::default()
     };
     let mut focus_system = FocusSystem::new();
     let mut text_backend = TestTextBackend::default();
     let formatter: fn(f32) -> String = |v| format!("{v:.0}");
-    let spec = raw::DragNumberSpec {
+    let spec = raw::NumberEditSpec {
         value_formatter: formatter,
         ..default_spec(rect)
     };
@@ -2117,9 +2117,9 @@ fn test_drag_number_double_click_value_drag_region_enters_text_edit() {
 }
 
 #[test]
-fn test_drag_number_double_click_arrow_does_not_enter_text_edit() {
+fn test_number_edit_double_click_arrow_does_not_enter_text_edit() {
     let rect = Rect::new(0.0, 0.0, 140.0, 28.0);
-    let mut state = DragNumberState {
+    let mut state = NumberEditState {
         value: 50.0,
         ..Default::default()
     };
@@ -2165,9 +2165,9 @@ fn test_drag_number_double_click_arrow_does_not_enter_text_edit() {
 }
 
 #[test]
-fn test_drag_number_text_edit_enter_commits_valid_value() {
+fn test_number_edit_text_edit_enter_commits_valid_value() {
     let rect = Rect::new(0.0, 0.0, 140.0, 28.0);
-    let mut state = DragNumberState {
+    let mut state = NumberEditState {
         value: 10.0,
         ..Default::default()
     };
@@ -2185,9 +2185,9 @@ fn test_drag_number_text_edit_enter_commits_valid_value() {
 }
 
 #[test]
-fn test_drag_number_text_edit_enter_clamps_valid_value() {
+fn test_number_edit_text_edit_enter_clamps_valid_value() {
     let rect = Rect::new(0.0, 0.0, 140.0, 28.0);
-    let mut state = DragNumberState {
+    let mut state = NumberEditState {
         value: 10.0,
         ..Default::default()
     };
@@ -2210,9 +2210,9 @@ fn test_drag_number_text_edit_enter_clamps_valid_value() {
 }
 
 #[test]
-fn test_drag_number_text_edit_enter_invalid_keeps_editing_and_sets_error() {
+fn test_number_edit_text_edit_enter_invalid_keeps_editing_and_sets_error() {
     let rect = Rect::new(0.0, 0.0, 140.0, 28.0);
-    let mut state = DragNumberState {
+    let mut state = NumberEditState {
         value: 10.0,
         ..Default::default()
     };
@@ -2231,9 +2231,9 @@ fn test_drag_number_text_edit_enter_invalid_keeps_editing_and_sets_error() {
 }
 
 #[test]
-fn test_drag_number_text_edit_escape_cancels() {
+fn test_number_edit_text_edit_escape_cancels() {
     let rect = Rect::new(0.0, 0.0, 140.0, 28.0);
-    let mut state = DragNumberState {
+    let mut state = NumberEditState {
         value: 10.0,
         ..Default::default()
     };
@@ -2251,9 +2251,9 @@ fn test_drag_number_text_edit_escape_cancels() {
 }
 
 #[test]
-fn test_drag_number_text_edit_click_outside_valid_commits_without_stealing_focus() {
+fn test_number_edit_text_edit_click_outside_valid_commits_without_stealing_focus() {
     let rect = Rect::new(0.0, 0.0, 140.0, 28.0);
-    let mut state = DragNumberState {
+    let mut state = NumberEditState {
         value: 10.0,
         ..Default::default()
     };
@@ -2274,9 +2274,9 @@ fn test_drag_number_text_edit_click_outside_valid_commits_without_stealing_focus
 }
 
 #[test]
-fn test_drag_number_text_edit_click_outside_invalid_remembers_and_reenter_restores_draft() {
+fn test_number_edit_text_edit_click_outside_invalid_remembers_and_reenter_restores_draft() {
     let rect = Rect::new(0.0, 0.0, 140.0, 28.0);
-    let mut state = DragNumberState {
+    let mut state = NumberEditState {
         value: 10.0,
         ..Default::default()
     };
@@ -2348,9 +2348,9 @@ fn test_drag_number_text_edit_click_outside_invalid_remembers_and_reenter_restor
 }
 
 #[test]
-fn test_drag_number_text_edit_focus_lost_commits_valid_value() {
+fn test_number_edit_text_edit_focus_lost_commits_valid_value() {
     let rect = Rect::new(0.0, 0.0, 140.0, 28.0);
-    let mut state = DragNumberState {
+    let mut state = NumberEditState {
         value: 10.0,
         ..Default::default()
     };
@@ -2365,9 +2365,9 @@ fn test_drag_number_text_edit_focus_lost_commits_valid_value() {
 }
 
 #[test]
-fn test_drag_number_text_edit_focus_lost_invalid_remembers_draft() {
+fn test_number_edit_text_edit_focus_lost_invalid_remembers_draft() {
     let rect = Rect::new(0.0, 0.0, 140.0, 28.0);
-    let mut state = DragNumberState {
+    let mut state = NumberEditState {
         value: 10.0,
         ..Default::default()
     };
@@ -2382,9 +2382,9 @@ fn test_drag_number_text_edit_focus_lost_invalid_remembers_draft() {
 }
 
 #[test]
-fn test_drag_number_text_edit_arrow_keys_do_not_step_value() {
+fn test_number_edit_text_edit_arrow_keys_do_not_step_value() {
     let rect = Rect::new(0.0, 0.0, 140.0, 28.0);
-    let mut state = DragNumberState {
+    let mut state = NumberEditState {
         value: 10.0,
         ..Default::default()
     };
@@ -2405,13 +2405,13 @@ fn test_drag_number_text_edit_arrow_keys_do_not_step_value() {
 }
 
 #[test]
-fn test_drag_number_text_edit_disabled_exits_edit_mode() {
+fn test_number_edit_text_edit_disabled_exits_edit_mode() {
     let rect = Rect::new(0.0, 0.0, 140.0, 28.0);
-    let mut state = DragNumberState {
+    let mut state = NumberEditState {
         value: 10.0,
         is_dragging: true,
         is_arrow_stepping: true,
-        arrow_step_direction: Some(DragNumberStepDirection::Increment),
+        arrow_step_direction: Some(NumberEditStepDirection::Increment),
         ..Default::default()
     };
     enter_edit_state(&mut state, "42.5");
@@ -2428,11 +2428,11 @@ fn test_drag_number_text_edit_disabled_exits_edit_mode() {
 }
 
 #[test]
-fn test_drag_number_text_edit_disabled_clears_remembered_draft() {
+fn test_number_edit_text_edit_disabled_clears_remembered_draft() {
     let rect = Rect::new(0.0, 0.0, 140.0, 28.0);
-    let mut state = DragNumberState {
+    let mut state = NumberEditState {
         value: 10.0,
-        edit: DragNumberEditState::Remembered {
+        edit: NumberEditEditState::Remembered {
             draft: "abc".into(),
         },
         ..Default::default()
@@ -2448,9 +2448,9 @@ fn test_drag_number_text_edit_disabled_clears_remembered_draft() {
 }
 
 #[test]
-fn test_drag_number_activation_frame_does_not_text_edit_double_click_select_word() {
+fn test_number_edit_activation_frame_does_not_text_edit_double_click_select_word() {
     let rect = Rect::new(0.0, 0.0, 160.0, 28.0);
-    let mut state = DragNumberState {
+    let mut state = NumberEditState {
         value: 12.34,
         ..Default::default()
     };
@@ -2506,11 +2506,11 @@ fn test_drag_number_activation_frame_does_not_text_edit_double_click_select_word
 }
 
 #[test]
-fn test_drag_number_text_edit_escape_clears_restored_draft() {
+fn test_number_edit_text_edit_escape_clears_restored_draft() {
     let rect = Rect::new(0.0, 0.0, 140.0, 28.0);
-    let mut state = DragNumberState {
+    let mut state = NumberEditState {
         value: 10.0,
-        edit: DragNumberEditState::Remembered {
+        edit: NumberEditEditState::Remembered {
             draft: "abc".into(),
         },
         ..Default::default()

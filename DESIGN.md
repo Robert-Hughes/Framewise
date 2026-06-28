@@ -965,8 +965,8 @@ using short-lived borrows from the context, especially `&ctx.theme`, before the
 mutable context borrow is evaluated:
 
 ```rust
-drag_number(
-    DragNumberSpec::new_from_theme("Width", &ctx.theme)
+number_edit(
+    NumberEditSpec::new_from_theme("Width", &ctx.theme)
         .max(1920.0)
         .value_formatter(|v: f32| format!("{v:.0}px")),
     rect,
@@ -1255,21 +1255,21 @@ bundle merely to avoid putting code fields in specs. A callback is still part of
 "what the caller provides for this frame"; the widget calls it but does not
 mutate or retain it.
 
-For example, a drag-number value formatter can be a direct generic field:
+For example, a number-edit value formatter can be a direct generic field:
 
 ```rust
-pub type DefaultDragNumberValueFormatter = fn(f32) -> String;
+pub type DefaultNumberEditValueFormatter = fn(f32) -> String;
 
-pub fn default_drag_number_value_formatter(value: f32) -> String {
+pub fn default_number_edit_value_formatter(value: f32) -> String {
     format!("{value:.2}")
 }
 
-pub struct DragNumberSpec<'a, F = DefaultDragNumberValueFormatter>
+pub struct NumberEditSpec<'a, F = DefaultNumberEditValueFormatter>
 where
     F: Fn(f32) -> String,
 {
     pub text: &'a str,
-    pub style: DragNumberStyle,
+    pub style: NumberEditStyle,
     pub min: f32,
     pub max: f32,
     pub step: f32,
@@ -1283,16 +1283,16 @@ The default callback is a real function pointer value, not `None` and not a
 hidden fallback inside the widget:
 
 ```rust
-impl<'a> Default for DragNumberSpec<'a, DefaultDragNumberValueFormatter> {
+impl<'a> Default for NumberEditSpec<'a, DefaultNumberEditValueFormatter> {
     fn default() -> Self {
         Self {
             text: "",
-            style: DragNumberStyle::default(),
+            style: NumberEditStyle::default(),
             min: 0.0,
             max: 100.0,
             step: 1.0,
             page_step: 10.0,
-            value_formatter: default_drag_number_value_formatter,
+            value_formatter: default_number_edit_value_formatter,
             disabled: false,
         }
     }
@@ -1302,15 +1302,15 @@ impl<'a> Default for DragNumberSpec<'a, DefaultDragNumberValueFormatter> {
 A callback setter may change the spec's generic callback type:
 
 ```rust
-impl<'a, F> DragNumberSpec<'a, F>
+impl<'a, F> NumberEditSpec<'a, F>
 where
     F: Fn(f32) -> String,
 {
-    pub fn value_formatter<G>(self, value_formatter: G) -> DragNumberSpec<'a, G>
+    pub fn value_formatter<G>(self, value_formatter: G) -> NumberEditSpec<'a, G>
     where
         G: Fn(f32) -> String,
     {
-        DragNumberSpec {
+        NumberEditSpec {
             text: self.text,
             style: self.style,
             min: self.min,
@@ -1327,8 +1327,8 @@ where
 Call site:
 
 ```rust
-drag_number(
-    DragNumberSpec::new_from_theme("Width", &ctx.theme)
+number_edit(
+    NumberEditSpec::new_from_theme("Width", &ctx.theme)
         .max(1920.0)
         .value_formatter(|v: f32| format!("{v:.0}px")),
     rect,

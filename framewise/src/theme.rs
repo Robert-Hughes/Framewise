@@ -52,7 +52,7 @@ pub struct Theme {
     pub border: f32,             // 1.0 — standard border width
     pub focus_width: f32,        // 2.0 — focus ring width
     pub focus_offset: f32,       // 2.0 — focus ring outset gap
-    pub focus_offset_tight: f32, // 1.0 — compact controls (drag_number, select)
+    pub focus_offset_tight: f32, // 1.0 — compact controls (number_edit, select)
 
     // Type scale
     pub text_sm: f32,   // 11 — mono caption
