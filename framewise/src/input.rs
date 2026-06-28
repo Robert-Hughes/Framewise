@@ -23,6 +23,9 @@ pub struct Input {
     /// True on the single frame the Enter key was pressed.
     pub key_pressed_enter: bool,
 
+    /// True on the single frame the Escape key was pressed.
+    pub key_pressed_escape: bool,
+
     /// True while the Spacebar is held down.
     pub key_down_space: bool,
 
@@ -82,6 +85,7 @@ impl Default for Input {
             mouse_pressed: false,
             mouse_clicked: false,
             key_pressed_enter: false,
+            key_pressed_escape: false,
             key_down_space: false,
             key_pressed_space: false,
             key_released_space: false,
@@ -112,6 +116,7 @@ impl Input {
         self.mouse_pressed = false;
         self.mouse_clicked = false;
         self.key_pressed_enter = false;
+        self.key_pressed_escape = false;
         self.key_pressed_up = false;
         self.key_pressed_down = false;
         self.key_pressed_left = false;

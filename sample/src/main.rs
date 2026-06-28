@@ -648,6 +648,11 @@ impl ApplicationHandler for App {
                             self.input.key_pressed_enter = true;
                         }
                     }
+                    winit::keyboard::PhysicalKey::Code(winit::keyboard::KeyCode::Escape) => {
+                        if event.state == ElementState::Pressed {
+                            self.input.key_pressed_escape = true;
+                        }
+                    }
                     winit::keyboard::PhysicalKey::Code(winit::keyboard::KeyCode::Space) => {
                         match event.state {
                             ElementState::Pressed => {
