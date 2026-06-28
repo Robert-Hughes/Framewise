@@ -967,7 +967,7 @@ pub fn prefixed_number_edit<T: TextBackend, S: LayoutState, CF, F>(
 where
     F: Fn(f32) -> String,
 {
-    let prefix_style = PrefixedControlStyle {
+    let mut prefix_style = PrefixedControlStyle {
         background: spec.style.background,
         border: spec.style.border,
         focus: spec.style.focus,
@@ -997,6 +997,11 @@ where
         if ctx.input.mouse_pressed {
             ctx.focus_system.take_keyboard_focus(state.focus_id);
         }
+    }
+
+    let active = ctx.focus_system.current_keyboard_focus() == Some(state.focus_id);
+    if active && !spec.disabled {
+        prefix_style.prefix_background = ctx.theme.rust;
     }
 
     draw_prefixed_control_base(
@@ -1033,7 +1038,7 @@ where
     draw_prefixed_control_chrome(
         outer_rect,
         prefix_style,
-        result.focused || state.is_dragging || state.is_arrow_stepping,
+        result.focused,
         spec.disabled,
         ctx.layer,
         ctx.cmds,

@@ -2369,6 +2369,11 @@ pub fn prefixed_text_edit<T: TextBackend, S: LayoutState, CF>(
         }
     }
 
+    let active = ctx.focus_system.current_keyboard_focus() == Some(state.focus_id);
+    if active && !spec.disabled {
+        prefix_style.prefix_background = ctx.theme.rust;
+    }
+
     draw_prefixed_control_base(
         layout,
         prefix,

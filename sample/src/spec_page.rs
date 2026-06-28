@@ -2662,7 +2662,7 @@ fn section_04_sliders<CF>(
         static_badge(&mut b, badge_rect);
         let rect = Rect::new(x, 14.0, DRAG_W, b.theme.h_md);
         draw_prefixed_number_edit_fake_state(
-            &mut b, rect, "W", 576.0, 0.0, 800.0, false, true, false,
+            &mut b, rect, "W", 576.0, 0.0, 800.0, true, true, false,
         );
         x += DRAG_W + GAP;
         let rect = Rect::new(x, 14.0, DRAG_W, b.theme.h_md);
