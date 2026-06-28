@@ -7,8 +7,6 @@ Working notes, TODOs, open questions, and half-baked ideas.
 - drag_number
   - double-click on text to edit it by typing?
 
-- slider track doesn't seem centred within the widget rect, but the thumb is. So the thumb isn't centred on the track!
-
 - Go through the spec_page, check/implement/test each widget/aspect to make better match the mock-up and add interactivity as we go (https://claude.ai/design/p/1aab4e86-cbf2-497e-b379-44cf41de2b12?file=Framewise+Widgets.html)
   - Done 01-03
   - Add demo pages for each widget type (or possibly in groups?)
