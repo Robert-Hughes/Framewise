@@ -2037,6 +2037,33 @@ fn test_drag_number_double_click_value_text_enters_text_edit() {
 }
 
 #[test]
+fn test_drag_number_focused_enter_enters_text_edit() {
+    let rect = Rect::new(0.0, 0.0, 140.0, 28.0);
+    let mut state = DragNumberState {
+        value: 72.0,
+        ..Default::default()
+    };
+    let mut focus_system = FocusSystem::new();
+    focus_system.take_keyboard_focus(state.focus_id);
+
+    let formatter: fn(f32) -> String = |v| format!("{v:.0} px");
+    let spec = raw::DragNumberSpec {
+        value_formatter: formatter,
+        ..default_spec(rect)
+    };
+
+    run_key(spec, &mut state, &mut focus_system, |input| {
+        input.key_pressed_enter = true;
+    });
+
+    let (text_edit, error) = assert_editing(&state.edit);
+    assert_eq!(text_edit.focus_id, state.focus_id);
+    assert_eq!(focus_system.current_keyboard_focus(), Some(state.focus_id));
+    assert_eq!(text_edit.value, "72");
+    assert!(!error);
+}
+
+#[test]
 fn test_drag_number_double_click_value_drag_region_enters_text_edit() {
     let rect = Rect::new(0.0, 0.0, 300.0, 28.0);
     let mut state = DragNumberState {

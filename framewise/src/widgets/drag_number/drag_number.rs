@@ -210,19 +210,7 @@ pub mod raw {
             && input.mouse_click_count == 2
             && hovered_drag_region
         {
-            let draft = match std::mem::take(&mut state.edit) {
-                DragNumberEditState::Inactive => drag_number_raw_edit_text(state.value),
-                DragNumberEditState::Remembered { draft } => draft,
-                DragNumberEditState::Editing { .. } => unreachable!("guarded by !is_editing"),
-            };
-            let text_edit = make_drag_number_text_edit_state(state, &draft);
-            state.edit = DragNumberEditState::Editing {
-                text_edit,
-                error: false,
-            };
-            state.is_dragging = false;
-            state.is_arrow_stepping = false;
-            state.arrow_step_direction = None;
+            enter_drag_number_edit_mode(state);
             focus_system.take_keyboard_focus(state.focus_id);
             started_editing_this_frame = true;
         }
@@ -244,6 +232,12 @@ pub mod raw {
             )
             .0
         };
+
+        if focused && !spec.disabled && !state.edit.is_editing() && input.key_pressed_enter {
+            enter_drag_number_edit_mode(state);
+            focus_system.take_keyboard_focus(state.focus_id);
+            started_editing_this_frame = true;
+        }
 
         // Display-mode mouse interaction: arrow stepping, repeat, and scrub drag.
         // Edit mode bypasses this so typed values do not also trigger value changes.
@@ -418,6 +412,7 @@ pub mod raw {
                 edit_input.mouse_down = false;
                 edit_input.mouse_clicked = false;
                 edit_input.mouse_click_count = 0;
+                edit_input.key_pressed_enter = false;
                 &edit_input
             } else {
                 input
@@ -556,7 +551,7 @@ pub mod raw {
                 state.edit = DragNumberEditState::Inactive;
                 focus_system.take_keyboard_focus(state.focus_id);
                 edit_focused = true;
-            } else if input.key_pressed_enter {
+            } else if input.key_pressed_enter && !started_editing_this_frame {
                 if try_commit_drag_number_edit(state, clamp_min, clamp_max) {
                     focus_system.take_keyboard_focus(state.focus_id);
                     edit_focused = true;
@@ -754,6 +749,22 @@ fn make_drag_number_text_edit_state(state: &DragNumberState, draft: &str) -> Tex
     let mut text_edit = TextEditState::new(draft);
     text_edit.focus_id = state.focus_id;
     text_edit
+}
+
+fn enter_drag_number_edit_mode(state: &mut DragNumberState) {
+    let draft = match std::mem::take(&mut state.edit) {
+        DragNumberEditState::Inactive => drag_number_raw_edit_text(state.value),
+        DragNumberEditState::Remembered { draft } => draft,
+        DragNumberEditState::Editing { .. } => unreachable!("guarded by !is_editing"),
+    };
+    let text_edit = make_drag_number_text_edit_state(state, &draft);
+    state.edit = DragNumberEditState::Editing {
+        text_edit,
+        error: false,
+    };
+    state.is_dragging = false;
+    state.is_arrow_stepping = false;
+    state.arrow_step_direction = None;
 }
 
 fn parse_drag_number_edit_text(text: &str) -> Option<f32> {
