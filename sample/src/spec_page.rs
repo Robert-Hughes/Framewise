@@ -650,7 +650,7 @@ pub struct SpecWidgetsState {
     #[cfg(all(feature = "slider", feature = "number_edit", feature = "color_swatch"))]
     pub slider_range_state: SliderState,
     #[cfg(all(feature = "slider", feature = "number_edit", feature = "color_swatch"))]
-    pub dn_showcase: Vec<NumberEditState>, // X(320), Y(144), H(400, disabled) — W stays fake
+    pub number_edit_state: Vec<NumberEditState>, // X(320), Y(144), H(400, disabled) — W stays fake
 
     // 05 Selection
     #[cfg(all(
@@ -690,7 +690,7 @@ pub struct SpecWidgetsState {
 
     // 11 Window chrome (Inspector inner content)
     #[cfg(all(feature = "window", feature = "number_edit", feature = "checkbox"))]
-    pub win11_drags: Vec<NumberEditState>, // X(320), Y(144), W(576), H(400)
+    pub win11_number_edits: Vec<NumberEditState>, // X(320), Y(144), W(576), H(400)
     #[cfg(all(feature = "window", feature = "number_edit", feature = "checkbox"))]
     pub win11_cbs: Vec<CheckboxState>, // clip to parent (On), debug overlay (Off)
 
@@ -970,7 +970,7 @@ impl Default for SpecWidgetsState {
                 },
             ],
             #[cfg(all(feature = "slider", feature = "number_edit", feature = "color_swatch"))]
-            dn_showcase: vec![
+            number_edit_state: vec![
                 NumberEditState {
                     value: 320.0,
                     ..Default::default()
@@ -1050,7 +1050,7 @@ impl Default for SpecWidgetsState {
                 ..Default::default()
             },
             #[cfg(all(feature = "window", feature = "number_edit", feature = "checkbox"))]
-            win11_drags: vec![
+            win11_number_edits: vec![
                 NumberEditState {
                     value: 320.0,
                     ..Default::default()
@@ -2695,7 +2695,7 @@ fn section_04_sliders<CF>(
         number_edit(
             NumberEditSpec::new_from_theme("X", &b.theme).max(800.0),
             rect,
-            &mut state.dn_showcase[0],
+            &mut state.number_edit_state[0],
             &mut b,
         );
         x += DRAG_W + GAP;
@@ -2703,7 +2703,7 @@ fn section_04_sliders<CF>(
         number_edit(
             NumberEditSpec::new_from_theme("Y", &b.theme).max(600.0),
             rect,
-            &mut state.dn_showcase[1],
+            &mut state.number_edit_state[1],
             &mut b,
         );
         x += DRAG_W + GAP;
@@ -2718,7 +2718,7 @@ fn section_04_sliders<CF>(
                 .max(600.0)
                 .disabled(true),
             rect,
-            &mut state.dn_showcase[2],
+            &mut state.number_edit_state[2],
             &mut b,
         );
         b.finish();
@@ -3794,7 +3794,7 @@ fn section_11_window<CF>(
             .enumerate()
         {
             let _info = {
-                let state = &mut state.win11_drags[i];
+                let state = &mut state.win11_number_edits[i];
                 let min = *min;
                 let max = *max;
                 let layout_params = Rect::new(drx, iy, (cr_w / 2.0) - 4.0, win.theme.h_md);
@@ -3812,7 +3812,7 @@ fn section_11_window<CF>(
             .enumerate()
         {
             let _info = {
-                let state = &mut state.win11_drags[2 + i];
+                let state = &mut state.win11_number_edits[2 + i];
                 let min = *min;
                 let max = *max;
                 let layout_params = Rect::new(drx, iy, (cr_w / 2.0) - 4.0, win.theme.h_md);

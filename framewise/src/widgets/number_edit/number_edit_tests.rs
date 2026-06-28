@@ -151,7 +151,7 @@ fn assert_editing_mut(edit: &mut NumberEditEditState) -> (&mut TextEditState, &m
     }
 }
 
-fn drag_num<'a, F>(spec: NumberEditSpec<'a, F>, value: f32) -> (raw::NumberEditResult, DrawCommands)
+fn number_edit<'a, F>(spec: NumberEditSpec<'a, F>, value: f32) -> (raw::NumberEditResult, DrawCommands)
 where
     F: Fn(f32) -> String,
 {
@@ -226,7 +226,7 @@ fn test_number_edit_custom_formatter_affects_measurement_and_rendering() {
         style,
         clip_rect: None,
     };
-    let (_res, cmds) = drag_num(spec, 50.0);
+    let (_res, cmds) = number_edit(spec, 50.0);
 
     assert_eq!(
         cmds.glyphs()[1..],
@@ -261,7 +261,7 @@ fn test_number_edit_visual_normal() {
     };
 
     let style = spec.style;
-    let (res, cmds) = drag_num(spec, 50.5);
+    let (res, cmds) = number_edit(spec, 50.5);
 
     assert_eq!(res.cursor_icon, None);
 
