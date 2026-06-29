@@ -7,8 +7,8 @@ Working notes, TODOs, open questions, and half-baked ideas.
 - figure out numeric editing controls and ink label prefix
   - when dragging, the cursor shoudl stay eqresize, not change to the pointer when over a stepper button. Extend existing test?
   - if the held mouse returns over a stepper button after moving away, enable repeat again. Extend existing test for this case.
+
   - check test coverage for clicking a stepper whilst editing text. Current behaviour of treating same as focus lost (commit if possible) is good, but make sure is covered
-  3. Add behaviour/style settings to NumberEdit
   - Section 01 "Frame" stepper should be a NumberEdit now
   - Continue with section 04 and put them here too
 

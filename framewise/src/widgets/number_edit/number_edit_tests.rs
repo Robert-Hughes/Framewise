@@ -1684,7 +1684,7 @@ fn test_number_edit_arrow_hold_repeat_sequence() {
 }
 
 #[test]
-fn test_number_edit_step_hold_moving_outside_button_stops_repeat_when_drag_disabled() {
+fn test_number_edit_step_hold_pauses_outside_and_resumes_on_return_when_drag_disabled() {
     let rect = Rect::new(0.0, 0.0, 100.0, 28.0);
     let mut state = NumberEditState {
         value: 50.0,
@@ -1738,7 +1738,7 @@ fn test_number_edit_step_hold_moving_outside_button_stops_repeat_when_drag_disab
     spec.time = 0.6;
     focus_system.begin_frame();
     let _ = run_raw(
-        spec,
+        spec.clone(),
         &mut state,
         &input,
         &mut focus_system,
@@ -1748,9 +1748,49 @@ fn test_number_edit_step_hold_moving_outside_button_stops_repeat_when_drag_disab
     focus_system.end_frame();
 
     assert_eq!(state.value, 55.0);
+    assert!(state.is_arrow_stepping);
+    assert_eq!(
+        state.arrow_step_direction,
+        Some(NumberEditStepDirection::Increment)
+    );
+    assert!(!state.is_dragging);
+
+    input.mouse_pos = arrow_pos;
+    spec.time = state.next_repeat_time;
+    focus_system.begin_frame();
+    let _ = run_raw(
+        spec.clone(),
+        &mut state,
+        &input,
+        &mut focus_system,
+        &mut text_backend,
+        &mut cmds,
+    );
+    focus_system.end_frame();
+
+    assert_eq!(state.value, 60.0);
+    assert!(state.is_arrow_stepping);
+    assert_eq!(
+        state.arrow_step_direction,
+        Some(NumberEditStepDirection::Increment)
+    );
+    assert!(!state.is_dragging);
+
+    input.mouse_down = false;
+    focus_system.begin_frame();
+    let _ = run_raw(
+        spec,
+        &mut state,
+        &input,
+        &mut focus_system,
+        &mut text_backend,
+        &mut cmds,
+    );
+    focus_system.end_frame();
+
+    assert_eq!(state.value, 60.0);
     assert!(!state.is_arrow_stepping);
     assert_eq!(state.arrow_step_direction, None);
-    assert!(!state.is_dragging);
 }
 
 #[test]
@@ -1819,7 +1859,7 @@ fn test_number_edit_arrow_step_promotes_to_drag_after_motion_threshold() {
     // Frame 3: move beyond the threshold; promote to normal drag from current value.
     input.mouse_pos = Vec2::new(arrow_pos.x + 6.0, arrow_pos.y);
     focus_system.begin_frame();
-    let _ = run_raw(
+    let result = run_raw(
         spec.clone(),
         &mut state,
         &input,
@@ -1833,6 +1873,10 @@ fn test_number_edit_arrow_step_promotes_to_drag_after_motion_threshold() {
     assert!(state.is_dragging);
     assert_eq!(state.drag_start_x, input.mouse_pos.x);
     assert_eq!(state.drag_start_value, 55.0);
+    assert_eq!(
+        result.cursor_icon,
+        Some(crate::output::CursorIcon::EwResize)
+    );
 
     // Frame 4: keep dragging; value follows the existing number-edit scrub formula.
     input.mouse_pos = Vec2::new(arrow_pos.x + 13.0, arrow_pos.y);

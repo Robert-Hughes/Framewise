@@ -248,17 +248,16 @@ pub mod raw {
                 Some(NumberEditStepDirection::Increment) => contains_increment,
                 None => false,
             };
-            if state.is_arrow_stepping && input.mouse_down {
-                if spec.drag_enabled && drag_dist > ARROW_DRAG_THRESHOLD {
-                    state.is_arrow_stepping = false;
-                    state.arrow_step_direction = None;
-                    state.is_dragging = true;
-                    state.drag_start_x = input.mouse_pos.x;
-                    state.drag_start_value = state.value;
-                } else if !active_step_contains {
-                    state.is_arrow_stepping = false;
-                    state.arrow_step_direction = None;
-                }
+            if state.is_arrow_stepping
+                && input.mouse_down
+                && spec.drag_enabled
+                && drag_dist > ARROW_DRAG_THRESHOLD
+            {
+                state.is_arrow_stepping = false;
+                state.arrow_step_direction = None;
+                state.is_dragging = true;
+                state.drag_start_x = input.mouse_pos.x;
+                state.drag_start_value = state.value;
             }
 
             if input.mouse_pressed && contains && is_hover_active {
@@ -396,7 +395,13 @@ pub mod raw {
                 hovered_increment,
             ),
         ] {
-            let pressed = state.is_arrow_stepping && state.arrow_step_direction == Some(direction);
+            let is_active_step_button =
+                state.is_arrow_stepping && state.arrow_step_direction == Some(direction);
+            let active_direction_contains = match direction {
+                NumberEditStepDirection::Decrement => contains_decrement,
+                NumberEditStepDirection::Increment => contains_increment,
+            };
+            let pressed = is_active_step_button && active_direction_contains;
             let background = if pressed {
                 s.step_button.background_pressed
             } else if hovered {
@@ -558,9 +563,11 @@ pub mod raw {
         let hovered_step = !spec.disabled && (hovered_decrement || hovered_increment);
         let cursor_icon = if state.edit.is_editing() {
             edit_cursor_icon
+        } else if state.is_dragging && spec.drag_enabled && !spec.disabled {
+            Some(crate::output::CursorIcon::EwResize)
         } else if active_step || hovered_step {
             Some(crate::output::CursorIcon::Pointer)
-        } else if spec.drag_enabled && !spec.disabled && (contains_value || state.is_dragging) {
+        } else if spec.drag_enabled && !spec.disabled && contains_value {
             Some(crate::output::CursorIcon::EwResize)
         } else {
             None
