@@ -427,6 +427,18 @@ impl<'a, T: TextBackend, LS: LayoutState, CF> WidgetContext<'a, T, LS, CF> {
     pub fn append_cmds(&mut self, cmds: DrawCommands) {
         self.cmds.append(cmds);
     }
+
+    /// Requests a cursor icon for the current frame.
+    ///
+    /// Passing `None` is a no-op and does not clear a previous cursor request,
+    /// because `Output` already clears per-frame state at the start of each frame.
+    /// This preserves the existing "last write wins" semantics documented on
+    /// [`Output::cursor_icon`].
+    pub fn request_cursor(&mut self, cursor_icon: Option<crate::output::CursorIcon>) {
+        if let Some(cursor_icon) = cursor_icon {
+            self.output.cursor_icon = Some(cursor_icon);
+        }
+    }
 }
 
 impl<'a, T, LS, CF> WidgetContext<'a, T, LS, CF>

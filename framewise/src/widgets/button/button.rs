@@ -476,9 +476,7 @@ pub fn button<'a, T: TextBackend, S: LayoutState, CF>(
         ctx.cmds,
     );
 
-    if let Some(cursor_icon) = r.cursor_icon {
-        ctx.output.cursor_icon = Some(cursor_icon);
-    }
+    ctx.request_cursor(r.cursor_icon);
 
     ButtonResult {
         layout: LayoutInfo::new(rect, r.content_bounds),

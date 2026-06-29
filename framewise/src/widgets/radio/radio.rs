@@ -298,9 +298,7 @@ pub fn radio<T: TextBackend, S: LayoutState, CF>(
         ctx.cmds,
     );
 
-    if let Some(cursor_icon) = result.cursor_icon {
-        ctx.output.cursor_icon = Some(cursor_icon);
-    }
+    ctx.request_cursor(result.cursor_icon);
 
     RadioResult {
         layout: LayoutInfo::new(rect, result.content_bounds),
@@ -381,9 +379,7 @@ pub fn labelled_radio<T: TextBackend, S: LayoutState, CF>(
         ctx.cmds,
     );
 
-    if let Some(cursor_icon) = result.cursor_icon {
-        ctx.output.cursor_icon = Some(cursor_icon);
-    }
+    ctx.request_cursor(result.cursor_icon);
 
     // Draw the label text to the right of the control track
     let label_rect = Rect::new(

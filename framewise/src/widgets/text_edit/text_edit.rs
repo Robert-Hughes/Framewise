@@ -2271,9 +2271,7 @@ fn run_text_edit_resolved_rect<T: TextBackend, S: LayoutState, CF>(
         }
     }
 
-    if let Some(cursor_icon) = result.cursor_icon {
-        ctx.output.cursor_icon = Some(cursor_icon);
-    }
+    ctx.request_cursor(result.cursor_icon);
 
     TextEditResult {
         layout: LayoutInfo::new(rect, result.content_bounds),

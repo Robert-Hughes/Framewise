@@ -433,9 +433,7 @@ pub fn tabs<'a, T: TextBackend, S: LayoutState, CF>(
         ctx.cmds,
     );
 
-    if let Some(cursor_icon) = result.cursor_icon {
-        ctx.output.cursor_icon = Some(cursor_icon);
-    }
+    ctx.request_cursor(result.cursor_icon);
 
     TabsResult {
         layout: LayoutInfo::new(rect, result.content_bounds),

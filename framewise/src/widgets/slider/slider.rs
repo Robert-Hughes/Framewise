@@ -2364,9 +2364,7 @@ pub fn slider<T: TextBackend, S: LayoutState, CF>(
         ctx.focus_system,
         ctx.cmds,
     );
-    if let Some(cursor_icon) = result.cursor_icon {
-        ctx.output.cursor_icon = Some(cursor_icon);
-    }
+    ctx.request_cursor(result.cursor_icon);
     SliderResult {
         layout: LayoutInfo::tight(rect),
         input: result.input,
