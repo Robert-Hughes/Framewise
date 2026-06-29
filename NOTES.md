@@ -5,13 +5,15 @@ Working notes, TODOs, open questions, and half-baked ideas.
 ## Current Work
 
 - figure out numeric editing controls and ink label prefix
-  - Section 01 "Frame" stepper should be a NumberEdit now
   - Continue with section 04 and put them here too
+  - Make some default styles/specs for NumberEdits in different guises - review the current uses
 
 - suppress passive hover cursors while any mouse drag is active elsewhere, especially if the widget did not originate the drag. e.g. click and drag NumberEdit then move mouse over a slider which is AFTER it in the draw order. Check all widgets for this behaviour. Consider using a helper for 'hover-like' behaviour?
 
 - decide on consistent behaviour for click and hold on a widget with a special cursor (e.g. pointer, slider), then move mouse outside of the widget.
 For cases where the behaviour continues (like a slider), the cursor should clearly remain. But for cases where the interaction is 'paused' like a button press or NumberEdit stepper, not sure if the special cursor should also be paused? Consider a widget helper for "click-and-hold/drag"-like behaviour?
+
+- keyboard controls like up/down/left/right page up/down that are equivalent to pressing buttons (like stepper buttons) should show visual pressed states based on those keys. Reusable widget helper?
 
 - Go through the spec_page, check/implement/test each widget/aspect to make better match the mock-up and add interactivity as we go (https://claude.ai/design/p/1aab4e86-cbf2-497e-b379-44cf41de2b12?file=Framewise+Widgets.html)
   - Done 01-03

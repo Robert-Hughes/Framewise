@@ -18,10 +18,10 @@ use framewise::{
     layouts::ManualLayout,
     text::{TextFlow, TextStyle},
     theme::Theme,
-    types::{Color, Rect, Stroke, Vec2},
+    types::{Color, Rect, Vec2},
     widget::WidgetContext,
     Align, ColumnLayout, ColumnLayoutParams, ColumnState, LayoutViolationPolicy, LinearSpacer,
-    ManualState, Output, RowLayout, RowLayoutParams, TextLineAlign,
+    ManualState, RowLayout, RowLayoutParams, TextLineAlign,
 };
 
 // Core widgets — required by the page scaffolding (section headers, captions,
@@ -328,7 +328,7 @@ fn draw_prefixed_number_edit_fake_state<T: TextBackend, LS: LayoutState, CF>(
     } else {
         FocusSystem::new()
     };
-    let mut dummy_output = Output::default();
+    let mut dummy_output = framewise::Output::default();
 
     let mut fake_ctx = WidgetContext::root(
         b.theme,
@@ -359,7 +359,7 @@ fn draw_prefixed_number_edit_fake_state<T: TextBackend, LS: LayoutState, CF>(
     fake_ctx.finish();
 }
 
-#[cfg(feature = "slider")]
+#[cfg(all(feature = "slider", feature = "number_edit", feature = "color_swatch"))]
 fn draw_slider_fake_state<T: TextBackend, LS: LayoutState, CF>(
     b: &mut WidgetContext<T, LS, CF>,
     layout_params: LS::Params,
@@ -512,6 +512,43 @@ fn spec_button_text_left(mut style: ButtonStyle) -> ButtonStyle {
     style
 }
 
+#[cfg(all(feature = "button", feature = "number_edit"))]
+fn frame_stepper_number_edit_style(theme: &Theme) -> NumberEditStyle {
+    let mut style = NumberEditStyle::from_theme(theme);
+    let text_style = TextStyle::new(theme.sans_font, theme.text_md, 500, TextFlow::single_line());
+
+    style.height = theme.h_md;
+    style.background = Color::TRANSPARENT;
+    style.border = Some(framewise::types::Stroke::new(theme.ink, 1.0));
+    style.focus = Some(framewise::types::Outline::new(
+        theme.rust,
+        theme.focus_width,
+        theme.focus_offset,
+    ));
+    style.value_fill = Color::TRANSPARENT;
+    style.value_text = theme.ink;
+    style.text_style = text_style;
+    style.text_edit_style.min_height = theme.h_md;
+    style.text_edit_style.font = theme.sans_font;
+    style.text_edit_style.size = theme.text_md;
+    style.text_edit_style.weight = 500;
+    style.text_edit_style.text_color = theme.ink;
+    style.text_edit_style.background = Color::TRANSPARENT;
+    style.text_edit_style.background_hovered = Color::TRANSPARENT;
+    style.text_edit_style.border = None;
+    style.text_edit_style.focus_border = None;
+    style.step_button.decrement_glyph = "\u{2190}";
+    style.step_button.increment_glyph = "\u{2192}";
+    style.step_button.background = Color::TRANSPARENT;
+    style.step_button.background_hovered = theme.paper_hover;
+    style.step_button.background_pressed = theme.paper_press;
+    style.step_button.border = Some(framewise::types::Stroke::new(theme.ink, 1.0));
+    style.step_button.glyph_color = theme.ink;
+    style.step_button.padding_x = 14.0;
+    style.step_button.text_style = text_style;
+    style
+}
+
 #[cfg(feature = "text_edit")]
 fn draw_text_edit_fake_state<T: TextBackend, LS: LayoutState, CF>(
     b: &mut WidgetContext<T, LS, CF>,
@@ -604,9 +641,11 @@ pub struct SpecWidgetsState {
     pub btn_matrix: Vec<ButtonState>, // 4 variants × 2 real states (default + disabled) = 8
     #[cfg(feature = "button")]
     pub btn_sizes: Vec<ButtonState>, // [sm, md, lg]
-    #[cfg(feature = "button")]
-    pub btn_grp1: Vec<ButtonState>, // [←, Frame 248, →]
-    #[cfg(feature = "button")]
+    #[cfg(all(feature = "button", feature = "number_edit"))]
+    pub btn_frame_stepper: NumberEditState,
+    #[cfg(all(feature = "button", not(feature = "number_edit")))]
+    pub btn_grp1: Vec<ButtonState>, // fallback [←, Frame 248, →]
+    #[cfg(all(feature = "button", not(feature = "number_edit")))]
     pub btn_frame: i32,
     #[cfg(feature = "button")]
     pub btn_grp2: Vec<ButtonState>, // [Build, Run, Ship]
@@ -886,9 +925,14 @@ impl Default for SpecWidgetsState {
             ],
             #[cfg(feature = "button")]
             btn_sizes: (0..3).map(|_| ButtonState::default()).collect(),
-            #[cfg(feature = "button")]
+            #[cfg(all(feature = "button", feature = "number_edit"))]
+            btn_frame_stepper: NumberEditState {
+                value: 248.0,
+                ..Default::default()
+            },
+            #[cfg(all(feature = "button", not(feature = "number_edit")))]
             btn_grp1: (0..3).map(|_| ButtonState::default()).collect(),
-            #[cfg(feature = "button")]
+            #[cfg(all(feature = "button", not(feature = "number_edit")))]
             btn_frame: 248,
             #[cfg(feature = "button")]
             btn_grp2: (0..3).map(|_| ButtonState::default()).collect(),
@@ -1884,29 +1928,54 @@ fn section_01_buttons<CF>(
         }
         b.spacer(24.0);
 
-        // button group 1: ← | Frame N | →
-        let frame_label = format!("Frame {}", state.btn_frame);
-        let grp1: &[(&str, ButtonStyle)] = &[
-            ("←", ButtonStyle::secondary_from_theme(&b.theme)),
-            (&frame_label, ButtonStyle::secondary_from_theme(&b.theme)),
-            ("→", ButtonStyle::secondary_from_theme(&b.theme)),
-        ];
-        // draw group border
-        for (i, (label, style)) in grp1.iter().enumerate() {
-            let w = button_preferred_width(label, *style, b.text_backend);
-            let btn = {
-                let state = &mut state.btn_grp1[i];
-                let layout_params = RowLayoutParams::fixed(w, b.theme.h_md).align_y(Align::Center);
-                let text: &str = label;
-                let style = *style;
-                let spec = ButtonSpec::new(text).style(style);
-                button(spec, layout_params, state, &mut b)
-            };
-            if btn.input.clicked {
-                match i {
-                    0 => state.btn_frame -= 1,
-                    2 => state.btn_frame += 1,
-                    _ => {}
+        // NumberEdit frame stepper: ← | Frame N | →
+        #[cfg(feature = "number_edit")]
+        {
+            let style = ButtonStyle::secondary_from_theme(&b.theme);
+            let frame_stepper_w = button_preferred_width("\u{2190}", style, b.text_backend)
+                + button_preferred_width("Frame 248", style, b.text_backend)
+                + button_preferred_width("\u{2192}", style, b.text_backend);
+            let spec = NumberEditSpec::new_from_theme(&b.theme)
+                .min(0.0)
+                .no_max()
+                .step(1.0)
+                .page_step(10.0)
+                .drag_enabled(false)
+                .value_fill_enabled(false)
+                .value_formatter(|v: f32| format!("Frame {v:.0}"))
+                .style(frame_stepper_number_edit_style(&b.theme));
+            number_edit(
+                spec,
+                RowLayoutParams::fixed(frame_stepper_w, b.theme.h_md).align_y(Align::Center),
+                &mut state.btn_frame_stepper,
+                &mut b,
+            );
+        }
+        #[cfg(not(feature = "number_edit"))]
+        {
+            let frame_label = format!("Frame {}", state.btn_frame);
+            let grp1: &[(&str, ButtonStyle)] = &[
+                ("\u{2190}", ButtonStyle::secondary_from_theme(&b.theme)),
+                (&frame_label, ButtonStyle::secondary_from_theme(&b.theme)),
+                ("\u{2192}", ButtonStyle::secondary_from_theme(&b.theme)),
+            ];
+            for (i, (label, style)) in grp1.iter().enumerate() {
+                let w = button_preferred_width(label, *style, b.text_backend);
+                let btn = {
+                    let state = &mut state.btn_grp1[i];
+                    let layout_params =
+                        RowLayoutParams::fixed(w, b.theme.h_md).align_y(Align::Center);
+                    let text: &str = label;
+                    let style = *style;
+                    let spec = ButtonSpec::new(text).style(style);
+                    button(spec, layout_params, state, &mut b)
+                };
+                if btn.input.clicked {
+                    match i {
+                        0 => state.btn_frame -= 1,
+                        2 => state.btn_frame += 1,
+                        _ => {}
+                    }
                 }
             }
         }
@@ -2738,7 +2807,7 @@ fn section_04_sliders<CF>(
 
         let mut stepper_style = NumberEditStyle::from_theme(&b.theme);
         stepper_style.background = Color::TRANSPARENT;
-        stepper_style.border = Some(Stroke::new(b.theme.ink, 1.0));
+        stepper_style.border = Some(framewise::types::Stroke::new(b.theme.ink, 1.0));
         stepper_style.value_fill = Color::TRANSPARENT;
         stepper_style.text_style.size = b.theme.text_sm;
         stepper_style.step_button.decrement_glyph = "\u{2212}";
@@ -2746,7 +2815,7 @@ fn section_04_sliders<CF>(
         stepper_style.step_button.background = Color::TRANSPARENT;
         stepper_style.step_button.background_hovered = b.theme.paper_hover;
         stepper_style.step_button.background_pressed = b.theme.paper_press;
-        stepper_style.step_button.border = Some(Stroke::new(b.theme.ink, 1.0));
+        stepper_style.step_button.border = Some(framewise::types::Stroke::new(b.theme.ink, 1.0));
         stepper_style.step_button.glyph_color = b.theme.ink;
         stepper_style.step_button.padding_x = 8.0;
         stepper_style.step_button.text_style.size = b.theme.text_sm;
@@ -2764,8 +2833,10 @@ fn section_04_sliders<CF>(
         let swatches: &[(Color, &str)] = &[(b.theme.ink, "#15130f"), (b.theme.rust, "#c25a2c")];
         let mut x = 220.0;
         for (color, hex) in swatches {
-            let spec =
-                ColorSwatchSpec::new(*color).border(Some(Stroke::new(b.theme.line_on_paper, 1.0)));
+            let spec = ColorSwatchSpec::new(*color).border(Some(framewise::types::Stroke::new(
+                b.theme.line_on_paper,
+                1.0,
+            )));
             let rect = local_rect(x, 0.0, 18.0, b.theme.h_md);
             color_swatch(spec, rect, &mut b);
             let spec = LabelSpec::new(hex).style(LabelStyle {
@@ -4279,8 +4350,9 @@ fn section_12_in_use<CF>(
             });
             label(spec, layout_params, &mut win)
         };
-        let spec = ColorSwatchSpec::new(win.theme.rust)
-            .border(Some(Stroke::new(win.theme.line_on_paper, 1.0)));
+        let spec = ColorSwatchSpec::new(win.theme.rust).border(Some(
+            framewise::types::Stroke::new(win.theme.line_on_paper, 1.0),
+        ));
         color_swatch(spec, Rect::new(widget_x, fy + 4.0, 18.0, 20.0), &mut win);
         {
             let layout_params = Rect::new(widget_x + 22.0, fy + 7.0, 60.0, 14.0);
