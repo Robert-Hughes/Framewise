@@ -85,6 +85,10 @@ fn right_arrow_pos(rect: Rect) -> Vec2 {
     Vec2::new(rect.right() - 10.0, rect.y + rect.h / 2.0)
 }
 
+fn left_arrow_pos(rect: Rect) -> Vec2 {
+    Vec2::new(rect.x + 10.0, rect.y + rect.h / 2.0)
+}
+
 fn value_text_pos(rect: Rect, formatted_value: &str) -> Vec2 {
     let char_width = 8.0; // default advance in TestTextBackend
     let text_w = formatted_value.len() as f32 * char_width;
@@ -2443,100 +2447,129 @@ fn test_number_edit_text_edit_escape_cancels() {
 }
 
 #[test]
-fn test_number_edit_text_edit_click_outside_valid_commits_without_stealing_focus() {
+fn test_number_edit_text_edit_click_away_valid_commits_without_stealing_focus() {
     let rect = Rect::new(0.0, 0.0, 140.0, 28.0);
-    let mut state = NumberEditState {
-        value: 10.0,
-        ..Default::default()
-    };
-    enter_edit_state(&mut state, "42.5");
-    let mut focus_system = FocusSystem::new();
-    let other_focus = FocusId::new();
-    focus_system.take_keyboard_focus(other_focus);
 
-    run_key(default_spec(rect), &mut state, &mut focus_system, |input| {
-        input.mouse_pos = Vec2::new(5.0, 14.0);
-        input.mouse_pressed = true;
-        input.mouse_down = true;
-    });
+    for (case, click_pos) in [
+        ("step button", left_arrow_pos(rect)),
+        (
+            "outside widget",
+            Vec2::new(rect.right() + 20.0, rect.y + rect.h / 2.0),
+        ),
+    ] {
+        let mut state = NumberEditState {
+            value: 10.0,
+            ..Default::default()
+        };
+        enter_edit_state(&mut state, "42.5");
+        let mut focus_system = FocusSystem::new();
+        let other_focus = FocusId::new();
+        focus_system.take_keyboard_focus(other_focus);
 
-    assert_eq!(state.value, 42.5);
-    assert_inactive(&state.edit);
-    assert_eq!(focus_system.current_keyboard_focus(), Some(other_focus));
+        run_key(default_spec(rect), &mut state, &mut focus_system, |input| {
+            input.mouse_pos = click_pos;
+            input.mouse_pressed = true;
+            input.mouse_down = true;
+        });
+
+        assert_eq!(state.value, 42.5, "{case}");
+        assert_inactive(&state.edit);
+        assert_eq!(
+            focus_system.current_keyboard_focus(),
+            Some(other_focus),
+            "{case}"
+        );
+    }
 }
 
 #[test]
-fn test_number_edit_text_edit_click_outside_invalid_remembers_and_reenter_restores_draft() {
+fn test_number_edit_text_edit_click_away_invalid_remembers_and_reenter_restores_draft() {
     let rect = Rect::new(0.0, 0.0, 140.0, 28.0);
-    let mut state = NumberEditState {
-        value: 10.0,
-        ..Default::default()
-    };
-    enter_edit_state(&mut state, "abc");
-    let mut focus_system = FocusSystem::new();
-    let other_focus = FocusId::new();
-    focus_system.take_keyboard_focus(other_focus);
 
-    run_key(default_spec(rect), &mut state, &mut focus_system, |input| {
-        input.mouse_pos = Vec2::new(5.0, 14.0);
-        input.mouse_pressed = true;
-        input.mouse_down = true;
-    });
+    for (case, click_pos) in [
+        ("step button", left_arrow_pos(rect)),
+        (
+            "outside widget",
+            Vec2::new(rect.right() + 20.0, rect.y + rect.h / 2.0),
+        ),
+    ] {
+        let mut state = NumberEditState {
+            value: 10.0,
+            ..Default::default()
+        };
+        enter_edit_state(&mut state, "abc");
+        let mut focus_system = FocusSystem::new();
+        let other_focus = FocusId::new();
+        focus_system.take_keyboard_focus(other_focus);
 
-    assert_eq!(state.value, 10.0);
-    assert_remembered(&state.edit, "abc");
-    assert_eq!(focus_system.current_keyboard_focus(), Some(other_focus));
+        run_key(default_spec(rect), &mut state, &mut focus_system, |input| {
+            input.mouse_pos = click_pos;
+            input.mouse_pressed = true;
+            input.mouse_down = true;
+        });
 
-    let pos = value_text_pos(rect, "10.00");
-    let warmup_input = Input {
-        mouse_pos: pos,
-        ..Default::default()
-    };
-    let mut cmds = DrawCommands::new(1.0);
-    let mut text_backend = TestTextBackend::default();
-    focus_system.begin_frame();
-    let _ = run_raw(
-        default_spec(rect),
-        &mut state,
-        &warmup_input,
-        &mut focus_system,
-        &mut text_backend,
-        &mut cmds,
-    );
-    focus_system.end_frame();
+        assert_eq!(state.value, 10.0, "{case}");
+        match &state.edit {
+            NumberEditEditState::Remembered { draft } => assert_eq!(draft, "abc", "{case}"),
+            other => panic!("expected Remembered {{ draft: \"abc\" }}, got {other:?}: {case}"),
+        }
+        assert_eq!(
+            focus_system.current_keyboard_focus(),
+            Some(other_focus),
+            "{case}"
+        );
 
-    let input = Input {
-        mouse_pos: pos,
-        mouse_down: true,
-        mouse_pressed: true,
-        mouse_click_count: 2,
-        ..Default::default()
-    };
-    let mut cmds = DrawCommands::new(1.0);
-    focus_system.begin_frame();
-    let _ = run_raw(
-        default_spec(rect),
-        &mut state,
-        &input,
-        &mut focus_system,
-        &mut text_backend,
-        &mut cmds,
-    );
-    focus_system.end_frame();
+        let pos = value_text_pos(rect, "10.00");
+        let warmup_input = Input {
+            mouse_pos: pos,
+            ..Default::default()
+        };
+        let mut cmds = DrawCommands::new(1.0);
+        let mut text_backend = TestTextBackend::default();
+        focus_system.begin_frame();
+        let _ = run_raw(
+            default_spec(rect),
+            &mut state,
+            &warmup_input,
+            &mut focus_system,
+            &mut text_backend,
+            &mut cmds,
+        );
+        focus_system.end_frame();
 
-    let (text_edit, error) = assert_editing(&state.edit);
-    assert_eq!(text_edit.value, "abc");
-    assert!(!error);
-    assert_eq!(text_edit.focus_id, state.focus_id);
+        let input = Input {
+            mouse_pos: pos,
+            mouse_down: true,
+            mouse_pressed: true,
+            mouse_click_count: 2,
+            ..Default::default()
+        };
+        let mut cmds = DrawCommands::new(1.0);
+        focus_system.begin_frame();
+        let _ = run_raw(
+            default_spec(rect),
+            &mut state,
+            &input,
+            &mut focus_system,
+            &mut text_backend,
+            &mut cmds,
+        );
+        focus_system.end_frame();
 
-    let (text_edit, _) = assert_editing_mut(&mut state.edit);
-    text_edit.value = "42".to_string();
-    run_key(default_spec(rect), &mut state, &mut focus_system, |input| {
-        input.key_pressed_enter = true;
-    });
+        let (text_edit, error) = assert_editing(&state.edit);
+        assert_eq!(text_edit.value, "abc", "{case}");
+        assert!(!error, "{case}");
+        assert_eq!(text_edit.focus_id, state.focus_id, "{case}");
 
-    assert_eq!(state.value, 42.0);
-    assert_inactive(&state.edit);
+        let (text_edit, _) = assert_editing_mut(&mut state.edit);
+        text_edit.value = "42".to_string();
+        run_key(default_spec(rect), &mut state, &mut focus_system, |input| {
+            input.key_pressed_enter = true;
+        });
+
+        assert_eq!(state.value, 42.0, "{case}");
+        assert_inactive(&state.edit);
+    }
 }
 
 #[test]
