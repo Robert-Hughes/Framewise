@@ -168,6 +168,9 @@ pub mod raw {
         let mut hit_x = spec.rect.x;
         for (i, &w) in widths.iter().enumerate() {
             let seg_rect = Rect::new(hit_x, spec.rect.y, w, h);
+            // TODO: Segmented controls do not retain a pointer-active segment while
+            // the mouse is held. Track the active segment, clear it on release, and
+            // pass that segment-specific active state into the hover helper.
             let hover = crate::widgets::widget_helpers::handle_hover_interaction(
                 seg_rect,
                 spec.clip_rect,

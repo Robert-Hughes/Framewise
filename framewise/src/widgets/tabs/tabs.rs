@@ -142,6 +142,9 @@ pub mod raw {
         let mut hit_x = spec.rect.x;
         for (i, &tab_w) in widths.iter().enumerate() {
             let tab_rect = Rect::new(hit_x, spec.rect.y, tab_w, tab_h);
+            // TODO: Tabs do not retain a pointer-active tab while the mouse is held,
+            // so active_now/pressed are only true on press-start. Add active-tab
+            // state, clear it on release, and pass was_active = active_tab == Some(i).
             let hover = crate::widgets::widget_helpers::handle_hover_interaction(
                 tab_rect,
                 spec.clip_rect,

@@ -1611,7 +1611,7 @@ fn test_number_edit_arrow_hold_repeat_sequence() {
     input.mouse_pressed = true;
     spec.time = 0.0;
     focus_system.begin_frame();
-    let _ = run_raw(
+    let press_result = run_raw(
         spec.clone(),
         &mut state,
         &input,
@@ -1627,12 +1627,13 @@ fn test_number_edit_arrow_hold_repeat_sequence() {
         Some(NumberEditStepDirection::Increment)
     );
     assert_eq!(state.next_repeat_time, 0.5);
+    assert!(press_result.input.pressed);
 
     // Frame 2: keep holding before the repeat delay; value should not change.
     input.mouse_pressed = false;
     spec.time = 0.4;
     focus_system.begin_frame();
-    let _ = run_raw(
+    let hold_result = run_raw(
         spec.clone(),
         &mut state,
         &input,
@@ -1642,6 +1643,7 @@ fn test_number_edit_arrow_hold_repeat_sequence() {
     );
     focus_system.end_frame();
     assert_eq!(state.value, 55.0);
+    assert!(hold_result.input.pressed);
 
     // Frame 3: reach the initial repeat time; one repeat step should fire.
     spec.time = 0.5;
@@ -1675,7 +1677,7 @@ fn test_number_edit_arrow_hold_repeat_sequence() {
     // Frame 5: release the mouse; arrow-step state is cleared.
     input.mouse_down = false;
     focus_system.begin_frame();
-    let _ = run_raw(
+    let release_result = run_raw(
         spec,
         &mut state,
         &input,
@@ -1686,6 +1688,7 @@ fn test_number_edit_arrow_hold_repeat_sequence() {
     focus_system.end_frame();
     assert!(!state.is_arrow_stepping);
     assert_eq!(state.arrow_step_direction, None);
+    assert!(!release_result.input.pressed);
 }
 
 #[test]

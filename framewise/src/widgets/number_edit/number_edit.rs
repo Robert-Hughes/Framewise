@@ -595,7 +595,7 @@ pub mod raw {
         NumberEditResult {
             input: edit_input_info.unwrap_or(InputInfo {
                 hovered,
-                pressed: state.is_dragging && !spec.disabled,
+                pressed: (state.is_dragging || active_step) && !spec.disabled,
                 clicked: false,
             }),
             focused: focused

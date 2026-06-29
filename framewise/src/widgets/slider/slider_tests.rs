@@ -221,7 +221,7 @@ fn test_slider_drag() {
 
     focus_system.begin_frame();
     let mut cmds = DrawCommands::new(1.0);
-    raw::post_layout_slider(
+    let press_result = raw::post_layout_slider(
         spec.clone(),
         raw::SliderPreLayoutResult {
             size_request: crate::layout::SizeRequest::UNKNOWN,
@@ -234,12 +234,17 @@ fn test_slider_drag() {
     focus_system.end_frame();
     assert!(state.active_part.is_some());
     assert_eq!(state.drag_start_mouse_coord, 10.0);
+    assert!(press_result.input.pressed);
+    assert_eq!(
+        press_result.cursor_icon,
+        Some(crate::output::CursorIcon::Grabbing)
+    );
 
     // 2. Drag down by 40px (mouse y = 50)
     input.mouse_pressed = false;
     input.mouse_pos.y = 50.0;
     focus_system.begin_frame();
-    raw::post_layout_slider(
+    let drag_result = raw::post_layout_slider(
         spec.clone(),
         raw::SliderPreLayoutResult {
             size_request: crate::layout::SizeRequest::UNKNOWN,
@@ -253,6 +258,11 @@ fn test_slider_drag() {
 
     // Endpoints map directly to the track, so 40px of drag is 50 value units.
     assert_eq!(state.value.lower(), 50.0);
+    assert!(drag_result.input.pressed);
+    assert_eq!(
+        drag_result.cursor_icon,
+        Some(crate::output::CursorIcon::Grabbing)
+    );
 }
 
 #[test]
@@ -285,7 +295,7 @@ fn test_slider_track_click_hold() {
     // Frame 1: time=0.0. Should page down by 20.0
     focus_system.begin_frame();
     let mut cmds = DrawCommands::new(1.0);
-    raw::post_layout_slider(
+    let track_press_result = raw::post_layout_slider(
         spec.clone(),
         raw::SliderPreLayoutResult {
             size_request: crate::layout::SizeRequest::UNKNOWN,
@@ -299,6 +309,7 @@ fn test_slider_track_click_hold() {
     assert_eq!(state.value.lower(), 20.0);
     assert!(state.is_track_clicking);
     assert_eq!(state.next_repeat_time, 0.5); // wait 500ms
+    assert!(track_press_result.input.pressed);
 
     // Frame 2: time=0.4 (before repeat). No change.
     input.mouse_pressed = false;

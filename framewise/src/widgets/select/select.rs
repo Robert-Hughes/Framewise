@@ -133,6 +133,8 @@ pub mod raw {
             focus_system.claim_hover(state.focus_id);
         }
         let hover_active = focus_system.is_hover_active(state.focus_id);
+        // TODO: The closed input does not retain pointer-active ownership after
+        // press-start. Add an input-active flag if held pressed/cursor state should persist.
         let input_hover = crate::widgets::widget_helpers::handle_hover_interaction(
             r,
             spec.clip_rect,
@@ -247,6 +249,9 @@ pub mod raw {
                     false,
                     input,
                 );
+                // TODO: state.hovered mixes keyboard highlight with passive mouse hover.
+                // Split keyboard-highlighted row from this-frame passive hover, or draw
+                // s.hover only from current-frame row_hover.passive_hovered.
                 if row_hover.passive_hovered {
                     popup_passive_hovered = true;
                     state.hovered = Some(i);
