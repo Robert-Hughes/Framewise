@@ -5,13 +5,15 @@ Working notes, TODOs, open questions, and half-baked ideas.
 ## Current Work
 
 - figure out numeric editing controls and ink label prefix
-  2. Extract the prefix/addon label into a generic wrapper
   3. Add behaviour/style settings to NumberEdit
-  - Go back to section 01 and 02 and use these widgets properly there
+    - Section 04 stepper is invisible!
+     pre-layout measure from current value, test_number_edit_custom_formatter_affects_measurement_and_rendering/test_number_edit_custom_formatter_affects_rendering_not_measurement
+  - Section 01 "Frame" stepper should be a NumberEdit now
   - Continue with section 04 and put them here too
 
 - Go through the spec_page, check/implement/test each widget/aspect to make better match the mock-up and add interactivity as we go (https://claude.ai/design/p/1aab4e86-cbf2-497e-b379-44cf41de2b12?file=Framewise+Widgets.html)
   - Done 01-03
+  - Section 01 Build/Run/Ship should be a 'segmented' control?
   - Add demo pages for each widget type (or possibly in groups?)
   - Use/add reusable widget helpers (widget_helpers.rs)
   - Use/add reusable widget test helpers (test_helpers.rs)

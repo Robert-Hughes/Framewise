@@ -3,7 +3,7 @@ use crate::{
     focus::{FocusId, FocusSystem},
     input::Input,
     layout::{Align, AxisBound, LayoutState, SizeOffer},
-    text::{layout_text, TextBackend, TextLineAlign},
+    text::{layout_text, TextBackend, TextBounds, TextLineAlign},
     types::{ClipRect, Color, Layer, Outline, Rect, Stroke, Vec2},
     widget::{InputInfo, LayoutInfo, WidgetContext},
     widgets::{
@@ -25,13 +25,15 @@ pub mod raw {
         F: Fn(f32) -> String,
     {
         pub layer: Layer,
-        /// Bounding rect for the editable numeric value area.
+        /// Bounding rect for the full number edit control.
         pub rect: Rect,
         pub style: super::NumberEditStyle,
-        pub min: f32,
-        pub max: f32,
+        pub min: Option<f32>,
+        pub max: Option<f32>,
         pub step: f32,
         pub page_step: f32,
+        pub drag_enabled: bool,
+        pub value_fill_enabled: bool,
         pub value_formatter: F,
         pub time: f64,
         pub disabled: bool,
@@ -39,14 +41,8 @@ pub mod raw {
     }
 
     #[derive(Debug, Clone, PartialEq)]
-    pub struct NumberEditPreLayoutSpec<'f, F>
-    where
-        F: Fn(f32) -> String,
-    {
+    pub struct NumberEditPreLayoutSpec {
         pub style: super::NumberEditStyle,
-        pub min: f32,
-        pub max: f32,
-        pub value_formatter: &'f F,
     }
 
     #[derive(Debug, Clone, PartialEq)]
@@ -66,46 +62,24 @@ pub mod raw {
     ///
     /// This currently measures text with unbounded bounds; offer-sensitive
     /// wrapping is future work.
-    pub fn pre_layout_number_edit<T: TextBackend, F>(
-        spec: &NumberEditPreLayoutSpec<'_, F>,
+    pub fn pre_layout_number_edit<T: TextBackend>(
+        spec: &NumberEditPreLayoutSpec,
         offer: SizeOffer,
         text_backend: &mut T,
-    ) -> NumberEditPreLayoutResult
-    where
-        F: Fn(f32) -> String,
-    {
+    ) -> NumberEditPreLayoutResult {
         NumberEditPreLayoutResult {
             size_request: number_edit_size_request(spec, offer, text_backend),
         }
     }
 
-    fn number_edit_size_request<T: TextBackend, F>(
-        spec: &NumberEditPreLayoutSpec<'_, F>,
+    fn number_edit_size_request<T: TextBackend>(
+        spec: &NumberEditPreLayoutSpec,
         _offer: SizeOffer,
         text_backend: &mut T,
-    ) -> crate::layout::SizeRequest
-    where
-        F: Fn(f32) -> String,
-    {
+    ) -> crate::layout::SizeRequest {
         let s = spec.style;
-        let min_text = (spec.value_formatter)(spec.min);
-        let max_text = (spec.value_formatter)(spec.max);
-        let min_layout = layout_text(
-            text_backend,
-            &min_text,
-            s.text_style,
-            crate::text::TextBounds::UNBOUNDED,
-        );
-        let min_metrics = min_layout.metrics();
-        let max_layout = layout_text(
-            text_backend,
-            &max_text,
-            s.text_style,
-            crate::text::TextBounds::UNBOUNDED,
-        );
-        let max_metrics = max_layout.metrics();
-        let value_w =
-            min_metrics.logical_size.x.max(max_metrics.logical_size.x) + s.text_pad_x * 2.0;
+        let button_w = number_edit_step_button_width(s.step_button, text_backend);
+        let value_w = NUMBER_EDIT_VALUE_PREFERRED_WIDTH + button_w * 2.0;
         crate::layout::SizeRequest::preferred(Vec2::new(value_w, s.height))
     }
 
@@ -133,18 +107,22 @@ pub mod raw {
         }
 
         let s = spec.style;
+        let step_button_w =
+            number_edit_step_button_width(s.step_button, text_backend).min(spec.rect.w * 0.5);
 
-        // All interaction and drawing below use the final value rect, especially
-        // the embedded edit field.
-        let value_x = spec.rect.x;
-        let value_w = spec.rect.w.max(20.0);
-        let value_rect = Rect::new(value_x, spec.rect.y, value_w, spec.rect.h);
-        let arrow_w = value_w.min(20.0).min(value_w * 0.5);
-        let left_arrow_rect = Rect::new(value_x, spec.rect.y, arrow_w, spec.rect.h);
-        let right_arrow_rect = Rect::new(
-            value_x + value_w - arrow_w,
+        // All interaction and drawing below split the full control into always
+        // present step button regions and the central value/edit area.
+        let decrement_rect = Rect::new(spec.rect.x, spec.rect.y, step_button_w, spec.rect.h);
+        let increment_rect = Rect::new(
+            spec.rect.right() - step_button_w,
             spec.rect.y,
-            arrow_w,
+            step_button_w,
+            spec.rect.h,
+        );
+        let value_rect = Rect::new(
+            spec.rect.x + step_button_w,
+            spec.rect.y,
+            (spec.rect.w - step_button_w * 2.0).max(0.0),
             spec.rect.h,
         );
 
@@ -157,8 +135,7 @@ pub mod raw {
         }
         let is_hover_active = focus_system.is_hover_active(state.focus_id);
 
-        let clamp_min = spec.min.min(spec.max);
-        let clamp_max = spec.min.max(spec.max);
+        let (clamp_min, clamp_max) = normalise_optional_bounds(spec.min, spec.max);
 
         // Measure the displayed value text once here; drawing happens later, but
         // the layout also informs the overall value-lane visual balance.
@@ -170,7 +147,7 @@ pub mod raw {
             crate::text::TextBounds::UNBOUNDED,
         );
         let value_metrics = value_layout.metrics();
-        let vtx = value_x + (value_w - value_metrics.logical_size.x) * 0.5;
+        let vtx = value_rect.x + (value_rect.w - value_metrics.logical_size.x) * 0.5;
         let vty = spec.rect.y + (spec.rect.h - value_metrics.logical_size.y) * 0.5;
         let value_text_rect = Rect::new(
             vtx,
@@ -180,17 +157,16 @@ pub mod raw {
         );
 
         let mut started_editing_this_frame = false;
-        let hovered_left_arrow = contains_value && left_arrow_rect.contains(input.mouse_pos);
-        let hovered_right_arrow = contains_value && right_arrow_rect.contains(input.mouse_pos);
-        let hovered_arrow_direction = if hovered_left_arrow {
+        let hovered_decrement = decrement_rect.contains(input.mouse_pos) && is_visible;
+        let hovered_increment = increment_rect.contains(input.mouse_pos) && is_visible;
+        let hovered_step_direction = if hovered_decrement {
             Some(NumberEditStepDirection::Decrement)
-        } else if hovered_right_arrow {
+        } else if hovered_increment {
             Some(NumberEditStepDirection::Increment)
         } else {
             None
         };
-        let hovered_drag_region =
-            contains_value && is_hover_active && hovered_arrow_direction.is_none();
+        let hovered_drag_region = contains_value && is_hover_active;
         // The embedded TextEdit reuses the NumberEdit focus id. Entering edit mode
         // happens before normal focus registration so only one widget registers it.
         if !state.edit.is_editing()
@@ -246,7 +222,11 @@ pub mod raw {
             let dy = input.mouse_pos.y - state.arrow_step_start_mouse_pos.y;
             let drag_dist = dx.hypot(dy);
             const ARROW_DRAG_THRESHOLD: f32 = 4.0;
-            if state.is_arrow_stepping && input.mouse_down && drag_dist > ARROW_DRAG_THRESHOLD {
+            if spec.drag_enabled
+                && state.is_arrow_stepping
+                && input.mouse_down
+                && drag_dist > ARROW_DRAG_THRESHOLD
+            {
                 state.is_arrow_stepping = false;
                 state.arrow_step_direction = None;
                 state.is_dragging = true;
@@ -258,14 +238,14 @@ pub mod raw {
                 focus_system.take_keyboard_focus(state.focus_id);
             }
 
-            if input.mouse_pressed && hovered_value_area {
-                if let Some(direction) = hovered_arrow_direction {
+            if input.mouse_pressed && contains && is_hover_active {
+                if let Some(direction) = hovered_step_direction {
                     step_value(state, direction, spec.step, clamp_min, clamp_max);
                     state.is_arrow_stepping = true;
                     state.arrow_step_start_mouse_pos = input.mouse_pos;
                     state.arrow_step_direction = Some(direction);
                     state.next_repeat_time = spec.time + 0.5;
-                } else {
+                } else if hovered_value_area && spec.drag_enabled {
                     state.is_dragging = true;
                     state.drag_start_x = input.mouse_pos.x;
                     state.drag_start_value = state.value;
@@ -280,15 +260,18 @@ pub mod raw {
             }
 
             if state.is_dragging {
-                if !input.mouse_down {
+                if !input.mouse_down || !spec.drag_enabled {
                     state.is_dragging = false;
                 } else {
                     let dx = input.mouse_pos.x - state.drag_start_x;
-                    let value_range = spec.max - spec.min;
-                    let delta_val = (dx / value_w) * value_range;
-                    state.value = (state.drag_start_value + delta_val).clamp(clamp_min, clamp_max);
+                    let value_range = drag_value_range(clamp_min, clamp_max);
+                    let delta_val = (dx / value_rect.w.max(1.0)) * value_range;
+                    state.value =
+                        clamp_optional(state.drag_start_value + delta_val, clamp_min, clamp_max);
                 }
             }
+        } else if !spec.drag_enabled {
+            state.is_dragging = false;
         }
 
         // Display-mode keyboard stepping. TextEdit consumes caret movement while editing.
@@ -299,22 +282,26 @@ pub mod raw {
             focus_system.claim_pgdn_horiz(state.focus_id);
 
             if input.key_pressed_left || input.key_pressed_up {
-                state.value = (state.value - spec.step).clamp(clamp_min, clamp_max);
+                state.value = clamp_optional(state.value - spec.step, clamp_min, clamp_max);
             }
             if input.key_pressed_right || input.key_pressed_down {
-                state.value = (state.value + spec.step).clamp(clamp_min, clamp_max);
+                state.value = clamp_optional(state.value + spec.step, clamp_min, clamp_max);
             }
             if input.key_pressed_page_up {
-                state.value = (state.value - spec.page_step).clamp(clamp_min, clamp_max);
+                state.value = clamp_optional(state.value - spec.page_step, clamp_min, clamp_max);
             }
             if input.key_pressed_page_down {
-                state.value = (state.value + spec.page_step).clamp(clamp_min, clamp_max);
+                state.value = clamp_optional(state.value + spec.page_step, clamp_min, clamp_max);
             }
             if input.key_pressed_home {
-                state.value = clamp_min;
+                if let Some(min) = clamp_min {
+                    state.value = min;
+                }
             }
             if input.key_pressed_end {
-                state.value = clamp_max;
+                if let Some(max) = clamp_max {
+                    state.value = max;
+                }
             }
         }
 
@@ -325,7 +312,7 @@ pub mod raw {
             || state.is_dragging
             || focus_system.current_keyboard_focus() == Some(state.focus_id);
         let draw_outer = cmds.snap_rect_edges_to_physical_pixel(spec.rect);
-        let draw_value_x = cmds.snap_to_physical_pixel(value_x);
+        let draw_value_x = cmds.snap_to_physical_pixel(value_rect.x);
 
         // Focus / active ring.
         if visually_active && !spec.disabled {
@@ -343,27 +330,50 @@ pub mod raw {
         cmds.push_crisp_fill_rect(draw_outer, tint(s.background), spec.layer.get_z());
 
         // Value area: rust_soft fill proportional to value fraction.
-        let frac = if spec.max > spec.min {
-            ((state.value - spec.min) / (spec.max - spec.min)).clamp(0.0, 1.0)
-        } else if spec.max < spec.min {
-            ((state.value - spec.max) / (spec.min - spec.max)).clamp(0.0, 1.0)
-        } else {
-            0.0
-        };
-        if frac > 0.0 && !state.edit.is_editing() {
-            // Keep the leading, top, and bottom edges crisp, but leave the moving
-            // right edge unsnapped so the fill can animate smoothly between pixels.
-            let draw_value_r = value_x + value_w * frac;
-            cmds.push(DrawCmd::FillRect {
-                rect: Rect::from_ltrb(
-                    draw_value_x,
-                    draw_outer.y,
-                    draw_value_r,
-                    draw_outer.bottom(),
-                ),
-                color: tint(s.value_fill),
-                z: spec.layer.get_z(),
-            });
+        if spec.value_fill_enabled && !state.edit.is_editing() {
+            if let (Some(min), Some(max)) = (clamp_min, clamp_max) {
+                if min != max {
+                    let frac = ((state.value - min) / (max - min)).clamp(0.0, 1.0);
+                    // Keep the leading, top, and bottom edges crisp, but leave the moving
+                    // right edge unsnapped so the fill can animate smoothly between pixels.
+                    if frac > 0.0 {
+                        let draw_value_r = value_rect.x + value_rect.w * frac;
+                        cmds.push(DrawCmd::FillRect {
+                            rect: Rect::from_ltrb(
+                                draw_value_x,
+                                draw_outer.y,
+                                draw_value_r,
+                                draw_outer.bottom(),
+                            ),
+                            color: tint(s.value_fill),
+                            z: spec.layer.get_z(),
+                        });
+                    }
+                }
+            }
+        }
+
+        for (rect, hovered) in [
+            (decrement_rect, hovered_decrement),
+            (increment_rect, hovered_increment),
+        ] {
+            let background =
+                if hovered || (state.is_arrow_stepping && hovered_step_direction.is_some()) {
+                    s.step_button.background_hovered
+                } else {
+                    s.step_button.background
+                };
+            if background.a > 0.0 {
+                cmds.push_crisp_fill_rect(rect, tint(background), spec.layer.get_z());
+            }
+            if let Some(border) = s.step_button.border {
+                cmds.push_crisp_border_rect(
+                    rect,
+                    Some(Stroke::new(tint(border.color), border.width)),
+                    BorderPlacement::Inside,
+                    spec.layer.get_z(),
+                );
+            }
         }
 
         if let NumberEditEditState::Editing { text_edit, error } = &mut state.edit {
@@ -440,54 +450,24 @@ pub mod raw {
             );
         }
 
-        if !state.edit.is_editing()
-            && !spec.disabled
-            && (contains_value && is_hover_active || state.is_arrow_stepping)
-        {
-            let arrow_color = tint(Color::linear_rgba(
-                s.value_text.r,
-                s.value_text.g,
-                s.value_text.b,
-                s.value_text.a * 0.55,
-            ));
-            let left_arrow = "\u{2039}";
-            let left_layout = layout_text(
-                text_backend,
-                left_arrow,
-                s.text_style,
-                crate::text::TextBounds::UNBOUNDED,
-            );
-            let left_metrics = left_layout.metrics();
-            let left_x =
-                left_arrow_rect.x + (left_arrow_rect.w - left_metrics.logical_size.x) * 0.5;
-            let left_y = spec.rect.y + (spec.rect.h - left_metrics.logical_size.y) * 0.5;
-            left_layout.emit_glyphs(
-                cmds,
-                text_backend,
-                Vec2::new(left_x, left_y),
-                arrow_color,
-                spec.layer.get_z(),
-            );
-
-            let right_arrow = "\u{203A}";
-            let right_layout = layout_text(
-                text_backend,
-                right_arrow,
-                s.text_style,
-                crate::text::TextBounds::UNBOUNDED,
-            );
-            let right_metrics = right_layout.metrics();
-            let right_x =
-                right_arrow_rect.x + (right_arrow_rect.w - right_metrics.logical_size.x) * 0.5;
-            let right_y = spec.rect.y + (spec.rect.h - right_metrics.logical_size.y) * 0.5;
-            right_layout.emit_glyphs(
-                cmds,
-                text_backend,
-                Vec2::new(right_x, right_y),
-                arrow_color,
-                spec.layer.get_z(),
-            );
-        }
+        draw_step_button_glyph(
+            decrement_rect,
+            s.step_button.decrement_glyph,
+            s.step_button,
+            tint(s.step_button.glyph_color),
+            spec.layer,
+            text_backend,
+            cmds,
+        );
+        draw_step_button_glyph(
+            increment_rect,
+            s.step_button.increment_glyph,
+            s.step_button,
+            tint(s.step_button.glyph_color),
+            spec.layer,
+            text_backend,
+            cmds,
+        );
 
         // Border pushed at the very end to draw on top of the value fill.
         let tinted_border = s.border.map(|b| Stroke::new(tint(b.color), b.width));
@@ -533,17 +513,14 @@ pub mod raw {
             && !spec.disabled
             && (!input.mouse_down || state.is_dragging || state.edit.is_editing());
 
-        let active_arrow = state.is_arrow_stepping && !spec.disabled;
-        let hovered_arrow = !spec.disabled
-            && contains_value
-            && is_hover_active
-            && (left_arrow_rect.contains(input.mouse_pos)
-                || right_arrow_rect.contains(input.mouse_pos));
+        let active_step = state.is_arrow_stepping && !spec.disabled;
+        let hovered_step =
+            !spec.disabled && is_hover_active && (hovered_decrement || hovered_increment);
         let cursor_icon = if state.edit.is_editing() {
             edit_cursor_icon
-        } else if active_arrow || hovered_arrow {
+        } else if active_step || hovered_step {
             Some(crate::output::CursorIcon::Pointer)
-        } else if !spec.disabled && (contains_value || state.is_dragging) {
+        } else if spec.drag_enabled && !spec.disabled && (contains_value || state.is_dragging) {
             Some(crate::output::CursorIcon::EwResize)
         } else {
             None
@@ -566,6 +543,20 @@ pub mod raw {
 
 // ── Style ─────────────────────────────────────────────────────────────────────
 
+const NUMBER_EDIT_VALUE_PREFERRED_WIDTH: f32 = 68.0;
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct NumberEditStepButtonStyle {
+    pub padding_x: f32,
+    pub background: Color,
+    pub background_hovered: Color,
+    pub border: Option<Stroke>,
+    pub glyph_color: Color,
+    pub text_style: crate::text::TextStyle,
+    pub decrement_glyph: &'static str,
+    pub increment_glyph: &'static str,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct NumberEditStyle {
     pub height: f32,
@@ -576,6 +567,7 @@ pub struct NumberEditStyle {
     pub focus: Option<Outline>,
     pub value_text: Color,
     pub value_fill: Color,
+    pub step_button: NumberEditStepButtonStyle,
     pub text_edit_style: TextEditStyle,
     pub disabled_alpha: f32,
 }
@@ -592,15 +584,17 @@ impl NumberEditStyle {
         text_edit_style.text_color = theme.ink;
         text_edit_style.caret_color = theme.rust;
 
+        let text_style = crate::text::TextStyle::new(
+            theme.mono_font,
+            theme.text_mono,
+            theme.sans_weight_regular,
+            crate::text::TextFlow::single_line(),
+        );
+
         Self {
             height: theme.h_md,
             text_pad_x: 10.0,
-            text_style: crate::text::TextStyle::new(
-                theme.mono_font,
-                theme.text_mono,
-                theme.sans_weight_regular,
-                crate::text::TextFlow::single_line(),
-            ),
+            text_style,
             background: theme.paper_elev,
             border: Some(Stroke::new(theme.ink, theme.border)),
             focus: Some(Outline::new(
@@ -610,6 +604,21 @@ impl NumberEditStyle {
             )),
             value_text: theme.ink,
             value_fill: theme.rust_soft_on_paper_elev,
+            step_button: NumberEditStepButtonStyle {
+                padding_x: 6.0,
+                background: Color::TRANSPARENT,
+                background_hovered: Color::TRANSPARENT,
+                border: None,
+                glyph_color: Color::linear_rgba(
+                    theme.ink.r,
+                    theme.ink.g,
+                    theme.ink.b,
+                    theme.ink.a * 0.55,
+                ),
+                text_style,
+                decrement_glyph: "\u{2039}",
+                increment_glyph: "\u{203A}",
+            },
             text_edit_style,
             disabled_alpha: 0.35,
         }
@@ -689,14 +698,90 @@ fn step_value(
     state: &mut NumberEditState,
     direction: NumberEditStepDirection,
     step: f32,
-    clamp_min: f32,
-    clamp_max: f32,
+    clamp_min: Option<f32>,
+    clamp_max: Option<f32>,
 ) {
     let delta = match direction {
         NumberEditStepDirection::Decrement => -step,
         NumberEditStepDirection::Increment => step,
     };
-    state.value = (state.value + delta).clamp(clamp_min, clamp_max);
+    state.value = clamp_optional(state.value + delta, clamp_min, clamp_max);
+}
+
+fn normalise_optional_bounds(min: Option<f32>, max: Option<f32>) -> (Option<f32>, Option<f32>) {
+    match (min, max) {
+        (Some(min), Some(max)) => (Some(min.min(max)), Some(min.max(max))),
+        other => other,
+    }
+}
+
+fn clamp_optional(value: f32, min: Option<f32>, max: Option<f32>) -> f32 {
+    let mut value = value;
+    if let Some(min) = min {
+        value = value.max(min);
+    }
+    if let Some(max) = max {
+        value = value.min(max);
+    }
+    value
+}
+
+fn drag_value_range(min: Option<f32>, max: Option<f32>) -> f32 {
+    match (min, max) {
+        (Some(min), Some(max)) if max != min => max - min,
+        _ => 100.0,
+    }
+}
+
+fn number_edit_step_button_width<T: TextBackend>(
+    style: NumberEditStepButtonStyle,
+    text_backend: &mut T,
+) -> f32 {
+    let decrement = layout_text(
+        text_backend,
+        style.decrement_glyph,
+        style.text_style,
+        TextBounds::UNBOUNDED,
+    );
+    let increment = layout_text(
+        text_backend,
+        style.increment_glyph,
+        style.text_style,
+        TextBounds::UNBOUNDED,
+    );
+    let ink_w = decrement
+        .metrics()
+        .approx_ink_bounds
+        .w
+        .max(increment.metrics().approx_ink_bounds.w);
+    ink_w + style.padding_x * 2.0
+}
+
+fn draw_step_button_glyph<T: TextBackend>(
+    rect: Rect,
+    glyph: &str,
+    style: NumberEditStepButtonStyle,
+    color: Color,
+    layer: Layer,
+    text_backend: &mut T,
+    cmds: &mut DrawCommands,
+) {
+    let layout = layout_text(text_backend, glyph, style.text_style, TextBounds::UNBOUNDED);
+    let metrics = layout.metrics();
+    let ink = metrics.approx_ink_bounds;
+    if ink.w > 0.0 && ink.h > 0.0 {
+        let origin = Vec2::new(
+            rect.x + (rect.w - ink.w) * 0.5 - ink.x,
+            rect.y + (rect.h - ink.h) * 0.5 - ink.y,
+        );
+        layout.emit_glyphs(cmds, text_backend, origin, color, layer.get_z());
+    } else if metrics.logical_size.x > 0.0 && metrics.logical_size.y > 0.0 {
+        let origin = Vec2::new(
+            rect.x + (rect.w - metrics.logical_size.x) * 0.5,
+            rect.y + (rect.h - metrics.logical_size.y) * 0.5,
+        );
+        layout.emit_glyphs(cmds, text_backend, origin, color, layer.get_z());
+    }
 }
 
 fn number_edit_raw_edit_text(value: f32) -> String {
@@ -730,12 +815,16 @@ fn parse_number_edit_text(text: &str) -> Option<f32> {
     value.is_finite().then_some(value)
 }
 
-fn try_commit_number_edit(state: &mut NumberEditState, clamp_min: f32, clamp_max: f32) -> bool {
+fn try_commit_number_edit(
+    state: &mut NumberEditState,
+    clamp_min: Option<f32>,
+    clamp_max: Option<f32>,
+) -> bool {
     let NumberEditEditState::Editing { text_edit, error } = &mut state.edit else {
         return true;
     };
     if let Some(value) = parse_number_edit_text(&text_edit.value) {
-        state.value = value.clamp(clamp_min, clamp_max);
+        state.value = clamp_optional(value, clamp_min, clamp_max);
         state.edit = NumberEditEditState::Inactive;
         true
     } else {
@@ -746,15 +835,15 @@ fn try_commit_number_edit(state: &mut NumberEditState, clamp_min: f32, clamp_max
 
 fn commit_or_remember_number_edit_on_focus_loss(
     state: &mut NumberEditState,
-    clamp_min: f32,
-    clamp_max: f32,
+    clamp_min: Option<f32>,
+    clamp_max: Option<f32>,
 ) {
     let edit = std::mem::take(&mut state.edit);
 
     match edit {
         NumberEditEditState::Editing { text_edit, .. } => {
             if let Some(value) = parse_number_edit_text(&text_edit.value) {
-                state.value = value.clamp(clamp_min, clamp_max);
+                state.value = clamp_optional(value, clamp_min, clamp_max);
                 state.edit = NumberEditEditState::Inactive;
             } else {
                 state.edit = NumberEditEditState::Remembered {
@@ -791,10 +880,12 @@ where
     F: Fn(f32) -> String,
 {
     pub style: NumberEditStyle,
-    pub min: f32,
-    pub max: f32,
+    pub min: Option<f32>,
+    pub max: Option<f32>,
     pub step: f32,
     pub page_step: f32,
+    pub drag_enabled: bool,
+    pub value_fill_enabled: bool,
     pub value_formatter: F,
     pub disabled: bool,
 }
@@ -803,10 +894,12 @@ impl Default for NumberEditSpec<DefaultNumberEditValueFormatter> {
     fn default() -> Self {
         Self {
             style: NumberEditStyle::default(),
-            min: 0.0,
-            max: 100.0,
+            min: Some(0.0),
+            max: Some(100.0),
             step: 1.0,
             page_step: 10.0,
+            drag_enabled: true,
+            value_fill_enabled: true,
             value_formatter: default_number_edit_value_formatter,
             disabled: false,
         }
@@ -842,12 +935,34 @@ where
     }
 
     pub fn min(mut self, min: f32) -> Self {
-        self.min = min;
+        self.min = Some(min);
+        self
+    }
+
+    pub fn no_min(mut self) -> Self {
+        self.min = None;
         self
     }
 
     pub fn max(mut self, max: f32) -> Self {
-        self.max = max;
+        self.max = Some(max);
+        self
+    }
+
+    pub fn no_max(mut self) -> Self {
+        self.max = None;
+        self
+    }
+
+    pub fn range(mut self, min: f32, max: f32) -> Self {
+        self.min = Some(min);
+        self.max = Some(max);
+        self
+    }
+
+    pub fn unbounded(mut self) -> Self {
+        self.min = None;
+        self.max = None;
         self
     }
 
@@ -861,6 +976,16 @@ where
         self
     }
 
+    pub fn drag_enabled(mut self, enabled: bool) -> Self {
+        self.drag_enabled = enabled;
+        self
+    }
+
+    pub fn value_fill_enabled(mut self, enabled: bool) -> Self {
+        self.value_fill_enabled = enabled;
+        self
+    }
+
     pub fn value_formatter<G>(self, value_formatter: G) -> NumberEditSpec<G>
     where
         G: Fn(f32) -> String,
@@ -871,6 +996,8 @@ where
             max: self.max,
             step: self.step,
             page_step: self.page_step,
+            drag_enabled: self.drag_enabled,
+            value_fill_enabled: self.value_fill_enabled,
             value_formatter,
             disabled: self.disabled,
         }
@@ -902,6 +1029,8 @@ where
         max: spec.max,
         step: spec.step,
         page_step: spec.page_step,
+        drag_enabled: spec.drag_enabled,
+        value_fill_enabled: spec.value_fill_enabled,
         value_formatter: spec.value_formatter,
         time: ctx.time,
         disabled: spec.disabled,
@@ -941,12 +1070,7 @@ pub fn number_edit<T: TextBackend, S: LayoutState, CF, F>(
 where
     F: Fn(f32) -> String,
 {
-    let pre_layout_spec = raw::NumberEditPreLayoutSpec {
-        style: spec.style,
-        min: spec.min,
-        max: spec.max,
-        value_formatter: &spec.value_formatter,
-    };
+    let pre_layout_spec = raw::NumberEditPreLayoutSpec { style: spec.style };
     let offer = ctx.peek_offer(layout_params.clone());
     let pre_layout = raw::pre_layout_number_edit(&pre_layout_spec, offer, ctx.text_backend);
     let rect = ctx.layout(layout_params, pre_layout.size_request);
@@ -976,12 +1100,7 @@ where
     let prefix_width = prefixed_control_prefix_width(prefix, prefix_style, ctx.text_backend);
     let offer = ctx.peek_offer(layout_params.clone());
     let child_offer = prefixed_control_child_offer(offer, prefix_width);
-    let pre_layout_spec = raw::NumberEditPreLayoutSpec {
-        style: spec.style,
-        min: spec.min,
-        max: spec.max,
-        value_formatter: &spec.value_formatter,
-    };
+    let pre_layout_spec = raw::NumberEditPreLayoutSpec { style: spec.style };
     let pre_layout = raw::pre_layout_number_edit(&pre_layout_spec, child_offer, ctx.text_backend);
     let size_request = prefixed_control_size_request(pre_layout.size_request, prefix_width);
     let outer_rect = ctx.layout(layout_params, size_request);
@@ -1010,6 +1129,8 @@ where
         max: spec.max,
         step: spec.step,
         page_step: spec.page_step,
+        drag_enabled: spec.drag_enabled,
+        value_fill_enabled: spec.value_fill_enabled,
         value_formatter: spec.value_formatter,
         disabled: spec.disabled,
     };

@@ -104,7 +104,7 @@ pub use meter::{meter, MeterResult, MeterSpec, MeterStyle};
 #[cfg(feature = "number_edit")]
 pub use number_edit::{
     number_edit, prefixed_number_edit, NumberEditResult, NumberEditSpec, NumberEditState,
-    NumberEditStyle,
+    NumberEditStepButtonStyle, NumberEditStyle,
 };
 #[cfg(feature = "progress_bar")]
 pub use progress_bar::{progress_bar, ProgressBarResult, ProgressBarSpec, ProgressBarStyle};

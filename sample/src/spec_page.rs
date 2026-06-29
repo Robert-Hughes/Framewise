@@ -974,6 +974,10 @@ impl Default for SpecWidgetsState {
                     value: 400.0,
                     ..Default::default()
                 },
+                NumberEditState {
+                    value: 12.0,
+                    ..Default::default()
+                },
             ],
             #[cfg(all(
                 feature = "select",
@@ -2713,51 +2717,12 @@ fn section_04_sliders<CF>(
                     placement: framewise::BorderPlacement::Inside,
                     z: 0,
                 },
-                DrawCmd::FillRect {
-                    rect: rect(120.0, 0.0, 22.0, b.theme.h_sm),
-                    color: b.theme.paper_elev,
-                    z: 0,
-                },
-                DrawCmd::BorderRect {
-                    rect: rect(120.0, 0.0, 22.0, b.theme.h_sm),
-                    color: b.theme.line_on_paper,
-                    width: 1.0,
-                    placement: framewise::BorderPlacement::Inside,
-                    z: 0,
-                },
-                DrawCmd::FillRect {
-                    rect: rect(142.0, 0.0, 40.0, b.theme.h_sm),
-                    color: b.theme.paper_elev,
-                    z: 0,
-                },
-                DrawCmd::BorderRect {
-                    rect: rect(142.0, 0.0, 40.0, b.theme.h_sm),
-                    color: b.theme.line_on_paper,
-                    width: 1.0,
-                    placement: framewise::BorderPlacement::Inside,
-                    z: 0,
-                },
-                DrawCmd::FillRect {
-                    rect: rect(182.0, 0.0, 22.0, b.theme.h_sm),
-                    color: b.theme.paper_elev,
-                    z: 0,
-                },
-                DrawCmd::BorderRect {
-                    rect: rect(182.0, 0.0, 22.0, b.theme.h_sm),
-                    color: b.theme.line_on_paper,
-                    width: 1.0,
-                    placement: framewise::BorderPlacement::Inside,
-                    z: 0,
-                },
             ],
             b.cmds.physical_pixels_per_logical_pixel(),
         ));
         for (text, rect, color) in [
             ("padding", Rect::new(6.0, 7.0, 56.0, 14.0), b.theme.muted),
             ("12", Rect::new(72.0, 7.0, 24.0, 14.0), b.theme.ink),
-            ("-", Rect::new(126.0, 4.0, 10.0, 14.0), b.theme.ink),
-            ("12", Rect::new(148.0, 4.0, 28.0, 14.0), b.theme.ink),
-            ("+", Rect::new(188.0, 4.0, 10.0, 14.0), b.theme.ink),
         ] {
             let spec = LabelSpec::new(text).style(LabelStyle {
                 text_style: framewise::TextStyle {
@@ -2769,6 +2734,30 @@ fn section_04_sliders<CF>(
             });
             label(spec, rect, &mut b);
         }
+
+        let mut stepper_style = NumberEditStyle::from_theme(&b.theme);
+        stepper_style.background = b.theme.paper_elev;
+        stepper_style.border = Some(Stroke::new(b.theme.line_on_paper, 1.0));
+        stepper_style.value_fill = Color::TRANSPARENT;
+        stepper_style.text_style.size = b.theme.text_sm;
+        stepper_style.step_button.decrement_glyph = "\u{2212}";
+        stepper_style.step_button.increment_glyph = "+";
+        stepper_style.step_button.background = b.theme.paper_elev;
+        stepper_style.step_button.background_hovered = b.theme.paper_hover;
+        stepper_style.step_button.border = Some(Stroke::new(b.theme.line_on_paper, 1.0));
+        stepper_style.step_button.glyph_color = b.theme.ink;
+        stepper_style.step_button.padding_x = 8.0;
+        stepper_style.step_button.text_style.size = b.theme.text_sm;
+        number_edit(
+            NumberEditSpec::new_from_theme(&b.theme)
+                .range(0.0, 100.0)
+                .drag_enabled(false)
+                .value_fill_enabled(false)
+                .style(stepper_style),
+            rect(120.0, 0.0, 84.0, b.theme.h_sm),
+            &mut state.number_edit_state[3],
+            &mut b,
+        );
 
         let swatches: &[(Color, &str)] = &[(b.theme.ink, "#15130f"), (b.theme.rust, "#c25a2c")];
         let mut x = 220.0;

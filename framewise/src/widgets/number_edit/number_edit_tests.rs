@@ -14,10 +14,12 @@ fn default_spec(rect: Rect) -> raw::NumberEditSpec {
     raw::NumberEditSpec {
         layer: Layer::default(),
         rect,
-        min: 0.0,
-        max: 100.0,
+        min: Some(0.0),
+        max: Some(100.0),
         step: 1.0,
         page_step: 10.0,
+        drag_enabled: true,
+        value_fill_enabled: true,
         value_formatter: default_number_edit_value_formatter,
         time: 0.0,
         disabled: false,
@@ -153,22 +155,11 @@ where
 }
 
 #[test]
-fn test_number_edit_custom_formatter_affects_measurement_and_rendering() {
+fn test_number_edit_custom_formatter_affects_rendering_not_measurement() {
     let style = NumberEditStyle::from_theme(&crate::theme::Theme::framewise());
-    let default_formatter = default_number_edit_value_formatter;
     let integer_formatter = |v: f32| format!("{v:.0}");
-    let default_spec = raw::NumberEditPreLayoutSpec {
-        style,
-        min: 0.0,
-        max: 100.0,
-        value_formatter: &default_formatter,
-    };
-    let integer_spec = raw::NumberEditPreLayoutSpec {
-        style,
-        min: 0.0,
-        max: 100.0,
-        value_formatter: &integer_formatter,
-    };
+    let default_spec = raw::NumberEditPreLayoutSpec { style };
+    let integer_spec = raw::NumberEditPreLayoutSpec { style };
     let mut text_backend = TestTextBackend::default();
     let default_size = raw::pre_layout_number_edit(
         &default_spec,
@@ -183,18 +174,17 @@ fn test_number_edit_custom_formatter_affects_measurement_and_rendering() {
     )
     .size_request;
 
-    assert!(
-        integer_size.preferred.unwrap().x < default_size.preferred.unwrap().x,
-        "integer formatter should request less width than 2dp formatter"
-    );
+    assert_eq!(integer_size.preferred, default_size.preferred);
 
     let spec = raw::NumberEditSpec {
         layer: Layer::default(),
         rect: Rect::new(10.0, 10.0, 100.0, 28.0),
-        min: 0.0,
-        max: 100.0,
+        min: Some(0.0),
+        max: Some(100.0),
         step: 1.0,
         page_step: 10.0,
+        drag_enabled: true,
+        value_fill_enabled: true,
         value_formatter: integer_formatter,
         time: 0.0,
         disabled: false,
@@ -205,7 +195,7 @@ fn test_number_edit_custom_formatter_affects_measurement_and_rendering() {
 
     assert_eq!(
         cmds.glyphs(),
-        [
+        vec![
             DrawGlyph {
                 token: PreparedGlyphToken(53),
                 top_left: Vec2 { x: 52.0, y: 28.0 },
@@ -213,6 +203,14 @@ fn test_number_edit_custom_formatter_affects_measurement_and_rendering() {
             DrawGlyph {
                 token: PreparedGlyphToken(48),
                 top_left: Vec2 { x: 60.0, y: 28.0 },
+            },
+            DrawGlyph {
+                token: PreparedGlyphToken(8249),
+                top_left: Vec2 { x: 16.0, y: 28.0 },
+            },
+            DrawGlyph {
+                token: PreparedGlyphToken(8250),
+                top_left: Vec2 { x: 96.0, y: 28.0 },
             },
         ]
     );
@@ -223,10 +221,12 @@ fn test_number_edit_visual_normal() {
     let spec = NumberEditSpec {
         layer: Layer::default(),
         rect: Rect::new(10.0, 10.0, 100.0, 28.0),
-        min: 0.0,
-        max: 100.0,
+        min: Some(0.0),
+        max: Some(100.0),
         step: 1.0,
         page_step: 10.0,
+        drag_enabled: true,
+        value_fill_enabled: true,
         value_formatter: default_number_edit_value_formatter,
         time: 0.0,
         disabled: false,
@@ -248,13 +248,23 @@ fn test_number_edit_visual_normal() {
                 z: 0,
             },
             DrawCmd::FillRect {
-                rect: Rect::new(10.0, 10.0, 50.5, 28.0),
+                rect: Rect::new(30.0, 10.0, 30.3, 28.0),
                 color: style.value_fill,
                 z: 0,
             },
             DrawCmd::GlyphRun {
                 glyphs: 0..5,
                 color: style.value_text,
+                z: 0,
+            },
+            DrawCmd::GlyphRun {
+                glyphs: 5..6,
+                color: style.step_button.glyph_color,
+                z: 0,
+            },
+            DrawCmd::GlyphRun {
+                glyphs: 6..7,
+                color: style.step_button.glyph_color,
                 z: 0,
             },
             DrawCmd::BorderRect {
@@ -289,6 +299,14 @@ fn test_number_edit_visual_normal() {
                 token: PreparedGlyphToken(48),
                 top_left: Vec2 { x: 72.0, y: 28.0 },
             },
+            DrawGlyph {
+                token: PreparedGlyphToken(8249),
+                top_left: Vec2 { x: 16.0, y: 28.0 },
+            },
+            DrawGlyph {
+                token: PreparedGlyphToken(8250),
+                top_left: Vec2 { x: 96.0, y: 28.0 },
+            },
         ]
     );
 }
@@ -298,10 +316,12 @@ fn test_number_edit_visual_editing() {
     let spec = NumberEditSpec {
         layer: Layer::default(),
         rect: Rect::new(10.0, 10.0, 100.0, 28.0),
-        min: 0.0,
-        max: 100.0,
+        min: Some(0.0),
+        max: Some(100.0),
         step: 1.0,
         page_step: 10.0,
+        drag_enabled: true,
+        value_fill_enabled: true,
         value_formatter: default_number_edit_value_formatter,
         time: 0.0,
         disabled: false,
@@ -348,12 +368,12 @@ fn test_number_edit_visual_editing() {
                 z: 0,
             },
             DrawCmd::FillRect {
-                rect: Rect::new(10.0, 10.0, 100.0, 28.0),
+                rect: Rect::new(30.0, 10.0, 60.0, 28.0),
                 color: style.text_edit_style.background,
                 z: 0,
             },
             DrawCmd::PushClip {
-                rect: Rect::new(10.0, 10.0, 100.0, 28.0),
+                rect: Rect::new(30.0, 10.0, 60.0, 28.0),
             },
             DrawCmd::FillRect {
                 rect: Rect::new(44.0, 16.0, 32.0, 16.0),
@@ -371,6 +391,16 @@ fn test_number_edit_visual_editing() {
                 z: 0,
             },
             DrawCmd::PopClip,
+            DrawCmd::GlyphRun {
+                glyphs: 4..5,
+                color: style.step_button.glyph_color,
+                z: 0,
+            },
+            DrawCmd::GlyphRun {
+                glyphs: 5..6,
+                color: style.step_button.glyph_color,
+                z: 0,
+            },
             DrawCmd::BorderRect {
                 rect: Rect::new(10.0, 10.0, 100.0, 28.0),
                 color: style.border.unwrap().color,
@@ -399,6 +429,14 @@ fn test_number_edit_visual_editing() {
                 token: PreparedGlyphToken(53),
                 top_left: Vec2 { x: 68.0, y: 28.0 },
             },
+            DrawGlyph {
+                token: PreparedGlyphToken(8249),
+                top_left: Vec2 { x: 16.0, y: 28.0 },
+            },
+            DrawGlyph {
+                token: PreparedGlyphToken(8250),
+                top_left: Vec2 { x: 96.0, y: 28.0 },
+            },
         ]
     );
 }
@@ -408,10 +446,12 @@ fn test_number_edit_visual_hovered_value_area_draws_arrows() {
     let spec = NumberEditSpec {
         layer: Layer::default(),
         rect: Rect::new(10.0, 10.0, 100.0, 28.0),
-        min: 0.0,
-        max: 100.0,
+        min: Some(0.0),
+        max: Some(100.0),
         step: 1.0,
         page_step: 10.0,
+        drag_enabled: true,
+        value_fill_enabled: true,
         value_formatter: default_number_edit_value_formatter,
         time: 0.0,
         disabled: false,
@@ -472,7 +512,7 @@ fn test_number_edit_visual_hovered_value_area_draws_arrows() {
                 z: 0,
             },
             DrawCmd::FillRect {
-                rect: Rect::new(10.0, 10.0, 50.0, 28.0),
+                rect: Rect::new(30.0, 10.0, 30.0, 28.0),
                 color: style.value_fill,
                 z: 0,
             },
@@ -546,10 +586,12 @@ fn test_number_edit_visual_active() {
     let spec = NumberEditSpec {
         layer: Layer::default(),
         rect: Rect::new(10.0, 10.0, 100.0, 28.0),
-        min: 0.0,
-        max: 100.0,
+        min: Some(0.0),
+        max: Some(100.0),
         step: 1.0,
         page_step: 10.0,
+        drag_enabled: true,
+        value_fill_enabled: true,
         value_formatter: default_number_edit_value_formatter,
         time: 0.0,
         disabled: false,
@@ -622,13 +664,23 @@ fn test_number_edit_visual_active() {
                 z: 0,
             },
             DrawCmd::FillRect {
-                rect: Rect::new(10.0, 10.0, 50.0, 28.0),
+                rect: Rect::new(30.0, 10.0, 30.0, 28.0),
                 color: style.value_fill,
                 z: 0,
             },
             DrawCmd::GlyphRun {
                 glyphs: 0..5,
                 color: style.value_text,
+                z: 0,
+            },
+            DrawCmd::GlyphRun {
+                glyphs: 5..6,
+                color: style.step_button.glyph_color,
+                z: 0,
+            },
+            DrawCmd::GlyphRun {
+                glyphs: 6..7,
+                color: style.step_button.glyph_color,
                 z: 0,
             },
             DrawCmd::BorderRect {
@@ -663,6 +715,14 @@ fn test_number_edit_visual_active() {
                 token: PreparedGlyphToken(48),
                 top_left: Vec2 { x: 72.0, y: 28.0 },
             },
+            DrawGlyph {
+                token: PreparedGlyphToken(8249),
+                top_left: Vec2 { x: 16.0, y: 28.0 },
+            },
+            DrawGlyph {
+                token: PreparedGlyphToken(8250),
+                top_left: Vec2 { x: 96.0, y: 28.0 },
+            },
         ]
     );
 }
@@ -673,10 +733,12 @@ fn test_number_edit_visual_min_value() {
     let spec = NumberEditSpec {
         layer: Layer::default(),
         rect: Rect::new(10.0, 10.0, 100.0, 28.0),
-        min: 0.0,
-        max: 100.0,
+        min: Some(0.0),
+        max: Some(100.0),
         step: 1.0,
         page_step: 10.0,
+        drag_enabled: true,
+        value_fill_enabled: true,
         value_formatter: default_number_edit_value_formatter,
         time: 0.0,
         disabled: false,
@@ -711,6 +773,16 @@ fn test_number_edit_visual_min_value() {
                 color: style.value_text,
                 z: 0,
             },
+            DrawCmd::GlyphRun {
+                glyphs: 4..5,
+                color: style.step_button.glyph_color,
+                z: 0,
+            },
+            DrawCmd::GlyphRun {
+                glyphs: 5..6,
+                color: style.step_button.glyph_color,
+                z: 0,
+            },
             DrawCmd::BorderRect {
                 rect: Rect::new(10.0, 10.0, 100.0, 28.0),
                 color: style.border.unwrap().color,
@@ -739,6 +811,14 @@ fn test_number_edit_visual_min_value() {
                 token: PreparedGlyphToken(48),
                 top_left: Vec2 { x: 68.0, y: 28.0 },
             },
+            DrawGlyph {
+                token: PreparedGlyphToken(8249),
+                top_left: Vec2 { x: 16.0, y: 28.0 },
+            },
+            DrawGlyph {
+                token: PreparedGlyphToken(8250),
+                top_left: Vec2 { x: 96.0, y: 28.0 },
+            },
         ]
     );
 }
@@ -751,7 +831,7 @@ fn test_number_edit_click_takes_focus() {
         ..Default::default()
     };
     let input = Input {
-        mouse_pos: Vec2::new(15.0, 15.0),
+        mouse_pos: Vec2::new(50.0, 15.0),
         mouse_pressed: true,
         ..Default::default()
     };
@@ -760,10 +840,12 @@ fn test_number_edit_click_takes_focus() {
     let spec = NumberEditSpec {
         layer: Layer::default(),
         rect: Rect::new(0.0, 0.0, 100.0, 28.0),
-        min: 0.0,
-        max: 100.0,
+        min: Some(0.0),
+        max: Some(100.0),
         step: 1.0,
         page_step: 10.0,
+        drag_enabled: true,
+        value_fill_enabled: true,
         value_formatter: default_number_edit_value_formatter,
         time: 0.0,
         disabled: false,
@@ -815,10 +897,12 @@ fn test_number_edit_clipped_click_does_not_take_focus() {
     let spec = NumberEditSpec {
         layer: Layer::default(),
         rect: Rect::new(0.0, 0.0, 100.0, 28.0),
-        min: 0.0,
-        max: 100.0,
+        min: Some(0.0),
+        max: Some(100.0),
         step: 1.0,
         page_step: 10.0,
+        drag_enabled: true,
+        value_fill_enabled: true,
         value_formatter: default_number_edit_value_formatter,
         time: 0.0,
         disabled: false,
@@ -1001,10 +1085,12 @@ fn test_spec_default_from_theme_applies_theme_style() {
     let theme = crate::theme::Theme::framewise();
     let spec = super::NumberEditSpec::default_from_theme(&theme);
     assert_eq!(spec.style, NumberEditStyle::from_theme(&theme));
-    assert_eq!(spec.min, 0.0);
-    assert_eq!(spec.max, 100.0);
+    assert_eq!(spec.min, Some(0.0));
+    assert_eq!(spec.max, Some(100.0));
     assert_eq!(spec.step, 1.0);
     assert_eq!(spec.page_step, 10.0);
+    assert!(spec.drag_enabled);
+    assert!(spec.value_fill_enabled);
     assert!(!spec.disabled);
 }
 
@@ -1022,8 +1108,8 @@ fn test_spec_theme_overwrites_style_only() {
         .disabled(true)
         .theme(&theme);
     assert_eq!(spec.style, NumberEditStyle::from_theme(&theme));
-    assert_eq!(spec.min, 5.0);
-    assert_eq!(spec.max, 10.0);
+    assert_eq!(spec.min, Some(5.0));
+    assert_eq!(spec.max, Some(10.0));
     assert_eq!(spec.step, 2.0);
     assert_eq!(spec.page_step, 7.0);
     assert!(spec.disabled);
@@ -1330,9 +1416,9 @@ fn test_number_edit_drag_updates_value() {
     focus_system.end_frame();
 
     assert!(state.is_dragging, "Should still be dragging");
-    // dx = 68 - 50 = 18. value_w = 100. dx/value_w = 0.18. delta = 18.
+    // dx = 68 - 50 = 18. value_w = 60 after step buttons. dx/value_w = 0.3.
     assert_eq!(
-        state.value, 68.0,
+        state.value, 80.0,
         "Value should update proportionally to mouse drag"
     );
 }
@@ -1678,7 +1764,7 @@ fn test_number_edit_arrow_step_promotes_to_drag_after_motion_threshold() {
         &mut cmds,
     );
     focus_system.end_frame();
-    let expected = 55.0 + (7.0 / 100.0) * 100.0;
+    let expected = 55.0 + (7.0 / 60.0) * 100.0;
     assert!((state.value - expected).abs() < 0.0001);
 
     // Release: normal drag cleanup should run.
@@ -1702,10 +1788,12 @@ fn test_number_edit_min_greater_than_max_keyboard_does_not_panic() {
     let spec = raw::NumberEditSpec {
         layer: Layer::default(),
         rect,
-        min: 100.0,
-        max: 0.0,
+        min: Some(100.0),
+        max: Some(0.0),
         step: 1.0,
         page_step: 10.0,
+        drag_enabled: true,
+        value_fill_enabled: true,
         value_formatter: default_number_edit_value_formatter,
         time: 0.0,
         disabled: false,
@@ -2540,4 +2628,398 @@ fn test_number_edit_text_edit_escape_clears_restored_draft() {
 
     assert_eq!(state.value, 10.0);
     assert_inactive(&state.edit);
+}
+
+#[test]
+fn test_number_edit_optional_min_clamps_lower_only() {
+    let mut focus_system = FocusSystem::new();
+    let mut state = NumberEditState {
+        value: 2.0,
+        ..Default::default()
+    };
+    focus_system.take_keyboard_focus(state.focus_id);
+
+    let mut spec = default_spec(Rect::new(0.0, 0.0, 100.0, 28.0));
+    spec.min = Some(0.0);
+    spec.max = None;
+    spec.step = 5.0;
+
+    run_key(spec.clone(), &mut state, &mut focus_system, |input| {
+        input.key_pressed_left = true;
+    });
+    assert_eq!(state.value, 0.0);
+
+    state.value = 98.0;
+    run_key(spec, &mut state, &mut focus_system, |input| {
+        input.key_pressed_right = true;
+    });
+    assert_eq!(state.value, 103.0);
+}
+
+#[test]
+fn test_number_edit_optional_max_clamps_upper_only() {
+    let mut focus_system = FocusSystem::new();
+    let mut state = NumberEditState {
+        value: 98.0,
+        ..Default::default()
+    };
+    focus_system.take_keyboard_focus(state.focus_id);
+
+    let mut spec = default_spec(Rect::new(0.0, 0.0, 100.0, 28.0));
+    spec.min = None;
+    spec.max = Some(100.0);
+    spec.step = 5.0;
+
+    run_key(spec.clone(), &mut state, &mut focus_system, |input| {
+        input.key_pressed_right = true;
+    });
+    assert_eq!(state.value, 100.0);
+
+    state.value = 2.0;
+    run_key(spec, &mut state, &mut focus_system, |input| {
+        input.key_pressed_left = true;
+    });
+    assert_eq!(state.value, -3.0);
+}
+
+#[test]
+fn test_number_edit_unbounded_does_not_clamp() {
+    let mut focus_system = FocusSystem::new();
+    let mut state = NumberEditState {
+        value: 0.0,
+        ..Default::default()
+    };
+    focus_system.take_keyboard_focus(state.focus_id);
+
+    let mut spec = default_spec(Rect::new(0.0, 0.0, 100.0, 28.0));
+    spec.min = None;
+    spec.max = None;
+    spec.step = 150.0;
+
+    run_key(spec.clone(), &mut state, &mut focus_system, |input| {
+        input.key_pressed_left = true;
+    });
+    assert_eq!(state.value, -150.0);
+
+    run_key(spec, &mut state, &mut focus_system, |input| {
+        input.key_pressed_right = true;
+    });
+    assert_eq!(state.value, 0.0);
+}
+
+#[test]
+fn test_number_edit_home_end_respect_optional_bounds() {
+    let mut focus_system = FocusSystem::new();
+    let mut state = NumberEditState {
+        value: 42.0,
+        ..Default::default()
+    };
+    focus_system.take_keyboard_focus(state.focus_id);
+
+    let mut spec = default_spec(Rect::new(0.0, 0.0, 100.0, 28.0));
+    spec.min = None;
+    spec.max = Some(100.0);
+
+    run_key(spec.clone(), &mut state, &mut focus_system, |input| {
+        input.key_pressed_home = true;
+    });
+    assert_eq!(state.value, 42.0);
+
+    run_key(spec, &mut state, &mut focus_system, |input| {
+        input.key_pressed_end = true;
+    });
+    assert_eq!(state.value, 100.0);
+}
+
+#[test]
+fn test_number_edit_drag_disabled_does_not_start_drag_or_set_ew_resize() {
+    let rect = Rect::new(0.0, 0.0, 100.0, 28.0);
+    let mut spec = default_spec(rect);
+    spec.drag_enabled = false;
+    let mut state = NumberEditState {
+        value: 50.0,
+        ..Default::default()
+    };
+    let mut focus_system = FocusSystem::new();
+    let mut text_backend = TestTextBackend::default();
+    let mut cmds = DrawCommands::new(1.0);
+    let mut input = Input {
+        mouse_pos: value_area_pos(rect),
+        ..Default::default()
+    };
+
+    focus_system.begin_frame();
+    let _ = run_raw(
+        spec.clone(),
+        &mut state,
+        &input,
+        &mut focus_system,
+        &mut text_backend,
+        &mut cmds,
+    );
+    focus_system.end_frame();
+
+    input.mouse_pressed = true;
+    input.mouse_down = true;
+    focus_system.begin_frame();
+    let result = run_raw(
+        spec,
+        &mut state,
+        &input,
+        &mut focus_system,
+        &mut text_backend,
+        &mut cmds,
+    );
+    focus_system.end_frame();
+
+    assert!(!state.is_dragging);
+    assert_eq!(result.cursor_icon, None);
+}
+
+#[test]
+fn test_number_edit_drag_disabled_still_allows_double_click_edit() {
+    let rect = Rect::new(0.0, 0.0, 100.0, 28.0);
+    let mut spec = default_spec(rect);
+    spec.drag_enabled = false;
+    let mut state = NumberEditState {
+        value: 50.0,
+        ..Default::default()
+    };
+    let mut focus_system = FocusSystem::new();
+    let mut text_backend = TestTextBackend::default();
+    let mut cmds = DrawCommands::new(1.0);
+    let hover_input = Input {
+        mouse_pos: value_area_pos(rect),
+        ..Default::default()
+    };
+    focus_system.begin_frame();
+    let _ = run_raw(
+        spec.clone(),
+        &mut state,
+        &hover_input,
+        &mut focus_system,
+        &mut text_backend,
+        &mut cmds,
+    );
+    focus_system.end_frame();
+
+    let input = Input {
+        mouse_pos: value_area_pos(rect),
+        mouse_pressed: true,
+        mouse_click_count: 2,
+        ..Default::default()
+    };
+
+    focus_system.begin_frame();
+    let _ = run_raw(
+        spec,
+        &mut state,
+        &input,
+        &mut focus_system,
+        &mut text_backend,
+        &mut cmds,
+    );
+    focus_system.end_frame();
+
+    assert!(state.edit.is_editing());
+}
+
+#[test]
+fn test_number_edit_value_fill_disabled_draws_no_value_fill() {
+    let mut spec = default_spec(Rect::new(10.0, 10.0, 100.0, 28.0));
+    spec.value_fill_enabled = false;
+    let style = spec.style;
+    let (_res, cmds) = number_edit(spec, 50.0);
+
+    assert!(!cmds
+        .commands()
+        .iter()
+        .any(|cmd| matches!(cmd, DrawCmd::FillRect { color, .. } if *color == style.value_fill)));
+}
+
+#[test]
+fn test_number_edit_value_fill_suppressed_when_unbounded() {
+    let mut spec = default_spec(Rect::new(10.0, 10.0, 100.0, 28.0));
+    spec.min = Some(0.0);
+    spec.max = None;
+    let style = spec.style;
+    let (_res, cmds) = number_edit(spec, 50.0);
+
+    assert!(!cmds
+        .commands()
+        .iter()
+        .any(|cmd| matches!(cmd, DrawCmd::FillRect { color, .. } if *color == style.value_fill)));
+}
+
+#[test]
+fn test_number_edit_step_button_style_draws_background_border_and_glyphs() {
+    let mut spec = default_spec(Rect::new(10.0, 10.0, 100.0, 28.0));
+    spec.style.step_button.background = Color::linear_rgba(0.1, 0.2, 0.3, 1.0);
+    spec.style.step_button.border = Some(Stroke::new(Color::linear_rgba(0.4, 0.5, 0.6, 1.0), 1.0));
+    spec.style.step_button.glyph_color = Color::linear_rgba(0.7, 0.8, 0.9, 1.0);
+    spec.style.step_button.decrement_glyph = "-";
+    spec.style.step_button.increment_glyph = "+";
+    let style = spec.style;
+
+    let (_res, cmds) = number_edit(spec, 50.0);
+
+    assert_eq!(
+        cmds.commands()
+            .iter()
+            .filter(|cmd| matches!(cmd, DrawCmd::FillRect { color, .. } if *color == style.step_button.background))
+            .count(),
+        2
+    );
+    assert_eq!(
+        cmds.commands()
+            .iter()
+            .filter(|cmd| matches!(cmd, DrawCmd::BorderRect { color, .. } if *color == style.step_button.border.unwrap().color))
+            .count(),
+        2
+    );
+    assert!(cmds
+        .commands()
+        .iter()
+        .any(|cmd| matches!(cmd, DrawCmd::GlyphRun { color, .. } if *color == style.step_button.glyph_color)));
+    assert!(cmds
+        .glyphs()
+        .iter()
+        .any(|glyph| glyph.token == PreparedGlyphToken('-' as u64)));
+    assert!(cmds
+        .glyphs()
+        .iter()
+        .any(|glyph| glyph.token == PreparedGlyphToken('+' as u64)));
+}
+
+#[test]
+fn test_number_edit_step_button_width_uses_max_glyph_ink_width_plus_padding() {
+    let mut style = default_style();
+    style.step_button.padding_x = 4.0;
+    style.step_button.decrement_glyph = "-";
+    style.step_button.increment_glyph = "+";
+    let pre_layout_spec = raw::NumberEditPreLayoutSpec { style };
+    let mut text_backend = TestTextBackend::default()
+        .with_char_advance('-', 5.0)
+        .with_char_advance('+', 13.0);
+
+    let size = raw::pre_layout_number_edit(
+        &pre_layout_spec,
+        crate::layout::SizeOffer::UNBOUNDED,
+        &mut text_backend,
+    )
+    .size_request;
+
+    assert_eq!(
+        size.preferred.unwrap().x,
+        NUMBER_EDIT_VALUE_PREFERRED_WIDTH + (13.0 + 8.0) * 2.0
+    );
+}
+
+#[test]
+fn test_number_edit_step_button_glyphs_are_ink_centred() {
+    let mut style = default_style();
+    style.step_button.padding_x = 5.0;
+    style.step_button.decrement_glyph = "-";
+    style.step_button.increment_glyph = "+";
+    let spec = raw::NumberEditSpec {
+        style,
+        ..default_spec(Rect::new(10.0, 10.0, 100.0, 28.0))
+    };
+    let mut state = NumberEditState {
+        value: 50.0,
+        ..Default::default()
+    };
+    let mut focus_system = FocusSystem::new();
+    let mut text_backend =
+        TestTextBackend::default().with_glyph_ink_bounds(Rect::new(-2.0, 3.0, 10.0, 6.0));
+    let mut cmds = DrawCommands::new(1.0);
+
+    let _ = run_raw(
+        spec,
+        &mut state,
+        &Input::default(),
+        &mut focus_system,
+        &mut text_backend,
+        &mut cmds,
+    );
+
+    assert!(cmds.glyphs().contains(&DrawGlyph {
+        token: PreparedGlyphToken('-' as u64),
+        top_left: Vec2 { x: 17.0, y: 18.0 },
+    }));
+    assert!(cmds.glyphs().contains(&DrawGlyph {
+        token: PreparedGlyphToken('+' as u64),
+        top_left: Vec2 { x: 97.0, y: 18.0 },
+    }));
+}
+
+#[test]
+fn test_number_edit_step_buttons_increment_and_decrement_with_optional_bounds() {
+    let rect = Rect::new(0.0, 0.0, 100.0, 28.0);
+    let mut spec = default_spec(rect);
+    spec.min = Some(0.0);
+    spec.max = Some(2.0);
+    spec.step = 2.0;
+    let mut state = NumberEditState {
+        value: 1.0,
+        ..Default::default()
+    };
+    let mut focus_system = FocusSystem::new();
+    let mut text_backend = TestTextBackend::default();
+    let mut cmds = DrawCommands::new(1.0);
+
+    let mut input = Input {
+        mouse_pos: Vec2::new(10.0, 14.0),
+        ..Default::default()
+    };
+    focus_system.begin_frame();
+    let _ = run_raw(
+        spec.clone(),
+        &mut state,
+        &input,
+        &mut focus_system,
+        &mut text_backend,
+        &mut cmds,
+    );
+    focus_system.end_frame();
+    input.mouse_pressed = true;
+    input.mouse_down = true;
+    focus_system.begin_frame();
+    let _ = run_raw(
+        spec.clone(),
+        &mut state,
+        &input,
+        &mut focus_system,
+        &mut text_backend,
+        &mut cmds,
+    );
+    focus_system.end_frame();
+    assert_eq!(state.value, 0.0);
+
+    input.mouse_pressed = false;
+    input.mouse_down = false;
+    input.mouse_pos = Vec2::new(90.0, 14.0);
+    focus_system.begin_frame();
+    let _ = run_raw(
+        spec.clone(),
+        &mut state,
+        &input,
+        &mut focus_system,
+        &mut text_backend,
+        &mut cmds,
+    );
+    focus_system.end_frame();
+    input.mouse_pressed = true;
+    input.mouse_down = true;
+    focus_system.begin_frame();
+    let _ = run_raw(
+        spec,
+        &mut state,
+        &input,
+        &mut focus_system,
+        &mut text_backend,
+        &mut cmds,
+    );
+    focus_system.end_frame();
+    assert_eq!(state.value, 2.0);
 }
