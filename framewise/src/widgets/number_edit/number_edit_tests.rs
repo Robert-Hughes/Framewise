@@ -155,11 +155,20 @@ where
 }
 
 #[test]
-fn test_number_edit_custom_formatter_affects_rendering_not_measurement() {
+fn test_number_edit_custom_formatter_affects_measurement_and_rendering() {
     let style = NumberEditStyle::from_theme(&crate::theme::Theme::framewise());
+    let default_formatter = default_number_edit_value_formatter;
     let integer_formatter = |v: f32| format!("{v:.0}");
-    let default_spec = raw::NumberEditPreLayoutSpec { style };
-    let integer_spec = raw::NumberEditPreLayoutSpec { style };
+    let default_spec = raw::NumberEditPreLayoutSpec {
+        style,
+        value: 50.0,
+        value_formatter: &default_formatter,
+    };
+    let integer_spec = raw::NumberEditPreLayoutSpec {
+        style,
+        value: 50.0,
+        value_formatter: &integer_formatter,
+    };
     let mut text_backend = TestTextBackend::default();
     let default_size = raw::pre_layout_number_edit(
         &default_spec,
@@ -174,7 +183,10 @@ fn test_number_edit_custom_formatter_affects_rendering_not_measurement() {
     )
     .size_request;
 
-    assert_eq!(integer_size.preferred, default_size.preferred);
+    assert!(
+        integer_size.preferred.unwrap().x < default_size.preferred.unwrap().x,
+        "integer formatter should request less width than default formatter"
+    );
 
     let spec = raw::NumberEditSpec {
         layer: Layer::default(),
@@ -2851,53 +2863,20 @@ fn test_number_edit_value_fill_suppressed_when_unbounded() {
         .any(|cmd| matches!(cmd, DrawCmd::FillRect { color, .. } if *color == style.value_fill)));
 }
 
-#[test]
-fn test_number_edit_step_button_style_draws_background_border_and_glyphs() {
-    let mut spec = default_spec(Rect::new(10.0, 10.0, 100.0, 28.0));
-    spec.style.step_button.background = Color::linear_rgba(0.1, 0.2, 0.3, 1.0);
-    spec.style.step_button.border = Some(Stroke::new(Color::linear_rgba(0.4, 0.5, 0.6, 1.0), 1.0));
-    spec.style.step_button.glyph_color = Color::linear_rgba(0.7, 0.8, 0.9, 1.0);
-    spec.style.step_button.decrement_glyph = "-";
-    spec.style.step_button.increment_glyph = "+";
-    let style = spec.style;
-
-    let (_res, cmds) = number_edit(spec, 50.0);
-
-    assert_eq!(
-        cmds.commands()
-            .iter()
-            .filter(|cmd| matches!(cmd, DrawCmd::FillRect { color, .. } if *color == style.step_button.background))
-            .count(),
-        2
-    );
-    assert_eq!(
-        cmds.commands()
-            .iter()
-            .filter(|cmd| matches!(cmd, DrawCmd::BorderRect { color, .. } if *color == style.step_button.border.unwrap().color))
-            .count(),
-        2
-    );
-    assert!(cmds
-        .commands()
-        .iter()
-        .any(|cmd| matches!(cmd, DrawCmd::GlyphRun { color, .. } if *color == style.step_button.glyph_color)));
-    assert!(cmds
-        .glyphs()
-        .iter()
-        .any(|glyph| glyph.token == PreparedGlyphToken('-' as u64)));
-    assert!(cmds
-        .glyphs()
-        .iter()
-        .any(|glyph| glyph.token == PreparedGlyphToken('+' as u64)));
-}
-
-#[test]
-fn test_number_edit_step_button_width_uses_max_glyph_ink_width_plus_padding() {
+fn test_number_edit_step_button_visual_appearance() {
     let mut style = default_style();
     style.step_button.padding_x = 4.0;
+    style.step_button.background = Color::linear_rgba(0.1, 0.2, 0.3, 1.0);
+    style.step_button.border = Some(Stroke::new(Color::linear_rgba(0.4, 0.5, 0.6, 1.0), 1.0));
+    style.step_button.glyph_color = Color::linear_rgba(0.7, 0.8, 0.9, 1.0);
     style.step_button.decrement_glyph = "-";
     style.step_button.increment_glyph = "+";
-    let pre_layout_spec = raw::NumberEditPreLayoutSpec { style };
+    let value_formatter = default_number_edit_value_formatter;
+    let pre_layout_spec = raw::NumberEditPreLayoutSpec {
+        style,
+        value: 50.0,
+        value_formatter: &value_formatter,
+    };
     let mut text_backend = TestTextBackend::default()
         .with_char_advance('-', 5.0)
         .with_char_advance('+', 13.0);
@@ -2911,16 +2890,9 @@ fn test_number_edit_step_button_width_uses_max_glyph_ink_width_plus_padding() {
 
     assert_eq!(
         size.preferred.unwrap().x,
-        NUMBER_EDIT_VALUE_PREFERRED_WIDTH + (13.0 + 8.0) * 2.0
+        "50.00".len() as f32 * 8.0 + style.text_pad_x * 2.0 + (13.0 + 8.0) * 2.0
     );
-}
 
-#[test]
-fn test_number_edit_step_button_glyphs_are_ink_centred() {
-    let mut style = default_style();
-    style.step_button.padding_x = 5.0;
-    style.step_button.decrement_glyph = "-";
-    style.step_button.increment_glyph = "+";
     let spec = raw::NumberEditSpec {
         style,
         ..default_spec(Rect::new(10.0, 10.0, 100.0, 28.0))
@@ -2930,8 +2902,9 @@ fn test_number_edit_step_button_glyphs_are_ink_centred() {
         ..Default::default()
     };
     let mut focus_system = FocusSystem::new();
-    let mut text_backend =
-        TestTextBackend::default().with_glyph_ink_bounds(Rect::new(-2.0, 3.0, 10.0, 6.0));
+    let mut text_backend = TestTextBackend::default()
+        .with_char_advance('-', 5.0)
+        .with_char_advance('+', 13.0);
     let mut cmds = DrawCommands::new(1.0);
 
     let _ = run_raw(
@@ -2943,14 +2916,100 @@ fn test_number_edit_step_button_glyphs_are_ink_centred() {
         &mut cmds,
     );
 
-    assert!(cmds.glyphs().contains(&DrawGlyph {
-        token: PreparedGlyphToken('-' as u64),
-        top_left: Vec2 { x: 17.0, y: 18.0 },
-    }));
-    assert!(cmds.glyphs().contains(&DrawGlyph {
-        token: PreparedGlyphToken('+' as u64),
-        top_left: Vec2 { x: 97.0, y: 18.0 },
-    }));
+    assert_eq!(
+        cmds.commands(),
+        vec![
+            DrawCmd::FillRect {
+                rect: Rect::new(10.0, 10.0, 100.0, 28.0),
+                color: style.background,
+                z: 0,
+            },
+            DrawCmd::FillRect {
+                rect: Rect::new(31.0, 10.0, 29.0, 28.0),
+                color: style.value_fill,
+                z: 0,
+            },
+            DrawCmd::FillRect {
+                rect: Rect::new(10.0, 10.0, 21.0, 28.0),
+                color: style.step_button.background,
+                z: 0,
+            },
+            DrawCmd::BorderRect {
+                rect: Rect::new(10.0, 10.0, 21.0, 28.0),
+                color: style.step_button.border.unwrap().color,
+                width: style.step_button.border.unwrap().width,
+                placement: crate::BorderPlacement::Inside,
+                z: 0,
+            },
+            DrawCmd::FillRect {
+                rect: Rect::new(89.0, 10.0, 21.0, 28.0),
+                color: style.step_button.background,
+                z: 0,
+            },
+            DrawCmd::BorderRect {
+                rect: Rect::new(89.0, 10.0, 21.0, 28.0),
+                color: style.step_button.border.unwrap().color,
+                width: style.step_button.border.unwrap().width,
+                placement: crate::BorderPlacement::Inside,
+                z: 0,
+            },
+            DrawCmd::GlyphRun {
+                glyphs: 0..5,
+                color: style.value_text,
+                z: 0,
+            },
+            DrawCmd::GlyphRun {
+                glyphs: 5..6,
+                color: style.step_button.glyph_color,
+                z: 0,
+            },
+            DrawCmd::GlyphRun {
+                glyphs: 6..7,
+                color: style.step_button.glyph_color,
+                z: 0,
+            },
+            DrawCmd::BorderRect {
+                rect: Rect::new(10.0, 10.0, 100.0, 28.0),
+                color: style.border.unwrap().color,
+                width: style.border.unwrap().width,
+                placement: crate::BorderPlacement::Inside,
+                z: 0,
+            },
+        ]
+    );
+    assert_eq!(
+        cmds.glyphs(),
+        vec![
+            DrawGlyph {
+                token: PreparedGlyphToken(53),
+                top_left: Vec2 { x: 40.0, y: 28.0 },
+            },
+            DrawGlyph {
+                token: PreparedGlyphToken(48),
+                top_left: Vec2 { x: 48.0, y: 28.0 },
+            },
+            DrawGlyph {
+                token: PreparedGlyphToken(46),
+                top_left: Vec2 { x: 56.0, y: 28.0 },
+            },
+            DrawGlyph {
+                token: PreparedGlyphToken(48),
+                top_left: Vec2 { x: 64.0, y: 28.0 },
+            },
+            DrawGlyph {
+                token: PreparedGlyphToken(48),
+                top_left: Vec2 { x: 72.0, y: 28.0 },
+            },
+            DrawGlyph {
+                token: PreparedGlyphToken('-' as u64),
+                top_left: Vec2 { x: 18.0, y: 28.0 },
+            },
+            DrawGlyph {
+                token: PreparedGlyphToken('+' as u64),
+                top_left: Vec2 { x: 93.0, y: 28.0 },
+            },
+        ]
+    );
 }
 
 #[test]

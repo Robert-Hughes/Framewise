@@ -2690,28 +2690,29 @@ fn section_04_sliders<CF>(
         );
         let stepper_x = 0.0;
         let origin = b.layout(Rect::new(0.0, 0.0, 0.0, 0.0), SizeRequest::UNKNOWN);
-        let rect = |x: f32, y: f32, w: f32, h: f32| Rect::new(origin.x + x, origin.y + y, w, h);
+        let abs_rect = |x: f32, y: f32, w: f32, h: f32| Rect::new(origin.x + x, origin.y + y, w, h);
+        let local_rect = |x: f32, y: f32, w: f32, h: f32| Rect::new(x, y, w, h);
         b.append_cmds(DrawCommands::from_vec(
             vec![
                 DrawCmd::FillRect {
-                    rect: rect(stepper_x, 0.0, 64.0, b.theme.h_md),
+                    rect: abs_rect(stepper_x, 0.0, 64.0, b.theme.h_md),
                     color: b.theme.paper_hover,
                     z: 0,
                 },
                 DrawCmd::BorderRect {
-                    rect: rect(stepper_x, 0.0, 64.0, b.theme.h_md),
+                    rect: abs_rect(stepper_x, 0.0, 64.0, b.theme.h_md),
                     color: b.theme.line_on_paper,
                     width: 1.0,
                     placement: framewise::BorderPlacement::Inside,
                     z: 0,
                 },
                 DrawCmd::FillRect {
-                    rect: rect(stepper_x + 64.0, 0.0, 40.0, b.theme.h_md),
+                    rect: abs_rect(stepper_x + 64.0, 0.0, 40.0, b.theme.h_md),
                     color: b.theme.paper_elev,
                     z: 0,
                 },
                 DrawCmd::BorderRect {
-                    rect: rect(stepper_x + 64.0, 0.0, 40.0, b.theme.h_md),
+                    rect: abs_rect(stepper_x + 64.0, 0.0, 40.0, b.theme.h_md),
                     color: b.theme.line_on_paper,
                     width: 1.0,
                     placement: framewise::BorderPlacement::Inside,
@@ -2721,8 +2722,8 @@ fn section_04_sliders<CF>(
             b.cmds.physical_pixels_per_logical_pixel(),
         ));
         for (text, rect, color) in [
-            ("padding", Rect::new(6.0, 7.0, 56.0, 14.0), b.theme.muted),
-            ("12", Rect::new(72.0, 7.0, 24.0, 14.0), b.theme.ink),
+            ("padding", local_rect(6.0, 7.0, 56.0, 14.0), b.theme.muted),
+            ("12", local_rect(72.0, 7.0, 24.0, 14.0), b.theme.ink),
         ] {
             let spec = LabelSpec::new(text).style(LabelStyle {
                 text_style: framewise::TextStyle {
@@ -2754,7 +2755,7 @@ fn section_04_sliders<CF>(
                 .drag_enabled(false)
                 .value_fill_enabled(false)
                 .style(stepper_style),
-            rect(120.0, 0.0, 84.0, b.theme.h_sm),
+            local_rect(120.0, 0.0, 84.0, b.theme.h_sm),
             &mut state.number_edit_state[3],
             &mut b,
         );
@@ -2764,7 +2765,7 @@ fn section_04_sliders<CF>(
         for (color, hex) in swatches {
             let spec =
                 ColorSwatchSpec::new(*color).border(Some(Stroke::new(b.theme.line_on_paper, 1.0)));
-            let rect = Rect::new(x, 0.0, 18.0, b.theme.h_md);
+            let rect = local_rect(x, 0.0, 18.0, b.theme.h_md);
             color_swatch(spec, rect, &mut b);
             let spec = LabelSpec::new(hex).style(LabelStyle {
                 text_style: framewise::TextStyle {
@@ -2774,7 +2775,7 @@ fn section_04_sliders<CF>(
                 text_color: b.theme.ink,
                 ..LabelStyle::from_theme(&b.theme)
             });
-            label(spec, Rect::new(x + 22.0, 7.0, 60.0, 14.0), &mut b);
+            label(spec, local_rect(x + 22.0, 7.0, 60.0, 14.0), &mut b);
             x += 86.0;
         }
         b.finish();

@@ -41,8 +41,13 @@ pub mod raw {
     }
 
     #[derive(Debug, Clone, PartialEq)]
-    pub struct NumberEditPreLayoutSpec {
+    pub struct NumberEditPreLayoutSpec<'f, F>
+    where
+        F: Fn(f32) -> String,
+    {
         pub style: super::NumberEditStyle,
+        pub value: f32,
+        pub value_formatter: &'f F,
     }
 
     #[derive(Debug, Clone, PartialEq)]
@@ -62,25 +67,39 @@ pub mod raw {
     ///
     /// This currently measures text with unbounded bounds; offer-sensitive
     /// wrapping is future work.
-    pub fn pre_layout_number_edit<T: TextBackend>(
-        spec: &NumberEditPreLayoutSpec,
+    pub fn pre_layout_number_edit<T: TextBackend, F>(
+        spec: &NumberEditPreLayoutSpec<'_, F>,
         offer: SizeOffer,
         text_backend: &mut T,
-    ) -> NumberEditPreLayoutResult {
+    ) -> NumberEditPreLayoutResult
+    where
+        F: Fn(f32) -> String,
+    {
         NumberEditPreLayoutResult {
             size_request: number_edit_size_request(spec, offer, text_backend),
         }
     }
 
-    fn number_edit_size_request<T: TextBackend>(
-        spec: &NumberEditPreLayoutSpec,
+    fn number_edit_size_request<T: TextBackend, F>(
+        spec: &NumberEditPreLayoutSpec<'_, F>,
         _offer: SizeOffer,
         text_backend: &mut T,
-    ) -> crate::layout::SizeRequest {
+    ) -> crate::layout::SizeRequest
+    where
+        F: Fn(f32) -> String,
+    {
         let s = spec.style;
-        let button_w = number_edit_step_button_width(s.step_button, text_backend);
-        let value_w = NUMBER_EDIT_VALUE_PREFERRED_WIDTH + button_w * 2.0;
-        crate::layout::SizeRequest::preferred(Vec2::new(value_w, s.height))
+        let value_text = (spec.value_formatter)(spec.value);
+        let value_layout = layout_text(
+            text_backend,
+            &value_text,
+            s.text_style,
+            crate::text::TextBounds::UNBOUNDED,
+        );
+        let value_w = value_layout.metrics().logical_size.x + s.text_pad_x * 2.0;
+        let step_button_w = number_edit_step_button_width(s.step_button, text_backend);
+        let preferred_w = value_w + step_button_w * 2.0;
+        crate::layout::SizeRequest::preferred(Vec2::new(preferred_w, s.height))
     }
 
     /// Low-level number edit widget function.
@@ -157,11 +176,13 @@ pub mod raw {
         );
 
         let mut started_editing_this_frame = false;
-        let hovered_decrement = decrement_rect.contains(input.mouse_pos) && is_visible;
-        let hovered_increment = increment_rect.contains(input.mouse_pos) && is_visible;
-        let hovered_step_direction = if hovered_decrement {
+        let contains_decrement = decrement_rect.contains(input.mouse_pos) && is_visible;
+        let contains_increment = increment_rect.contains(input.mouse_pos) && is_visible;
+        let hovered_decrement = contains_decrement && is_hover_active;
+        let hovered_increment = contains_increment && is_hover_active;
+        let hovered_step_direction = if contains_decrement {
             Some(NumberEditStepDirection::Decrement)
-        } else if hovered_increment {
+        } else if contains_increment {
             Some(NumberEditStepDirection::Increment)
         } else {
             None
@@ -514,8 +535,7 @@ pub mod raw {
             && (!input.mouse_down || state.is_dragging || state.edit.is_editing());
 
         let active_step = state.is_arrow_stepping && !spec.disabled;
-        let hovered_step =
-            !spec.disabled && is_hover_active && (hovered_decrement || hovered_increment);
+        let hovered_step = !spec.disabled && (hovered_decrement || hovered_increment);
         let cursor_icon = if state.edit.is_editing() {
             edit_cursor_icon
         } else if active_step || hovered_step {
@@ -542,8 +562,6 @@ pub mod raw {
 }
 
 // ── Style ─────────────────────────────────────────────────────────────────────
-
-const NUMBER_EDIT_VALUE_PREFERRED_WIDTH: f32 = 68.0;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct NumberEditStepButtonStyle {
@@ -1070,7 +1088,11 @@ pub fn number_edit<T: TextBackend, S: LayoutState, CF, F>(
 where
     F: Fn(f32) -> String,
 {
-    let pre_layout_spec = raw::NumberEditPreLayoutSpec { style: spec.style };
+    let pre_layout_spec = raw::NumberEditPreLayoutSpec {
+        style: spec.style,
+        value: state.value,
+        value_formatter: &spec.value_formatter,
+    };
     let offer = ctx.peek_offer(layout_params.clone());
     let pre_layout = raw::pre_layout_number_edit(&pre_layout_spec, offer, ctx.text_backend);
     let rect = ctx.layout(layout_params, pre_layout.size_request);
@@ -1100,7 +1122,11 @@ where
     let prefix_width = prefixed_control_prefix_width(prefix, prefix_style, ctx.text_backend);
     let offer = ctx.peek_offer(layout_params.clone());
     let child_offer = prefixed_control_child_offer(offer, prefix_width);
-    let pre_layout_spec = raw::NumberEditPreLayoutSpec { style: spec.style };
+    let pre_layout_spec = raw::NumberEditPreLayoutSpec {
+        style: spec.style,
+        value: state.value,
+        value_formatter: &spec.value_formatter,
+    };
     let pre_layout = raw::pre_layout_number_edit(&pre_layout_spec, child_offer, ctx.text_backend);
     let size_request = prefixed_control_size_request(pre_layout.size_request, prefix_width);
     let outer_rect = ctx.layout(layout_params, size_request);
