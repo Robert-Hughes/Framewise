@@ -6,8 +6,6 @@ Working notes, TODOs, open questions, and half-baked ideas.
 
 - figure out numeric editing controls and ink label prefix
   3. Add behaviour/style settings to NumberEdit
-    - Section 04 stepper is invisible!
-     pre-layout measure from current value, test_number_edit_custom_formatter_affects_measurement_and_rendering/test_number_edit_custom_formatter_affects_rendering_not_measurement
   - Section 01 "Frame" stepper should be a NumberEdit now
   - Continue with section 04 and put them here too
 

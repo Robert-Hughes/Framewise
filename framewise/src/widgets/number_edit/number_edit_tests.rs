@@ -2863,6 +2863,7 @@ fn test_number_edit_value_fill_suppressed_when_unbounded() {
         .any(|cmd| matches!(cmd, DrawCmd::FillRect { color, .. } if *color == style.value_fill)));
 }
 
+#[test]
 fn test_number_edit_step_button_visual_appearance() {
     let mut style = default_style();
     style.step_button.padding_x = 4.0;
