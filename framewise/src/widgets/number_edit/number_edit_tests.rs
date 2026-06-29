@@ -2607,26 +2607,29 @@ fn test_number_edit_text_edit_focus_lost_invalid_remembers_draft() {
 }
 
 #[test]
-fn test_number_edit_text_edit_arrow_keys_do_not_step_value() {
+fn test_number_edit_text_edit_arrow_keys_move_caret_not_value() {
     let rect = Rect::new(0.0, 0.0, 140.0, 28.0);
     let mut state = NumberEditState {
         value: 10.0,
         ..Default::default()
     };
     enter_edit_state(&mut state, "10");
+    let (text_edit, _) = assert_editing(&state.edit);
+    let original_caret = text_edit.caret;
     let mut focus_system = FocusSystem::new();
     focus_system.take_keyboard_focus(state.focus_id);
 
     run_key(default_spec(rect), &mut state, &mut focus_system, |input| {
-        input.key_pressed_right = true;
-        input.text_events.push(TextEvent::CaretRight {
+        input.key_pressed_left = true;
+        input.text_events.push(TextEvent::CaretLeft {
             shift: false,
             ctrl: false,
         });
     });
 
     assert_eq!(state.value, 10.0);
-    let _ = assert_editing(&state.edit);
+    let (text_edit, _) = assert_editing(&state.edit);
+    assert_ne!(text_edit.caret, original_caret);
 }
 
 #[test]

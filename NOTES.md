@@ -4,9 +4,6 @@ Working notes, TODOs, open questions, and half-baked ideas.
 
 ## Current Work
 
-- NumberEdit:
-  - make it clearer that the middle section can be double-clicked, esp. for non-dragging ones
-
 - suppress passive hover cursors while any mouse drag is active elsewhere, especially if the widget did not originate the drag. e.g. click and drag NumberEdit then move mouse over a slider which is AFTER it in the draw order. Check all widgets for this behaviour. Consider using a helper for 'hover-like' behaviour?
 
 - decide on consistent behaviour for click and hold on a widget with a special cursor (e.g. pointer, slider), then move mouse outside of the widget.
@@ -380,6 +377,7 @@ The "App-Managed State" option would require either a trait layer (so the widget
 - Number edit
   - Logarithmic (or otherwise custom) scales? Perhaps a user-defined 'value to linear' mapping function (and reverse), and everything else can be figured out automatically?
   - up/down pg up/down seems the wrong way round? Up makes lower?
+  - mouse wheel to scrub?
 
 - Button group seams
 - HTML removes inner right borders in .fw-btngroup. Rust draws adjacent full buttons, so once groups are switched to secondary/default, internal seams will likely look 2px thick unless the rects overlap by 1px or the button API gains per-side borders.
