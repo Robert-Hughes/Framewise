@@ -2737,15 +2737,16 @@ fn section_04_sliders<CF>(
         }
 
         let mut stepper_style = NumberEditStyle::from_theme(&b.theme);
-        stepper_style.background = b.theme.paper_elev;
-        stepper_style.border = Some(Stroke::new(b.theme.line_on_paper, 1.0));
+        stepper_style.background = Color::TRANSPARENT;
+        stepper_style.border = Some(Stroke::new(b.theme.ink, 1.0));
         stepper_style.value_fill = Color::TRANSPARENT;
         stepper_style.text_style.size = b.theme.text_sm;
         stepper_style.step_button.decrement_glyph = "\u{2212}";
         stepper_style.step_button.increment_glyph = "+";
-        stepper_style.step_button.background = b.theme.paper_elev;
+        stepper_style.step_button.background = Color::TRANSPARENT;
         stepper_style.step_button.background_hovered = b.theme.paper_hover;
-        stepper_style.step_button.border = Some(Stroke::new(b.theme.line_on_paper, 1.0));
+        stepper_style.step_button.background_pressed = b.theme.paper_press;
+        stepper_style.step_button.border = Some(Stroke::new(b.theme.ink, 1.0));
         stepper_style.step_button.glyph_color = b.theme.ink;
         stepper_style.step_button.padding_x = 8.0;
         stepper_style.step_button.text_style.size = b.theme.text_sm;
@@ -2755,7 +2756,7 @@ fn section_04_sliders<CF>(
                 .drag_enabled(false)
                 .value_fill_enabled(false)
                 .style(stepper_style),
-            local_rect(120.0, 0.0, 84.0, b.theme.h_sm),
+            local_rect(120.0, 0.0, 96.0, b.theme.h_sm),
             &mut state.number_edit_state[3],
             &mut b,
         );

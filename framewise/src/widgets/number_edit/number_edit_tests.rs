@@ -1684,6 +1684,76 @@ fn test_number_edit_arrow_hold_repeat_sequence() {
 }
 
 #[test]
+fn test_number_edit_step_hold_moving_outside_button_stops_repeat_when_drag_disabled() {
+    let rect = Rect::new(0.0, 0.0, 100.0, 28.0);
+    let mut state = NumberEditState {
+        value: 50.0,
+        ..Default::default()
+    };
+    let mut focus_system = FocusSystem::new();
+    let mut text_backend = TestTextBackend::default();
+    let mut cmds = DrawCommands::new(1.0);
+    let mut spec = default_spec(rect);
+    spec.drag_enabled = false;
+    spec.step = 5.0;
+    let arrow_pos = right_arrow_pos(rect);
+
+    let mut input = Input {
+        mouse_pos: arrow_pos,
+        ..Default::default()
+    };
+    focus_system.begin_frame();
+    let _ = run_raw(
+        spec.clone(),
+        &mut state,
+        &input,
+        &mut focus_system,
+        &mut text_backend,
+        &mut cmds,
+    );
+    focus_system.end_frame();
+
+    input.mouse_down = true;
+    input.mouse_pressed = true;
+    spec.time = 0.0;
+    focus_system.begin_frame();
+    let _ = run_raw(
+        spec.clone(),
+        &mut state,
+        &input,
+        &mut focus_system,
+        &mut text_backend,
+        &mut cmds,
+    );
+    focus_system.end_frame();
+    assert_eq!(state.value, 55.0);
+    assert!(state.is_arrow_stepping);
+    assert_eq!(
+        state.arrow_step_direction,
+        Some(NumberEditStepDirection::Increment)
+    );
+
+    input.mouse_pressed = false;
+    input.mouse_pos = Vec2::new(rect.right() + 20.0, rect.y + rect.h / 2.0);
+    spec.time = 0.6;
+    focus_system.begin_frame();
+    let _ = run_raw(
+        spec,
+        &mut state,
+        &input,
+        &mut focus_system,
+        &mut text_backend,
+        &mut cmds,
+    );
+    focus_system.end_frame();
+
+    assert_eq!(state.value, 55.0);
+    assert!(!state.is_arrow_stepping);
+    assert_eq!(state.arrow_step_direction, None);
+    assert!(!state.is_dragging);
+}
+
+#[test]
 fn test_number_edit_arrow_step_promotes_to_drag_after_motion_threshold() {
     let rect = Rect::new(0.0, 0.0, 100.0, 28.0);
     let mut state = NumberEditState {
@@ -2868,6 +2938,8 @@ fn test_number_edit_step_button_visual_appearance() {
     let mut style = default_style();
     style.step_button.padding_x = 4.0;
     style.step_button.background = Color::linear_rgba(0.1, 0.2, 0.3, 1.0);
+    style.step_button.background_hovered = Color::linear_rgba(0.2, 0.3, 0.4, 1.0);
+    style.step_button.background_pressed = Color::linear_rgba(0.3, 0.4, 0.5, 1.0);
     style.step_button.border = Some(Stroke::new(Color::linear_rgba(0.4, 0.5, 0.6, 1.0), 1.0));
     style.step_button.glyph_color = Color::linear_rgba(0.7, 0.8, 0.9, 1.0);
     style.step_button.decrement_glyph = "-";
@@ -2900,6 +2972,10 @@ fn test_number_edit_step_button_visual_appearance() {
     };
     let mut state = NumberEditState {
         value: 50.0,
+        is_arrow_stepping: true,
+        arrow_step_start_mouse_pos: Vec2::new(99.0, 24.0),
+        arrow_step_direction: Some(NumberEditStepDirection::Increment),
+        next_repeat_time: 1.0,
         ..Default::default()
     };
     let mut focus_system = FocusSystem::new();
@@ -2907,11 +2983,16 @@ fn test_number_edit_step_button_visual_appearance() {
         .with_char_advance('-', 5.0)
         .with_char_advance('+', 13.0);
     let mut cmds = DrawCommands::new(1.0);
+    let input = Input {
+        mouse_pos: Vec2::new(99.0, 24.0),
+        mouse_down: true,
+        ..Default::default()
+    };
 
     let _ = run_raw(
         spec,
         &mut state,
-        &Input::default(),
+        &input,
         &mut focus_system,
         &mut text_backend,
         &mut cmds,
@@ -2944,7 +3025,7 @@ fn test_number_edit_step_button_visual_appearance() {
             },
             DrawCmd::FillRect {
                 rect: Rect::new(89.0, 10.0, 21.0, 28.0),
-                color: style.step_button.background,
+                color: style.step_button.background_pressed,
                 z: 0,
             },
             DrawCmd::BorderRect {

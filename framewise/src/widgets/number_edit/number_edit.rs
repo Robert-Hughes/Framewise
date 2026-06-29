@@ -243,16 +243,22 @@ pub mod raw {
             let dy = input.mouse_pos.y - state.arrow_step_start_mouse_pos.y;
             let drag_dist = dx.hypot(dy);
             const ARROW_DRAG_THRESHOLD: f32 = 4.0;
-            if spec.drag_enabled
-                && state.is_arrow_stepping
-                && input.mouse_down
-                && drag_dist > ARROW_DRAG_THRESHOLD
-            {
-                state.is_arrow_stepping = false;
-                state.arrow_step_direction = None;
-                state.is_dragging = true;
-                state.drag_start_x = input.mouse_pos.x;
-                state.drag_start_value = state.value;
+            let active_step_contains = match state.arrow_step_direction {
+                Some(NumberEditStepDirection::Decrement) => contains_decrement,
+                Some(NumberEditStepDirection::Increment) => contains_increment,
+                None => false,
+            };
+            if state.is_arrow_stepping && input.mouse_down {
+                if spec.drag_enabled && drag_dist > ARROW_DRAG_THRESHOLD {
+                    state.is_arrow_stepping = false;
+                    state.arrow_step_direction = None;
+                    state.is_dragging = true;
+                    state.drag_start_x = input.mouse_pos.x;
+                    state.drag_start_value = state.value;
+                } else if !active_step_contains {
+                    state.is_arrow_stepping = false;
+                    state.arrow_step_direction = None;
+                }
             }
 
             if input.mouse_pressed && contains && is_hover_active {
@@ -273,7 +279,11 @@ pub mod raw {
                 }
             }
 
-            if state.is_arrow_stepping && input.mouse_down && spec.time >= state.next_repeat_time {
+            if state.is_arrow_stepping
+                && input.mouse_down
+                && active_step_contains
+                && spec.time >= state.next_repeat_time
+            {
                 if let Some(direction) = state.arrow_step_direction {
                     step_value(state, direction, spec.step, clamp_min, clamp_max);
                     state.next_repeat_time = spec.time + 0.05;
@@ -374,16 +384,26 @@ pub mod raw {
             }
         }
 
-        for (rect, hovered) in [
-            (decrement_rect, hovered_decrement),
-            (increment_rect, hovered_increment),
+        for (direction, rect, hovered) in [
+            (
+                NumberEditStepDirection::Decrement,
+                decrement_rect,
+                hovered_decrement,
+            ),
+            (
+                NumberEditStepDirection::Increment,
+                increment_rect,
+                hovered_increment,
+            ),
         ] {
-            let background =
-                if hovered || (state.is_arrow_stepping && hovered_step_direction.is_some()) {
-                    s.step_button.background_hovered
-                } else {
-                    s.step_button.background
-                };
+            let pressed = state.is_arrow_stepping && state.arrow_step_direction == Some(direction);
+            let background = if pressed {
+                s.step_button.background_pressed
+            } else if hovered {
+                s.step_button.background_hovered
+            } else {
+                s.step_button.background
+            };
             if background.a > 0.0 {
                 cmds.push_crisp_fill_rect(rect, tint(background), spec.layer.get_z());
             }
@@ -568,6 +588,7 @@ pub struct NumberEditStepButtonStyle {
     pub padding_x: f32,
     pub background: Color,
     pub background_hovered: Color,
+    pub background_pressed: Color,
     pub border: Option<Stroke>,
     pub glyph_color: Color,
     pub text_style: crate::text::TextStyle,
@@ -626,6 +647,7 @@ impl NumberEditStyle {
                 padding_x: 6.0,
                 background: Color::TRANSPARENT,
                 background_hovered: Color::TRANSPARENT,
+                background_pressed: Color::TRANSPARENT,
                 border: None,
                 glyph_color: Color::linear_rgba(
                     theme.ink.r,
