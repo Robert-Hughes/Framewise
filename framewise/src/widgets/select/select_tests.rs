@@ -145,6 +145,7 @@ fn test_select_visual_open() {
     };
 
     let mut state = state;
+    let mut focus_system = FocusSystem::new_mocked(None, Some(state.focus_id));
     let mut cmds = DrawCommands::new(1.0);
     let input = Input {
         mouse_pos: Vec2::new(10.0, 70.0),
@@ -154,7 +155,7 @@ fn test_select_visual_open() {
         spec,
         &mut state,
         &input,
-        &mut FocusSystem::new(),
+        &mut focus_system,
         &mut text_backend,
         &mut cmds,
     );
@@ -381,6 +382,7 @@ fn test_select_click_takes_focus_and_opens() {
     };
 
     let mut state = state;
+    focus_system = FocusSystem::new_mocked(None, Some(state.focus_id));
     focus_system.begin_frame();
     let mut cmds = DrawCommands::new(1.0);
     let result = post_layout_select_for_test(

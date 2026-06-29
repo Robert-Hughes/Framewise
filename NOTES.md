@@ -6,6 +6,8 @@ Working notes, TODOs, open questions, and half-baked ideas.
 
 - suppress passive hover cursors while any mouse drag is active elsewhere, especially if the widget did not originate the drag. e.g. click and drag NumberEdit then move mouse over a slider which is AFTER it in the draw order. Check all widgets for this behaviour. Consider using a helper for 'hover-like' behaviour?
 
+- consider if any other common keyboard or cursor interaction behaviour could be brought into new or existing widget helpers. Any common patterns repeated a lot?
+
 - decide on consistent behaviour for click and hold on a widget with a special cursor (e.g. pointer, slider), then move mouse outside of the widget.
 For cases where the behaviour continues (like a slider), the cursor should clearly remain. But for cases where the interaction is 'paused' like a button press or NumberEdit stepper, not sure if the special cursor should also be paused? Consider a widget helper for "click-and-hold/drag"-like behaviour?
 

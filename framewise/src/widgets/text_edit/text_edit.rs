@@ -637,7 +637,16 @@ pub mod raw {
             };
         }
 
-        let focused = focus_system.register_keyboard(state.focus_id, spec.rect, spec.clip_rect);
+        let focused = crate::widgets::widget_helpers::handle_keyboard_focus(
+            state.focus_id,
+            spec.rect,
+            spec.clip_rect,
+            spec.disabled,
+            crate::focus::FocusTraversalKeys::tab_only(),
+            input,
+            focus_system,
+        )
+        .focused;
         let just_focused = focused && !state.had_keyboard_focus;
 
         // Hit test mouse
@@ -655,7 +664,15 @@ pub mod raw {
             focus_system.claim_hover(state.focus_id);
         }
         let is_hover_active = focus_system.is_hover_active(state.focus_id);
-        let contains = contains_raw && is_hover_active;
+        let text_hover = crate::widgets::widget_helpers::handle_hover_interaction(
+            hit_rect,
+            spec.clip_rect,
+            spec.disabled,
+            is_hover_active,
+            state.is_dragging,
+            input,
+        );
+        let contains = text_hover.passive_hovered;
 
         let old_caret = pre_layout.old_caret;
         let old_selection = pre_layout.old_selection_anchor;
@@ -897,7 +914,7 @@ pub mod raw {
         );
 
         // Mouse interaction
-        if contains && input.mouse_pressed {
+        if text_hover.can_start {
             if !focused {
                 state.suppress_select_all_on_next_focus = true;
             }
@@ -1241,13 +1258,6 @@ pub mod raw {
         };
         cmds.push_crisp_border_rect(spec.rect, border, BorderPlacement::Inside, border_z);
 
-        // Text edit owns all arrow keys (caret movement via TextEvent); only Tab navigates focus.
-        focus_system.handle_keyboard_traversal(
-            focused,
-            input,
-            crate::focus::FocusTraversalKeys::tab_only(),
-        );
-
         if just_focused {
             state.suppress_select_all_on_next_focus = false;
         }
@@ -1258,14 +1268,14 @@ pub mod raw {
             clipboard_action,
             focused,
             input: InputInfo {
-                hovered: contains,
-                pressed: input.mouse_down && contains,
-                clicked: input.mouse_clicked && contains,
+                hovered: text_hover.passive_hovered,
+                pressed: input.mouse_down && text_hover.active_now,
+                clicked: input.mouse_clicked && text_hover.passive_hovered,
             },
             // Scrollbar interaction takes priority over the text cursor.
             cursor_icon: scroll_end_result
                 .cursor_icon
-                .or_else(|| contains.then_some(CursorIcon::Text)),
+                .or_else(|| text_hover.passive_hovered.then_some(CursorIcon::Text)),
         }
     }
 
@@ -2358,10 +2368,18 @@ pub fn prefixed_text_edit<T: TextBackend, S: LayoutState, CF>(
     let prefix_contains = layout.prefix_rect.contains(ctx.input.mouse_pos) && is_visible;
     if prefix_contains && !spec.disabled {
         ctx.focus_system.claim_hover(state.focus_id);
-        if ctx.input.mouse_pressed {
-            state.suppress_select_all_on_next_focus = true;
-            ctx.focus_system.take_keyboard_focus(state.focus_id);
-        }
+    }
+    let prefix_hover = crate::widgets::widget_helpers::handle_hover_interaction(
+        layout.prefix_rect,
+        ctx.clip_rect,
+        spec.disabled,
+        ctx.focus_system.is_hover_active(state.focus_id),
+        false,
+        ctx.input,
+    );
+    if prefix_hover.can_start {
+        state.suppress_select_all_on_next_focus = true;
+        ctx.focus_system.take_keyboard_focus(state.focus_id);
     }
 
     let mut child_style = spec.style;
@@ -2400,7 +2418,7 @@ pub fn prefixed_text_edit<T: TextBackend, S: LayoutState, CF>(
     TextEditResult {
         layout: LayoutInfo::new(outer_rect, result.layout.content_bounds),
         input: InputInfo {
-            hovered: result.input.hovered || prefix_contains,
+            hovered: result.input.hovered || prefix_hover.passive_hovered,
             pressed: result.input.pressed,
             clicked: result.input.clicked,
         },

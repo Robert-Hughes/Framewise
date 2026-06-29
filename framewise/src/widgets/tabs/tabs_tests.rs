@@ -247,6 +247,7 @@ fn test_tabs_click_takes_focus() {
     let items = ["Tab1", "Tab2"];
     let spec = make_spec(&items);
 
+    focus_system = FocusSystem::new_mocked(None, Some(state.focus_id));
     focus_system.begin_frame();
     let mut cmds = DrawCommands::new(1.0);
     let result = raw::post_layout_tabs(

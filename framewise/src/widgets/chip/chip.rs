@@ -86,35 +86,21 @@ pub mod raw {
         text_backend: &mut T,
         cmds: &mut DrawCommands,
     ) -> ChipResult {
-        let (focused, clicked) = if spec.disabled {
-            (false, false)
-        } else {
-            crate::focus::handle_widget_keyboard_focus(
-                state.focus_id,
-                spec.rect,
-                spec.clip_rect,
-                input,
-                focus_system,
-                crate::focus::FocusTraversalKeys::all(),
-                spec.disabled,
-            )
-        };
-
-        let mut is_clicked = clicked;
-        if focused && input.key_pressed_enter {
-            is_clicked = true;
-        }
-        if state.space_is_active && input.key_released_space {
-            is_clicked = true;
-        }
-
-        // Update space activation state for keyboard space press
-        if !focused || !input.key_down_space {
-            state.space_is_active = false;
-        }
-        if focused && input.key_pressed_space {
-            state.space_is_active = true;
-        }
+        let interaction = crate::widgets::widget_helpers::handle_press_interaction(
+            crate::widgets::widget_helpers::PressInteractionSpec {
+                focus_id: state.focus_id,
+                rect: spec.rect,
+                clip_rect: spec.clip_rect,
+                disabled: spec.disabled,
+                traversal_keys: crate::focus::FocusTraversalKeys::all(),
+            },
+            input,
+            focus_system,
+            &mut state.is_active,
+            &mut state.space_is_active,
+        );
+        let focused = interaction.focused;
+        let is_clicked = interaction.input.clicked;
 
         if is_clicked {
             state.checked = !state.checked;
@@ -184,20 +170,14 @@ pub mod raw {
             spec.layer.get_z(),
         );
 
-        let hovered = spec.rect.contains(input.mouse_pos)
-            && spec.clip_rect.is_none_or(|c| c.contains(input.mouse_pos));
-        let cursor_icon = if hovered && !spec.disabled {
+        let cursor_icon = if interaction.input.hovered && !spec.disabled {
             Some(crate::output::CursorIcon::Pointer)
         } else {
             None
         };
 
         ChipResult {
-            input: InputInfo {
-                hovered,
-                pressed: (clicked && input.mouse_down) || state.space_is_active,
-                clicked: is_clicked,
-            },
+            input: interaction.input,
             focused,
             content_bounds: r.inset(s.border.map_or(0.0, |st| st.width)),
             cursor_icon,
@@ -258,6 +238,7 @@ impl ChipStyle {
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct ChipState {
     pub checked: bool,
+    pub is_active: bool,
     pub space_is_active: bool,
     pub focus_id: FocusId,
 }

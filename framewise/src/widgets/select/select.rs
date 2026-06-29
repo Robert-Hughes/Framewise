@@ -102,19 +102,45 @@ pub mod raw {
         text_backend: &mut T,
         cmds: &mut DrawCommands,
     ) -> SelectResult {
-        let (focused, clicked) = if spec.disabled {
-            (false, false)
-        } else {
-            crate::focus::handle_widget_keyboard_focus(
-                state.focus_id,
-                spec.rect,
-                spec.clip_rect,
-                input,
-                focus_system,
-                crate::focus::FocusTraversalKeys::all(),
-                spec.disabled,
-            )
-        };
+        let s = spec.style;
+        let r = Rect::new(
+            spec.rect.x,
+            spec.rect.y,
+            spec.rect.w.max(s.min_width),
+            s.height,
+        );
+        let row_h = s.row_height;
+        let popup_h = spec.items.len() as f32 * row_h + s.popup_pad_y * 2.0;
+        let popup = Rect::new(r.x, r.y + s.height + s.popup_gap, r.w, popup_h);
+
+        let keyboard = crate::widgets::widget_helpers::handle_keyboard_focus(
+            state.focus_id,
+            r,
+            spec.clip_rect,
+            spec.disabled,
+            crate::focus::FocusTraversalKeys::all(),
+            input,
+            focus_system,
+        );
+        let focused = keyboard.focused;
+
+        let input_raw_contains = r.contains(input.mouse_pos)
+            && spec.clip_rect.is_none_or(|c| c.contains(input.mouse_pos));
+        let popup_raw_contains = state.open
+            && popup.contains(input.mouse_pos)
+            && spec.clip_rect.is_none_or(|c| c.contains(input.mouse_pos));
+        if !spec.disabled && (input_raw_contains || popup_raw_contains) {
+            focus_system.claim_hover(state.focus_id);
+        }
+        let hover_active = focus_system.is_hover_active(state.focus_id);
+        let input_hover = crate::widgets::widget_helpers::handle_hover_interaction(
+            r,
+            spec.clip_rect,
+            spec.disabled,
+            hover_active,
+            false,
+            input,
+        );
 
         if !spec.items.is_empty() {
             let current_val = if state.selected_index < spec.items.len() {
@@ -138,7 +164,7 @@ pub mod raw {
             }
         }
 
-        let mut is_clicked = clicked;
+        let mut is_clicked = false;
         if focused && input.key_pressed_enter && !state.open {
             is_clicked = true;
         }
@@ -153,20 +179,17 @@ pub mod raw {
             state.space_is_active = true;
         }
 
+        if input_hover.can_start {
+            focus_system.take_keyboard_focus(state.focus_id);
+            is_clicked = true;
+        }
+
         if is_clicked && !spec.disabled {
             state.open = !state.open;
             if state.open {
                 state.hovered = Some(state.selected_index);
             }
         }
-
-        let s = spec.style;
-        let r = Rect::new(
-            spec.rect.x,
-            spec.rect.y,
-            spec.rect.w.max(s.min_width),
-            s.height,
-        );
 
         // Keyboard navigation when focused
         if focused && !spec.disabled && !spec.items.is_empty() {
@@ -207,26 +230,37 @@ pub mod raw {
         }
 
         // Mouse interaction with popup when open
-        let mut hovered_popup = false;
+        let mut popup_passive_hovered = false;
         if state.open && !spec.disabled && !spec.items.is_empty() {
-            let row_h = s.row_height;
-            let popup_h = spec.items.len() as f32 * row_h + s.popup_pad_y * 2.0;
-            let popup = Rect::new(r.x, r.y + s.height + s.popup_gap, r.w, popup_h);
-
-            let is_visible = spec.clip_rect.is_none_or(|c| c.contains(input.mouse_pos));
-            if is_visible && popup.contains(input.mouse_pos) {
-                hovered_popup = true;
-                let relative_y = input.mouse_pos.y - (popup.y + s.popup_pad_y);
-                let hovered_row = (relative_y / row_h).floor() as i32;
-                if hovered_row >= 0 && hovered_row < spec.items.len() as i32 {
-                    state.hovered = Some(hovered_row as usize);
-
-                    if input.mouse_pressed {
-                        state.selected_index = hovered_row as usize;
-                        state.open = false;
-                    }
+            for i in 0..spec.items.len() {
+                let row = Rect::new(
+                    popup.x,
+                    popup.y + s.popup_pad_y + i as f32 * row_h,
+                    popup.w,
+                    row_h,
+                );
+                let row_hover = crate::widgets::widget_helpers::handle_hover_interaction(
+                    row,
+                    spec.clip_rect,
+                    spec.disabled,
+                    hover_active,
+                    false,
+                    input,
+                );
+                if row_hover.passive_hovered {
+                    popup_passive_hovered = true;
+                    state.hovered = Some(i);
                 }
-            } else if input.mouse_pressed && !r.contains(input.mouse_pos) {
+                if row_hover.can_start {
+                    focus_system.take_keyboard_focus(state.focus_id);
+                    state.selected_index = i;
+                    state.open = false;
+                }
+            }
+            if input.mouse_pressed
+                && !r.contains(input.mouse_pos)
+                && !popup.contains(input.mouse_pos)
+            {
                 state.open = false;
             }
         }
@@ -382,13 +416,12 @@ pub mod raw {
         }
 
         let input_info = InputInfo {
-            hovered: spec.rect.contains(input.mouse_pos)
-                && spec.clip_rect.is_none_or(|c| c.contains(input.mouse_pos)),
-            pressed: (clicked && input.mouse_down) || state.space_is_active,
+            hovered: input_hover.passive_hovered,
+            pressed: (input_hover.active_now && input.mouse_down) || state.space_is_active,
             clicked: is_clicked,
         };
 
-        let cursor_icon = if !spec.disabled && (input_info.hovered || hovered_popup) {
+        let cursor_icon = if !spec.disabled && (input_info.hovered || popup_passive_hovered) {
             Some(crate::output::CursorIcon::Pointer)
         } else {
             None

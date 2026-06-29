@@ -217,6 +217,7 @@ fn test_segmented_click_takes_focus() {
     };
 
     let mut cmds = DrawCommands::new(1.0);
+    focus_system = FocusSystem::new_mocked(None, Some(state.focus_id));
     focus_system.begin_frame();
     let result = raw::post_layout_segmented(
         spec,

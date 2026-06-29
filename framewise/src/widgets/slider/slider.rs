@@ -101,11 +101,10 @@ pub mod raw {
     fn slider_cursor_icon(
         spec: &SliderSpec,
         state: &SliderState,
-        hit_part: Option<SliderPart>,
-        is_hover_active: bool,
-        is_visible: bool,
+        hover_part: Option<SliderPart>,
+        track_passive_hovered: bool,
     ) -> Option<crate::output::CursorIcon> {
-        if spec.disabled || !is_visible {
+        if spec.disabled {
             return None;
         }
 
@@ -119,17 +118,16 @@ pub mod raw {
         }
 
         // If hovered but not dragging:
-        if is_hover_active {
-            match hit_part {
-                Some(SliderPart::LowerThumb)
-                | Some(SliderPart::UpperThumb)
-                | Some(SliderPart::Segment) => {
+        if let Some(part) = hover_part {
+            match part {
+                SliderPart::LowerThumb | SliderPart::UpperThumb | SliderPart::Segment => {
                     return Some(crate::output::CursorIcon::Grab);
                 }
-                None => {
-                    return Some(crate::output::CursorIcon::Pointer);
-                }
             }
+        }
+
+        if track_passive_hovered {
+            return Some(crate::output::CursorIcon::Pointer);
         }
 
         None
@@ -269,6 +267,13 @@ pub mod raw {
             };
             pointer_over_track && mouse_coord >= start && mouse_coord <= end
         };
+        let part_zone_rect = |rect: Rect| -> Rect {
+            if is_vert {
+                Rect::new(spec.rect.x, rect.y, spec.rect.w, rect.h)
+            } else {
+                Rect::new(rect.x, spec.rect.y, rect.w, spec.rect.h)
+            }
+        };
 
         let hit_part = if lower_thumb_rect.is_some_and(is_over_part_zone) {
             Some(SliderPart::LowerThumb)
@@ -286,13 +291,69 @@ pub mod raw {
         let focused = if spec.disabled || !spec.keyboard_focusable {
             false
         } else {
-            focus_system.register_keyboard(state.focus_id, spec.rect, spec.clip_rect)
+            crate::widgets::widget_helpers::handle_keyboard_focus(
+                state.focus_id,
+                spec.rect,
+                spec.clip_rect,
+                spec.disabled,
+                crate::focus::FocusTraversalKeys::tab_only(),
+                input,
+                focus_system,
+            )
+            .focused
         };
 
         if !spec.disabled && (pointer_over_slider || pointer_over_wheel_area) && is_visible {
             focus_system.claim_hover(state.focus_id);
         }
         let is_hover_active = !spec.disabled && focus_system.is_hover_active(state.focus_id);
+        let lower_hover = lower_thumb_rect
+            .map(part_zone_rect)
+            .map(|rect| {
+                crate::widgets::widget_helpers::handle_hover_interaction(
+                    rect,
+                    spec.clip_rect,
+                    spec.disabled,
+                    is_hover_active,
+                    state.active_part == Some(SliderPart::LowerThumb),
+                    input,
+                )
+            })
+            .unwrap_or_default();
+        let upper_hover = upper_thumb_rect
+            .map(part_zone_rect)
+            .map(|rect| {
+                crate::widgets::widget_helpers::handle_hover_interaction(
+                    rect,
+                    spec.clip_rect,
+                    spec.disabled,
+                    is_hover_active,
+                    state.active_part == Some(SliderPart::UpperThumb),
+                    input,
+                )
+            })
+            .unwrap_or_default();
+        let segment_hover = segment_rect
+            .map(part_zone_rect)
+            .map(|rect| {
+                crate::widgets::widget_helpers::handle_hover_interaction(
+                    rect,
+                    spec.clip_rect,
+                    spec.disabled,
+                    is_hover_active,
+                    state.active_part == Some(SliderPart::Segment),
+                    input,
+                )
+            })
+            .unwrap_or_default();
+        let track_hover = crate::widgets::widget_helpers::handle_hover_interaction(
+            track_rect,
+            spec.clip_rect,
+            spec.disabled,
+            is_hover_active,
+            state.is_track_clicking,
+            input,
+        );
 
         // 2. Input Handling
         if !spec.disabled {
@@ -475,12 +536,7 @@ pub mod raw {
             // Track click (mouse down on track, not on thumb)
             let active_start = lower_coord.min(upper_coord.unwrap_or(lower_coord));
             let active_end = upper_coord.unwrap_or(lower_coord).max(lower_coord);
-            if is_visible
-                && is_hover_active
-                && input.mouse_pressed
-                && hit_part.is_none()
-                && track_rect.contains(input.mouse_pos)
-            {
+            if track_hover.can_start && hit_part.is_none() {
                 if spec.keyboard_focusable {
                     focus_system.take_keyboard_focus(state.focus_id);
                 }
@@ -514,8 +570,17 @@ pub mod raw {
             }
 
             // Drag start
-            if is_visible && is_hover_active && input.mouse_pressed {
-                if let Some(part) = hit_part {
+            if input.mouse_pressed {
+                let start_part = if lower_hover.can_start {
+                    Some(SliderPart::LowerThumb)
+                } else if upper_hover.can_start {
+                    Some(SliderPart::UpperThumb)
+                } else if segment_hover.can_start {
+                    Some(SliderPart::Segment)
+                } else {
+                    None
+                };
+                if let Some(part) = start_part {
                     if spec.keyboard_focusable {
                         focus_system.take_keyboard_focus(state.focus_id);
                     }
@@ -703,13 +768,6 @@ pub mod raw {
                     set_active_max(state, min, max);
                     repair_values(state, min, max, spec.min_gap, spec.max_gap, spec.value_snap);
                 }
-
-                // Slider owns all four arrow keys for value adjustment; only Tab navigates focus.
-                focus_system.handle_keyboard_traversal(
-                    focused,
-                    input,
-                    crate::focus::FocusTraversalKeys::tab_only(),
-                );
             }
         }
 
@@ -779,13 +837,11 @@ pub mod raw {
         );
 
         if let Some((style, rect)) = spec.style.segment_style.zip(segment_rect) {
-            let segment_is_hovered =
-                !spec.disabled && is_over_part_zone(rect) && is_visible && is_hover_active;
             let fill = effective_fill(
                 style.fill,
                 spec.disabled,
                 state.active_part == Some(SliderPart::Segment),
-                segment_is_hovered,
+                segment_hover.passive_hovered,
             );
             cmds.push_crisp_fill_rect(rect, tint(fill), spec.layer.get_z());
             if let Some(border) = style.border {
@@ -819,15 +875,8 @@ pub mod raw {
             (spec.style.lower_thumb_style, spec.style.upper_thumb_style)
         };
 
-        let lower_hovered = !spec.disabled
-            && lower_thumb_rect.is_some_and(is_over_part_zone)
-            && is_visible
-            && is_hover_active;
-
-        let upper_hovered = !spec.disabled
-            && upper_thumb_rect.is_some_and(is_over_part_zone)
-            && is_visible
-            && is_hover_active;
+        let lower_hovered = lower_hover.passive_hovered;
+        let upper_hovered = upper_hover.passive_hovered;
 
         if thumbs_touch {
             // Note that the crisp pixel rounding logic here needs to be careful
@@ -1041,12 +1090,24 @@ pub mod raw {
             }
         }
 
-        let cursor_icon = slider_cursor_icon(&spec, state, hit_part, is_hover_active, is_visible);
+        let hover_part = if lower_hover.passive_hovered {
+            Some(SliderPart::LowerThumb)
+        } else if upper_hover.passive_hovered {
+            Some(SliderPart::UpperThumb)
+        } else if segment_hover.passive_hovered {
+            Some(SliderPart::Segment)
+        } else {
+            None
+        };
+        let cursor_icon = slider_cursor_icon(&spec, state, hover_part, track_hover.passive_hovered);
 
         SliderResult {
             focused,
             input: InputInfo {
-                hovered: !spec.disabled && pointer_over_slider && is_visible && is_hover_active,
+                hovered: lower_hover.passive_hovered
+                    || upper_hover.passive_hovered
+                    || segment_hover.passive_hovered
+                    || track_hover.passive_hovered,
                 pressed: !spec.disabled && (state.active_part.is_some() || state.is_track_clicking),
                 clicked: false,
             },

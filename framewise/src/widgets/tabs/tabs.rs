@@ -104,21 +104,28 @@ pub mod raw {
             .collect();
         let total_w: f32 = widths.iter().sum();
 
-        let (focused, clicked) = if spec.disabled {
-            (false, false)
-        } else {
-            crate::focus::handle_widget_keyboard_focus(
-                state.focus_id,
-                Rect::new(spec.rect.x, spec.rect.y, total_w, tab_h),
-                spec.clip_rect,
-                input,
-                focus_system,
-                crate::focus::FocusTraversalKeys::tab_only(),
-                spec.disabled,
-            )
-        };
+        let tabs_rect = Rect::new(spec.rect.x, spec.rect.y, total_w, tab_h);
+        let keyboard = crate::widgets::widget_helpers::handle_keyboard_focus(
+            state.focus_id,
+            tabs_rect,
+            spec.clip_rect,
+            spec.disabled,
+            crate::focus::FocusTraversalKeys::tab_only(),
+            input,
+            focus_system,
+        );
+        let focused = keyboard.focused;
 
-        let mut is_clicked = clicked;
+        let raw_contains = tabs_rect.contains(input.mouse_pos)
+            && spec.clip_rect.is_none_or(|c| c.contains(input.mouse_pos));
+        if raw_contains && !spec.disabled {
+            focus_system.claim_hover(state.focus_id);
+        }
+        let hover_active = focus_system.is_hover_active(state.focus_id);
+
+        let mut is_clicked = false;
+        let mut any_passive_hover = false;
+        let mut pressed = false;
 
         // Left/Right keyboard navigation
         if focused && !spec.disabled && !spec.items.is_empty() {
@@ -132,18 +139,25 @@ pub mod raw {
             }
         }
 
-        // Mouse click segment detection
-        if clicked && !spec.disabled && !spec.items.is_empty() {
-            let mut x = spec.rect.x;
-            for (i, &tab_w) in widths.iter().enumerate() {
-                let tab_rect = Rect::new(x, spec.rect.y, tab_w, tab_h);
-                let is_visible = spec.clip_rect.is_none_or(|c| c.contains(input.mouse_pos));
-                if tab_rect.contains(input.mouse_pos) && is_visible {
-                    state.active_index = i;
-                    break;
-                }
-                x += tab_w;
+        let mut hit_x = spec.rect.x;
+        for (i, &tab_w) in widths.iter().enumerate() {
+            let tab_rect = Rect::new(hit_x, spec.rect.y, tab_w, tab_h);
+            let hover = crate::widgets::widget_helpers::handle_hover_interaction(
+                tab_rect,
+                spec.clip_rect,
+                spec.disabled,
+                hover_active,
+                false,
+                input,
+            );
+            any_passive_hover |= hover.passive_hovered;
+            pressed |= hover.active_now && input.mouse_down;
+            if hover.can_start {
+                focus_system.take_keyboard_focus(state.focus_id);
+                state.active_index = i;
+                is_clicked = true;
             }
+            hit_x += tab_w;
         }
 
         let alpha = if spec.disabled { s.disabled_alpha } else { 1.0 };
@@ -246,9 +260,7 @@ pub mod raw {
             x += tab_w;
         }
 
-        let hovered = Rect::new(spec.rect.x, spec.rect.y, total_w, tab_h).contains(input.mouse_pos)
-            && spec.clip_rect.is_none_or(|c| c.contains(input.mouse_pos));
-        let cursor_icon = if hovered && !spec.disabled {
+        let cursor_icon = if any_passive_hover && !spec.disabled {
             Some(crate::output::CursorIcon::Pointer)
         } else {
             None
@@ -256,8 +268,8 @@ pub mod raw {
 
         TabsResult {
             input: InputInfo {
-                hovered,
-                pressed: clicked && input.mouse_down,
+                hovered: any_passive_hover,
+                pressed,
                 clicked: is_clicked,
             },
             focused,

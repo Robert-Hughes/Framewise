@@ -41,9 +41,12 @@ impl LayoutInfo {
 /// Pointer interaction state returned by interactive widgets.
 #[derive(Debug, Clone, Copy, Default, PartialEq)]
 pub struct InputInfo {
-    /// True while the cursor is over the widget's bounds this frame.
+    /// True when the widget may show passive hover effects this frame.
+    ///
+    /// This is not raw geometric containment: hover is suppressed while another
+    /// pointer interaction is in progress unless this widget owns that interaction.
     pub hovered: bool,
-    /// True while the primary mouse button is held and the cursor is over the widget.
+    /// True while the widget is actively pressed by mouse or keyboard.
     pub pressed: bool,
     /// True on the single frame the primary button was released over the widget.
     pub clicked: bool,

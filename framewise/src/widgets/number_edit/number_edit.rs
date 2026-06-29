@@ -147,12 +147,37 @@ pub mod raw {
 
         let is_visible = spec.clip_rect.is_none_or(|c| c.contains(input.mouse_pos));
         let contains = spec.rect.contains(input.mouse_pos) && is_visible;
-        let contains_value = value_rect.contains(input.mouse_pos) && is_visible;
 
         if contains && !spec.disabled {
             focus_system.claim_hover(state.focus_id);
         }
         let is_hover_active = focus_system.is_hover_active(state.focus_id);
+        let decrement_hover = crate::widgets::widget_helpers::handle_hover_interaction(
+            decrement_rect,
+            spec.clip_rect,
+            spec.disabled,
+            is_hover_active,
+            state.is_arrow_stepping
+                && state.arrow_step_direction == Some(NumberEditStepDirection::Decrement),
+            input,
+        );
+        let increment_hover = crate::widgets::widget_helpers::handle_hover_interaction(
+            increment_rect,
+            spec.clip_rect,
+            spec.disabled,
+            is_hover_active,
+            state.is_arrow_stepping
+                && state.arrow_step_direction == Some(NumberEditStepDirection::Increment),
+            input,
+        );
+        let value_hover = crate::widgets::widget_helpers::handle_hover_interaction(
+            value_rect,
+            spec.clip_rect,
+            spec.disabled,
+            is_hover_active,
+            state.is_dragging,
+            input,
+        );
 
         let (clamp_min, clamp_max) = normalise_optional_bounds(spec.min, spec.max);
 
@@ -176,25 +201,24 @@ pub mod raw {
         );
 
         let mut started_editing_this_frame = false;
-        let contains_decrement = decrement_rect.contains(input.mouse_pos) && is_visible;
-        let contains_increment = increment_rect.contains(input.mouse_pos) && is_visible;
-        let hovered_decrement = contains_decrement && is_hover_active;
-        let hovered_increment = contains_increment && is_hover_active;
-        let hovered_step_direction = if contains_decrement {
+        let contains_decrement = decrement_hover.contains;
+        let contains_increment = increment_hover.contains;
+        let hovered_decrement = decrement_hover.passive_hovered;
+        let hovered_increment = increment_hover.passive_hovered;
+        let start_step_direction = if decrement_hover.can_start {
             Some(NumberEditStepDirection::Decrement)
-        } else if contains_increment {
+        } else if increment_hover.can_start {
             Some(NumberEditStepDirection::Increment)
         } else {
             None
         };
-        let hovered_drag_region = contains_value && is_hover_active;
         // The embedded TextEdit reuses the NumberEdit focus id. Entering edit mode
         // happens before normal focus registration so only one widget registers it.
         if !state.edit.is_editing()
             && !spec.disabled
             && input.mouse_pressed
             && input.mouse_click_count == 2
-            && hovered_drag_region
+            && value_hover.can_start
         {
             enter_number_edit_mode(state);
             focus_system.take_keyboard_focus(state.focus_id);
@@ -217,23 +241,21 @@ pub mod raw {
         let focused = if state.edit.is_editing() || spec.disabled {
             false
         } else {
-            crate::focus::handle_widget_keyboard_focus(
+            crate::widgets::widget_helpers::handle_keyboard_focus(
                 state.focus_id,
                 spec.rect,
                 spec.clip_rect,
+                spec.disabled,
+                crate::focus::FocusTraversalKeys::tab_only(),
                 input,
                 focus_system,
-                crate::focus::FocusTraversalKeys::tab_only(),
-                spec.disabled,
             )
-            .0
+            .focused
         };
 
         // Display-mode mouse interaction: arrow stepping, repeat, and scrub drag.
         // Edit mode bypasses this so typed values do not also trigger value changes.
         if !spec.disabled && !state.edit.is_editing() {
-            let hovered_value_area = contains_value && is_hover_active;
-
             if state.is_arrow_stepping && !input.mouse_down {
                 state.is_arrow_stepping = false;
                 state.arrow_step_direction = None;
@@ -260,22 +282,20 @@ pub mod raw {
                 state.drag_start_value = state.value;
             }
 
-            if input.mouse_pressed && contains && is_hover_active {
+            if decrement_hover.can_start || increment_hover.can_start || value_hover.can_start {
                 focus_system.take_keyboard_focus(state.focus_id);
             }
 
-            if input.mouse_pressed && contains && is_hover_active {
-                if let Some(direction) = hovered_step_direction {
-                    step_value(state, direction, spec.step, clamp_min, clamp_max);
-                    state.is_arrow_stepping = true;
-                    state.arrow_step_start_mouse_pos = input.mouse_pos;
-                    state.arrow_step_direction = Some(direction);
-                    state.next_repeat_time = spec.time + 0.5;
-                } else if hovered_value_area && spec.drag_enabled {
-                    state.is_dragging = true;
-                    state.drag_start_x = input.mouse_pos.x;
-                    state.drag_start_value = state.value;
-                }
+            if let Some(direction) = start_step_direction {
+                step_value(state, direction, spec.step, clamp_min, clamp_max);
+                state.is_arrow_stepping = true;
+                state.arrow_step_start_mouse_pos = input.mouse_pos;
+                state.arrow_step_direction = Some(direction);
+                state.next_repeat_time = spec.time + 0.5;
+            } else if value_hover.can_start && spec.drag_enabled {
+                state.is_dragging = true;
+                state.drag_start_x = input.mouse_pos.x;
+                state.drag_start_value = state.value;
             }
 
             if state.is_arrow_stepping
@@ -554,10 +574,9 @@ pub mod raw {
             }
         }
 
-        let hovered = contains
-            && is_hover_active
-            && !spec.disabled
-            && (!input.mouse_down || state.is_dragging || state.edit.is_editing());
+        let hovered = decrement_hover.passive_hovered
+            || increment_hover.passive_hovered
+            || value_hover.passive_hovered;
 
         let active_step = state.is_arrow_stepping && !spec.disabled;
         let hovered_step = !spec.disabled && (hovered_decrement || hovered_increment);
@@ -567,7 +586,7 @@ pub mod raw {
             Some(crate::output::CursorIcon::EwResize)
         } else if active_step || hovered_step {
             Some(crate::output::CursorIcon::Pointer)
-        } else if spec.drag_enabled && !spec.disabled && contains_value {
+        } else if spec.drag_enabled && !spec.disabled && value_hover.passive_hovered {
             Some(crate::output::CursorIcon::EwResize)
         } else {
             None
@@ -1222,9 +1241,17 @@ where
     let prefix_contains = layout.prefix_rect.contains(ctx.input.mouse_pos) && is_visible;
     if prefix_contains && !spec.disabled {
         ctx.focus_system.claim_hover(state.focus_id);
-        if ctx.input.mouse_pressed {
-            ctx.focus_system.take_keyboard_focus(state.focus_id);
-        }
+    }
+    let prefix_hover = crate::widgets::widget_helpers::handle_hover_interaction(
+        layout.prefix_rect,
+        ctx.clip_rect,
+        spec.disabled,
+        ctx.focus_system.is_hover_active(state.focus_id),
+        false,
+        ctx.input,
+    );
+    if prefix_hover.can_start {
+        ctx.focus_system.take_keyboard_focus(state.focus_id);
     }
 
     let mut child_style = spec.style;
@@ -1263,7 +1290,7 @@ where
     NumberEditResult {
         layout: LayoutInfo::new(outer_rect, result.layout.content_bounds),
         input: InputInfo {
-            hovered: result.input.hovered || prefix_contains,
+            hovered: result.input.hovered || prefix_hover.passive_hovered,
             pressed: result.input.pressed,
             clicked: result.input.clicked,
         },

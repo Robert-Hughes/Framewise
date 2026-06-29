@@ -131,21 +131,27 @@ pub mod raw {
 
         let outer = Rect::new(spec.rect.x, spec.rect.y, total_w, h);
 
-        let (focused, clicked) = if spec.disabled {
-            (false, false)
-        } else {
-            crate::focus::handle_widget_keyboard_focus(
-                state.focus_id,
-                outer,
-                spec.clip_rect,
-                input,
-                focus_system,
-                crate::focus::FocusTraversalKeys::all(),
-                spec.disabled,
-            )
-        };
+        let keyboard = crate::widgets::widget_helpers::handle_keyboard_focus(
+            state.focus_id,
+            outer,
+            spec.clip_rect,
+            spec.disabled,
+            crate::focus::FocusTraversalKeys::all(),
+            input,
+            focus_system,
+        );
+        let focused = keyboard.focused;
 
-        let mut is_clicked = clicked;
+        let raw_contains = outer.contains(input.mouse_pos)
+            && spec.clip_rect.is_none_or(|c| c.contains(input.mouse_pos));
+        if raw_contains && !spec.disabled {
+            focus_system.claim_hover(state.focus_id);
+        }
+        let hover_active = focus_system.is_hover_active(state.focus_id);
+
+        let mut is_clicked = false;
+        let mut any_passive_hover = false;
+        let mut pressed = false;
 
         // Left/Right keyboard navigation
         if focused && !spec.disabled && !spec.items.is_empty() {
@@ -159,18 +165,25 @@ pub mod raw {
             }
         }
 
-        // Mouse click segment detection
-        if clicked && !spec.disabled && !spec.items.is_empty() {
-            let mut x = spec.rect.x;
-            for (i, &w) in widths.iter().enumerate() {
-                let seg_rect = Rect::new(x, spec.rect.y, w, h);
-                let is_visible = spec.clip_rect.is_none_or(|c| c.contains(input.mouse_pos));
-                if seg_rect.contains(input.mouse_pos) && is_visible {
-                    state.active_index = i;
-                    break;
-                }
-                x += w;
+        let mut hit_x = spec.rect.x;
+        for (i, &w) in widths.iter().enumerate() {
+            let seg_rect = Rect::new(hit_x, spec.rect.y, w, h);
+            let hover = crate::widgets::widget_helpers::handle_hover_interaction(
+                seg_rect,
+                spec.clip_rect,
+                spec.disabled,
+                hover_active,
+                false,
+                input,
+            );
+            any_passive_hover |= hover.passive_hovered;
+            pressed |= hover.active_now && input.mouse_down;
+            if hover.can_start {
+                focus_system.take_keyboard_focus(state.focus_id);
+                state.active_index = i;
+                is_clicked = true;
             }
+            hit_x += w;
         }
 
         let alpha = if spec.disabled { s.disabled_alpha } else { 1.0 };
@@ -257,9 +270,7 @@ pub mod raw {
             x += w;
         }
 
-        let hovered = outer.contains(input.mouse_pos)
-            && spec.clip_rect.is_none_or(|c| c.contains(input.mouse_pos));
-        let cursor_icon = if hovered && !spec.disabled {
+        let cursor_icon = if any_passive_hover && !spec.disabled {
             Some(crate::output::CursorIcon::Pointer)
         } else {
             None
@@ -267,8 +278,8 @@ pub mod raw {
 
         SegmentedResult {
             input: InputInfo {
-                hovered,
-                pressed: clicked && input.mouse_down,
+                hovered: any_passive_hover,
+                pressed,
                 clicked: is_clicked,
             },
             focused,
