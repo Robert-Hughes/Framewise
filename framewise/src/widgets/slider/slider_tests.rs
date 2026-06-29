@@ -308,7 +308,6 @@ fn test_slider_track_click_hold() {
     focus_system.end_frame();
     assert_eq!(state.value.lower(), 20.0);
     assert!(state.is_track_clicking);
-    assert_eq!(state.next_repeat_time, 0.5); // wait 500ms
     assert!(track_press_result.input.pressed);
 
     // Frame 2: time=0.4 (before repeat). No change.
@@ -347,7 +346,6 @@ fn test_slider_track_click_hold() {
     );
     focus_system.end_frame();
     assert_eq!(state.value.lower(), 40.0);
-    assert_eq!(state.next_repeat_time, 0.55); // next in 50ms
 
     // Frame 4: time=0.6 (trigger repeat again). Should page down to 60.0
     focus_system.begin_frame();
@@ -1033,7 +1031,7 @@ fn test_track_click_cross_axis_drag_captures_pointer_outside_widget() {
     );
 
     // Frame 1b: move the cursor a small distance (2.0px, less than the 4px drag threshold)
-    // cross-axis so it moves off the widget (y=21.5). Advance time to 0.5 (next_repeat_time).
+    // cross-axis so it moves off the widget (y=21.5). Advance time to the repeat delay.
     // The repeated paging operation should still fire and continue.
     input.mouse_pressed = false;
     input.mouse_pos = crate::types::Vec2::new(50.0, 21.5);
@@ -1209,7 +1207,6 @@ fn test_track_click_repeat_does_not_overshoot_cursor() {
     focus_system.end_frame();
     assert_eq!(state.value.lower(), 60.0, "initial page: 0 + 60 = 60");
     assert!(state.is_track_clicking);
-    assert_eq!(state.next_repeat_time, 0.5);
 
     // Frame 2: hold, before repeat fires.
     input.mouse_pressed = false;

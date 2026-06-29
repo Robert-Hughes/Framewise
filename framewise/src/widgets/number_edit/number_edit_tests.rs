@@ -1626,7 +1626,6 @@ fn test_number_edit_arrow_hold_repeat_sequence() {
         state.arrow_step_direction,
         Some(NumberEditStepDirection::Increment)
     );
-    assert_eq!(state.next_repeat_time, 0.5);
     assert!(press_result.input.pressed);
 
     // Frame 2: keep holding before the repeat delay; value should not change.
@@ -1658,7 +1657,6 @@ fn test_number_edit_arrow_hold_repeat_sequence() {
     );
     focus_system.end_frame();
     assert_eq!(state.value, 60.0);
-    assert_eq!(state.next_repeat_time, 0.55);
 
     // Frame 4: continue holding past the fast repeat interval; another step fires.
     spec.time = 0.6;
@@ -1764,7 +1762,7 @@ fn test_number_edit_step_hold_pauses_outside_and_resumes_on_return_when_drag_dis
     assert!(!state.is_dragging);
 
     input.mouse_pos = arrow_pos;
-    spec.time = state.next_repeat_time;
+    spec.time = 0.5;
     focus_system.begin_frame();
     let _ = run_raw(
         spec.clone(),
@@ -3059,7 +3057,11 @@ fn test_number_edit_step_button_visual_appearance() {
         is_arrow_stepping: true,
         arrow_step_start_mouse_pos: Vec2::new(99.0, 24.0),
         arrow_step_direction: Some(NumberEditStepDirection::Increment),
-        next_repeat_time: 1.0,
+        repeat_timer: {
+            let mut timer = RepeatTimer::default();
+            timer.start(0.5, RepeatTiming::PRESS);
+            timer
+        },
         ..Default::default()
     };
     let mut focus_system = FocusSystem::new();

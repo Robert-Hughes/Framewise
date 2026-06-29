@@ -12,6 +12,7 @@ use crate::{
             draw_prefixed_control_prefix_and_chrome, layout_prefixed_control,
             prefixed_control_child_offer, prefixed_control_prefix_width,
             prefixed_control_size_request, PrefixedControlDrawSpec, PrefixedControlStyle,
+            RepeatTimer, RepeatTiming,
         },
     },
 };
@@ -291,21 +292,21 @@ pub mod raw {
                 state.is_arrow_stepping = true;
                 state.arrow_step_start_mouse_pos = input.mouse_pos;
                 state.arrow_step_direction = Some(direction);
-                state.next_repeat_time = spec.time + 0.5;
+                state.repeat_timer.start(spec.time, RepeatTiming::PRESS);
             } else if value_hover.can_start && spec.drag_enabled {
                 state.is_dragging = true;
                 state.drag_start_x = input.mouse_pos.x;
                 state.drag_start_value = state.value;
             }
 
-            if state.is_arrow_stepping
-                && input.mouse_down
-                && active_step_contains
-                && spec.time >= state.next_repeat_time
-            {
+            if state.is_arrow_stepping && input.mouse_down && active_step_contains {
                 if let Some(direction) = state.arrow_step_direction {
-                    step_value(state, direction, spec.step, clamp_min, clamp_max);
-                    state.next_repeat_time = spec.time + 0.05;
+                    if state
+                        .repeat_timer
+                        .consume_due(spec.time, RepeatTiming::PRESS)
+                    {
+                        step_value(state, direction, spec.step, clamp_min, clamp_max);
+                    }
                 }
             }
 
@@ -767,7 +768,7 @@ pub struct NumberEditState {
     pub is_arrow_stepping: bool,
     pub arrow_step_start_mouse_pos: Vec2,
     pub arrow_step_direction: Option<NumberEditStepDirection>,
-    pub next_repeat_time: f64,
+    pub repeat_timer: RepeatTimer,
     pub focus_id: FocusId,
     pub edit: NumberEditEditState,
 }

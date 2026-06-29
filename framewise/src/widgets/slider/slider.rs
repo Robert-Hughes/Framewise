@@ -6,6 +6,7 @@ use crate::{
     text::TextBackend,
     types::{ClipRect, Color, Layer, Outline, Rect, Stroke, Vec2},
     widget::{InputInfo, LayoutInfo, WidgetContext},
+    widgets::widget_helpers::{RepeatTimer, RepeatTiming},
 };
 
 pub mod raw {
@@ -542,7 +543,7 @@ pub mod raw {
                 }
                 state.is_track_clicking = true;
                 state.track_click_start_mouse_pos = input.mouse_pos;
-                state.next_repeat_time = spec.time + 0.5;
+                state.repeat_timer.start(spec.time, RepeatTiming::PRESS);
                 // Page up/down towards mouse
                 if mouse_coord < active_start {
                     state.track_click_direction = Some(PagingDirection::Up);
@@ -591,7 +592,11 @@ pub mod raw {
             }
 
             // Track click repeat logic (time-based paging)
-            if state.is_track_clicking && spec.time >= state.next_repeat_time {
+            if state.is_track_clicking
+                && state
+                    .repeat_timer
+                    .consume_due(spec.time, RepeatTiming::PRESS)
+            {
                 if track_rect.contains(input.mouse_pos) || drag_dist <= TRACK_DRAG_THRESHOLD {
                     match state.track_click_direction {
                         Some(PagingDirection::Up) => {
@@ -621,7 +626,6 @@ pub mod raw {
                                     );
                                     state.value = SliderValue::Single(val);
                                 }
-                                state.next_repeat_time = spec.time + 0.05;
                             }
                         }
                         Some(PagingDirection::Down) => {
@@ -651,7 +655,6 @@ pub mod raw {
                                     );
                                     state.value = SliderValue::Single(val);
                                 }
-                                state.next_repeat_time = spec.time + 0.05;
                             }
                         }
                         None => {}
@@ -2163,7 +2166,7 @@ pub struct SliderState {
     pub drag_start_value: SliderValue,
     pub is_track_clicking: bool,
     pub track_click_start_mouse_pos: Vec2,
-    pub next_repeat_time: f64,
+    pub repeat_timer: RepeatTimer,
     pub track_click_direction: Option<PagingDirection>,
 }
 
@@ -2177,7 +2180,7 @@ impl Default for SliderState {
             drag_start_value: SliderValue::default(),
             is_track_clicking: false,
             track_click_start_mouse_pos: Vec2::ZERO,
-            next_repeat_time: 0.0,
+            repeat_timer: RepeatTimer::default(),
             track_click_direction: None,
         }
     }

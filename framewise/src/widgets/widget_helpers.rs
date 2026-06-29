@@ -8,6 +8,53 @@ use crate::{
     widget::InputInfo,
 };
 
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct RepeatTiming {
+    pub initial_delay: f64,
+    pub interval: f64,
+}
+
+impl RepeatTiming {
+    pub const PRESS: Self = Self {
+        initial_delay: 0.5,
+        interval: 0.05,
+    };
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct RepeatTimer {
+    next_time: f64,
+}
+
+impl Default for RepeatTimer {
+    fn default() -> Self {
+        Self { next_time: 0.0 }
+    }
+}
+
+impl RepeatTimer {
+    pub fn start(&mut self, now: f64, timing: RepeatTiming) {
+        self.next_time = now + timing.initial_delay;
+    }
+
+    pub fn due(&self, now: f64) -> bool {
+        now >= self.next_time
+    }
+
+    pub fn advance(&mut self, now: f64, timing: RepeatTiming) {
+        self.next_time = now + timing.interval;
+    }
+
+    pub fn consume_due(&mut self, now: f64, timing: RepeatTiming) -> bool {
+        if !self.due(now) {
+            return false;
+        }
+
+        self.advance(now, timing);
+        true
+    }
+}
+
 /// Result of hit-testing one pointer-interactive rect or sub-part.
 ///
 /// This is deliberately pointer-only. It does not take keyboard focus, mutate
