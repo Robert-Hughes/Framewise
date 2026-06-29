@@ -512,43 +512,6 @@ fn spec_button_text_left(mut style: ButtonStyle) -> ButtonStyle {
     style
 }
 
-#[cfg(all(feature = "button", feature = "number_edit"))]
-fn frame_stepper_number_edit_style(theme: &Theme) -> NumberEditStyle {
-    let mut style = NumberEditStyle::from_theme(theme);
-    let text_style = TextStyle::new(theme.sans_font, theme.text_md, 500, TextFlow::single_line());
-
-    style.height = theme.h_md;
-    style.background = Color::TRANSPARENT;
-    style.border = Some(framewise::types::Stroke::new(theme.ink, 1.0));
-    style.focus = Some(framewise::types::Outline::new(
-        theme.rust,
-        theme.focus_width,
-        theme.focus_offset,
-    ));
-    style.value_fill = Color::TRANSPARENT;
-    style.value_text = theme.ink;
-    style.text_style = text_style;
-    style.text_edit_style.min_height = theme.h_md;
-    style.text_edit_style.font = theme.sans_font;
-    style.text_edit_style.size = theme.text_md;
-    style.text_edit_style.weight = 500;
-    style.text_edit_style.text_color = theme.ink;
-    style.text_edit_style.background = Color::TRANSPARENT;
-    style.text_edit_style.background_hovered = Color::TRANSPARENT;
-    style.text_edit_style.border = None;
-    style.text_edit_style.focus_border = None;
-    style.step_button.decrement_glyph = "\u{2190}";
-    style.step_button.increment_glyph = "\u{2192}";
-    style.step_button.background = Color::TRANSPARENT;
-    style.step_button.background_hovered = theme.paper_hover;
-    style.step_button.background_pressed = theme.paper_press;
-    style.step_button.border = Some(framewise::types::Stroke::new(theme.ink, 1.0));
-    style.step_button.glyph_color = theme.ink;
-    style.step_button.padding_x = 14.0;
-    style.step_button.text_style = text_style;
-    style
-}
-
 #[cfg(feature = "text_edit")]
 fn draw_text_edit_fake_state<T: TextBackend, LS: LayoutState, CF>(
     b: &mut WidgetContext<T, LS, CF>,
@@ -1943,7 +1906,7 @@ fn section_01_buttons<CF>(
                 .drag_enabled(false)
                 .value_fill_enabled(false)
                 .value_formatter(|v: f32| format!("Frame {v:.0}"))
-                .style(frame_stepper_number_edit_style(&b.theme));
+                .style(NumberEditStyle::button_stepper_from_theme(&b.theme));
             number_edit(
                 spec,
                 RowLayoutParams::fixed(frame_stepper_w, b.theme.h_md).align_y(Align::Center),
@@ -2805,26 +2768,12 @@ fn section_04_sliders<CF>(
             label(spec, rect, &mut b);
         }
 
-        let mut stepper_style = NumberEditStyle::from_theme(&b.theme);
-        stepper_style.background = Color::TRANSPARENT;
-        stepper_style.border = Some(framewise::types::Stroke::new(b.theme.ink, 1.0));
-        stepper_style.value_fill = Color::TRANSPARENT;
-        stepper_style.text_style.size = b.theme.text_sm;
-        stepper_style.step_button.decrement_glyph = "\u{2212}";
-        stepper_style.step_button.increment_glyph = "+";
-        stepper_style.step_button.background = Color::TRANSPARENT;
-        stepper_style.step_button.background_hovered = b.theme.paper_hover;
-        stepper_style.step_button.background_pressed = b.theme.paper_press;
-        stepper_style.step_button.border = Some(framewise::types::Stroke::new(b.theme.ink, 1.0));
-        stepper_style.step_button.glyph_color = b.theme.ink;
-        stepper_style.step_button.padding_x = 8.0;
-        stepper_style.step_button.text_style.size = b.theme.text_sm;
         number_edit(
             NumberEditSpec::new_from_theme(&b.theme)
                 .range(0.0, 100.0)
                 .drag_enabled(false)
                 .value_fill_enabled(false)
-                .style(stepper_style),
+                .style(NumberEditStyle::compact_stepper_from_theme(&b.theme)),
             local_rect(120.0, 0.0, 96.0, b.theme.h_sm),
             &mut state.number_edit_state[3],
             &mut b,

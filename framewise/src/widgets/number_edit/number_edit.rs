@@ -670,6 +670,65 @@ impl NumberEditStyle {
             disabled_alpha: 0.35,
         }
     }
+
+    pub fn compact_stepper_from_theme(theme: &crate::theme::Theme) -> Self {
+        let mut style = Self::from_theme(theme);
+        style.background = Color::TRANSPARENT;
+        style.border = Some(Stroke::new(theme.ink, 1.0));
+        style.value_fill = Color::TRANSPARENT;
+        style.text_style.size = theme.text_sm;
+        style.step_button.decrement_glyph = "\u{2212}";
+        style.step_button.increment_glyph = "+";
+        style.step_button.background = Color::TRANSPARENT;
+        style.step_button.background_hovered = theme.paper_hover;
+        style.step_button.background_pressed = theme.paper_press;
+        style.step_button.border = Some(Stroke::new(theme.ink, 1.0));
+        style.step_button.glyph_color = theme.ink;
+        style.step_button.padding_x = 8.0;
+        style.step_button.text_style.size = theme.text_sm;
+        style
+    }
+
+    pub fn button_stepper_from_theme(theme: &crate::theme::Theme) -> Self {
+        let mut style = Self::from_theme(theme);
+        let text_style = crate::text::TextStyle::new(
+            theme.sans_font,
+            theme.text_md,
+            500,
+            crate::text::TextFlow::single_line(),
+        );
+
+        style.height = theme.h_md;
+        style.background = Color::TRANSPARENT;
+        style.border = Some(Stroke::new(theme.ink, 1.0));
+        style.focus = Some(Outline::new(
+            theme.rust,
+            theme.focus_width,
+            theme.focus_offset,
+        ));
+        style.value_fill = Color::TRANSPARENT;
+        style.value_text = theme.ink;
+        style.text_style = text_style;
+        style.text_edit_style.min_height = theme.h_md;
+        style.text_edit_style.font = theme.sans_font;
+        style.text_edit_style.size = theme.text_md;
+        style.text_edit_style.weight = 500;
+        style.text_edit_style.text_color = theme.ink;
+        style.text_edit_style.background = Color::TRANSPARENT;
+        style.text_edit_style.background_hovered = Color::TRANSPARENT;
+        style.text_edit_style.border = None;
+        style.text_edit_style.focus_border = None;
+        style.step_button.decrement_glyph = "\u{2190}";
+        style.step_button.increment_glyph = "\u{2192}";
+        style.step_button.background = Color::TRANSPARENT;
+        style.step_button.background_hovered = theme.paper_hover;
+        style.step_button.background_pressed = theme.paper_press;
+        style.step_button.border = Some(Stroke::new(theme.ink, 1.0));
+        style.step_button.glyph_color = theme.ink;
+        style.step_button.padding_x = 14.0;
+        style.step_button.text_style = text_style;
+        style
+    }
 }
 
 impl Default for NumberEditStyle {
@@ -960,10 +1019,6 @@ impl NumberEditSpec<DefaultNumberEditValueFormatter> {
 
     pub fn new_from_theme(theme: &crate::theme::Theme) -> Self {
         Self::new().theme(theme)
-    }
-
-    pub fn default_from_theme(theme: &crate::theme::Theme) -> Self {
-        Self::default().theme(theme)
     }
 }
 

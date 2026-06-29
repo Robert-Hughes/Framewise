@@ -1097,9 +1097,9 @@ fn test_number_edit_keyboard_adjustment_ignored_when_disabled() {
 }
 
 #[test]
-fn test_spec_default_from_theme_applies_theme_style() {
+fn test_spec_new_from_theme_applies_theme_style() {
     let theme = crate::theme::Theme::framewise();
-    let spec = super::NumberEditSpec::default_from_theme(&theme);
+    let spec = super::NumberEditSpec::new_from_theme(&theme);
     assert_eq!(spec.style, NumberEditStyle::from_theme(&theme));
     assert_eq!(spec.min, Some(0.0));
     assert_eq!(spec.max, Some(100.0));
@@ -1188,7 +1188,7 @@ fn test_prefixed_number_edit_visual_appearance() {
 
     let result = super::prefixed_number_edit(
         "X",
-        super::NumberEditSpec::default_from_theme(&theme),
+        super::NumberEditSpec::new_from_theme(&theme),
         placement,
         &mut state,
         &mut ctx,
@@ -1264,7 +1264,7 @@ fn test_prefixed_number_edit_prefix_click_focuses() {
         );
         super::prefixed_number_edit(
             "X",
-            super::NumberEditSpec::default_from_theme(&theme),
+            super::NumberEditSpec::new_from_theme(&theme),
             placement,
             &mut state,
             &mut ctx,
@@ -1286,7 +1286,7 @@ fn test_prefixed_number_edit_prefix_click_focuses() {
     );
     let result = super::prefixed_number_edit(
         "X",
-        super::NumberEditSpec::default_from_theme(&theme),
+        super::NumberEditSpec::new_from_theme(&theme),
         placement,
         &mut state,
         &mut ctx,

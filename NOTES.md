@@ -4,9 +4,8 @@ Working notes, TODOs, open questions, and half-baked ideas.
 
 ## Current Work
 
-- figure out numeric editing controls and ink label prefix
-  - Continue with section 04 and put them here too
-  - Make some default styles/specs for NumberEdits in different guises - review the current uses
+- NumberEdit:
+  - make it clearer that the middle section can be double-clicked, esp. for non-dragging ones
 
 - suppress passive hover cursors while any mouse drag is active elsewhere, especially if the widget did not originate the drag. e.g. click and drag NumberEdit then move mouse over a slider which is AFTER it in the draw order. Check all widgets for this behaviour. Consider using a helper for 'hover-like' behaviour?
 
@@ -17,6 +16,7 @@ For cases where the behaviour continues (like a slider), the cursor should clear
 
 - Go through the spec_page, check/implement/test each widget/aspect to make better match the mock-up and add interactivity as we go (https://claude.ai/design/p/1aab4e86-cbf2-497e-b379-44cf41de2b12?file=Framewise+Widgets.html)
   - Done 01-03
+  - Section 04 in-progress
   - Section 01 Build/Run/Ship should be a 'segmented' control?
   - Add demo pages for each widget type (or possibly in groups?)
   - Use/add reusable widget helpers (widget_helpers.rs)
@@ -63,6 +63,8 @@ DESIGN treats mouse-capture-via-state as foundational robustness mechanism. Togg
 - &mut ButtonState::default() — using a temporary state created and dropped every frame makes focus go weird - hard to diagnose bug
 
 - Keyboard shortcuts like Ctrl+N - these probably shouldn't be handled by every widget that can take keyboard focus just to report it back to the caller. Need some kind of 'global' shortcuts or bubbling/nesting system. Many shortcuts like Ctrl+A/C/V are used by text_edits (for example), need to resolve conflicts somehow.
+
+- consider desired behaviour when interacting with a widget (e.g. by holding a key or a mouse operation) and then the widget loses focus (e.g. tabbing away, or programmatically). Should ideally be consistent across widgets, perhaps use a widget helper? Add tests to lock-in the behaviour, whatever it is.
 
 ## Activation
 
