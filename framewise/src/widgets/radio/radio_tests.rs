@@ -1061,6 +1061,7 @@ fn test_labelled_radio_hover_label_hovers_control() {
     use crate::layouts::ManualLayout;
     let mut state = RadioState::default();
     let mut focus = FocusSystem::new();
+    // The mouse position (40.0, 10.0) is over the label text area, not the radio control itself.
     let input = Input {
         mouse_pos: Vec2::new(40.0, 10.0),
         ..Default::default()
@@ -1092,7 +1093,10 @@ fn test_labelled_radio_hover_label_hovers_control() {
         result.input
     };
 
+    // The first frame establishes the hover claim.
     let _ = run();
+    // The second frame verifies that the raw control reports hovered because labelled radio
+    // deliberately uses the combined outer rect as its hit target.
     assert!(run().hovered);
 }
 

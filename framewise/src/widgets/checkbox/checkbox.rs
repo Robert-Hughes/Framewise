@@ -418,6 +418,8 @@ pub fn labelled_checkbox<T: TextBackend, S: LayoutState, CF>(
     );
 
     let raw_spec = raw::CheckboxSpec {
+        // Pass the combined bounds for unified interaction handling:
+        // the label area should hover, press, focus, and click like the control itself.
         rect: layout.outer_rect,
         disabled: spec.disabled,
         allowed_checked_states: spec.allowed_checked_states,

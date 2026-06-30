@@ -369,6 +369,8 @@ pub fn labelled_switch<T: TextBackend, S: LayoutState, CF>(
     );
 
     let raw_spec = raw::SwitchSpec {
+        // Pass the combined bounds for unified interaction handling:
+        // the label area should hover, press, focus, and click like the control itself.
         rect: layout.outer_rect,
         disabled: spec.disabled,
         style: spec.style,

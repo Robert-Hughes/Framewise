@@ -376,6 +376,7 @@ The "App-Managed State" option would require either a trait layer (so the widget
   - In 'scrollbar form', if the bar becomes too small it may be impossible to grab! Maybe need to figure out a minimum size somehow
   - Logarithmic (or otherwise custom) scales? Perhaps a user-defined 'value to linear' mapping function (and reverse), and everything else can be figured out automatically?
   - For horirzontal orientation up/down pg up/down seems the wrong way round? Up makes lower?
+  - labelled slider with a fixed/max width layout can wobble as the label changes value and this changes the width of the label and this changes the width of the slider! Possibly not just labelled slider affected by this.
 - Number edit
   - Logarithmic (or otherwise custom) scales? Perhaps a user-defined 'value to linear' mapping function (and reverse), and everything else can be figured out automatically?
   - up/down pg up/down seems the wrong way round? Up makes lower?

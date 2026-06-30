@@ -359,6 +359,8 @@ pub fn labelled_radio<T: TextBackend, S: LayoutState, CF>(
 
     let raw_spec = raw::RadioSpec {
         layer: ctx.layer,
+        // Pass the combined bounds for unified interaction handling:
+        // the label area should hover, press, focus, and click like the control itself.
         rect: layout.outer_rect,
         disabled: spec.disabled,
         style: spec.style,

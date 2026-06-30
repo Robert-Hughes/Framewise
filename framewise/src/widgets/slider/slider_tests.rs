@@ -2342,6 +2342,7 @@ where
 
 #[test]
 fn test_value_labelled_slider_custom_formatter_receives_single_value() {
+    // Proves custom formatters receive SliderValue::Single, not just a raw f32.
     let seen = std::cell::Cell::new(None);
     let formatter = |value| {
         seen.set(Some(value));
@@ -2374,6 +2375,7 @@ fn test_value_labelled_slider_custom_formatter_receives_single_value() {
 
 #[test]
 fn test_value_labelled_slider_custom_formatter_receives_range_value() {
+    // Proves range sliders pass the full SliderValue::Range { lower, upper }.
     let seen = std::cell::Cell::new(None);
     let formatter = |value| {
         seen.set(Some(value));
@@ -2415,6 +2417,7 @@ fn test_value_labelled_slider_custom_formatter_receives_range_value() {
 
 #[test]
 fn test_value_labelled_slider_draws_formatted_value_in_label_area() {
+    // Proves the formatted output is drawn by the trailing label path, not merely computed.
     let mut state = SliderState {
         value: SliderValue::Single(50.0),
         ..Default::default()
@@ -2454,6 +2457,7 @@ fn test_value_labelled_slider_draws_formatted_value_in_label_area() {
 
 #[test]
 fn test_value_labelled_slider_label_press_drag_and_wheel_do_not_change_value() {
+    // Proves the readout label is not a track/drag/wheel interaction surface.
     let mut state = SliderState {
         value: SliderValue::Single(50.0),
         ..Default::default()
@@ -2505,6 +2509,7 @@ fn test_value_labelled_slider_label_press_drag_and_wheel_do_not_change_value() {
 
 #[test]
 fn test_value_labelled_slider_control_drag_still_changes_value() {
+    // Proves the wrapper did not break ordinary slider dragging.
     let mut state = SliderState {
         value: SliderValue::Single(50.0),
         ..Default::default()
@@ -2549,6 +2554,53 @@ fn test_value_labelled_slider_control_drag_still_changes_value() {
         state.value.lower() > 50.0,
         "dragging the control should increase the horizontal slider value"
     );
+}
+
+#[test]
+fn test_value_labelled_slider_label_click_focuses_slider() {
+    // Proves that clicking the value label focuses the slider but does not drag or change the value.
+    let mut state = SliderState {
+        value: SliderValue::Single(50.0),
+        ..Default::default()
+    };
+    let mut focus = FocusSystem::new();
+    let mut text_backend = crate::test_utils::TestTextBackend::default();
+    let mut cmds = DrawCommands::new(1.0);
+    let spec = super::ValueLabelledSliderSpec::new().slider(super::SliderSpec::default_from_theme(
+        &crate::theme::Theme::framewise(),
+    ));
+
+    let input = Input {
+        mouse_pos: Vec2::new(170.0, 10.0),
+        mouse_down: true,
+        mouse_pressed: true,
+        ..Default::default()
+    };
+
+    focus.begin_frame();
+    let result = run_value_labelled_slider_once(
+        spec.clone(),
+        &mut state,
+        &input,
+        &mut focus,
+        &mut text_backend,
+        &mut cmds,
+    );
+    focus.end_frame();
+
+    // pressing/clicking inside the value label area gives keyboard focus to the slider’s focus_id
+    assert!(result.focused);
+    assert_eq!(focus.current_keyboard_focus(), Some(state.focus_id));
+
+    // the same click does not change SliderState::value
+    assert_eq!(state.value, SliderValue::Single(50.0));
+
+    // it does not start a drag
+    assert!(!state.press_drag.held);
+    assert!(!state.press_drag.dragging);
+
+    // it does not set active_part
+    assert_eq!(state.active_part, None);
 }
 
 #[test]

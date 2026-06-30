@@ -79,8 +79,8 @@ use framewise::widgets::select::{select, SelectSpec, SelectState, SelectStyle};
 #[cfg(feature = "slider")]
 #[allow(unused_imports)]
 use framewise::widgets::slider::{
-    slider, Orientation, ScrollClaimPolicy, SliderPart, SliderSpec, SliderState, SliderStyle,
-    SliderValue, TrackMarksStyle,
+    slider, value_labelled_slider, Orientation, ScrollClaimPolicy, SliderPart, SliderSpec,
+    SliderState, SliderStyle, SliderValue, TrackMarksStyle, ValueLabelledSliderSpec,
 };
 #[cfg(feature = "spinner")]
 #[allow(unused_imports)]
@@ -2575,6 +2575,16 @@ fn section_04_sliders<CF>(
                     true,
                     true,
                 );
+                b.spacer(8.0);
+                let text = format!("{:.2}", 0.88);
+                let mut label_style = LabelStyle::from_theme(&b.theme);
+                label_style.text_style.font = b.theme.mono_font;
+                label_style.text_style.size = b.theme.text_mono;
+                let spec = LabelSpec::new(&text).style(label_style);
+                label(spec, RowLayoutParams::auto(), &mut b);
+
+                let badge_rect = b.layout(RowLayoutParams::fixed(70.0, 12.0), SizeRequest::UNKNOWN);
+                static_badge(&mut b, badge_rect);
             } else {
                 let mut spec = if show_ticks {
                     let mut style = SliderStyle::from_theme(&b.theme);
@@ -2594,37 +2604,27 @@ fn section_04_sliders<CF>(
                 if is_disabled {
                     spec = spec.disabled(true);
                 }
-                slider(
-                    spec,
-                    RowLayoutParams::auto().fixed_x(slider_w),
+
+                let mut value_labelled_spec = ValueLabelledSliderSpec::new_from_theme(&b.theme)
+                    .slider(spec)
+                    .value_formatter(move |v| {
+                        if show_ticks {
+                            format!("{:.0} / 9", v.lower())
+                        } else {
+                            format!("{:.2}", v.lower())
+                        }
+                    });
+                value_labelled_spec.label_style.text_style.font = b.theme.mono_font;
+                value_labelled_spec.label_style.text_style.size = b.theme.text_mono;
+
+                let outer_w = if show_ticks { 307.0 } else { 299.2 };
+
+                value_labelled_slider(
+                    value_labelled_spec,
+                    RowLayoutParams::auto().fixed_x(outer_w),
                     slider_state,
                     &mut b,
                 );
-            }
-
-            b.spacer(8.0);
-
-            let text = if is_static {
-                format!("{:.2}", 0.88)
-            } else if show_ticks {
-                format!("{:.0} / 9", slider_state.value.lower())
-            } else {
-                format!("{:.2}", slider_state.value.lower())
-            };
-            let spec = LabelSpec::new(&text).style(LabelStyle {
-                text_style: framewise::TextStyle {
-                    font: b.theme.mono_font,
-                    size: b.theme.text_mono,
-                    ..(LabelStyle::from_theme(&b.theme)).text_style
-                },
-                text_color: b.theme.ink,
-                ..LabelStyle::from_theme(&b.theme)
-            });
-            label(spec, RowLayoutParams::auto(), &mut b);
-
-            if is_static {
-                let badge_rect = b.layout(RowLayoutParams::fixed(70.0, 12.0), SizeRequest::UNKNOWN);
-                static_badge(&mut b, badge_rect);
             }
 
             b.finish();
@@ -2635,38 +2635,30 @@ fn section_04_sliders<CF>(
     group_y(b, "range slider");
     {
         let mut b = b.child_with_layout(ColumnLayoutParams::auto(), RowLayout);
-        let track_w = 260.0_f32;
         let spec = SliderSpec::default()
             .style(SliderStyle::range_from_theme(&b.theme))
             .max(1.0)
             .page_step(0.1)
             .step(0.01);
 
-        slider(
-            spec,
-            RowLayoutParams::auto().fixed_x(track_w),
+        let mut value_labelled_spec = ValueLabelledSliderSpec::new_from_theme(&b.theme)
+            .slider(spec)
+            .value_formatter(|v| {
+                if let SliderValue::Range { lower, upper } = v {
+                    format!("{:.2}–{:.2}", lower, upper)
+                } else {
+                    String::new()
+                }
+            });
+        value_labelled_spec.label_style.text_style.font = b.theme.mono_font;
+        value_labelled_spec.label_style.text_style.size = b.theme.text_mono;
+
+        value_labelled_slider(
+            value_labelled_spec,
+            RowLayoutParams::auto().fixed_x(338.2),
             &mut state.slider_range_state,
             &mut b,
         );
-
-        b.spacer(8.0);
-
-        let text = if let SliderValue::Range { lower, upper } = state.slider_range_state.value {
-            format!("{:.2}–{:.2}", lower, upper)
-        } else {
-            String::new()
-        };
-
-        let spec = LabelSpec::new(&text).style(LabelStyle {
-            text_style: framewise::TextStyle {
-                font: b.theme.mono_font,
-                size: b.theme.text_mono,
-                ..(LabelStyle::from_theme(&b.theme)).text_style
-            },
-            text_color: b.theme.ink,
-            ..LabelStyle::from_theme(&b.theme)
-        });
-        label(spec, RowLayoutParams::auto(), &mut b);
         b.finish();
     }
 
@@ -4167,28 +4159,25 @@ fn section_12_in_use<CF>(
         };
         {
             let step = 10.0;
-            let layout_params = Rect::new(widget_x, fy, widget_w - 40.0, row_h);
             let spec = SliderSpec::default_from_theme(&win.theme)
                 .min(24.0)
                 .max(240.0)
                 .page_step(step)
                 .step(step);
-            slider(spec, layout_params, &mut state.iu_fps_slider, &mut win);
-        };
-        {
-            let layout_params = Rect::new(widget_x + widget_w - 34.0, fy + 7.0, 34.0, 14.0);
-            let text: &str = &format!("{:.0}", state.iu_fps_slider.value.lower());
-            let size = win.theme.text_sm;
-            let color = win.theme.ink;
-            let spec = LabelSpec::new(text).style(LabelStyle {
-                text_style: framewise::TextStyle {
-                    size,
-                    ..(LabelStyle::from_theme(&win.theme)).text_style
-                },
-                text_color: color,
-                ..LabelStyle::from_theme(&win.theme)
-            });
-            label(spec, layout_params, &mut win)
+
+            let mut value_labelled_spec = ValueLabelledSliderSpec::new_from_theme(&win.theme)
+                .slider(spec)
+                .gap(6.0)
+                .value_formatter(|v| format!("{:.0}", v.lower()));
+            value_labelled_spec.label_style.text_style.size = win.theme.text_sm;
+
+            let layout_params = Rect::new(widget_x, fy, widget_w, row_h);
+            value_labelled_slider(
+                value_labelled_spec,
+                layout_params,
+                &mut state.iu_fps_slider,
+                &mut win,
+            );
         };
         fy += row_h + row_gap;
 

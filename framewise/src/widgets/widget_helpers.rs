@@ -57,13 +57,13 @@ pub(crate) fn trailing_label_size_request(
 pub(crate) fn layout_trailing_label(
     outer_rect: Rect,
     control_size: Vec2,
-    label_size: Vec2,
+    _label_size: Vec2,
     gap: f32,
 ) -> TrailingLabelLayout {
     let gap = gap.max(0.0);
     let control_w = control_size.x.clamp(0.0, outer_rect.w);
-    let label_x = outer_rect.x + control_w + gap;
-    let label_w = label_size.x.max((outer_rect.right() - label_x).max(0.0));
+    let label_x = (outer_rect.x + control_w + gap).min(outer_rect.right());
+    let label_w = (outer_rect.right() - label_x).max(0.0);
 
     TrailingLabelLayout {
         outer_rect,
@@ -1560,5 +1560,28 @@ mod tests {
             crate::widgets::label::LabelStyle::from_theme(&theme).text_color
         );
         assert!((disabled.text_color.a - enabled.text_color.a * 0.35).abs() < 1e-4);
+    }
+
+    #[test]
+    fn test_layout_trailing_label_remaining_width() {
+        // when there is plenty of space, label rect occupies the remaining width after control + gap
+        let outer = Rect::new(10.0, 20.0, 100.0, 30.0);
+        let layout =
+            layout_trailing_label(outer, Vec2::new(14.0, 10.0), Vec2::new(40.0, 16.0), 8.0);
+        assert_eq!(layout.label_rect.w, 78.0); // 100.0 - 14.0 - 8.0 = 78.0
+        assert_eq!(layout.label_rect.right(), outer.right());
+
+        // when the outer rect is too narrow, label width clamps to 0.0, and doesn't extend beyond outer_rect
+        let narrow_outer = Rect::new(10.0, 20.0, 15.0, 30.0);
+        let layout_narrow = layout_trailing_label(
+            narrow_outer,
+            Vec2::new(14.0, 10.0),
+            Vec2::new(40.0, 16.0),
+            8.0,
+        );
+        // label_x = 10.0 + 14.0 + 8.0 = 32.0. narrow_outer.right() = 25.0
+        // (25.0 - 32.0).max(0.0) = 0.0
+        assert_eq!(layout_narrow.label_rect.w, 0.0);
+        assert!(layout_narrow.label_rect.right() <= narrow_outer.right());
     }
 }

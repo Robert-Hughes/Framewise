@@ -2298,7 +2298,11 @@ where
 {
     pub fn theme(mut self, theme: &crate::theme::Theme) -> Self {
         self.slider = self.slider.theme(theme);
-        self.label_style = crate::widgets::label::LabelStyle::from_theme(theme);
+        self.label_style = crate::widgets::widget_helpers::trailing_label_style_from_theme(
+            theme,
+            self.slider.disabled,
+            self.slider.style.disabled_alpha,
+        );
         self
     }
 
@@ -2434,7 +2438,20 @@ where
         spec.gap,
     );
 
+    if !spec.slider.disabled
+        && spec.slider.keyboard_focusable
+        && ctx
+            .clip_rect
+            .is_none_or(|c| c.contains(ctx.input.mouse_pos))
+        && layout.label_rect.contains(ctx.input.mouse_pos)
+        && ctx.input.mouse_pressed
+    {
+        ctx.focus_system.take_keyboard_focus(state.focus_id);
+    }
+
     let raw_spec = raw::SliderSpec {
+        // Pass only the control rect to the raw slider. The value label is a readout:
+        // clicking it may focus the slider, but it must not page, drag, or wheel-adjust the value.
         rect: layout.control_rect,
         min: spec.slider.min,
         max: spec.slider.max,
