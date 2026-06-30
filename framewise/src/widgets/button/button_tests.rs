@@ -381,9 +381,29 @@ fn test_enter_clicks_raw_button() {
     let mut focus_system = FocusSystem::new();
 
     let spec = || btn_spec(Rect::new(0.0, 0.0, 100.0, 50.0));
+    let render = |state: &mut ButtonState,
+                  input: &Input,
+                  focus_system: &mut FocusSystem,
+                  text_backend: &mut TestTextBackend| {
+        let mut cmds = DrawCommands::new(1.0);
+        focus_system.begin_frame();
+        let res = raw::post_layout_button(
+            spec(),
+            raw::ButtonPreLayoutResult {
+                size_request: crate::layout::SizeRequest::UNKNOWN,
+            },
+            state,
+            input,
+            focus_system,
+            text_backend,
+            &mut cmds,
+        );
+        focus_system.end_frame();
+        res
+    };
 
     // Frame 1: Register and take focus explicitly
-    let mut input = Input::default();
+    let input = Input::default();
     let mut cmds = DrawCommands::new(1.0);
     focus_system.begin_frame();
     raw::post_layout_button(
@@ -400,22 +420,67 @@ fn test_enter_clicks_raw_button() {
     focus_system.take_keyboard_focus(state.focus_id);
     focus_system.end_frame();
 
-    // Frame 2: Press Enter
-    input.keys_pressed.insert(crate::input::Key::Enter);
-    focus_system.begin_frame();
-    let res = raw::post_layout_button(
-        spec(),
-        raw::ButtonPreLayoutResult {
-            size_request: crate::layout::SizeRequest::UNKNOWN,
-        },
+    // Frame 2: Focused, no key input.
+    let res = render(
         &mut state,
-        &input,
+        &Input::default(),
         &mut focus_system,
         &mut text_backend,
-        &mut cmds,
     );
-    focus_system.end_frame();
+    assert!(
+        !res.input.clicked,
+        "Button should not click without Enter input"
+    );
+    assert!(
+        !res.input.pressed,
+        "Button should not show pressed without Enter held"
+    );
+
+    // Frame 3: Press Enter.
+    let mut input = Input::default();
+    input.keys_pressed.insert(crate::input::Key::Enter);
+    input.keys_down.insert(crate::input::Key::Enter);
+    let res = render(&mut state, &input, &mut focus_system, &mut text_backend);
     assert!(res.input.clicked, "Button should be clicked by Enter key");
+    assert!(
+        res.input.pressed,
+        "Button should show pressed while Enter is held"
+    );
+
+    // Frame 4: Hold Enter after the press frame.
+    let res = render(
+        &mut state,
+        &Input {
+            keys_down: crate::input::KeySet::from_key(crate::input::Key::Enter),
+            ..Default::default()
+        },
+        &mut focus_system,
+        &mut text_backend,
+    );
+    assert!(
+        !res.input.clicked,
+        "Button should not reclick while Enter is merely held"
+    );
+    assert!(
+        res.input.pressed,
+        "Button should keep pressed visual while Enter is held"
+    );
+
+    // Frame 5: Enter no longer held.
+    let res = render(
+        &mut state,
+        &Input::default(),
+        &mut focus_system,
+        &mut text_backend,
+    );
+    assert!(
+        !res.input.clicked,
+        "Button should not click when Enter is released without a press"
+    );
+    assert!(
+        !res.input.pressed,
+        "Button should stop pressed visual when Enter is no longer held"
+    );
 }
 
 #[test]

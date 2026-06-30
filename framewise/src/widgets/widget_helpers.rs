@@ -382,7 +382,10 @@ pub fn handle_press_interaction(
         *is_active = false;
     }
 
-    let pressed = (*is_active && hover.passive_hovered && input.mouse_down) || *space_is_active;
+    let enter_is_active = keyboard.focused && input.key_down(crate::input::Key::Enter);
+    let pressed = (*is_active && hover.passive_hovered && input.mouse_down)
+        || *space_is_active
+        || enter_is_active;
 
     PressInteraction {
         input: InputInfo {

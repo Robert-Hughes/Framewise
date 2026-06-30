@@ -38,7 +38,7 @@ impl LayoutInfo {
     }
 }
 
-/// Pointer interaction state returned by interactive widgets.
+/// Common interaction state returned by interactive widgets.
 #[derive(Debug, Clone, Copy, Default, PartialEq)]
 pub struct InputInfo {
     /// True when the widget may show passive hover effects this frame.
@@ -46,9 +46,17 @@ pub struct InputInfo {
     /// This is not raw geometric containment: hover is suppressed while another
     /// pointer interaction is in progress unless this widget owns that interaction.
     pub hovered: bool,
-    /// True while the widget is actively pressed by mouse or keyboard.
+    /// True when the widget should draw its pressed visual state this frame.
+    ///
+    /// This is a visual affordance, not necessarily a behavioural activation
+    /// event. It may be caused by a held mouse press or by a held keyboard
+    /// activation key such as Space or Enter.
     pub pressed: bool,
-    /// True on the single frame the primary button was released over the widget.
+    /// True on a frame where the widget's primary action was triggered.
+    ///
+    /// Despite the historical name, this is not mouse-only. For example, Enter
+    /// triggers this on key-press, while Space triggers it on key-release after
+    /// being armed.
     pub clicked: bool,
 }
 
