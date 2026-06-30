@@ -55,6 +55,96 @@ impl RepeatTimer {
     }
 }
 
+pub const DEFAULT_DRAG_THRESHOLD: f32 = 4.0;
+
+#[derive(Debug, Clone, Copy, Default, PartialEq)]
+pub struct PressDragState {
+    pub held: bool,
+    pub dragging: bool,
+    pub press_start_pos: Vec2,
+    pub drag_start_pos: Vec2,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq)]
+pub struct PressDragInteraction {
+    pub held: bool,
+    pub dragging: bool,
+    pub drag_started: bool,
+    pub released: bool,
+    pub press_delta: Vec2,
+    pub drag_delta: Vec2,
+    pub cursor_icon: Option<crate::output::CursorIcon>,
+}
+
+pub fn begin_held_press_drag(state: &mut PressDragState, mouse_pos: Vec2) {
+    state.held = true;
+    state.dragging = false;
+    state.press_start_pos = mouse_pos;
+    state.drag_start_pos = mouse_pos;
+}
+
+pub fn begin_immediate_drag(state: &mut PressDragState, mouse_pos: Vec2) {
+    state.held = false;
+    state.dragging = true;
+    state.press_start_pos = mouse_pos;
+    state.drag_start_pos = mouse_pos;
+}
+
+pub fn handle_press_drag_interaction(
+    state: &mut PressDragState,
+    input: &Input,
+    enabled: bool,
+    threshold: f32,
+    drag_cursor: Option<crate::output::CursorIcon>,
+) -> PressDragInteraction {
+    let was_active = state.held || state.dragging;
+    if !enabled {
+        *state = PressDragState::default();
+        return PressDragInteraction {
+            released: was_active,
+            ..Default::default()
+        };
+    }
+
+    if was_active && !input.mouse_down {
+        *state = PressDragState::default();
+        return PressDragInteraction {
+            released: true,
+            ..Default::default()
+        };
+    }
+
+    let mut interaction = PressDragInteraction {
+        held: state.held,
+        dragging: state.dragging,
+        ..Default::default()
+    };
+
+    if was_active {
+        interaction.press_delta = input.mouse_pos - state.press_start_pos;
+    }
+
+    if state.held {
+        let press_delta = input.mouse_pos - state.press_start_pos;
+        if press_delta.x.hypot(press_delta.y) > threshold {
+            state.held = false;
+            state.dragging = true;
+            state.drag_start_pos = input.mouse_pos;
+            interaction.held = false;
+            interaction.dragging = true;
+            interaction.drag_started = true;
+        }
+    }
+
+    if state.dragging {
+        interaction.dragging = true;
+        interaction.drag_delta = input.mouse_pos - state.drag_start_pos;
+        interaction.cursor_icon = drag_cursor;
+    }
+
+    interaction
+}
+
 /// Result of hit-testing one pointer-interactive rect or sub-part.
 ///
 /// This is deliberately pointer-only. It does not take keyboard focus, mutate
@@ -746,6 +836,144 @@ mod tests {
             &mut space_is_active,
         );
         assert!(space_up.input.clicked);
+    }
+
+    #[test]
+    fn press_drag_held_press_waits_until_strictly_above_threshold() {
+        let mut state = PressDragState::default();
+        begin_held_press_drag(&mut state, Vec2::new(10.0, 10.0));
+
+        let below = handle_press_drag_interaction(
+            &mut state,
+            &Input {
+                mouse_pos: Vec2::new(13.0, 10.0),
+                mouse_down: true,
+                ..Default::default()
+            },
+            true,
+            DEFAULT_DRAG_THRESHOLD,
+            None,
+        );
+        assert!(below.held);
+        assert!(!below.dragging);
+        assert!(!below.drag_started);
+
+        let equal = handle_press_drag_interaction(
+            &mut state,
+            &Input {
+                mouse_pos: Vec2::new(14.0, 10.0),
+                mouse_down: true,
+                ..Default::default()
+            },
+            true,
+            DEFAULT_DRAG_THRESHOLD,
+            None,
+        );
+        assert!(equal.held);
+        assert!(!equal.dragging);
+        assert!(!equal.drag_started);
+    }
+
+    #[test]
+    fn press_drag_held_press_promotes_above_threshold() {
+        let mut state = PressDragState::default();
+        begin_held_press_drag(&mut state, Vec2::new(10.0, 10.0));
+
+        let interaction = handle_press_drag_interaction(
+            &mut state,
+            &Input {
+                mouse_pos: Vec2::new(15.0, 10.0),
+                mouse_down: true,
+                ..Default::default()
+            },
+            true,
+            DEFAULT_DRAG_THRESHOLD,
+            None,
+        );
+
+        assert!(interaction.drag_started);
+        assert!(interaction.dragging);
+        assert!(!interaction.held);
+        assert!(state.dragging);
+        assert!(!state.held);
+    }
+
+    #[test]
+    fn press_drag_delta_starts_at_transition_point() {
+        let mut state = PressDragState::default();
+        begin_held_press_drag(&mut state, Vec2::new(10.0, 10.0));
+
+        let promoted = handle_press_drag_interaction(
+            &mut state,
+            &Input {
+                mouse_pos: Vec2::new(15.0, 10.0),
+                mouse_down: true,
+                ..Default::default()
+            },
+            true,
+            DEFAULT_DRAG_THRESHOLD,
+            None,
+        );
+        assert_eq!(promoted.press_delta, Vec2::new(5.0, 0.0));
+        assert_eq!(promoted.drag_delta, Vec2::ZERO);
+
+        let dragged = handle_press_drag_interaction(
+            &mut state,
+            &Input {
+                mouse_pos: Vec2::new(18.0, 12.0),
+                mouse_down: true,
+                ..Default::default()
+            },
+            true,
+            DEFAULT_DRAG_THRESHOLD,
+            None,
+        );
+        assert_eq!(dragged.press_delta, Vec2::new(8.0, 2.0));
+        assert_eq!(dragged.drag_delta, Vec2::new(3.0, 2.0));
+    }
+
+    #[test]
+    fn press_drag_returns_cursor_while_dragging() {
+        let mut state = PressDragState::default();
+        begin_immediate_drag(&mut state, Vec2::new(10.0, 10.0));
+
+        let interaction = handle_press_drag_interaction(
+            &mut state,
+            &Input {
+                mouse_pos: Vec2::new(12.0, 10.0),
+                mouse_down: true,
+                ..Default::default()
+            },
+            true,
+            DEFAULT_DRAG_THRESHOLD,
+            Some(crate::output::CursorIcon::EwResize),
+        );
+
+        assert_eq!(
+            interaction.cursor_icon,
+            Some(crate::output::CursorIcon::EwResize)
+        );
+    }
+
+    #[test]
+    fn press_drag_release_clears_state() {
+        let mut state = PressDragState::default();
+        begin_immediate_drag(&mut state, Vec2::new(10.0, 10.0));
+
+        let interaction = handle_press_drag_interaction(
+            &mut state,
+            &Input {
+                mouse_pos: Vec2::new(12.0, 10.0),
+                mouse_down: false,
+                ..Default::default()
+            },
+            true,
+            DEFAULT_DRAG_THRESHOLD,
+            None,
+        );
+
+        assert!(interaction.released);
+        assert_eq!(state, PressDragState::default());
     }
 
     #[test]

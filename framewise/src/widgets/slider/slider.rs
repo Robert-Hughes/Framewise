@@ -6,7 +6,10 @@ use crate::{
     text::TextBackend,
     types::{ClipRect, Color, Layer, Outline, Rect, Stroke, Vec2},
     widget::{InputInfo, LayoutInfo, WidgetContext},
-    widgets::widget_helpers::{RepeatTimer, RepeatTiming},
+    widgets::widget_helpers::{
+        begin_held_press_drag, begin_immediate_drag, handle_press_drag_interaction, PressDragState,
+        RepeatTimer, RepeatTiming, DEFAULT_DRAG_THRESHOLD,
+    },
 };
 
 pub mod raw {
@@ -357,39 +360,24 @@ pub mod raw {
         );
 
         // 2. Input Handling
+        if spec.disabled {
+            state.active_part = None;
+            state.is_track_clicking = false;
+            state.track_click_direction = None;
+            state.press_drag = PressDragState::default();
+        }
+
         if !spec.disabled {
-            // Drag release
-            if state.active_part.is_some() && !input.mouse_down {
+            let press_drag = handle_press_drag_interaction(
+                &mut state.press_drag,
+                input,
+                true,
+                DEFAULT_DRAG_THRESHOLD,
+                Some(crate::output::CursorIcon::Grabbing),
+            );
+
+            if press_drag.released {
                 state.active_part = None;
-            }
-
-            // Drag update
-            if let Some(active_part) = state.active_part {
-                let mouse_coord = if is_vert {
-                    input.mouse_pos.y
-                } else {
-                    input.mouse_pos.x
-                };
-                let delta = mouse_coord - state.drag_start_mouse_coord;
-                let val_delta = if track_len > 0.0 {
-                    (delta / track_len) * range
-                } else {
-                    0.0
-                };
-                apply_drag_delta(
-                    state,
-                    active_part,
-                    val_delta,
-                    min,
-                    max,
-                    spec.min_gap,
-                    spec.max_gap,
-                    spec.value_snap,
-                );
-            }
-
-            // Track click release
-            if state.is_track_clicking && !input.mouse_down {
                 state.is_track_clicking = false;
                 state.track_click_direction = None;
             }
@@ -400,11 +388,7 @@ pub mod raw {
             } else {
                 input.mouse_pos.x
             };
-            let dx = input.mouse_pos.x - state.track_click_start_mouse_pos.x;
-            let dy = input.mouse_pos.y - state.track_click_start_mouse_pos.y;
-            let drag_dist = dx.hypot(dy);
-            const TRACK_DRAG_THRESHOLD: f32 = 4.0;
-            if state.is_track_clicking && input.mouse_down && drag_dist > TRACK_DRAG_THRESHOLD {
+            if state.is_track_clicking && press_drag.drag_started {
                 let part = first_interactable_part(&spec.style, state.value.is_range());
                 if let Some(part) = part {
                     let value = coord_to_value(mouse_coord, min, range, track_start, track_len);
@@ -438,6 +422,31 @@ pub mod raw {
                 }
                 state.is_track_clicking = false;
                 state.track_click_direction = None;
+            }
+
+            // Drag update
+            if let Some(active_part) = state.active_part {
+                let mouse_coord = if is_vert {
+                    input.mouse_pos.y
+                } else {
+                    input.mouse_pos.x
+                };
+                let delta = mouse_coord - state.drag_start_mouse_coord;
+                let val_delta = if track_len > 0.0 {
+                    (delta / track_len) * range
+                } else {
+                    0.0
+                };
+                apply_drag_delta(
+                    state,
+                    active_part,
+                    val_delta,
+                    min,
+                    max,
+                    spec.min_gap,
+                    spec.max_gap,
+                    spec.value_snap,
+                );
             }
 
             // Mouse wheel scrolling — suppressed during an active drag so that drag
@@ -543,6 +552,7 @@ pub mod raw {
                 }
                 state.is_track_clicking = true;
                 state.track_click_start_mouse_pos = input.mouse_pos;
+                begin_held_press_drag(&mut state.press_drag, input.mouse_pos);
                 state.repeat_timer.start(spec.time, RepeatTiming::PRESS);
                 // Page up/down towards mouse
                 if mouse_coord < active_start {
@@ -588,6 +598,7 @@ pub mod raw {
                     state.active_part = Some(part);
                     state.drag_start_mouse_coord = mouse_coord;
                     state.drag_start_value = state.value;
+                    begin_immediate_drag(&mut state.press_drag, input.mouse_pos);
                 }
             }
 
@@ -597,7 +608,8 @@ pub mod raw {
                     .repeat_timer
                     .consume_due(spec.time, RepeatTiming::PRESS)
             {
-                if track_rect.contains(input.mouse_pos) || drag_dist <= TRACK_DRAG_THRESHOLD {
+                let drag_dist = press_drag.press_delta.x.hypot(press_drag.press_delta.y);
+                if track_rect.contains(input.mouse_pos) || drag_dist <= DEFAULT_DRAG_THRESHOLD {
                     match state.track_click_direction {
                         Some(PagingDirection::Up) => {
                             if mouse_coord < active_start {
@@ -2166,6 +2178,7 @@ pub struct SliderState {
     pub drag_start_value: SliderValue,
     pub is_track_clicking: bool,
     pub track_click_start_mouse_pos: Vec2,
+    pub press_drag: PressDragState,
     pub repeat_timer: RepeatTimer,
     pub track_click_direction: Option<PagingDirection>,
 }
@@ -2180,6 +2193,7 @@ impl Default for SliderState {
             drag_start_value: SliderValue::default(),
             is_track_clicking: false,
             track_click_start_mouse_pos: Vec2::ZERO,
+            press_drag: PressDragState::default(),
             repeat_timer: RepeatTimer::default(),
             track_click_direction: None,
         }

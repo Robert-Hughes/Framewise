@@ -9,10 +9,11 @@ use crate::{
     widgets::{
         text_edit::{self, NewlinePolicy, TextEditState, TextEditStyle},
         widget_helpers::{
-            draw_prefixed_control_prefix_and_chrome, layout_prefixed_control,
-            prefixed_control_child_offer, prefixed_control_prefix_width,
-            prefixed_control_size_request, PrefixedControlDrawSpec, PrefixedControlStyle,
-            RepeatTimer, RepeatTiming,
+            begin_held_press_drag, begin_immediate_drag, draw_prefixed_control_prefix_and_chrome,
+            handle_press_drag_interaction, layout_prefixed_control, prefixed_control_child_offer,
+            prefixed_control_prefix_width, prefixed_control_size_request, PrefixedControlDrawSpec,
+            PrefixedControlStyle, PressDragState, RepeatTimer, RepeatTiming,
+            DEFAULT_DRAG_THRESHOLD,
         },
     },
 };
@@ -123,6 +124,7 @@ pub mod raw {
             state.is_dragging = false;
             state.is_arrow_stepping = false;
             state.arrow_step_direction = None;
+            state.press_drag = PressDragState::default();
             state.edit = NumberEditEditState::Inactive;
         }
 
@@ -257,29 +259,45 @@ pub mod raw {
         // Display-mode mouse interaction: arrow stepping, repeat, and scrub drag.
         // Edit mode bypasses this so typed values do not also trigger value changes.
         if !spec.disabled && !state.edit.is_editing() {
-            if state.is_arrow_stepping && !input.mouse_down {
-                state.is_arrow_stepping = false;
-                state.arrow_step_direction = None;
+            if state.is_arrow_stepping && !state.press_drag.held && !state.press_drag.dragging {
+                begin_held_press_drag(&mut state.press_drag, state.arrow_step_start_mouse_pos);
+            }
+            if state.is_dragging && !state.press_drag.dragging && input.mouse_down {
+                begin_immediate_drag(
+                    &mut state.press_drag,
+                    Vec2::new(state.drag_start_x, input.mouse_pos.y),
+                );
             }
 
-            let dx = input.mouse_pos.x - state.arrow_step_start_mouse_pos.x;
-            let dy = input.mouse_pos.y - state.arrow_step_start_mouse_pos.y;
-            let drag_dist = dx.hypot(dy);
-            const ARROW_DRAG_THRESHOLD: f32 = 4.0;
+            let drag_threshold = if spec.drag_enabled {
+                DEFAULT_DRAG_THRESHOLD
+            } else {
+                f32::INFINITY
+            };
+            let press_drag = handle_press_drag_interaction(
+                &mut state.press_drag,
+                input,
+                state.is_arrow_stepping || spec.drag_enabled,
+                drag_threshold,
+                Some(crate::output::CursorIcon::EwResize),
+            );
+
+            if press_drag.released {
+                state.is_arrow_stepping = false;
+                state.arrow_step_direction = None;
+                state.is_dragging = false;
+            }
+
             let active_step_contains = match state.arrow_step_direction {
                 Some(NumberEditStepDirection::Decrement) => contains_decrement,
                 Some(NumberEditStepDirection::Increment) => contains_increment,
                 None => false,
             };
-            if state.is_arrow_stepping
-                && input.mouse_down
-                && spec.drag_enabled
-                && drag_dist > ARROW_DRAG_THRESHOLD
-            {
+            if state.is_arrow_stepping && spec.drag_enabled && press_drag.drag_started {
                 state.is_arrow_stepping = false;
                 state.arrow_step_direction = None;
                 state.is_dragging = true;
-                state.drag_start_x = input.mouse_pos.x;
+                state.drag_start_x = state.press_drag.drag_start_pos.x;
                 state.drag_start_value = state.value;
             }
 
@@ -292,11 +310,13 @@ pub mod raw {
                 state.is_arrow_stepping = true;
                 state.arrow_step_start_mouse_pos = input.mouse_pos;
                 state.arrow_step_direction = Some(direction);
+                begin_held_press_drag(&mut state.press_drag, input.mouse_pos);
                 state.repeat_timer.start(spec.time, RepeatTiming::PRESS);
             } else if value_hover.can_start && spec.drag_enabled {
                 state.is_dragging = true;
                 state.drag_start_x = input.mouse_pos.x;
                 state.drag_start_value = state.value;
+                begin_immediate_drag(&mut state.press_drag, input.mouse_pos);
             }
 
             if state.is_arrow_stepping && input.mouse_down && active_step_contains {
@@ -311,10 +331,10 @@ pub mod raw {
             }
 
             if state.is_dragging {
-                if !input.mouse_down || !spec.drag_enabled {
+                if !state.press_drag.dragging || !spec.drag_enabled {
                     state.is_dragging = false;
                 } else {
-                    let dx = input.mouse_pos.x - state.drag_start_x;
+                    let dx = input.mouse_pos.x - state.press_drag.drag_start_pos.x;
                     let value_range = drag_value_range(clamp_min, clamp_max);
                     let delta_val = (dx / value_rect.w.max(1.0)) * value_range;
                     state.value =
@@ -323,6 +343,7 @@ pub mod raw {
             }
         } else if !spec.drag_enabled {
             state.is_dragging = false;
+            state.press_drag = PressDragState::default();
         }
 
         // Display-mode keyboard stepping. TextEdit consumes caret movement while editing.
@@ -768,6 +789,7 @@ pub struct NumberEditState {
     pub is_arrow_stepping: bool,
     pub arrow_step_start_mouse_pos: Vec2,
     pub arrow_step_direction: Option<NumberEditStepDirection>,
+    pub press_drag: PressDragState,
     pub repeat_timer: RepeatTimer,
     pub focus_id: FocusId,
     pub edit: NumberEditEditState,
@@ -934,6 +956,7 @@ fn enter_number_edit_mode(state: &mut NumberEditState) {
     state.is_dragging = false;
     state.is_arrow_stepping = false;
     state.arrow_step_direction = None;
+    state.press_drag = PressDragState::default();
 }
 
 fn parse_number_edit_text(text: &str) -> Option<f32> {
