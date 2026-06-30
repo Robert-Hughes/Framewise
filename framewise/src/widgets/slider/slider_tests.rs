@@ -2315,6 +2315,242 @@ fn test_high_level_explicit_placement_via_manual_layout() {
     }
 }
 
+fn run_value_labelled_slider_once<F>(
+    spec: super::ValueLabelledSliderSpec<F>,
+    state: &mut SliderState,
+    input: &Input,
+    focus: &mut FocusSystem,
+    text_backend: &mut crate::test_utils::TestTextBackend,
+    cmds: &mut DrawCommands,
+) -> super::SliderResult
+where
+    F: Fn(SliderValue) -> String,
+{
+    let mut output = crate::Output::default();
+    let mut ctx = crate::widget::WidgetContext::root(
+        crate::theme::Theme::framewise(),
+        text_backend,
+        focus,
+        input,
+        &mut output,
+        crate::layouts::ManualLayout,
+        Rect::new(0.0, 0.0, 800.0, 600.0),
+        cmds,
+    );
+    super::value_labelled_slider(spec, Rect::new(0.0, 0.0, 200.0, 20.0), state, &mut ctx)
+}
+
+#[test]
+fn test_value_labelled_slider_custom_formatter_receives_single_value() {
+    let seen = std::cell::Cell::new(None);
+    let formatter = |value| {
+        seen.set(Some(value));
+        "single".to_owned()
+    };
+    let mut state = SliderState {
+        value: SliderValue::Single(42.0),
+        ..Default::default()
+    };
+    let input = Input::default();
+    let mut focus = FocusSystem::new();
+    let mut text_backend = crate::test_utils::TestTextBackend::default();
+    let mut cmds = DrawCommands::new(1.0);
+
+    run_value_labelled_slider_once(
+        super::ValueLabelledSliderSpec::new()
+            .slider(super::SliderSpec::default_from_theme(
+                &crate::theme::Theme::framewise(),
+            ))
+            .value_formatter(formatter),
+        &mut state,
+        &input,
+        &mut focus,
+        &mut text_backend,
+        &mut cmds,
+    );
+
+    assert_eq!(seen.get(), Some(SliderValue::Single(42.0)));
+}
+
+#[test]
+fn test_value_labelled_slider_custom_formatter_receives_range_value() {
+    let seen = std::cell::Cell::new(None);
+    let formatter = |value| {
+        seen.set(Some(value));
+        "range".to_owned()
+    };
+    let mut state = SliderState {
+        value: SliderValue::Range {
+            lower: 10.0,
+            upper: 30.0,
+        },
+        ..Default::default()
+    };
+    let input = Input::default();
+    let mut focus = FocusSystem::new();
+    let mut text_backend = crate::test_utils::TestTextBackend::default();
+    let mut cmds = DrawCommands::new(1.0);
+
+    run_value_labelled_slider_once(
+        super::ValueLabelledSliderSpec::new()
+            .slider(super::SliderSpec::default_from_theme(
+                &crate::theme::Theme::framewise(),
+            ))
+            .value_formatter(formatter),
+        &mut state,
+        &input,
+        &mut focus,
+        &mut text_backend,
+        &mut cmds,
+    );
+
+    assert_eq!(
+        seen.get(),
+        Some(SliderValue::Range {
+            lower: 10.0,
+            upper: 30.0,
+        })
+    );
+}
+
+#[test]
+fn test_value_labelled_slider_draws_formatted_value_in_label_area() {
+    let mut state = SliderState {
+        value: SliderValue::Single(50.0),
+        ..Default::default()
+    };
+    let input = Input::default();
+    let mut focus = FocusSystem::new();
+    let mut text_backend = crate::test_utils::TestTextBackend::default();
+    let mut cmds = DrawCommands::new(1.0);
+
+    run_value_labelled_slider_once(
+        super::ValueLabelledSliderSpec::new()
+            .slider(super::SliderSpec::default_from_theme(
+                &crate::theme::Theme::framewise(),
+            ))
+            .value_formatter(|_| "value=50".to_owned()),
+        &mut state,
+        &input,
+        &mut focus,
+        &mut text_backend,
+        &mut cmds,
+    );
+
+    assert!(text_backend
+        .observations
+        .shaped_texts
+        .iter()
+        .any(|text| text == "value=50"));
+    assert!(
+        text_backend
+            .observations
+            .prepared_glyph_origins
+            .iter()
+            .all(|origin| origin.x >= 136.0),
+        "label glyphs should start at or after the computed label rect"
+    );
+}
+
+#[test]
+fn test_value_labelled_slider_label_press_drag_and_wheel_do_not_change_value() {
+    let mut state = SliderState {
+        value: SliderValue::Single(50.0),
+        ..Default::default()
+    };
+    let mut focus = FocusSystem::new();
+    let mut text_backend = crate::test_utils::TestTextBackend::default();
+    let mut cmds = DrawCommands::new(1.0);
+    let spec = super::ValueLabelledSliderSpec::new().slider(super::SliderSpec::default_from_theme(
+        &crate::theme::Theme::framewise(),
+    ));
+
+    for input in [
+        Input {
+            mouse_pos: Vec2::new(170.0, 10.0),
+            ..Default::default()
+        },
+        Input {
+            mouse_pos: Vec2::new(170.0, 10.0),
+            mouse_down: true,
+            mouse_pressed: true,
+            ..Default::default()
+        },
+        Input {
+            mouse_pos: Vec2::new(190.0, 10.0),
+            mouse_down: true,
+            ..Default::default()
+        },
+        Input {
+            mouse_pos: Vec2::new(170.0, 10.0),
+            scroll_delta: Vec2::new(0.0, -1.0),
+            ..Default::default()
+        },
+    ] {
+        focus.begin_frame();
+        run_value_labelled_slider_once(
+            spec.clone(),
+            &mut state,
+            &input,
+            &mut focus,
+            &mut text_backend,
+            &mut cmds,
+        );
+        focus.end_frame();
+    }
+
+    assert_eq!(state.value, SliderValue::Single(50.0));
+    assert_eq!(state.active_part, None);
+}
+
+#[test]
+fn test_value_labelled_slider_control_drag_still_changes_value() {
+    let mut state = SliderState {
+        value: SliderValue::Single(50.0),
+        ..Default::default()
+    };
+    let mut focus = FocusSystem::new();
+    let mut text_backend = crate::test_utils::TestTextBackend::default();
+    let mut cmds = DrawCommands::new(1.0);
+    let spec = super::ValueLabelledSliderSpec::new().slider(super::SliderSpec::default_from_theme(
+        &crate::theme::Theme::framewise(),
+    ));
+
+    for input in [
+        Input {
+            mouse_pos: Vec2::new(76.0, 10.0),
+            ..Default::default()
+        },
+        Input {
+            mouse_pos: Vec2::new(76.0, 10.0),
+            mouse_down: true,
+            mouse_pressed: true,
+            ..Default::default()
+        },
+        Input {
+            mouse_pos: Vec2::new(96.0, 10.0),
+            mouse_down: true,
+            ..Default::default()
+        },
+    ] {
+        focus.begin_frame();
+        run_value_labelled_slider_once(
+            spec.clone(),
+            &mut state,
+            &input,
+            &mut focus,
+            &mut text_backend,
+            &mut cmds,
+        );
+        focus.end_frame();
+    }
+
+    assert!(
+        state.value.lower() > 50.0,
+        "dragging the control should increase the horizontal slider value"
+    );
+}
+
 #[test]
 fn test_size_slider() {
     // A slider's main-axis size is caller-driven; it only reports cross-axis visuals.

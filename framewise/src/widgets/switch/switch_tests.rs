@@ -1069,6 +1069,46 @@ fn test_labelled_switch_click_label_toggles_state() {
 }
 
 #[test]
+fn test_labelled_switch_hover_label_hovers_control() {
+    use crate::layouts::ManualLayout;
+    let mut state = SwitchState::default();
+    let mut focus = FocusSystem::new();
+    let input = Input {
+        mouse_pos: Vec2::new(50.0, 10.0),
+        ..Default::default()
+    };
+    let mut cmds = DrawCommands::new(1.0);
+    let mut text_backend = crate::test_utils::TestTextBackend::default();
+    let mut output = crate::Output::default();
+
+    let mut run = || {
+        focus.begin_frame();
+        let mut ctx = WidgetContext::root(
+            crate::theme::Theme::framewise(),
+            &mut text_backend,
+            &mut focus,
+            &input,
+            &mut output,
+            ManualLayout,
+            Rect::new(0.0, 0.0, 800.0, 600.0),
+            &mut cmds,
+        );
+        let result = super::labelled_switch(
+            super::SwitchSpec::default_from_theme(&ctx.theme),
+            "vsync",
+            Rect::new(0.0, 0.0, 100.0, 20.0),
+            &mut state,
+            &mut ctx,
+        );
+        focus.end_frame();
+        result.input
+    };
+
+    let _ = run();
+    assert!(run().hovered);
+}
+
+#[test]
 fn test_labelled_switch_disabled_label_visual() {
     use crate::layouts::ManualLayout;
     let mut text_backend = crate::test_utils::TestTextBackend::default();

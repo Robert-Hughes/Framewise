@@ -316,23 +316,16 @@ pub fn labelled_radio<T: TextBackend, S: LayoutState, CF>(
     state: &mut RadioState,
     ctx: &mut WidgetContext<T, S, CF>,
 ) -> RadioResult {
-    // Resolve label style and measure text size
-    let mut label_style = crate::widgets::label::LabelStyle::from_theme(&ctx.theme);
-    label_style.content_placement = crate::text::TextContentPlacement::logical(
-        crate::text::ContentPlacement::Align(crate::Align::Start),
-        crate::text::ContentPlacement::Align(crate::Align::Center),
+    let label_style = crate::widgets::widget_helpers::trailing_label_style_from_theme(
+        &ctx.theme,
+        spec.disabled,
+        spec.style.disabled_alpha,
     );
-    if spec.disabled {
-        let alpha = spec.style.disabled_alpha;
-        label_style.text_color = Color::linear_rgba(
-            label_style.text_color.r,
-            label_style.text_color.g,
-            label_style.text_color.b,
-            label_style.text_color.a * alpha,
-        );
-    }
+    let trailing_style = crate::widgets::widget_helpers::TrailingLabelStyle {
+        label_style,
+        gap: 8.0,
+    };
 
-    // Query size requests using the official functions of both widgets.
     let offer = ctx.peek_offer(layout_params.clone());
     let radio_pre_layout_spec = raw::RadioPreLayoutSpec { style: spec.style };
     let radio_pre_layout = raw::pre_layout_radio(&radio_pre_layout_spec, offer);
@@ -340,7 +333,7 @@ pub fn labelled_radio<T: TextBackend, S: LayoutState, CF>(
 
     let label_pre_layout_spec = crate::widgets::label::raw::LabelPreLayoutSpec {
         text: label_text,
-        style: label_style,
+        style: trailing_style.label_style,
     };
     let label_pre_layout = crate::widgets::label::raw::pre_layout_label(
         &label_pre_layout_spec,
@@ -349,18 +342,24 @@ pub fn labelled_radio<T: TextBackend, S: LayoutState, CF>(
     );
     let label_size = label_pre_layout.size_request.preferred.unwrap();
 
-    let gap = 8.0;
-    let combined_width = radio_size.x + gap + label_size.x;
-    let combined_height = f32::max(radio_size.y, label_size.y);
-    let size_request = SizeRequest::preferred(Vec2::new(combined_width, combined_height));
+    let rect = ctx.layout(
+        layout_params,
+        crate::widgets::widget_helpers::trailing_label_size_request(
+            radio_size,
+            label_size,
+            trailing_style.gap,
+        ),
+    );
+    let layout = crate::widgets::widget_helpers::layout_trailing_label(
+        rect,
+        radio_size,
+        label_size,
+        trailing_style.gap,
+    );
 
-    // Resolve combined bounds
-    let rect = ctx.layout(layout_params, size_request);
-
-    // Run underlying radio interaction and draw control track/thumb
     let raw_spec = raw::RadioSpec {
         layer: ctx.layer,
-        rect, // Pass the combined bounds for unified interaction handling
+        rect: layout.outer_rect,
         disabled: spec.disabled,
         style: spec.style,
         clip_rect: ctx.clip_rect,
@@ -376,28 +375,18 @@ pub fn labelled_radio<T: TextBackend, S: LayoutState, CF>(
 
     ctx.request_cursor(result.cursor_icon);
 
-    // Draw the label text to the right of the control track
-    let label_rect = Rect::new(
-        rect.x + radio_size.x + gap,
-        rect.y,
-        rect.w - radio_size.x - gap,
-        rect.h,
-    );
-    let raw_label_spec = crate::widgets::label::raw::LabelSpec {
-        layer: ctx.layer,
-        rect: label_rect,
-        text: label_text,
-        style: label_style,
-    };
-    crate::widgets::label::raw::post_layout_label(
-        raw_label_spec,
+    crate::widgets::widget_helpers::draw_trailing_label(
+        layout.label_rect,
+        label_text,
+        trailing_style.label_style,
         label_pre_layout,
+        ctx.layer,
         ctx.text_backend,
         ctx.cmds,
     );
 
     RadioResult {
-        layout: LayoutInfo::new(rect, result.content_bounds),
+        layout: LayoutInfo::new(layout.outer_rect, result.content_bounds),
         input: result.input,
         focused: result.focused,
     }

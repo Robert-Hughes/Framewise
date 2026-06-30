@@ -2251,6 +2251,85 @@ impl SliderSpec {
     }
 }
 
+pub type DefaultSliderValueFormatter = fn(SliderValue) -> String;
+
+pub fn default_slider_value_formatter(value: SliderValue) -> String {
+    match value {
+        SliderValue::Single(v) => format!("{v:.2}"),
+        SliderValue::Range { lower, upper } => format!("{lower:.2}–{upper:.2}"),
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct ValueLabelledSliderSpec<F = DefaultSliderValueFormatter>
+where
+    F: Fn(SliderValue) -> String,
+{
+    pub slider: SliderSpec,
+    pub value_formatter: F,
+    pub label_style: crate::widgets::label::LabelStyle,
+    pub gap: f32,
+}
+
+impl Default for ValueLabelledSliderSpec<DefaultSliderValueFormatter> {
+    fn default() -> Self {
+        Self {
+            slider: SliderSpec::default(),
+            value_formatter: default_slider_value_formatter,
+            label_style: crate::widgets::label::LabelStyle::default(),
+            gap: 8.0,
+        }
+    }
+}
+
+impl ValueLabelledSliderSpec<DefaultSliderValueFormatter> {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn new_from_theme(theme: &crate::theme::Theme) -> Self {
+        Self::new().theme(theme)
+    }
+}
+
+impl<F> ValueLabelledSliderSpec<F>
+where
+    F: Fn(SliderValue) -> String,
+{
+    pub fn theme(mut self, theme: &crate::theme::Theme) -> Self {
+        self.slider = self.slider.theme(theme);
+        self.label_style = crate::widgets::label::LabelStyle::from_theme(theme);
+        self
+    }
+
+    pub fn slider(mut self, slider: SliderSpec) -> Self {
+        self.slider = slider;
+        self
+    }
+
+    pub fn value_formatter<G>(self, value_formatter: G) -> ValueLabelledSliderSpec<G>
+    where
+        G: Fn(SliderValue) -> String,
+    {
+        ValueLabelledSliderSpec {
+            slider: self.slider,
+            value_formatter,
+            label_style: self.label_style,
+            gap: self.gap,
+        }
+    }
+
+    pub fn label_style(mut self, label_style: crate::widgets::label::LabelStyle) -> Self {
+        self.label_style = label_style;
+        self
+    }
+
+    pub fn gap(mut self, gap: f32) -> Self {
+        self.gap = gap;
+        self
+    }
+}
+
 // ── High-level widget function ───────────────────────────────────────────────────
 
 /// High-level slider widget function using `WidgetContext`.
@@ -2301,6 +2380,101 @@ pub fn slider<T: TextBackend, S: LayoutState, CF>(
     ctx.request_cursor(result.cursor_icon);
     SliderResult {
         layout: LayoutInfo::tight(rect),
+        input: result.input,
+        focused: result.focused,
+    }
+}
+
+pub fn value_labelled_slider<T: TextBackend, S: LayoutState, CF, F>(
+    spec: ValueLabelledSliderSpec<F>,
+    layout_params: S::Params,
+    state: &mut SliderState,
+    ctx: &mut WidgetContext<T, S, CF>,
+) -> SliderResult
+where
+    F: Fn(SliderValue) -> String,
+{
+    let label_text = (spec.value_formatter)(state.value);
+    let pre_layout_spec = raw::SliderPreLayoutSpec {
+        orientation: spec.slider.orientation,
+        style: spec.slider.style,
+    };
+    let offer = ctx.peek_offer(layout_params.clone());
+    let pre_layout = raw::pre_layout_slider(&pre_layout_spec, offer);
+    let slider_size = pre_layout.size_request.preferred.unwrap_or(Vec2::ZERO);
+
+    let label_pre_layout_spec = crate::widgets::label::raw::LabelPreLayoutSpec {
+        text: &label_text,
+        style: spec.label_style,
+    };
+    let label_pre_layout = crate::widgets::label::raw::pre_layout_label(
+        &label_pre_layout_spec,
+        offer,
+        ctx.text_backend,
+    );
+    let label_size = label_pre_layout.size_request.preferred.unwrap();
+
+    let rect = ctx.layout(
+        layout_params,
+        crate::widgets::widget_helpers::trailing_label_size_request(
+            slider_size,
+            label_size,
+            spec.gap,
+        ),
+    );
+    let control_size = if spec.slider.orientation == Orientation::Vertical {
+        Vec2::new(slider_size.x.min(rect.w).max(0.0), rect.h)
+    } else {
+        Vec2::new((rect.w - spec.gap.max(0.0) - label_size.x).max(0.0), rect.h)
+    };
+    let layout = crate::widgets::widget_helpers::layout_trailing_label(
+        rect,
+        control_size,
+        label_size,
+        spec.gap,
+    );
+
+    let raw_spec = raw::SliderSpec {
+        rect: layout.control_rect,
+        min: spec.slider.min,
+        max: spec.slider.max,
+        min_gap: spec.slider.min_gap,
+        max_gap: spec.slider.max_gap,
+        value_snap: spec.slider.value_snap,
+        page_step: spec.slider.page_step,
+        step: spec.slider.step,
+        orientation: spec.slider.orientation,
+        style: spec.slider.style,
+        clip_rect: ctx.clip_rect,
+        scroll_claim: spec.slider.scroll_claim,
+        time: ctx.time,
+        disabled: spec.slider.disabled,
+        keyboard_focusable: spec.slider.keyboard_focusable,
+        layer: ctx.layer,
+    };
+
+    let result = raw::post_layout_slider(
+        raw_spec,
+        pre_layout,
+        state,
+        ctx.input,
+        ctx.focus_system,
+        ctx.cmds,
+    );
+    ctx.request_cursor(result.cursor_icon);
+
+    crate::widgets::widget_helpers::draw_trailing_label(
+        layout.label_rect,
+        &label_text,
+        spec.label_style,
+        label_pre_layout,
+        ctx.layer,
+        ctx.text_backend,
+        ctx.cmds,
+    );
+
+    SliderResult {
+        layout: LayoutInfo::new(layout.outer_rect, layout.control_rect),
         input: result.input,
         focused: result.focused,
     }

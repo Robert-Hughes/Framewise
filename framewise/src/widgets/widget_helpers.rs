@@ -9,6 +9,97 @@ use crate::{
 };
 
 #[derive(Debug, Clone, Copy, PartialEq)]
+pub(crate) struct TrailingLabelLayout {
+    pub outer_rect: Rect,
+    pub control_rect: Rect,
+    pub label_rect: Rect,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub(crate) struct TrailingLabelStyle {
+    pub label_style: crate::widgets::label::LabelStyle,
+    pub gap: f32,
+}
+
+pub(crate) fn trailing_label_style_from_theme(
+    theme: &crate::theme::Theme,
+    disabled: bool,
+    disabled_alpha: f32,
+) -> crate::widgets::label::LabelStyle {
+    let mut label_style = crate::widgets::label::LabelStyle::from_theme(theme);
+    label_style.content_placement = crate::text::TextContentPlacement::logical(
+        crate::text::ContentPlacement::Align(crate::Align::Start),
+        crate::text::ContentPlacement::Align(crate::Align::Center),
+    );
+    if disabled {
+        label_style.text_color = Color::linear_rgba(
+            label_style.text_color.r,
+            label_style.text_color.g,
+            label_style.text_color.b,
+            label_style.text_color.a * disabled_alpha,
+        );
+    }
+    label_style
+}
+
+pub(crate) fn trailing_label_size_request(
+    control_size: Vec2,
+    label_size: Vec2,
+    gap: f32,
+) -> SizeRequest {
+    let gap = gap.max(0.0);
+    SizeRequest::preferred(Vec2::new(
+        control_size.x + gap + label_size.x,
+        control_size.y.max(label_size.y),
+    ))
+}
+
+pub(crate) fn layout_trailing_label(
+    outer_rect: Rect,
+    control_size: Vec2,
+    label_size: Vec2,
+    gap: f32,
+) -> TrailingLabelLayout {
+    let gap = gap.max(0.0);
+    let control_w = control_size.x.clamp(0.0, outer_rect.w);
+    let label_x = outer_rect.x + control_w + gap;
+    let label_w = label_size.x.max((outer_rect.right() - label_x).max(0.0));
+
+    TrailingLabelLayout {
+        outer_rect,
+        control_rect: Rect::new(
+            outer_rect.x,
+            outer_rect.y + (outer_rect.h - control_size.y).max(0.0) * 0.5,
+            control_w,
+            control_size.y.min(outer_rect.h).max(0.0),
+        ),
+        label_rect: Rect::new(label_x, outer_rect.y, label_w, outer_rect.h),
+    }
+}
+
+pub(crate) fn draw_trailing_label<T: TextBackend>(
+    label_rect: Rect,
+    label_text: &str,
+    label_style: crate::widgets::label::LabelStyle,
+    label_pre_layout: crate::widgets::label::raw::LabelPreLayoutResult,
+    layer: Layer,
+    text_backend: &mut T,
+    cmds: &mut DrawCommands,
+) {
+    crate::widgets::label::raw::post_layout_label(
+        crate::widgets::label::raw::LabelSpec {
+            layer,
+            rect: label_rect,
+            text: label_text,
+            style: label_style,
+        },
+        label_pre_layout,
+        text_backend,
+        cmds,
+    );
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct RepeatTiming {
     pub initial_delay: f64,
     pub interval: f64,
@@ -1437,5 +1528,37 @@ mod tests {
         let clamped = layout_prefixed_control(outer, 125.0);
         assert_eq!(clamped.prefix_rect, Rect::new(10.0, 20.0, 100.0, 30.0));
         assert_eq!(clamped.child_rect, Rect::new(110.0, 20.0, 0.0, 30.0));
+    }
+
+    #[test]
+    fn trailing_label_size_request_adds_gap_and_uses_max_height() {
+        let request =
+            trailing_label_size_request(Vec2::new(14.0, 12.0), Vec2::new(40.0, 16.0), 8.0);
+
+        assert_eq!(request, SizeRequest::preferred(Vec2::new(62.0, 16.0)));
+    }
+
+    #[test]
+    fn layout_trailing_label_places_control_before_label_gap() {
+        let outer = Rect::new(10.0, 20.0, 100.0, 30.0);
+        let layout =
+            layout_trailing_label(outer, Vec2::new(14.0, 10.0), Vec2::new(40.0, 16.0), 8.0);
+
+        assert_eq!(layout.outer_rect, outer);
+        assert_eq!(layout.control_rect, Rect::new(10.0, 30.0, 14.0, 10.0));
+        assert_eq!(layout.label_rect, Rect::new(32.0, 20.0, 78.0, 30.0));
+    }
+
+    #[test]
+    fn trailing_label_style_applies_disabled_alpha() {
+        let theme = crate::theme::Theme::framewise();
+        let enabled = trailing_label_style_from_theme(&theme, false, 0.35);
+        let disabled = trailing_label_style_from_theme(&theme, true, 0.35);
+
+        assert_eq!(
+            enabled.text_color,
+            crate::widgets::label::LabelStyle::from_theme(&theme).text_color
+        );
+        assert!((disabled.text_color.a - enabled.text_color.a * 0.35).abs() < 1e-4);
     }
 }

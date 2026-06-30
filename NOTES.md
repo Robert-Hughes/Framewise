@@ -4,14 +4,13 @@ Working notes, TODOs, open questions, and half-baked ideas.
 
 ## Current Work
 
-- keyboard controls like up/down/left/right page up/down that are equivalent to pressing buttons (like stepper buttons) should show visual pressed states based on those keys. Reusable widget helper?
-  - 3: figure out multi-part widget key visuals (reusable helper somewhere?)
-
-- labelled slider, use same value formatter stuff
+- value-labelled slider
+  - Clicking on the label should focus the slider
 - NumberEdit editor policy - on double click or always.
 - option to turn off the stepper buttons, leaving a simple text_edit that validates for numbers/min/max etc.!
 - change "padding" widget on spec page to this
 - slider with editor (number_edit with Always editor and no steppers)
+   - where do we put this on the spec page? Probably a new one in section 04
 
 - Go through the spec_page, check/implement/test each widget/aspect to make better match the mock-up and add interactivity as we go (https://claude.ai/design/p/1aab4e86-cbf2-497e-b379-44cf41de2b12?file=Framewise+Widgets.html)
   - Done 01-03
