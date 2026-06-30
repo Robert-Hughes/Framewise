@@ -1496,7 +1496,7 @@ fn test_number_edit_drag_clamps_to_min_max() {
     input.mouse_pressed = false;
     input.mouse_pos = Vec2::new(500.0, 14.0);
     focus_system.begin_frame();
-    let _ = run_raw(
+    let far_right_result = run_raw(
         spec.clone(),
         &mut state,
         &input,
@@ -1506,11 +1506,15 @@ fn test_number_edit_drag_clamps_to_min_max() {
     );
     focus_system.end_frame();
     assert_eq!(state.value, 100.0, "Value should clamp to max (100.0)");
+    assert_eq!(
+        far_right_result.cursor_icon,
+        Some(crate::output::CursorIcon::EwResize)
+    );
 
     // Frame 3: Drag far left (e.g. x = -500.0)
     input.mouse_pos = Vec2::new(-500.0, 14.0);
     focus_system.begin_frame();
-    let _ = run_raw(
+    let far_left_result = run_raw(
         spec,
         &mut state,
         &input,
@@ -1520,6 +1524,10 @@ fn test_number_edit_drag_clamps_to_min_max() {
     );
     focus_system.end_frame();
     assert_eq!(state.value, 0.0, "Value should clamp to min (0.0)");
+    assert_eq!(
+        far_left_result.cursor_icon,
+        Some(crate::output::CursorIcon::EwResize)
+    );
 }
 
 #[test]
@@ -1776,7 +1784,7 @@ fn test_number_edit_step_hold_pauses_outside_and_resumes_on_return_when_drag_dis
     assert!(!state.press_drag.dragging);
 
     input.mouse_pos = arrow_pos;
-    spec.time = 0.5;
+    spec.time = 0.7;
     focus_system.begin_frame();
     let return_result = run_raw(
         spec.clone(),

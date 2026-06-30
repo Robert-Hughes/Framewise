@@ -4,9 +4,6 @@ Working notes, TODOs, open questions, and half-baked ideas.
 
 ## Current Work
 
-- decide on consistent behaviour for click and hold on a widget with a special cursor (e.g. pointer, slider), then move mouse outside of the widget.
-For cases where the behaviour continues (like a slider), the cursor should clearly remain. But for cases where the interaction is 'paused' like a button press or NumberEdit stepper, not sure if the special cursor should also be paused? Consider a widget helper for "click-and-hold/drag"-like behaviour?
-
 - keyboard controls like up/down/left/right page up/down that are equivalent to pressing buttons (like stepper buttons) should show visual pressed states based on those keys. Reusable widget helper?
 
 - labelled slider

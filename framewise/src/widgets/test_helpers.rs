@@ -48,6 +48,20 @@ pub fn assert_hover_and_press_state<State>(
         !result.pressed,
         "Widget should lose pressed state when dragged out"
     );
+
+    input.mouse_pos = inside_pos;
+    // Warmup frame to restore the hover claim while the original press is still held.
+    let _ = run_frame(state, &input, &mut focus_system, &mut cmds, &mut run);
+    // Evaluation frame
+    let result = run_frame(state, &input, &mut focus_system, &mut cmds, &mut run);
+    assert!(
+        result.hovered,
+        "Widget should regain hover when dragged back in"
+    );
+    assert!(
+        result.pressed,
+        "Widget should regain pressed state when dragged back in"
+    );
 }
 
 pub fn assert_drag_off_and_release_does_not_click_other<StateA, StateB>(

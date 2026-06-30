@@ -422,13 +422,14 @@ fn test_enter_clicks_raw_button() {
 fn test_hover_and_press_state() {
     let mut text_backend = TestTextBackend::default();
     let mut state = ButtonState::default();
+    let mut cursor_icons = Vec::new();
 
     crate::widgets::test_helpers::assert_hover_and_press_state(
         &mut state,
         Vec2::new(50.0, 25.0),
         Vec2::new(150.0, 150.0),
         |state, input, focus_system, cmds| {
-            raw::post_layout_button(
+            let result = raw::post_layout_button(
                 btn_spec(Rect::new(0.0, 0.0, 100.0, 50.0)),
                 raw::ButtonPreLayoutResult {
                     size_request: crate::layout::SizeRequest::UNKNOWN,
@@ -438,10 +439,18 @@ fn test_hover_and_press_state() {
                 focus_system,
                 &mut text_backend,
                 cmds,
-            )
-            .input
+            );
+            cursor_icons.push(result.cursor_icon);
+            result.input
         },
     );
+
+    assert_eq!(cursor_icons.len(), 7);
+    assert_eq!(cursor_icons[0], None);
+    assert_eq!(cursor_icons[2], Some(crate::output::CursorIcon::Pointer));
+    assert_eq!(cursor_icons[3], Some(crate::output::CursorIcon::Pointer));
+    assert_eq!(cursor_icons[4], None);
+    assert_eq!(cursor_icons[6], Some(crate::output::CursorIcon::Pointer));
 }
 
 #[test]
