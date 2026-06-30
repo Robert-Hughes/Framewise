@@ -995,7 +995,7 @@ fn test_enter_toggles_raw_checkbox() {
     focus_system.take_keyboard_focus(state.focus_id);
     focus_system.end_frame();
 
-    input.key_pressed_enter = true;
+    input.keys_pressed.insert(crate::input::Key::Enter);
     focus_system.begin_frame();
     let result = raw::post_layout_checkbox(
         spec(),

@@ -123,7 +123,7 @@ fn test_slider_page_up_down_keyboard() {
 
     // Frame 2: Page Up
     focus_system.begin_frame();
-    input.key_pressed_page_up = true;
+    input.keys_pressed.insert(crate::input::Key::PageUp);
     raw::post_layout_slider(
         spec.clone(),
         raw::SliderPreLayoutResult {
@@ -139,8 +139,8 @@ fn test_slider_page_up_down_keyboard() {
 
     // Frame 3: Page Down
     focus_system.begin_frame();
-    input.key_pressed_page_up = false;
-    input.key_pressed_page_down = true;
+    input.keys_pressed.remove(crate::input::Key::PageUp);
+    input.keys_pressed.insert(crate::input::Key::PageDown);
     raw::post_layout_slider(
         spec.clone(),
         raw::SliderPreLayoutResult {
@@ -155,8 +155,8 @@ fn test_slider_page_up_down_keyboard() {
     focus_system.end_frame();
 
     focus_system.begin_frame();
-    input.key_pressed_page_down = false;
-    input.key_pressed_home = true;
+    input.keys_pressed.remove(crate::input::Key::PageDown);
+    input.keys_pressed.insert(crate::input::Key::Home);
     raw::post_layout_slider(
         spec.clone(),
         raw::SliderPreLayoutResult {
@@ -171,8 +171,8 @@ fn test_slider_page_up_down_keyboard() {
     focus_system.end_frame();
 
     focus_system.begin_frame();
-    input.key_pressed_home = false;
-    input.key_pressed_end = true;
+    input.keys_pressed.remove(crate::input::Key::Home);
+    input.keys_pressed.insert(crate::input::Key::End);
     raw::post_layout_slider(
         spec.clone(),
         raw::SliderPreLayoutResult {
@@ -408,7 +408,7 @@ fn test_slider_arrow_keys() {
     focus_system.take_keyboard_focus(state.focus_id);
 
     // Up decrements
-    input.key_pressed_up = true;
+    input.keys_pressed.insert(crate::input::Key::ArrowUp);
     let mut cmds = DrawCommands::new(1.0);
     focus_system.begin_frame();
     raw::post_layout_slider(
@@ -430,8 +430,8 @@ fn test_slider_arrow_keys() {
     focus_system.end_frame();
 
     // Down increments
-    input.key_pressed_up = false;
-    input.key_pressed_down = true;
+    input.keys_pressed.remove(crate::input::Key::ArrowUp);
+    input.keys_pressed.insert(crate::input::Key::ArrowDown);
     focus_system.begin_frame();
     raw::post_layout_slider(
         spec.clone(),
@@ -452,8 +452,8 @@ fn test_slider_arrow_keys() {
     focus_system.end_frame();
 
     // Left decrements (same as Up)
-    input.key_pressed_down = false;
-    input.key_pressed_left = true;
+    input.keys_pressed.remove(crate::input::Key::ArrowDown);
+    input.keys_pressed.insert(crate::input::Key::ArrowLeft);
     focus_system.begin_frame();
     raw::post_layout_slider(
         spec.clone(),
@@ -474,8 +474,8 @@ fn test_slider_arrow_keys() {
     focus_system.end_frame();
 
     // Right increments (same as Down)
-    input.key_pressed_left = false;
-    input.key_pressed_right = true;
+    input.keys_pressed.remove(crate::input::Key::ArrowLeft);
+    input.keys_pressed.insert(crate::input::Key::ArrowRight);
     focus_system.begin_frame();
     raw::post_layout_slider(
         spec.clone(),
@@ -496,7 +496,7 @@ fn test_slider_arrow_keys() {
     focus_system.end_frame();
 
     // Left/Right also work on a horizontal slider
-    input.key_pressed_right = false;
+    input.keys_pressed.remove(crate::input::Key::ArrowRight);
     let horiz_spec = SliderSpec {
         orientation: Orientation::Horizontal,
         rect: Rect::new(0.0, 0.0, 100.0, 20.0),
@@ -508,7 +508,7 @@ fn test_slider_arrow_keys() {
     };
     focus_system.take_keyboard_focus(horiz_state.focus_id);
 
-    input.key_pressed_left = true;
+    input.keys_pressed.insert(crate::input::Key::ArrowLeft);
     focus_system.begin_frame();
     raw::post_layout_slider(
         horiz_spec.clone(),
@@ -523,8 +523,8 @@ fn test_slider_arrow_keys() {
     assert_eq!(horiz_state.value.lower(), 45.0);
     focus_system.end_frame();
 
-    input.key_pressed_left = false;
-    input.key_pressed_right = true;
+    input.keys_pressed.remove(crate::input::Key::ArrowLeft);
+    input.keys_pressed.insert(crate::input::Key::ArrowRight);
     focus_system.begin_frame();
     raw::post_layout_slider(
         horiz_spec.clone(),
@@ -558,7 +558,7 @@ fn test_slider_tab_moves_focus_not_arrows() {
     // Frame 1: Tab on focused slider_a — should shift focus to slider_b
     focus_system.begin_frame();
     let input = crate::input::Input {
-        key_pressed_tab: true,
+        keys_pressed: crate::input::KeySet::from_key(crate::input::Key::Tab),
         ..Default::default()
     };
     let mut cmds = DrawCommands::new(1.0);
@@ -1827,13 +1827,14 @@ fn test_disabled_slider_ignores_all_input() {
     let mut cmds = DrawCommands::new(1.0);
 
     // Press on the thumb (thumb is centered around value=50).
+    let mut keys_pressed = crate::input::KeySet::from_key(crate::input::Key::PageDown);
+    keys_pressed.insert(crate::input::Key::End);
     let input = Input {
         mouse_pos: crate::types::Vec2::new(10.0, 50.0),
         mouse_pressed: true,
         mouse_down: true,
         scroll_delta: Vec2::new(0.0, 5.0),
-        key_pressed_page_down: true,
-        key_pressed_end: true,
+        keys_pressed,
         ..Default::default()
     };
 
@@ -4350,7 +4351,7 @@ fn test_range_slider_keyboard_preserves_span() {
     // Subcase: Right or Down should move both endpoints by step, preserving span
     // 30..50 -> 35..55
     focus_system.begin_frame();
-    input.key_pressed_right = true;
+    input.keys_pressed.insert(crate::input::Key::ArrowRight);
     raw::post_layout_slider(
         spec.clone(),
         raw::SliderPreLayoutResult {
@@ -4368,8 +4369,8 @@ fn test_range_slider_keyboard_preserves_span() {
     // Left or Up should move both endpoints back
     // 35..55 -> 30..50
     focus_system.begin_frame();
-    input.key_pressed_right = false;
-    input.key_pressed_left = true;
+    input.keys_pressed.remove(crate::input::Key::ArrowRight);
+    input.keys_pressed.insert(crate::input::Key::ArrowLeft);
     raw::post_layout_slider(
         spec.clone(),
         raw::SliderPreLayoutResult {
@@ -4387,8 +4388,8 @@ fn test_range_slider_keyboard_preserves_span() {
     // PageDown should move both endpoints by page_step
     // 30..50 -> 50..70
     focus_system.begin_frame();
-    input.key_pressed_left = false;
-    input.key_pressed_page_down = true;
+    input.keys_pressed.remove(crate::input::Key::ArrowLeft);
+    input.keys_pressed.insert(crate::input::Key::PageDown);
     raw::post_layout_slider(
         spec.clone(),
         raw::SliderPreLayoutResult {
@@ -4406,8 +4407,8 @@ fn test_range_slider_keyboard_preserves_span() {
     // PageUp should move both endpoints back
     // 50..70 -> 30..50
     focus_system.begin_frame();
-    input.key_pressed_page_down = false;
-    input.key_pressed_page_up = true;
+    input.keys_pressed.remove(crate::input::Key::PageDown);
+    input.keys_pressed.insert(crate::input::Key::PageUp);
     raw::post_layout_slider(
         spec.clone(),
         raw::SliderPreLayoutResult {
@@ -4425,8 +4426,8 @@ fn test_range_slider_keyboard_preserves_span() {
     // Home should move the range to the minimum while preserving span
     // 30..50 -> 0..20
     focus_system.begin_frame();
-    input.key_pressed_page_up = false;
-    input.key_pressed_home = true;
+    input.keys_pressed.remove(crate::input::Key::PageUp);
+    input.keys_pressed.insert(crate::input::Key::Home);
     raw::post_layout_slider(
         spec.clone(),
         raw::SliderPreLayoutResult {
@@ -4450,8 +4451,8 @@ fn test_range_slider_keyboard_preserves_span() {
     // End should move the range to the maximum while preserving span
     // 30..50 -> 80..100
     focus_system.begin_frame();
-    input.key_pressed_home = false;
-    input.key_pressed_end = true;
+    input.keys_pressed.remove(crate::input::Key::Home);
+    input.keys_pressed.insert(crate::input::Key::End);
     raw::post_layout_slider(
         spec.clone(),
         raw::SliderPreLayoutResult {
@@ -5365,7 +5366,7 @@ fn test_slider_value_snap_applies_to_step_and_page_inputs() {
     );
     focus_system.end_frame();
 
-    input.key_pressed_down = true;
+    input.keys_pressed.insert(crate::input::Key::ArrowDown);
     focus_system.begin_frame();
     raw::post_layout_slider(
         spec.clone(),
@@ -5378,8 +5379,8 @@ fn test_slider_value_snap_applies_to_step_and_page_inputs() {
     focus_system.end_frame();
     assert_eq!(state.value.lower(), 21.0);
 
-    input.key_pressed_down = false;
-    input.key_pressed_page_down = true;
+    input.keys_pressed.remove(crate::input::Key::ArrowDown);
+    input.keys_pressed.insert(crate::input::Key::PageDown);
     focus_system.begin_frame();
     raw::post_layout_slider(
         spec.clone(),
@@ -5669,7 +5670,7 @@ fn test_slider_value_snap_preserves_home_end_exact_endpoints() {
     focus_system.take_keyboard_focus(state.focus_id);
 
     let input = Input {
-        key_pressed_home: true,
+        keys_pressed: crate::input::KeySet::from_key(crate::input::Key::Home),
         ..Default::default()
     };
     focus_system.begin_frame();
@@ -5685,7 +5686,7 @@ fn test_slider_value_snap_preserves_home_end_exact_endpoints() {
     focus_system.end_frame();
 
     let input = Input {
-        key_pressed_end: true,
+        keys_pressed: crate::input::KeySet::from_key(crate::input::Key::End),
         ..Default::default()
     };
     focus_system.begin_frame();

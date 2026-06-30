@@ -401,7 +401,7 @@ fn test_enter_clicks_raw_button() {
     focus_system.end_frame();
 
     // Frame 2: Press Enter
-    input.key_pressed_enter = true;
+    input.keys_pressed.insert(crate::input::Key::Enter);
     focus_system.begin_frame();
     let res = raw::post_layout_button(
         spec(),

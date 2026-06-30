@@ -260,7 +260,7 @@ pub mod raw {
             }
 
             let all_text_events_consumed = processed_text_events == input.text_events.len();
-            if all_text_events_consumed && input.key_pressed_enter {
+            if all_text_events_consumed && input.key_pressed(crate::input::Key::Enter) {
                 if !newline_inserted {
                     insert_text_with_newline_policy(
                         &mut state.value,
@@ -770,7 +770,7 @@ pub mod raw {
             }
 
             if !pre_layout.enter_key_handled_in_pre_layout
-                && input.key_pressed_enter
+                && input.key_pressed(crate::input::Key::Enter)
                 && !newline_inserted
             {
                 insert_text_with_newline_policy(
@@ -783,8 +783,10 @@ pub mod raw {
                 );
             }
 
-            if input.key_pressed_page_up || input.key_pressed_page_down {
-                let direction = if input.key_pressed_page_down {
+            if input.key_pressed(crate::input::Key::PageUp)
+                || input.key_pressed(crate::input::Key::PageDown)
+            {
+                let direction = if input.key_pressed(crate::input::Key::PageDown) {
                     VerticalCaretDirection::Down
                 } else {
                     VerticalCaretDirection::Up

@@ -168,17 +168,17 @@ pub mod raw {
         }
 
         let mut is_clicked = false;
-        if focused && input.key_pressed_enter && !state.open {
+        if focused && input.key_pressed(crate::input::Key::Enter) && !state.open {
             is_clicked = true;
         }
-        if state.space_is_active && input.key_released_space && !state.open {
+        if state.space_is_active && input.key_released(crate::input::Key::Space) && !state.open {
             is_clicked = true;
         }
 
-        if !focused || !input.key_down_space {
+        if !focused || !input.key_down(crate::input::Key::Space) {
             state.space_is_active = false;
         }
-        if focused && input.key_pressed_space {
+        if focused && input.key_pressed(crate::input::Key::Space) {
             state.space_is_active = true;
         }
 
@@ -196,7 +196,7 @@ pub mod raw {
 
         // Keyboard navigation when focused
         if focused && !spec.disabled && !spec.items.is_empty() {
-            if input.key_pressed_down {
+            if input.key_pressed(crate::input::Key::ArrowDown) {
                 if state.open {
                     let current = state.hovered.unwrap_or(0);
                     if current + 1 < spec.items.len() {
@@ -209,7 +209,7 @@ pub mod raw {
                 }
             }
 
-            if input.key_pressed_up {
+            if input.key_pressed(crate::input::Key::ArrowUp) {
                 if state.open {
                     let current = state.hovered.unwrap_or(0);
                     if current > 0 {
@@ -222,7 +222,7 @@ pub mod raw {
                 }
             }
 
-            if state.open && input.key_pressed_enter {
+            if state.open && input.key_pressed(crate::input::Key::Enter) {
                 if let Some(h) = state.hovered {
                     if h < spec.items.len() {
                         state.selected_index = h;

@@ -347,8 +347,8 @@ fn test_chip_keyboard_toggle() {
     focus_system.end_frame();
 
     // Frame 2: Press Space
-    input.key_down_space = true;
-    input.key_pressed_space = true;
+    input.keys_down.insert(crate::input::Key::Space);
+    input.keys_pressed.insert(crate::input::Key::Space);
     focus_system.begin_frame();
     let mut cmds = DrawCommands::new(1.0);
     raw::post_layout_chip(
@@ -372,9 +372,9 @@ fn test_chip_keyboard_toggle() {
     focus_system.end_frame();
 
     // Frame 3: Release Space
-    input.key_down_space = false;
-    input.key_pressed_space = false;
-    input.key_released_space = true;
+    input.keys_down.remove(crate::input::Key::Space);
+    input.keys_pressed.remove(crate::input::Key::Space);
+    input.keys_released.insert(crate::input::Key::Space);
     focus_system.begin_frame();
     let mut cmds = DrawCommands::new(1.0);
     raw::post_layout_chip(

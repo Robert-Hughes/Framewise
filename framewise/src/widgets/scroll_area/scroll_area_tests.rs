@@ -329,7 +329,7 @@ fn test_pgup_pgdn_horiz_uses_vert_wheel() {
     let mut state = ScrollState::default();
 
     let mut input = Input::new();
-    input.key_pressed_page_down = true;
+    input.keys_pressed.insert(crate::input::Key::PageDown);
     let mut focus_system = FocusSystem::new();
     let mut text_backend = TestTextBackend::default();
     let mut btn_state = crate::widgets::button::ButtonState::default();
@@ -409,7 +409,7 @@ fn test_pgdn_step_uses_content_bounds() {
     let bounds = Rect::new(0.0, 0.0, 200.0, 200.0);
     let mut state = ScrollState::default();
     let mut input = Input::new();
-    input.key_pressed_page_down = true;
+    input.keys_pressed.insert(crate::input::Key::PageDown);
     let mut focus_system = FocusSystem::new();
     let mut text_backend = TestTextBackend::default();
     let mut btn_state = crate::widgets::button::ButtonState::default();
@@ -499,7 +499,7 @@ fn test_pgdn_with_focus_outside_token() {
     for _ in 0..2 {
         focus_system.begin_frame();
         let mut input = Input::new();
-        input.key_pressed_page_down = true;
+        input.keys_pressed.insert(crate::input::Key::PageDown);
 
         // Button rendered OUTSIDE the scroll area's begin/finish.
         crate::widgets::button::raw::post_layout_button(
@@ -1493,7 +1493,7 @@ fn test_spatial_nav_skips_widget_clipped_by_scroll_area() {
     for frame in 0..2 {
         let mut input = Input::new();
         if frame == 1 {
-            input.key_pressed_up = true;
+            input.keys_pressed.insert(crate::input::Key::ArrowUp);
         }
 
         focus_system.begin_frame();
@@ -1646,7 +1646,7 @@ fn test_spatial_nav_reaches_partially_clipped_widget() {
     for frame in 0..2 {
         let mut input = Input::new();
         if frame == 1 {
-            input.key_pressed_up = true;
+            input.keys_pressed.insert(crate::input::Key::ArrowUp);
         }
 
         focus_system.begin_frame();
@@ -2000,7 +2000,7 @@ fn test_home_end_on_focused_slider() {
 
     // End → offset jumps to max.
     let mut input = Input::new();
-    input.key_pressed_end = true;
+    input.keys_pressed.insert(crate::input::Key::End);
     focus_system.begin_frame();
     let spec = ScrollAreaSpec {
         layer: Layer::default(),
@@ -2042,7 +2042,7 @@ fn test_home_end_on_focused_slider() {
 
     // Home → offset jumps to 0.
     let mut input = Input::new();
-    input.key_pressed_home = true;
+    input.keys_pressed.insert(crate::input::Key::Home);
     focus_system.begin_frame();
     let spec = ScrollAreaSpec {
         layer: Layer::default(),
@@ -2550,7 +2550,11 @@ mod nested_bubbling_tests {
 
         for frame in 0..3 {
             focus_system.begin_frame();
-            input.key_pressed_page_down = frame == 1;
+            if frame == 1 {
+                input.keys_pressed.insert(crate::input::Key::PageDown);
+            } else {
+                input.keys_pressed.remove(crate::input::Key::PageDown);
+            }
             if frame == 0 {
                 inner_state.offset.y = 100.0; // At bottom
                 outer_state.offset.y = 0.0; // Has room to scroll down
@@ -2675,7 +2679,11 @@ mod nested_bubbling_tests {
 
         for frame in 0..3 {
             focus_system.begin_frame();
-            input.key_pressed_page_down = frame == 1;
+            if frame == 1 {
+                input.keys_pressed.insert(crate::input::Key::PageDown);
+            } else {
+                input.keys_pressed.remove(crate::input::Key::PageDown);
+            }
             if frame == 0 {
                 inner_state.offset.x = 100.0; // Inner horiz at bottom
                 outer_state.offset.y = 0.0; // Outer vert has room
@@ -2842,7 +2850,11 @@ mod nested_bubbling_tests {
 
         for frame in 0..3 {
             focus_system.begin_frame();
-            input.key_pressed_page_down = frame == 1;
+            if frame == 1 {
+                input.keys_pressed.insert(crate::input::Key::PageDown);
+            } else {
+                input.keys_pressed.remove(crate::input::Key::PageDown);
+            }
             if frame == 0 {
                 inner_state.offset.y = 100.0; // At bottom
                 outer_state.offset.y = 0.0; // Has room to scroll down
@@ -2986,7 +2998,11 @@ mod nested_bubbling_tests {
 
         for frame in 0..3 {
             focus_system.begin_frame();
-            input.key_pressed_page_down = frame == 1;
+            if frame == 1 {
+                input.keys_pressed.insert(crate::input::Key::PageDown);
+            } else {
+                input.keys_pressed.remove(crate::input::Key::PageDown);
+            }
             if frame == 0 {
                 inner_state.offset.x = 100.0; // At right
                 outer_state.offset.y = 0.0; // Has room
@@ -3330,7 +3346,11 @@ mod nested_bubbling_tests {
 
         for frame in 0..3 {
             focus_system.begin_frame();
-            input.key_pressed_page_down = frame == 1;
+            if frame == 1 {
+                input.keys_pressed.insert(crate::input::Key::PageDown);
+            } else {
+                input.keys_pressed.remove(crate::input::Key::PageDown);
+            }
             if frame == 0 {
                 inner_state.offset.y = 100.0; // at bottom (content=300, view=200 → max=100)
                 outer_state.offset.x = 0.0; // outer has room right
@@ -3501,7 +3521,11 @@ mod nested_bubbling_tests {
 
         for frame in 0..3 {
             focus_system.begin_frame();
-            input.key_pressed_page_down = frame == 1;
+            if frame == 1 {
+                input.keys_pressed.insert(crate::input::Key::PageDown);
+            } else {
+                input.keys_pressed.remove(crate::input::Key::PageDown);
+            }
             if frame == 0 {
                 inner_state.offset.y = 100.0; // at max
                 outer_state.offset.x = 0.0;
@@ -3946,7 +3970,11 @@ mod nested_bubbling_tests {
 
         for frame in 0..3 {
             focus_system.begin_frame();
-            input.key_pressed_page_down = frame == 1;
+            if frame == 1 {
+                input.keys_pressed.insert(crate::input::Key::PageDown);
+            } else {
+                input.keys_pressed.remove(crate::input::Key::PageDown);
+            }
             if frame == 0 {
                 inner_state.offset.y = 312.0; // at bottom (content=600, view=288 → max=312)
                 middle_state.offset.x = 50.0; // must NOT scroll right
@@ -4166,7 +4194,11 @@ mod nested_bubbling_tests {
 
         for frame in 0..3 {
             focus_system.begin_frame();
-            input.key_pressed_page_down = frame == 1;
+            if frame == 1 {
+                input.keys_pressed.insert(crate::input::Key::PageDown);
+            } else {
+                input.keys_pressed.remove(crate::input::Key::PageDown);
+            }
             if frame == 0 {
                 inner_state.offset.y = 312.0; // at max
                 middle_state.offset.x = 50.0; // must NOT scroll
@@ -4652,7 +4684,11 @@ mod nested_bubbling_tests {
 
         for frame in 0..3 {
             focus_system.begin_frame();
-            input.key_pressed_page_down = frame == 1;
+            if frame == 1 {
+                input.keys_pressed.insert(crate::input::Key::PageDown);
+            } else {
+                input.keys_pressed.remove(crate::input::Key::PageDown);
+            }
             if frame == 0 {
                 inner_state.offset.x = 412.0; // at right (content=800, view=388 → max=412)
                 middle_state.offset.y = 50.0; // must NOT scroll down
@@ -4870,7 +4906,11 @@ mod nested_bubbling_tests {
 
         for frame in 0..3 {
             focus_system.begin_frame();
-            input.key_pressed_page_down = frame == 1;
+            if frame == 1 {
+                input.keys_pressed.insert(crate::input::Key::PageDown);
+            } else {
+                input.keys_pressed.remove(crate::input::Key::PageDown);
+            }
             if frame == 0 {
                 inner_state.offset.x = 412.0; // at max
                 middle_state.offset.y = 50.0; // must NOT scroll
@@ -5627,7 +5667,11 @@ mod nested_bubbling_tests {
 
         for frame in 0..3 {
             focus_system.begin_frame();
-            input.key_pressed_page_down = frame == 1;
+            if frame == 1 {
+                input.keys_pressed.insert(crate::input::Key::PageDown);
+            } else {
+                input.keys_pressed.remove(crate::input::Key::PageDown);
+            }
             if frame == 0 {
                 inner_state.offset.y = 160.0; // at bottom (max_scroll.y = 300 - content_bounds.h(140) = 160)
                 outer_state.offset.y = 50.0; // outer has room
@@ -5777,7 +5821,11 @@ mod nested_bubbling_tests {
 
         for frame in 0..3 {
             focus_system.begin_frame();
-            input.key_pressed_page_down = frame == 1;
+            if frame == 1 {
+                input.keys_pressed.insert(crate::input::Key::PageDown);
+            } else {
+                input.keys_pressed.remove(crate::input::Key::PageDown);
+            }
             if frame == 0 {
                 inner_state.offset.x = 210.0; // at right (max_scroll.x = 400 - content_bounds.w(190) = 210)
                 outer_state.offset.x = 50.0; // outer has room to scroll right
@@ -5884,7 +5932,11 @@ mod nested_bubbling_tests {
 
         for frame in 0..3 {
             focus_system.begin_frame();
-            input.key_pressed_page_down = frame == 1;
+            if frame == 1 {
+                input.keys_pressed.insert(crate::input::Key::PageDown);
+            } else {
+                input.keys_pressed.remove(crate::input::Key::PageDown);
+            }
             if frame == 0 {
                 inner_state.offset.y = 160.0; // at bottom (max_scroll.y = 300 - content_bounds.h(140) = 160)
                 outer_state.offset.y = 50.0;

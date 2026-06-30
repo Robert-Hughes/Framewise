@@ -667,7 +667,7 @@ pub mod raw {
                     active_page_dirs.right
                 };
 
-                if input.key_pressed_page_up && is_active_pgup {
+                if input.key_pressed(crate::input::Key::PageUp) && is_active_pgup {
                     step_active_value(
                         state,
                         -spec.page_step,
@@ -678,7 +678,7 @@ pub mod raw {
                         spec.value_snap,
                     );
                 }
-                if input.key_pressed_page_down && is_active_pgdn {
+                if input.key_pressed(crate::input::Key::PageDown) && is_active_pgdn {
                     step_active_value(
                         state,
                         spec.page_step,
@@ -689,7 +689,9 @@ pub mod raw {
                         spec.value_snap,
                     );
                 }
-                if input.key_pressed_up || input.key_pressed_left {
+                if input.key_pressed(crate::input::Key::ArrowUp)
+                    || input.key_pressed(crate::input::Key::ArrowLeft)
+                {
                     step_active_value(
                         state,
                         -spec.step,
@@ -700,7 +702,9 @@ pub mod raw {
                         spec.value_snap,
                     );
                 }
-                if input.key_pressed_down || input.key_pressed_right {
+                if input.key_pressed(crate::input::Key::ArrowDown)
+                    || input.key_pressed(crate::input::Key::ArrowRight)
+                {
                     step_active_value(
                         state,
                         spec.step,
@@ -711,11 +715,11 @@ pub mod raw {
                         spec.value_snap,
                     );
                 }
-                if input.key_pressed_home {
+                if input.key_pressed(crate::input::Key::Home) {
                     set_active_min(state, min);
                     repair_values(state, min, max, spec.min_gap, spec.max_gap, spec.value_snap);
                 }
-                if input.key_pressed_end {
+                if input.key_pressed(crate::input::Key::End) {
                     set_active_max(state, min, max);
                     repair_values(state, min, max, spec.min_gap, spec.max_gap, spec.value_snap);
                 }

@@ -24,7 +24,7 @@ pub mod test_utils;
 // ── Public re-exports ─────────────────────────────────────────────────────────
 
 pub use draw::{BorderPlacement, DrawCmd, DrawCommands, DrawGlyph, PreparedGlyphToken};
-pub use input::Input;
+pub use input::{Input, Key, KeySet};
 pub use layout::{
     Align, AxisBound, LayoutSpace, Placement, Placement2D, Size, SizeOffer, SizeRequest,
 };

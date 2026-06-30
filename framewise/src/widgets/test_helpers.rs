@@ -292,7 +292,7 @@ pub fn assert_tab_moves_focus_next<StateA, StateB>(
         focus_a,
         state_b,
         focus_b,
-        |input| input.key_pressed_tab = true,
+        |input| input.keys_pressed.insert(crate::input::Key::Tab),
         run,
     );
 }
@@ -309,7 +309,7 @@ pub fn assert_right_arrow_moves_focus_next<StateA, StateB>(
         focus_a,
         state_b,
         focus_b,
-        |input| input.key_pressed_right = true,
+        |input| input.keys_pressed.insert(crate::input::Key::ArrowRight),
         run,
     );
 }
@@ -326,7 +326,7 @@ pub fn assert_down_arrow_moves_focus_next<StateA, StateB>(
         focus_a,
         state_b,
         focus_b,
-        |input| input.key_pressed_down = true,
+        |input| input.keys_pressed.insert(crate::input::Key::ArrowDown),
         run,
     );
 }
@@ -344,7 +344,7 @@ pub fn assert_shift_tab_moves_focus_prev<StateA, StateB>(
         state_b,
         focus_a,
         |input| {
-            input.key_pressed_tab = true;
+            input.keys_pressed.insert(crate::input::Key::Tab);
             input.modifier_shift = true;
         },
         run,
@@ -488,15 +488,15 @@ pub fn assert_disabled_ignores_press_interaction<State>(
 
     focus_system.take_keyboard_focus(focus_id);
     let enter = Input {
-        key_pressed_enter: true,
+        keys_pressed: crate::input::KeySet::from_key(crate::input::Key::Enter),
         ..Default::default()
     };
     let result = run_frame(state, &enter, &mut focus_system, &mut cmds, &mut run);
     assert!(!result.clicked, "Disabled widget should ignore Enter");
 
     let space_down = Input {
-        key_down_space: true,
-        key_pressed_space: true,
+        keys_down: crate::input::KeySet::from_key(crate::input::Key::Space),
+        keys_pressed: crate::input::KeySet::from_key(crate::input::Key::Space),
         ..Default::default()
     };
     let result = run_frame(state, &space_down, &mut focus_system, &mut cmds, &mut run);
@@ -504,7 +504,7 @@ pub fn assert_disabled_ignores_press_interaction<State>(
     assert!(!result.clicked, "Disabled widget should ignore Space press");
 
     let space_up = Input {
-        key_released_space: true,
+        keys_released: crate::input::KeySet::from_key(crate::input::Key::Space),
         ..Default::default()
     };
     let result = run_frame(state, &space_up, &mut focus_system, &mut cmds, &mut run);
@@ -526,8 +526,8 @@ pub fn assert_spacebar_click<State>(
     focus_system.take_keyboard_focus(focus_id);
     let _ = run_frame(state, &input, &mut focus_system, &mut cmds, &mut run);
 
-    input.key_down_space = true;
-    input.key_pressed_space = true;
+    input.keys_down.insert(crate::input::Key::Space);
+    input.keys_pressed.insert(crate::input::Key::Space);
     let result = run_frame(state, &input, &mut focus_system, &mut cmds, &mut run);
     assert!(
         result.pressed,
@@ -535,13 +535,13 @@ pub fn assert_spacebar_click<State>(
     );
     assert!(!result.clicked, "Widget should not be clicked yet");
 
-    input.key_pressed_space = false;
+    input.keys_pressed.remove(crate::input::Key::Space);
     let result = run_frame(state, &input, &mut focus_system, &mut cmds, &mut run);
     assert!(result.pressed, "Widget should remain pressed");
     assert!(!result.clicked, "Widget should not be clicked yet");
 
-    input.key_down_space = false;
-    input.key_released_space = true;
+    input.keys_down.remove(crate::input::Key::Space);
+    input.keys_released.insert(crate::input::Key::Space);
     let result = run_frame(state, &input, &mut focus_system, &mut cmds, &mut run);
     assert!(!result.pressed, "Widget should not be pressed");
     assert!(result.clicked, "Widget should be clicked on release");
@@ -559,15 +559,15 @@ pub fn assert_spacebar_loses_focus_does_not_click<State>(
     focus_system.take_keyboard_focus(focus_id);
     let _ = run_frame(state, &input, &mut focus_system, &mut cmds, &mut run);
 
-    input.key_down_space = true;
-    input.key_pressed_space = true;
+    input.keys_down.insert(crate::input::Key::Space);
+    input.keys_pressed.insert(crate::input::Key::Space);
     let result = run_frame(state, &input, &mut focus_system, &mut cmds, &mut run);
     assert!(
         result.pressed,
         "Widget should be visually pressed while space is down"
     );
 
-    input.key_pressed_space = false;
+    input.keys_pressed.remove(crate::input::Key::Space);
     focus_system.take_keyboard_focus(FocusId::new());
     let result = run_frame(state, &input, &mut focus_system, &mut cmds, &mut run);
     assert!(
@@ -575,8 +575,8 @@ pub fn assert_spacebar_loses_focus_does_not_click<State>(
         "Widget should lose pressed state when focus is lost"
     );
 
-    input.key_down_space = false;
-    input.key_released_space = true;
+    input.keys_down.remove(crate::input::Key::Space);
+    input.keys_released.insert(crate::input::Key::Space);
     let result = run_frame(state, &input, &mut focus_system, &mut cmds, &mut run);
     assert!(
         !result.clicked,

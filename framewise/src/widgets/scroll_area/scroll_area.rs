@@ -496,10 +496,12 @@ pub mod raw {
         focus_system: &mut FocusSystem,
         input: &Input,
     ) {
-        if !input.key_pressed_page_up && !input.key_pressed_page_down {
+        if !input.key_pressed(crate::input::Key::PageUp)
+            && !input.key_pressed(crate::input::Key::PageDown)
+        {
             return;
         }
-        let sign: f32 = if input.key_pressed_page_down {
+        let sign: f32 = if input.key_pressed(crate::input::Key::PageDown) {
             1.0
         } else {
             -1.0

@@ -340,7 +340,7 @@ impl FocusSystem {
             return;
         }
         // Tab is always linear — check it first and return early.
-        if keys.tab && input.key_pressed_tab {
+        if keys.tab && input.key_pressed(crate::input::Key::Tab) {
             if input.modifier_shift {
                 self.request_keyboard_shift(FocusDirection::Prev);
             } else {
@@ -349,13 +349,13 @@ impl FocusSystem {
             return;
         }
         // Arrow keys use spatial navigation.
-        if keys.up && input.key_pressed_up {
+        if keys.up && input.key_pressed(crate::input::Key::ArrowUp) {
             self.request_keyboard_shift(FocusDirection::Up);
-        } else if keys.down && input.key_pressed_down {
+        } else if keys.down && input.key_pressed(crate::input::Key::ArrowDown) {
             self.request_keyboard_shift(FocusDirection::Down);
-        } else if keys.left && input.key_pressed_left {
+        } else if keys.left && input.key_pressed(crate::input::Key::ArrowLeft) {
             self.request_keyboard_shift(FocusDirection::Left);
-        } else if keys.right && input.key_pressed_right {
+        } else if keys.right && input.key_pressed(crate::input::Key::ArrowRight) {
             self.request_keyboard_shift(FocusDirection::Right);
         }
     }
@@ -793,7 +793,7 @@ mod tests {
     #[test]
     fn test_handle_traversal_tab_moves_next() {
         let input = crate::input::Input {
-            key_pressed_tab: true,
+            keys_pressed: crate::input::KeySet::from_key(crate::input::Key::Tab),
             ..Default::default()
         };
         let (has1, has2) = two_widget_focus_after_key(input, FocusTraversalKeys::all());
@@ -809,7 +809,7 @@ mod tests {
         sys.take_keyboard_focus(id2);
 
         let input = crate::input::Input {
-            key_pressed_tab: true,
+            keys_pressed: crate::input::KeySet::from_key(crate::input::Key::Tab),
             modifier_shift: true,
             ..Default::default()
         };
@@ -832,7 +832,7 @@ mod tests {
     fn test_handle_traversal_down_moves_to_widget_below() {
         // id2 is directly below id1 — spatial finds it.
         let input = crate::input::Input {
-            key_pressed_down: true,
+            keys_pressed: crate::input::KeySet::from_key(crate::input::Key::ArrowDown),
             ..Default::default()
         };
         let (has1, has2) = two_widget_focus_after_key(input, FocusTraversalKeys::all());
@@ -845,7 +845,7 @@ mod tests {
         // id1 and id2 are stacked vertically — neither is to the right of the other.
         // Right falls back to linear Next → id2.
         let input = crate::input::Input {
-            key_pressed_right: true,
+            keys_pressed: crate::input::KeySet::from_key(crate::input::Key::ArrowRight),
             ..Default::default()
         };
         let (has1, has2) = two_widget_focus_after_key(input, FocusTraversalKeys::all());
@@ -860,7 +860,7 @@ mod tests {
     fn test_handle_traversal_up_no_spatial_target_falls_back_linear() {
         // id1 is at top, nothing above — Up falls back to linear Prev → wraps to id2.
         let input = crate::input::Input {
-            key_pressed_up: true,
+            keys_pressed: crate::input::KeySet::from_key(crate::input::Key::ArrowUp),
             ..Default::default()
         };
         let (has1, has2) = two_widget_focus_after_key(input, FocusTraversalKeys::all());
@@ -874,7 +874,7 @@ mod tests {
     #[test]
     fn test_handle_traversal_left_no_spatial_target_falls_back_linear() {
         let input = crate::input::Input {
-            key_pressed_left: true,
+            keys_pressed: crate::input::KeySet::from_key(crate::input::Key::ArrowLeft),
             ..Default::default()
         };
         let (has1, has2) = two_widget_focus_after_key(input, FocusTraversalKeys::all());
@@ -888,7 +888,7 @@ mod tests {
     #[test]
     fn test_handle_traversal_tab_only_arrows_dont_navigate() {
         let input = crate::input::Input {
-            key_pressed_right: true,
+            keys_pressed: crate::input::KeySet::from_key(crate::input::Key::ArrowRight),
             ..Default::default()
         };
         let (has1, has2) = two_widget_focus_after_key(input, FocusTraversalKeys::tab_only());
@@ -899,7 +899,7 @@ mod tests {
     #[test]
     fn test_handle_traversal_tab_only_tab_still_navigates() {
         let input = crate::input::Input {
-            key_pressed_tab: true,
+            keys_pressed: crate::input::KeySet::from_key(crate::input::Key::Tab),
             ..Default::default()
         };
         let (has1, has2) = two_widget_focus_after_key(input, FocusTraversalKeys::tab_only());
@@ -909,9 +909,10 @@ mod tests {
 
     #[test]
     fn test_handle_traversal_none_nothing_navigates() {
+        let mut keys_pressed = crate::input::KeySet::from_key(crate::input::Key::Tab);
+        keys_pressed.insert(crate::input::Key::ArrowRight);
         let input = crate::input::Input {
-            key_pressed_tab: true,
-            key_pressed_right: true,
+            keys_pressed,
             ..Default::default()
         };
         let (has1, has2) = two_widget_focus_after_key(input, FocusTraversalKeys::none());
@@ -930,7 +931,7 @@ mod tests {
         sys.take_keyboard_focus(id1);
 
         let input = crate::input::Input {
-            key_pressed_right: true,
+            keys_pressed: crate::input::KeySet::from_key(crate::input::Key::ArrowRight),
             ..Default::default()
         };
 
@@ -1004,7 +1005,9 @@ mod tests {
         ];
 
         // From id1 Down → id2 (nearest), not id3.
-        let got = spatial_focus_after_key(&rects, 0, |i| i.key_pressed_down = true);
+        let got = spatial_focus_after_key(&rects, 0, |i| {
+            i.keys_pressed.insert(crate::input::Key::ArrowDown)
+        });
         assert_eq!(got, id2, "Down from top should pick middle, not bottom");
     }
 
@@ -1020,7 +1023,9 @@ mod tests {
         ];
 
         // From id3 Up → id2, not id1.
-        let got = spatial_focus_after_key(&rects, 2, |i| i.key_pressed_up = true);
+        let got = spatial_focus_after_key(&rects, 2, |i| {
+            i.keys_pressed.insert(crate::input::Key::ArrowUp)
+        });
         assert_eq!(got, id2, "Up from bottom should pick middle, not top");
     }
 
@@ -1036,7 +1041,9 @@ mod tests {
             (id3, r(200.0, 0.0)),
         ];
 
-        let got = spatial_focus_after_key(&rects, 0, |i| i.key_pressed_right = true);
+        let got = spatial_focus_after_key(&rects, 0, |i| {
+            i.keys_pressed.insert(crate::input::Key::ArrowRight)
+        });
         assert_eq!(
             got, id2,
             "Right from left should pick middle, not far right"
@@ -1054,7 +1061,9 @@ mod tests {
             (id3, r(200.0, 0.0)),
         ];
 
-        let got = spatial_focus_after_key(&rects, 2, |i| i.key_pressed_left = true);
+        let got = spatial_focus_after_key(&rects, 2, |i| {
+            i.keys_pressed.insert(crate::input::Key::ArrowLeft)
+        });
         assert_eq!(got, id2, "Left from right should pick middle, not far left");
     }
 
@@ -1072,42 +1081,58 @@ mod tests {
         ];
 
         assert_eq!(
-            spatial_focus_after_key(&rects, 0, |i| i.key_pressed_right = true),
+            spatial_focus_after_key(&rects, 0, |i| i
+                .keys_pressed
+                .insert(crate::input::Key::ArrowRight)),
             tr,
             "tl→Right→tr"
         );
         assert_eq!(
-            spatial_focus_after_key(&rects, 0, |i| i.key_pressed_down = true),
+            spatial_focus_after_key(&rects, 0, |i| i
+                .keys_pressed
+                .insert(crate::input::Key::ArrowDown)),
             bl,
             "tl→Down→bl"
         );
         assert_eq!(
-            spatial_focus_after_key(&rects, 3, |i| i.key_pressed_left = true),
+            spatial_focus_after_key(&rects, 3, |i| i
+                .keys_pressed
+                .insert(crate::input::Key::ArrowLeft)),
             bl,
             "br→Left→bl"
         );
         assert_eq!(
-            spatial_focus_after_key(&rects, 3, |i| i.key_pressed_up = true),
+            spatial_focus_after_key(&rects, 3, |i| i
+                .keys_pressed
+                .insert(crate::input::Key::ArrowUp)),
             tr,
             "br→Up→tr"
         );
         assert_eq!(
-            spatial_focus_after_key(&rects, 1, |i| i.key_pressed_left = true),
+            spatial_focus_after_key(&rects, 1, |i| i
+                .keys_pressed
+                .insert(crate::input::Key::ArrowLeft)),
             tl,
             "tr→Left→tl"
         );
         assert_eq!(
-            spatial_focus_after_key(&rects, 1, |i| i.key_pressed_down = true),
+            spatial_focus_after_key(&rects, 1, |i| i
+                .keys_pressed
+                .insert(crate::input::Key::ArrowDown)),
             br,
             "tr→Down→br"
         );
         assert_eq!(
-            spatial_focus_after_key(&rects, 2, |i| i.key_pressed_right = true),
+            spatial_focus_after_key(&rects, 2, |i| i
+                .keys_pressed
+                .insert(crate::input::Key::ArrowRight)),
             br,
             "bl→Right→br"
         );
         assert_eq!(
-            spatial_focus_after_key(&rects, 2, |i| i.key_pressed_up = true),
+            spatial_focus_after_key(&rects, 2, |i| i
+                .keys_pressed
+                .insert(crate::input::Key::ArrowUp)),
             tl,
             "bl→Up→tl"
         );
@@ -1133,7 +1158,9 @@ mod tests {
             (id_far, Rect::new(0.0, -60.0, 80.0, 30.0)),
         ];
 
-        let got = spatial_focus_after_key(&rects, 0, |i| i.key_pressed_up = true);
+        let got = spatial_focus_after_key(&rects, 0, |i| {
+            i.keys_pressed.insert(crate::input::Key::ArrowUp)
+        });
         assert_eq!(
             got, id_far,
             "Aligned but further widget should beat misaligned closer one"
@@ -1148,7 +1175,9 @@ mod tests {
         let id2 = FocusId::new();
         let rects = [(id1, r(0.0, 0.0)), (id2, r(100.0, 0.0))];
 
-        let got = spatial_focus_after_key(&rects, 0, |i| i.key_pressed_up = true);
+        let got = spatial_focus_after_key(&rects, 0, |i| {
+            i.keys_pressed.insert(crate::input::Key::ArrowUp)
+        });
         assert_eq!(
             got, id2,
             "No spatial target: Up falls back to linear Prev (wraps to id2)"
@@ -1163,7 +1192,7 @@ mod tests {
 
         sys.begin_frame();
         let input = crate::input::Input {
-            key_pressed_down: true,
+            keys_pressed: crate::input::KeySet::from_key(crate::input::Key::ArrowDown),
             ..Default::default()
         };
         let focused = sys.register_keyboard(id, r(0.0, 0.0), None);
@@ -1195,7 +1224,7 @@ mod tests {
 
         sys.begin_frame();
         let input = crate::input::Input {
-            key_pressed_down: true,
+            keys_pressed: crate::input::KeySet::from_key(crate::input::Key::ArrowDown),
             ..Default::default()
         };
         let focused = sys.register_keyboard(id_focus, r(0.0, 0.0), None); // y=0, inside clip
@@ -1232,7 +1261,7 @@ mod tests {
 
         sys.begin_frame();
         let input = crate::input::Input {
-            key_pressed_down: true,
+            keys_pressed: crate::input::KeySet::from_key(crate::input::Key::ArrowDown),
             ..Default::default()
         };
         let focused = sys.register_keyboard(id_focus, r(0.0, 0.0), None);
@@ -1266,7 +1295,8 @@ mod tests {
         ];
 
         // Tab from id1 should go to id2 (next in registration order), not id3 (spatially left).
-        let got = spatial_focus_after_key(&rects, 0, |i| i.key_pressed_tab = true);
+        let got =
+            spatial_focus_after_key(&rects, 0, |i| i.keys_pressed.insert(crate::input::Key::Tab));
         assert_eq!(
             got, id2,
             "Tab follows registration order, not spatial position"

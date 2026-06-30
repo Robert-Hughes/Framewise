@@ -969,22 +969,22 @@ fn test_number_edit_focused_step_keys() {
     spec.step = 5.0;
 
     run_key(spec.clone(), &mut state, &mut focus_system, |input| {
-        input.key_pressed_right = true;
+        input.keys_pressed.insert(crate::input::Key::ArrowRight);
     });
     assert_eq!(state.value, 55.0);
 
     run_key(spec.clone(), &mut state, &mut focus_system, |input| {
-        input.key_pressed_down = true;
+        input.keys_pressed.insert(crate::input::Key::ArrowDown);
     });
     assert_eq!(state.value, 60.0);
 
     run_key(spec.clone(), &mut state, &mut focus_system, |input| {
-        input.key_pressed_left = true;
+        input.keys_pressed.insert(crate::input::Key::ArrowLeft);
     });
     assert_eq!(state.value, 55.0);
 
     run_key(spec, &mut state, &mut focus_system, |input| {
-        input.key_pressed_up = true;
+        input.keys_pressed.insert(crate::input::Key::ArrowUp);
     });
     assert_eq!(state.value, 50.0);
 }
@@ -1002,7 +1002,7 @@ fn test_number_edit_focused_page_home_end_keys() {
     spec.page_step = 20.0;
 
     run_key(spec.clone(), &mut state, &mut focus_system, |input| {
-        input.key_pressed_page_up = true;
+        input.keys_pressed.insert(crate::input::Key::PageUp);
     });
     assert_eq!(state.value, 30.0);
     assert!(focus_system.active_page_dirs(state.focus_id).up);
@@ -1011,17 +1011,17 @@ fn test_number_edit_focused_page_home_end_keys() {
     assert!(focus_system.active_page_dirs(state.focus_id).right);
 
     run_key(spec.clone(), &mut state, &mut focus_system, |input| {
-        input.key_pressed_page_down = true;
+        input.keys_pressed.insert(crate::input::Key::PageDown);
     });
     assert_eq!(state.value, 50.0);
 
     run_key(spec.clone(), &mut state, &mut focus_system, |input| {
-        input.key_pressed_home = true;
+        input.keys_pressed.insert(crate::input::Key::Home);
     });
     assert_eq!(state.value, 0.0);
 
     run_key(spec, &mut state, &mut focus_system, |input| {
-        input.key_pressed_end = true;
+        input.keys_pressed.insert(crate::input::Key::End);
     });
     assert_eq!(state.value, 100.0);
 }
@@ -1039,13 +1039,13 @@ fn test_number_edit_keyboard_adjustment_clamps_to_bounds() {
     spec.step = 10.0;
 
     run_key(spec.clone(), &mut state, &mut focus_system, |input| {
-        input.key_pressed_right = true;
+        input.keys_pressed.insert(crate::input::Key::ArrowRight);
     });
     assert_eq!(state.value, 100.0);
 
     state.value = 5.0;
     run_key(spec, &mut state, &mut focus_system, |input| {
-        input.key_pressed_left = true;
+        input.keys_pressed.insert(crate::input::Key::ArrowLeft);
     });
     assert_eq!(state.value, 0.0);
 }
@@ -1063,13 +1063,13 @@ fn test_number_edit_keyboard_adjustment_ignored_when_not_focused() {
     spec.page_step = 20.0;
 
     run_key(spec.clone(), &mut state, &mut focus_system, |input| {
-        input.key_pressed_right = true;
+        input.keys_pressed.insert(crate::input::Key::ArrowRight);
     });
     run_key(spec.clone(), &mut state, &mut focus_system, |input| {
-        input.key_pressed_page_down = true;
+        input.keys_pressed.insert(crate::input::Key::PageDown);
     });
     run_key(spec, &mut state, &mut focus_system, |input| {
-        input.key_pressed_end = true;
+        input.keys_pressed.insert(crate::input::Key::End);
     });
 
     assert_eq!(state.value, 50.0);
@@ -1090,13 +1090,13 @@ fn test_number_edit_keyboard_adjustment_ignored_when_disabled() {
     spec.page_step = 20.0;
 
     run_key(spec.clone(), &mut state, &mut focus_system, |input| {
-        input.key_pressed_right = true;
+        input.keys_pressed.insert(crate::input::Key::ArrowRight);
     });
     run_key(spec.clone(), &mut state, &mut focus_system, |input| {
-        input.key_pressed_page_down = true;
+        input.keys_pressed.insert(crate::input::Key::PageDown);
     });
     run_key(spec, &mut state, &mut focus_system, |input| {
-        input.key_pressed_end = true;
+        input.keys_pressed.insert(crate::input::Key::End);
     });
 
     assert_eq!(state.value, 50.0);
@@ -1968,7 +1968,7 @@ fn test_number_edit_min_greater_than_max_keyboard_does_not_panic() {
         focus_system.take_keyboard_focus(state.focus_id);
 
         let input = Input {
-            key_pressed_right: true,
+            keys_pressed: crate::input::KeySet::from_key(crate::input::Key::ArrowRight),
             ..Default::default()
         };
         let mut text_backend = TestTextBackend::default();
@@ -2136,7 +2136,7 @@ fn test_number_edit_arrow_keys_no_traversal_but_tab_traverses() {
 
     // Frame 1: Press ArrowRight. First value should increase, focus should remain on first
     let input_right = Input {
-        key_pressed_right: true,
+        keys_pressed: crate::input::KeySet::from_key(crate::input::Key::ArrowRight),
         ..Default::default()
     };
     focus_system.begin_frame();
@@ -2176,7 +2176,7 @@ fn test_number_edit_arrow_keys_no_traversal_but_tab_traverses() {
 
     // Frame 2: Press Tab. Focus should traverse to the second widget
     let input_tab = Input {
-        key_pressed_tab: true,
+        keys_pressed: crate::input::KeySet::from_key(crate::input::Key::Tab),
         ..Default::default()
     };
     focus_system.begin_frame();
@@ -2280,7 +2280,7 @@ fn test_number_edit_focused_enter_enters_text_edit() {
     };
 
     run_key(spec, &mut state, &mut focus_system, |input| {
-        input.key_pressed_enter = true;
+        input.keys_pressed.insert(crate::input::Key::Enter);
     });
 
     let (text_edit, error) = assert_editing(&state.edit);
@@ -2403,7 +2403,7 @@ fn test_number_edit_text_edit_enter_commits_valid_value() {
     focus_system.take_keyboard_focus(state.focus_id);
 
     run_key(default_spec(rect), &mut state, &mut focus_system, |input| {
-        input.key_pressed_enter = true;
+        input.keys_pressed.insert(crate::input::Key::Enter);
     });
 
     assert_eq!(state.value, 42.5);
@@ -2422,7 +2422,7 @@ fn test_number_edit_text_edit_enter_clamps_valid_value() {
     let mut focus_system = FocusSystem::new();
     focus_system.take_keyboard_focus(state.focus_id);
     run_key(default_spec(rect), &mut state, &mut focus_system, |input| {
-        input.key_pressed_enter = true;
+        input.keys_pressed.insert(crate::input::Key::Enter);
     });
     assert_eq!(state.value, 100.0);
     assert_inactive(&state.edit);
@@ -2430,7 +2430,7 @@ fn test_number_edit_text_edit_enter_clamps_valid_value() {
     enter_edit_state(&mut state, "-20");
     focus_system.take_keyboard_focus(state.focus_id);
     run_key(default_spec(rect), &mut state, &mut focus_system, |input| {
-        input.key_pressed_enter = true;
+        input.keys_pressed.insert(crate::input::Key::Enter);
     });
     assert_eq!(state.value, 0.0);
     assert_inactive(&state.edit);
@@ -2448,7 +2448,7 @@ fn test_number_edit_text_edit_enter_invalid_keeps_editing_and_sets_error() {
     focus_system.take_keyboard_focus(state.focus_id);
 
     run_key(default_spec(rect), &mut state, &mut focus_system, |input| {
-        input.key_pressed_enter = true;
+        input.keys_pressed.insert(crate::input::Key::Enter);
     });
 
     assert_eq!(state.value, 10.0);
@@ -2469,7 +2469,7 @@ fn test_number_edit_text_edit_escape_cancels() {
     focus_system.take_keyboard_focus(state.focus_id);
 
     run_key(default_spec(rect), &mut state, &mut focus_system, |input| {
-        input.key_pressed_escape = true;
+        input.keys_pressed.insert(crate::input::Key::Escape);
     });
 
     assert_eq!(state.value, 10.0);
@@ -2595,7 +2595,7 @@ fn test_number_edit_text_edit_click_away_invalid_remembers_and_reenter_restores_
         let (text_edit, _) = assert_editing_mut(&mut state.edit);
         text_edit.value = "42".to_string();
         run_key(default_spec(rect), &mut state, &mut focus_system, |input| {
-            input.key_pressed_enter = true;
+            input.keys_pressed.insert(crate::input::Key::Enter);
         });
 
         assert_eq!(state.value, 42.0, "{case}");
@@ -2651,7 +2651,7 @@ fn test_number_edit_text_edit_arrow_keys_move_caret_not_value() {
     focus_system.take_keyboard_focus(state.focus_id);
 
     run_key(default_spec(rect), &mut state, &mut focus_system, |input| {
-        input.key_pressed_left = true;
+        input.keys_pressed.insert(crate::input::Key::ArrowLeft);
         input.text_events.push(TextEvent::CaretLeft {
             shift: false,
             ctrl: false,
@@ -2820,7 +2820,7 @@ fn test_number_edit_text_edit_escape_clears_restored_draft() {
     assert_eq!(text_edit.value, "abc");
 
     run_key(default_spec(rect), &mut state, &mut focus_system, |input| {
-        input.key_pressed_escape = true;
+        input.keys_pressed.insert(crate::input::Key::Escape);
     });
 
     assert_eq!(state.value, 10.0);
@@ -2842,13 +2842,13 @@ fn test_number_edit_optional_min_clamps_lower_only() {
     spec.step = 5.0;
 
     run_key(spec.clone(), &mut state, &mut focus_system, |input| {
-        input.key_pressed_left = true;
+        input.keys_pressed.insert(crate::input::Key::ArrowLeft);
     });
     assert_eq!(state.value, 0.0);
 
     state.value = 98.0;
     run_key(spec, &mut state, &mut focus_system, |input| {
-        input.key_pressed_right = true;
+        input.keys_pressed.insert(crate::input::Key::ArrowRight);
     });
     assert_eq!(state.value, 103.0);
 }
@@ -2868,13 +2868,13 @@ fn test_number_edit_optional_max_clamps_upper_only() {
     spec.step = 5.0;
 
     run_key(spec.clone(), &mut state, &mut focus_system, |input| {
-        input.key_pressed_right = true;
+        input.keys_pressed.insert(crate::input::Key::ArrowRight);
     });
     assert_eq!(state.value, 100.0);
 
     state.value = 2.0;
     run_key(spec, &mut state, &mut focus_system, |input| {
-        input.key_pressed_left = true;
+        input.keys_pressed.insert(crate::input::Key::ArrowLeft);
     });
     assert_eq!(state.value, -3.0);
 }
@@ -2894,12 +2894,12 @@ fn test_number_edit_unbounded_does_not_clamp() {
     spec.step = 150.0;
 
     run_key(spec.clone(), &mut state, &mut focus_system, |input| {
-        input.key_pressed_left = true;
+        input.keys_pressed.insert(crate::input::Key::ArrowLeft);
     });
     assert_eq!(state.value, -150.0);
 
     run_key(spec, &mut state, &mut focus_system, |input| {
-        input.key_pressed_right = true;
+        input.keys_pressed.insert(crate::input::Key::ArrowRight);
     });
     assert_eq!(state.value, 0.0);
 }
@@ -2918,12 +2918,12 @@ fn test_number_edit_home_end_respect_optional_bounds() {
     spec.max = Some(100.0);
 
     run_key(spec.clone(), &mut state, &mut focus_system, |input| {
-        input.key_pressed_home = true;
+        input.keys_pressed.insert(crate::input::Key::Home);
     });
     assert_eq!(state.value, 42.0);
 
     run_key(spec, &mut state, &mut focus_system, |input| {
-        input.key_pressed_end = true;
+        input.keys_pressed.insert(crate::input::Key::End);
     });
     assert_eq!(state.value, 100.0);
 }

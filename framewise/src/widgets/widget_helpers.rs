@@ -364,17 +364,17 @@ pub fn handle_press_interaction(
 
     let mut clicked = *is_active && hover.passive_hovered && input.mouse_clicked;
 
-    if keyboard.focused && input.key_pressed_enter {
+    if keyboard.focused && input.key_pressed(crate::input::Key::Enter) {
         clicked = true;
     }
-    if *space_is_active && input.key_released_space {
+    if *space_is_active && input.key_released(crate::input::Key::Space) {
         clicked = true;
     }
 
-    if !keyboard.focused || !input.key_down_space {
+    if !keyboard.focused || !input.key_down(crate::input::Key::Space) {
         *space_is_active = false;
     }
-    if keyboard.focused && input.key_pressed_space {
+    if keyboard.focused && input.key_pressed(crate::input::Key::Space) {
         *space_is_active = true;
     }
 
@@ -898,7 +898,7 @@ mod tests {
         let input = Input {
             mouse_pressed: true,
             mouse_down: true,
-            key_pressed_enter: true,
+            keys_pressed: crate::input::KeySet::from_key(crate::input::Key::Enter),
             ..inside_input()
         };
 
@@ -929,7 +929,7 @@ mod tests {
         let enter = handle_press_interaction(
             press_spec(id),
             &Input {
-                key_pressed_enter: true,
+                keys_pressed: crate::input::KeySet::from_key(crate::input::Key::Enter),
                 ..Default::default()
             },
             &mut focus,
@@ -942,8 +942,8 @@ mod tests {
         let space_down = handle_press_interaction(
             press_spec(id),
             &Input {
-                key_pressed_space: true,
-                key_down_space: true,
+                keys_pressed: crate::input::KeySet::from_key(crate::input::Key::Space),
+                keys_down: crate::input::KeySet::from_key(crate::input::Key::Space),
                 ..Default::default()
             },
             &mut focus,
@@ -956,7 +956,7 @@ mod tests {
         let space_up = handle_press_interaction(
             press_spec(id),
             &Input {
-                key_released_space: true,
+                keys_released: crate::input::KeySet::from_key(crate::input::Key::Space),
                 ..Default::default()
             },
             &mut focus,

@@ -5,6 +5,9 @@ Working notes, TODOs, open questions, and half-baked ideas.
 ## Current Work
 
 - keyboard controls like up/down/left/right page up/down that are equivalent to pressing buttons (like stepper buttons) should show visual pressed states based on those keys. Reusable widget helper?
+  - 1: expand Input keys
+  - 2: handle_press_interaction to show visual press for Enter
+  - 3: figure out multi-part widget key visuals (reusable helper somewhere?)
 
 - labelled slider
 - NumberEdit editor policy - on double click or always.

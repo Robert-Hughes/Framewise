@@ -20,7 +20,7 @@ mod text;
 #[cfg(feature = "page_text_edit")]
 mod text_edit_demo;
 
-use framewise::input::Input;
+use framewise::input::{Input, Key as FramewiseKey};
 use framewise::types::Vec2;
 use framewise::{CursorIcon as FramewiseCursorIcon, Output};
 
@@ -410,6 +410,48 @@ impl App {
     }
 }
 
+fn framewise_key_from_physical(key: winit::keyboard::PhysicalKey) -> Option<FramewiseKey> {
+    match key {
+        winit::keyboard::PhysicalKey::Code(winit::keyboard::KeyCode::Space) => {
+            Some(FramewiseKey::Space)
+        }
+        winit::keyboard::PhysicalKey::Code(winit::keyboard::KeyCode::Enter) => {
+            Some(FramewiseKey::Enter)
+        }
+        winit::keyboard::PhysicalKey::Code(winit::keyboard::KeyCode::ArrowUp) => {
+            Some(FramewiseKey::ArrowUp)
+        }
+        winit::keyboard::PhysicalKey::Code(winit::keyboard::KeyCode::ArrowDown) => {
+            Some(FramewiseKey::ArrowDown)
+        }
+        winit::keyboard::PhysicalKey::Code(winit::keyboard::KeyCode::ArrowLeft) => {
+            Some(FramewiseKey::ArrowLeft)
+        }
+        winit::keyboard::PhysicalKey::Code(winit::keyboard::KeyCode::ArrowRight) => {
+            Some(FramewiseKey::ArrowRight)
+        }
+        winit::keyboard::PhysicalKey::Code(winit::keyboard::KeyCode::PageUp) => {
+            Some(FramewiseKey::PageUp)
+        }
+        winit::keyboard::PhysicalKey::Code(winit::keyboard::KeyCode::PageDown) => {
+            Some(FramewiseKey::PageDown)
+        }
+        winit::keyboard::PhysicalKey::Code(winit::keyboard::KeyCode::Home) => {
+            Some(FramewiseKey::Home)
+        }
+        winit::keyboard::PhysicalKey::Code(winit::keyboard::KeyCode::End) => {
+            Some(FramewiseKey::End)
+        }
+        winit::keyboard::PhysicalKey::Code(winit::keyboard::KeyCode::Escape) => {
+            Some(FramewiseKey::Escape)
+        }
+        winit::keyboard::PhysicalKey::Code(winit::keyboard::KeyCode::Tab) => {
+            Some(FramewiseKey::Tab)
+        }
+        _ => None,
+    }
+}
+
 // ── ApplicationHandler ────────────────────────────────────────────────────────
 
 impl ApplicationHandler for App {
@@ -577,6 +619,12 @@ impl ApplicationHandler for App {
                 self.input.modifier_shift = modifiers.state().shift_key();
             }
 
+            WindowEvent::Focused(false) => {
+                self.input.keys_down.clear();
+                self.input.keys_pressed.clear();
+                self.input.keys_released.clear();
+            }
+
             WindowEvent::KeyboardInput { event, .. } => {
                 // F1 = WidgetSpec, F2 = LabelDemo, F3 = ButtonDemo, F4 = FrameDemo, F5 = LayoutDemo, F6 = ScrollDemo, F7 = TextEditDemo, F11 = toggle VSync, F12 = toggle layout-debug overlay
                 if event.state == ElementState::Pressed {
@@ -637,77 +685,17 @@ impl ApplicationHandler for App {
                     }
                 }
 
-                match event.physical_key {
-                    winit::keyboard::PhysicalKey::Code(winit::keyboard::KeyCode::Tab) => {
-                        if event.state == ElementState::Pressed {
-                            self.input.key_pressed_tab = true;
+                if let Some(key) = framewise_key_from_physical(event.physical_key) {
+                    match event.state {
+                        ElementState::Pressed => {
+                            self.input.keys_pressed.insert(key);
+                            self.input.keys_down.insert(key);
+                        }
+                        ElementState::Released => {
+                            self.input.keys_released.insert(key);
+                            self.input.keys_down.remove(key);
                         }
                     }
-                    winit::keyboard::PhysicalKey::Code(winit::keyboard::KeyCode::Enter) => {
-                        if event.state == ElementState::Pressed {
-                            self.input.key_pressed_enter = true;
-                        }
-                    }
-                    winit::keyboard::PhysicalKey::Code(winit::keyboard::KeyCode::Escape) => {
-                        if event.state == ElementState::Pressed {
-                            self.input.key_pressed_escape = true;
-                        }
-                    }
-                    winit::keyboard::PhysicalKey::Code(winit::keyboard::KeyCode::Space) => {
-                        match event.state {
-                            ElementState::Pressed => {
-                                if !self.input.key_down_space {
-                                    self.input.key_pressed_space = true;
-                                }
-                                self.input.key_down_space = true;
-                            }
-                            ElementState::Released => {
-                                self.input.key_down_space = false;
-                                self.input.key_released_space = true;
-                            }
-                        }
-                    }
-                    winit::keyboard::PhysicalKey::Code(winit::keyboard::KeyCode::PageUp) => {
-                        if event.state == ElementState::Pressed {
-                            self.input.key_pressed_page_up = true;
-                        }
-                    }
-                    winit::keyboard::PhysicalKey::Code(winit::keyboard::KeyCode::PageDown) => {
-                        if event.state == ElementState::Pressed {
-                            self.input.key_pressed_page_down = true;
-                        }
-                    }
-                    winit::keyboard::PhysicalKey::Code(winit::keyboard::KeyCode::Home) => {
-                        if event.state == ElementState::Pressed {
-                            self.input.key_pressed_home = true;
-                        }
-                    }
-                    winit::keyboard::PhysicalKey::Code(winit::keyboard::KeyCode::End) => {
-                        if event.state == ElementState::Pressed {
-                            self.input.key_pressed_end = true;
-                        }
-                    }
-                    winit::keyboard::PhysicalKey::Code(winit::keyboard::KeyCode::ArrowUp) => {
-                        if event.state == ElementState::Pressed {
-                            self.input.key_pressed_up = true;
-                        }
-                    }
-                    winit::keyboard::PhysicalKey::Code(winit::keyboard::KeyCode::ArrowDown) => {
-                        if event.state == ElementState::Pressed {
-                            self.input.key_pressed_down = true;
-                        }
-                    }
-                    winit::keyboard::PhysicalKey::Code(winit::keyboard::KeyCode::ArrowLeft) => {
-                        if event.state == ElementState::Pressed {
-                            self.input.key_pressed_left = true;
-                        }
-                    }
-                    winit::keyboard::PhysicalKey::Code(winit::keyboard::KeyCode::ArrowRight) => {
-                        if event.state == ElementState::Pressed {
-                            self.input.key_pressed_right = true;
-                        }
-                    }
-                    _ => {}
                 }
 
                 if event.state == ElementState::Pressed {

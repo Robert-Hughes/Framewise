@@ -156,11 +156,13 @@ pub mod raw {
 
         // Left/Right keyboard navigation
         if focused && !spec.disabled && !spec.items.is_empty() {
-            if input.key_pressed_left && state.active_index > 0 {
+            if input.key_pressed(crate::input::Key::ArrowLeft) && state.active_index > 0 {
                 state.active_index -= 1;
                 is_clicked = true;
             }
-            if input.key_pressed_right && state.active_index + 1 < spec.items.len() {
+            if input.key_pressed(crate::input::Key::ArrowRight)
+                && state.active_index + 1 < spec.items.len()
+            {
                 state.active_index += 1;
                 is_clicked = true;
             }

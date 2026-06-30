@@ -4185,7 +4185,7 @@ fn test_newline_policies() {
         set_caret_byte(&mut state, 1);
         state.had_keyboard_focus = true;
         let input = Input {
-            key_pressed_enter: true,
+            keys_pressed: crate::input::KeySet::from_key(crate::input::Key::Enter),
             ..Input::default()
         };
         focus_system.begin_frame();
@@ -4209,7 +4209,7 @@ fn test_newline_policies() {
         set_caret_byte(&mut state, 1);
         state.had_keyboard_focus = true;
         let input = Input {
-            key_pressed_enter: true,
+            keys_pressed: crate::input::KeySet::from_key(crate::input::Key::Enter),
             ..Input::default()
         };
         focus_system.begin_frame();
@@ -4233,7 +4233,7 @@ fn test_newline_policies() {
         set_caret_byte(&mut state, 1);
         state.had_keyboard_focus = true;
         let input = Input {
-            key_pressed_enter: true,
+            keys_pressed: crate::input::KeySet::from_key(crate::input::Key::Enter),
             ..Input::default()
         };
         focus_system.begin_frame();
@@ -4382,7 +4382,7 @@ fn test_page_up_down_moves_by_outer_scroll_height_whole_lines() {
 
     set_caret_byte(&mut state, 2);
     set_selection_byte(&mut state, None);
-    input.key_pressed_page_down = true;
+    input.keys_pressed.insert(crate::input::Key::PageDown);
     run_raw_text_edit_frame(
         edit_spec.clone(),
         &mut state,
@@ -4394,8 +4394,8 @@ fn test_page_up_down_moves_by_outer_scroll_height_whole_lines() {
     assert_eq!(caret_byte(&state), 20);
     assert_eq!(selection_byte(&state), None);
 
-    input.key_pressed_page_down = false;
-    input.key_pressed_page_up = true;
+    input.keys_pressed.remove(crate::input::Key::PageDown);
+    input.keys_pressed.insert(crate::input::Key::PageUp);
     run_raw_text_edit_frame(
         edit_spec.clone(),
         &mut state,
@@ -4407,8 +4407,8 @@ fn test_page_up_down_moves_by_outer_scroll_height_whole_lines() {
     assert_eq!(caret_byte(&state), 2);
 
     set_caret_byte(&mut state, 29);
-    input.key_pressed_page_up = false;
-    input.key_pressed_page_down = true;
+    input.keys_pressed.remove(crate::input::Key::PageUp);
+    input.keys_pressed.insert(crate::input::Key::PageDown);
     run_raw_text_edit_frame(
         edit_spec.clone(),
         &mut state,
@@ -4420,8 +4420,8 @@ fn test_page_up_down_moves_by_outer_scroll_height_whole_lines() {
     assert_eq!(caret_byte(&state), state.value.len());
 
     set_caret_byte(&mut state, 9);
-    input.key_pressed_page_down = false;
-    input.key_pressed_page_up = true;
+    input.keys_pressed.remove(crate::input::Key::PageDown);
+    input.keys_pressed.insert(crate::input::Key::PageUp);
     run_raw_text_edit_frame(
         edit_spec,
         &mut state,
@@ -4463,7 +4463,7 @@ fn test_page_up_down_preserves_caret_x_with_short_target_lines() {
     // characters, so the closest valid x-position is its end.
     set_caret_byte(&mut state, 5);
     set_selection_byte(&mut state, None);
-    input.key_pressed_page_down = true;
+    input.keys_pressed.insert(crate::input::Key::PageDown);
     run_raw_text_edit_frame(
         edit_spec.clone(),
         &mut state,
@@ -4477,8 +4477,8 @@ fn test_page_up_down_preserves_caret_x_with_short_target_lines() {
     // Line 4 column 5 pages up to line 1. Line 1 has one character, so
     // preserving x clamps to that line's end.
     set_caret_byte(&mut state, 25);
-    input.key_pressed_page_down = false;
-    input.key_pressed_page_up = true;
+    input.keys_pressed.remove(crate::input::Key::PageDown);
+    input.keys_pressed.insert(crate::input::Key::PageUp);
     run_raw_text_edit_frame(
         edit_spec,
         &mut state,
@@ -4518,7 +4518,7 @@ fn test_shift_page_down_extends_selection() {
 
     set_caret_byte(&mut state, 2);
     set_selection_byte(&mut state, None);
-    input.key_pressed_page_down = true;
+    input.keys_pressed.insert(crate::input::Key::PageDown);
     input.modifier_shift = true;
     run_raw_text_edit_frame(
         edit_spec,
@@ -4575,7 +4575,7 @@ fn test_text_edit_claims_page_keys_inside_outer_scroll_area() {
 
     for _ in 0..2 {
         let input = Input {
-            key_pressed_page_down: true,
+            keys_pressed: crate::input::KeySet::from_key(crate::input::Key::PageDown),
             ..Default::default()
         };
 

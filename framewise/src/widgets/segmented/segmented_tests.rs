@@ -296,7 +296,7 @@ fn test_segmented_keyboard_navigation() {
     focus_system.take_keyboard_focus(state.focus_id);
 
     // Frame 1: Press Arrow Right -> changes active index to 1
-    input.key_pressed_right = true;
+    input.keys_pressed.insert(crate::input::Key::ArrowRight);
     let mut cmds = DrawCommands::new(1.0);
     focus_system.begin_frame();
     raw::post_layout_segmented(
@@ -318,12 +318,12 @@ fn test_segmented_keyboard_navigation() {
         &mut cmds,
     );
     focus_system.end_frame();
-    input.key_pressed_right = false;
+    input.keys_pressed.remove(crate::input::Key::ArrowRight);
 
     assert_eq!(state.active_index, 1);
 
     // Frame 2: Press Arrow Left -> changes active index back to 0
-    input.key_pressed_left = true;
+    input.keys_pressed.insert(crate::input::Key::ArrowLeft);
     let mut cmds = DrawCommands::new(1.0);
     focus_system.begin_frame();
     raw::post_layout_segmented(

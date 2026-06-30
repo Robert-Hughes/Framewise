@@ -236,7 +236,7 @@ pub mod raw {
 
         let keyboard_enter_starts_editing = !state.edit.is_editing()
             && !spec.disabled
-            && input.key_pressed_enter
+            && input.key_pressed(crate::input::Key::Enter)
             && focus_system.current_keyboard_focus() == Some(state.focus_id);
         if keyboard_enter_starts_editing {
             enter_number_edit_mode(state);
@@ -345,24 +345,28 @@ pub mod raw {
         if focused && !spec.disabled && !state.edit.is_editing() {
             focus_system.claim_page_dirs(state.focus_id, NavDirections::ALL);
 
-            if input.key_pressed_left || input.key_pressed_up {
+            if input.key_pressed(crate::input::Key::ArrowLeft)
+                || input.key_pressed(crate::input::Key::ArrowUp)
+            {
                 state.value = clamp_optional(state.value - spec.step, clamp_min, clamp_max);
             }
-            if input.key_pressed_right || input.key_pressed_down {
+            if input.key_pressed(crate::input::Key::ArrowRight)
+                || input.key_pressed(crate::input::Key::ArrowDown)
+            {
                 state.value = clamp_optional(state.value + spec.step, clamp_min, clamp_max);
             }
-            if input.key_pressed_page_up {
+            if input.key_pressed(crate::input::Key::PageUp) {
                 state.value = clamp_optional(state.value - spec.page_step, clamp_min, clamp_max);
             }
-            if input.key_pressed_page_down {
+            if input.key_pressed(crate::input::Key::PageDown) {
                 state.value = clamp_optional(state.value + spec.page_step, clamp_min, clamp_max);
             }
-            if input.key_pressed_home {
+            if input.key_pressed(crate::input::Key::Home) {
                 if let Some(min) = clamp_min {
                     state.value = min;
                 }
             }
-            if input.key_pressed_end {
+            if input.key_pressed(crate::input::Key::End) {
                 if let Some(max) = clamp_max {
                     state.value = max;
                 }
@@ -466,7 +470,7 @@ pub mod raw {
                 edit_input.mouse_down = false;
                 edit_input.mouse_clicked = false;
                 edit_input.mouse_click_count = 0;
-                edit_input.key_pressed_enter = false;
+                edit_input.keys_pressed.remove(crate::input::Key::Enter);
                 &edit_input
             } else {
                 input
@@ -571,11 +575,11 @@ pub mod raw {
         if state.edit.is_editing() && !spec.disabled {
             let clicked_outside_text_edit =
                 input.mouse_pressed && !value_rect.contains(input.mouse_pos);
-            if input.key_pressed_escape {
+            if input.key_pressed(crate::input::Key::Escape) {
                 state.edit = NumberEditEditState::Inactive;
                 focus_system.take_keyboard_focus(state.focus_id);
                 edit_focused = true;
-            } else if input.key_pressed_enter && !started_editing_this_frame {
+            } else if input.key_pressed(crate::input::Key::Enter) && !started_editing_this_frame {
                 if try_commit_number_edit(state, clamp_min, clamp_max) {
                     focus_system.take_keyboard_focus(state.focus_id);
                     edit_focused = true;

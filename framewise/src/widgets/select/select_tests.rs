@@ -459,7 +459,7 @@ fn test_select_keyboard_navigation() {
     focus_system.take_keyboard_focus(state.focus_id);
 
     // Frame 1: Press Arrow Down while closed -> selected index changes to 1
-    input.key_pressed_down = true;
+    input.keys_pressed.insert(crate::input::Key::ArrowDown);
     focus_system.begin_frame();
     let mut cmds = DrawCommands::new(1.0);
     post_layout_select_for_test(
@@ -479,14 +479,14 @@ fn test_select_keyboard_navigation() {
         &mut cmds,
     );
     focus_system.end_frame();
-    input.key_pressed_down = false;
+    input.keys_pressed.remove(crate::input::Key::ArrowDown);
 
     assert_eq!(state.selected_index, 1);
     assert!(!state.open);
 
     // Frame 2: Press Space -> opens dropdown
-    input.key_down_space = true;
-    input.key_pressed_space = true;
+    input.keys_down.insert(crate::input::Key::Space);
+    input.keys_pressed.insert(crate::input::Key::Space);
     focus_system.begin_frame();
     let mut cmds = DrawCommands::new(1.0);
     post_layout_select_for_test(
@@ -507,9 +507,9 @@ fn test_select_keyboard_navigation() {
     );
     focus_system.end_frame();
 
-    input.key_down_space = false;
-    input.key_pressed_space = false;
-    input.key_released_space = true;
+    input.keys_down.remove(crate::input::Key::Space);
+    input.keys_pressed.remove(crate::input::Key::Space);
+    input.keys_released.insert(crate::input::Key::Space);
     focus_system.begin_frame();
     let mut cmds = DrawCommands::new(1.0);
     post_layout_select_for_test(
@@ -529,13 +529,13 @@ fn test_select_keyboard_navigation() {
         &mut cmds,
     );
     focus_system.end_frame();
-    input.key_released_space = false;
+    input.keys_released.remove(crate::input::Key::Space);
 
     assert!(state.open);
     assert_eq!(state.hovered, Some(1));
 
     // Frame 3: Press Arrow Down while open -> hovers index 2
-    input.key_pressed_down = true;
+    input.keys_pressed.insert(crate::input::Key::ArrowDown);
     focus_system.begin_frame();
     let mut cmds = DrawCommands::new(1.0);
     post_layout_select_for_test(
@@ -555,12 +555,12 @@ fn test_select_keyboard_navigation() {
         &mut cmds,
     );
     focus_system.end_frame();
-    input.key_pressed_down = false;
+    input.keys_pressed.remove(crate::input::Key::ArrowDown);
 
     assert_eq!(state.hovered, Some(2));
 
     // Frame 4: Press Enter while open -> selects hovered (index 2) and closes dropdown
-    input.key_pressed_enter = true;
+    input.keys_pressed.insert(crate::input::Key::Enter);
     focus_system.begin_frame();
     let mut cmds = DrawCommands::new(1.0);
     post_layout_select_for_test(

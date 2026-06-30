@@ -1,5 +1,58 @@
 use crate::types::Vec2;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum Key {
+    Space,
+    Enter,
+    ArrowUp,
+    ArrowDown,
+    ArrowLeft,
+    ArrowRight,
+    PageUp,
+    PageDown,
+    Home,
+    End,
+    Escape,
+    Tab,
+}
+
+impl Key {
+    const fn bit(self) -> u64 {
+        1 << (self as u64)
+    }
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct KeySet {
+    bits: u64,
+}
+
+impl KeySet {
+    pub const fn from_key(key: Key) -> Self {
+        Self { bits: key.bit() }
+    }
+
+    pub fn contains(&self, key: Key) -> bool {
+        self.bits & key.bit() != 0
+    }
+
+    pub fn insert(&mut self, key: Key) {
+        self.bits |= key.bit();
+    }
+
+    pub fn remove(&mut self, key: Key) {
+        self.bits &= !key.bit();
+    }
+
+    pub fn clear(&mut self) {
+        self.bits = 0;
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.bits == 0
+    }
+}
+
 /// A snapshot of all input state for the current frame.
 ///
 /// The application is responsible for constructing this from its windowing
@@ -20,20 +73,24 @@ pub struct Input {
     /// True on the single frame the primary mouse button was released.
     pub mouse_clicked: bool,
 
-    /// True on the single frame the Enter key was pressed.
-    pub key_pressed_enter: bool,
+    /// Keys currently held down.
+    ///
+    /// A key remains in this set from its first press event until its release event.
+    /// Repeated key-press events do not change this set.
+    pub keys_down: KeySet,
 
-    /// True on the single frame the Escape key was pressed.
-    pub key_pressed_escape: bool,
+    /// Keys that produced a press event this frame.
+    ///
+    /// This includes both the initial key-down event and any subsequent key-repeat
+    /// press events generated while the key is held. Widgets that want repeated
+    /// keyboard actions should usually query this set.
+    pub keys_pressed: KeySet,
 
-    /// True while the Spacebar is held down.
-    pub key_down_space: bool,
-
-    /// True on the single frame the Spacebar was pressed.
-    pub key_pressed_space: bool,
-
-    /// True on the single frame the Spacebar was released.
-    pub key_released_space: bool,
+    /// Keys that produced a release event this frame.
+    ///
+    /// Key-repeat does not produce entries here; a key appears here only when it is
+    /// actually released.
+    pub keys_released: KeySet,
 
     /// Sequence of logical text input events this frame.
     pub text_events: Vec<TextEvent>,
@@ -44,17 +101,6 @@ pub struct Input {
     /// Mouse scroll wheel delta for the current frame.
     pub scroll_delta: Vec2,
 
-    pub key_pressed_page_up: bool,
-    pub key_pressed_page_down: bool,
-    pub key_pressed_home: bool,
-    pub key_pressed_end: bool,
-    pub key_pressed_up: bool,
-    pub key_pressed_down: bool,
-    pub key_pressed_left: bool,
-    pub key_pressed_right: bool,
-
-    /// True on the single frame the Tab key was pressed.
-    pub key_pressed_tab: bool,
     /// True while the Shift modifier key is held. Not a per-frame flag; updated
     /// by the embedder on ModifiersChanged and never cleared by clear_frame_state.
     pub modifier_shift: bool,
@@ -84,23 +130,12 @@ impl Default for Input {
             mouse_down: false,
             mouse_pressed: false,
             mouse_clicked: false,
-            key_pressed_enter: false,
-            key_pressed_escape: false,
-            key_down_space: false,
-            key_pressed_space: false,
-            key_released_space: false,
+            keys_down: KeySet::default(),
+            keys_pressed: KeySet::default(),
+            keys_released: KeySet::default(),
             text_events: Vec::new(),
             mouse_click_count: 0,
             scroll_delta: Vec2::ZERO,
-            key_pressed_page_up: false,
-            key_pressed_page_down: false,
-            key_pressed_home: false,
-            key_pressed_end: false,
-            key_pressed_up: false,
-            key_pressed_down: false,
-            key_pressed_left: false,
-            key_pressed_right: false,
-            key_pressed_tab: false,
             modifier_shift: false,
         }
     }
@@ -111,28 +146,40 @@ impl Input {
         Self::default()
     }
 
+    /// Returns whether `key` is currently held down.
+    ///
+    /// This is a held-state query. For example, `input.key_down(Key::Enter)`
+    /// stays true after the initial press until Enter is released.
+    pub fn key_down(&self, key: Key) -> bool {
+        self.keys_down.contains(key)
+    }
+
+    /// Returns whether `key` produced a press event this frame.
+    ///
+    /// This includes both initial key-down events and key-repeat press events.
+    /// For example, `input.key_pressed(Key::Enter)` is true on each Enter press
+    /// event delivered during the current frame.
+    pub fn key_pressed(&self, key: Key) -> bool {
+        self.keys_pressed.contains(key)
+    }
+
+    /// Returns whether `key` produced a release event this frame.
+    ///
+    /// Key-repeat does not affect this query. For example,
+    /// `input.key_released(Key::Enter)` is true only on an actual Enter release.
+    pub fn key_released(&self, key: Key) -> bool {
+        self.keys_released.contains(key)
+    }
+
     /// Reset per-frame state (called at the end of the frame).
     pub fn clear_frame_state(&mut self) {
         self.mouse_pressed = false;
         self.mouse_clicked = false;
-        self.key_pressed_enter = false;
-        self.key_pressed_escape = false;
-        self.key_pressed_up = false;
-        self.key_pressed_down = false;
-        self.key_pressed_left = false;
-        self.key_pressed_right = false;
-        self.key_pressed_space = false;
-        self.key_released_space = false;
+        self.keys_pressed.clear();
+        self.keys_released.clear();
         self.text_events.clear();
         self.scroll_delta = Vec2::new(0.0, 0.0);
         self.mouse_click_count = 0;
-        self.key_pressed_page_up = false;
-        self.key_pressed_page_down = false;
-        self.key_pressed_home = false;
-        self.key_pressed_end = false;
-        self.key_pressed_up = false;
-        self.key_pressed_down = false;
-        self.key_pressed_tab = false;
         // modifier_shift intentionally not cleared: it is a held state updated
         // by the embedder on ModifiersChanged, not a per-frame press event.
     }
@@ -190,6 +237,74 @@ impl ClickTracker {
 mod tests {
     use super::*;
     use std::time::Duration;
+
+    #[test]
+    fn key_set_default_is_empty() {
+        let keys = KeySet::default();
+
+        assert!(keys.is_empty());
+        assert!(!keys.contains(Key::Enter));
+    }
+
+    #[test]
+    fn key_set_insert_makes_contains_true() {
+        let mut keys = KeySet::default();
+
+        keys.insert(Key::Enter);
+
+        assert!(keys.contains(Key::Enter));
+        assert!(!keys.is_empty());
+    }
+
+    #[test]
+    fn key_set_remove_makes_contains_false() {
+        let mut keys = KeySet::default();
+        keys.insert(Key::Enter);
+
+        keys.remove(Key::Enter);
+
+        assert!(!keys.contains(Key::Enter));
+        assert!(keys.is_empty());
+    }
+
+    #[test]
+    fn key_set_multiple_keys_are_independent() {
+        let mut keys = KeySet::default();
+
+        keys.insert(Key::Enter);
+        keys.insert(Key::Space);
+        keys.remove(Key::Enter);
+
+        assert!(!keys.contains(Key::Enter));
+        assert!(keys.contains(Key::Space));
+    }
+
+    #[test]
+    fn key_set_clear_removes_all_keys() {
+        let mut keys = KeySet::default();
+        keys.insert(Key::Enter);
+        keys.insert(Key::Space);
+
+        keys.clear();
+
+        assert!(keys.is_empty());
+        assert!(!keys.contains(Key::Enter));
+        assert!(!keys.contains(Key::Space));
+    }
+
+    #[test]
+    fn clear_frame_state_preserves_keys_down_only() {
+        let mut input = Input::new();
+        input.keys_down.insert(Key::Enter);
+        input.keys_pressed.insert(Key::Enter);
+        input.keys_released.insert(Key::Space);
+
+        input.clear_frame_state();
+
+        assert!(input.key_down(Key::Enter));
+        assert!(input.keys_pressed.is_empty());
+        assert!(input.keys_released.is_empty());
+    }
 
     #[test]
     fn test_click_tracker_distance() {
