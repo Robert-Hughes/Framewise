@@ -360,6 +360,8 @@ pub mod raw {
         );
 
         // 2. Input Handling
+        let mut press_drag = crate::widgets::widget_helpers::PressDragInteraction::default();
+
         if spec.disabled {
             state.active_part = None;
             state.is_track_clicking = false;
@@ -368,7 +370,7 @@ pub mod raw {
         }
 
         if !spec.disabled {
-            let press_drag = handle_press_drag_interaction(
+            press_drag = handle_press_drag_interaction(
                 &mut state.press_drag,
                 input,
                 true,
@@ -1116,7 +1118,9 @@ pub mod raw {
         } else {
             None
         };
-        let cursor_icon = slider_cursor_icon(&spec, state, hover_part, track_hover.passive_hovered);
+        let cursor_icon = press_drag
+            .cursor_icon
+            .or_else(|| slider_cursor_icon(&spec, state, hover_part, track_hover.passive_hovered));
 
         SliderResult {
             focused,

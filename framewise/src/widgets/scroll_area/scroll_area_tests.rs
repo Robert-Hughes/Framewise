@@ -229,7 +229,7 @@ fn nested_scroll_two_frames(
 fn test_scroll_area_vertical_scrollbar_segment_drag_updates_offset_y() {
     let mut state = ScrollState::default();
     state.vert_slider_state.active_part = Some(crate::widgets::slider::SliderPart::Segment);
-    state.vert_slider_state.press_drag = crate::widgets::PressDragState {
+    state.vert_slider_state.press_drag = crate::widgets::widget_helpers::PressDragState {
         dragging: true,
         drag_start_pos: Vec2::new(194.0, 10.0),
         ..Default::default()
@@ -266,7 +266,7 @@ fn test_scroll_area_vertical_scrollbar_segment_drag_updates_offset_y() {
 fn test_scroll_area_horizontal_scrollbar_segment_drag_updates_offset_x() {
     let mut state = ScrollState::default();
     state.horiz_slider_state.active_part = Some(crate::widgets::slider::SliderPart::Segment);
-    state.horiz_slider_state.press_drag = crate::widgets::PressDragState {
+    state.horiz_slider_state.press_drag = crate::widgets::widget_helpers::PressDragState {
         dragging: true,
         drag_start_pos: Vec2::new(10.0, 194.0),
         ..Default::default()

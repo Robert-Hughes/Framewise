@@ -12,7 +12,7 @@ use crate::{
             begin_held_press_drag, begin_immediate_drag, draw_prefixed_control_prefix_and_chrome,
             handle_press_drag_interaction, layout_prefixed_control, prefixed_control_child_offer,
             prefixed_control_prefix_width, prefixed_control_size_request, PrefixedControlDrawSpec,
-            PrefixedControlStyle, PressDragState, RepeatTimer, RepeatTiming,
+            PrefixedControlStyle, PressDragInteraction, PressDragState, RepeatTimer, RepeatTiming,
             DEFAULT_DRAG_THRESHOLD,
         },
     },
@@ -120,8 +120,9 @@ pub mod raw {
     where
         F: Fn(f32) -> String,
     {
+        let mut press_drag = PressDragInteraction::default();
+
         if spec.disabled {
-            state.is_dragging = false;
             state.is_arrow_stepping = false;
             state.arrow_step_direction = None;
             state.press_drag = PressDragState::default();
@@ -178,7 +179,7 @@ pub mod raw {
             spec.clip_rect,
             spec.disabled,
             is_hover_active,
-            state.is_dragging,
+            state.press_drag.dragging,
             input,
         );
 
@@ -264,7 +265,7 @@ pub mod raw {
             } else {
                 f32::INFINITY
             };
-            let press_drag = handle_press_drag_interaction(
+            press_drag = handle_press_drag_interaction(
                 &mut state.press_drag,
                 input,
                 state.is_arrow_stepping || spec.drag_enabled,
@@ -275,7 +276,6 @@ pub mod raw {
             if press_drag.released {
                 state.is_arrow_stepping = false;
                 state.arrow_step_direction = None;
-                state.is_dragging = false;
             }
 
             let active_step_contains = match state.arrow_step_direction {
@@ -286,7 +286,6 @@ pub mod raw {
             if state.is_arrow_stepping && spec.drag_enabled && press_drag.drag_started {
                 state.is_arrow_stepping = false;
                 state.arrow_step_direction = None;
-                state.is_dragging = true;
                 state.drag_start_value = state.value;
             }
 
@@ -301,7 +300,6 @@ pub mod raw {
                 begin_held_press_drag(&mut state.press_drag, input.mouse_pos);
                 state.repeat_timer.start(spec.time, RepeatTiming::PRESS);
             } else if value_hover.can_start && spec.drag_enabled {
-                state.is_dragging = true;
                 state.drag_start_value = state.value;
                 begin_immediate_drag(&mut state.press_drag, input.mouse_pos);
             }
@@ -317,19 +315,14 @@ pub mod raw {
                 }
             }
 
-            if state.is_dragging {
-                if !state.press_drag.dragging || !spec.drag_enabled {
-                    state.is_dragging = false;
-                } else {
-                    let dx = input.mouse_pos.x - state.press_drag.drag_start_pos.x;
-                    let value_range = drag_value_range(clamp_min, clamp_max);
-                    let delta_val = (dx / value_rect.w.max(1.0)) * value_range;
-                    state.value =
-                        clamp_optional(state.drag_start_value + delta_val, clamp_min, clamp_max);
-                }
+            if state.press_drag.dragging && spec.drag_enabled {
+                let dx = input.mouse_pos.x - state.press_drag.drag_start_pos.x;
+                let value_range = drag_value_range(clamp_min, clamp_max);
+                let delta_val = (dx / value_rect.w.max(1.0)) * value_range;
+                state.value =
+                    clamp_optional(state.drag_start_value + delta_val, clamp_min, clamp_max);
             }
         } else if !spec.drag_enabled {
-            state.is_dragging = false;
             state.press_drag = PressDragState::default();
         }
 
@@ -368,7 +361,7 @@ pub mod raw {
         let tint = |c: Color| Color::linear_rgba(c.r, c.g, c.b, c.a * alpha);
 
         let visually_active = focused
-            || state.is_dragging
+            || state.press_drag.dragging
             || focus_system.current_keyboard_focus() == Some(state.focus_id);
         let draw_outer = cmds.snap_rect_edges_to_physical_pixel(spec.rect);
         let draw_value_x = cmds.snap_to_physical_pixel(value_rect.x);
@@ -591,8 +584,8 @@ pub mod raw {
         let hovered_step = !spec.disabled && (hovered_decrement || hovered_increment);
         let cursor_icon = if state.edit.is_editing() {
             edit_cursor_icon
-        } else if state.is_dragging && spec.drag_enabled && !spec.disabled {
-            Some(crate::output::CursorIcon::EwResize)
+        } else if press_drag.cursor_icon.is_some() {
+            press_drag.cursor_icon
         } else if active_step || hovered_step {
             Some(crate::output::CursorIcon::Pointer)
         } else if spec.drag_enabled && !spec.disabled && value_hover.passive_hovered {
@@ -604,7 +597,7 @@ pub mod raw {
         NumberEditResult {
             input: edit_input_info.unwrap_or(InputInfo {
                 hovered,
-                pressed: (state.is_dragging || active_step) && !spec.disabled,
+                pressed: (state.press_drag.dragging || active_step) && !spec.disabled,
                 clicked: false,
             }),
             focused: focused
@@ -770,7 +763,6 @@ impl Default for NumberEditStyle {
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct NumberEditState {
     pub value: f32,
-    pub is_dragging: bool,
     pub drag_start_value: f32,
     pub is_arrow_stepping: bool,
     pub arrow_step_direction: Option<NumberEditStepDirection>,
@@ -938,7 +930,6 @@ fn enter_number_edit_mode(state: &mut NumberEditState) {
         text_edit,
         error: false,
     };
-    state.is_dragging = false;
     state.is_arrow_stepping = false;
     state.arrow_step_direction = None;
     state.press_drag = PressDragState::default();

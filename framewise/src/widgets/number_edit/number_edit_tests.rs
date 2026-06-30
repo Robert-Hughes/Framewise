@@ -595,9 +595,8 @@ fn test_number_edit_visual_hovered_value_area_draws_arrows() {
 fn test_number_edit_visual_active() {
     let mut state = NumberEditState {
         value: 50.0,
-        is_dragging: true,
         drag_start_value: 50.0,
-        press_drag: crate::widgets::PressDragState {
+        press_drag: crate::widgets::widget_helpers::PressDragState {
             dragging: true,
             drag_start_pos: Vec2::new(50.0, 24.0),
             ..Default::default()
@@ -1417,7 +1416,10 @@ fn test_number_edit_drag_updates_value() {
     );
     focus_system.end_frame();
 
-    assert!(state.is_dragging, "Should start dragging on mouse press");
+    assert!(
+        state.press_drag.dragging,
+        "Should start dragging on mouse press"
+    );
     assert_eq!(
         state.value, 50.0,
         "Value shouldn't change on the initial click frame"
@@ -1438,7 +1440,7 @@ fn test_number_edit_drag_updates_value() {
     );
     focus_system.end_frame();
 
-    assert!(state.is_dragging, "Should still be dragging");
+    assert!(state.press_drag.dragging, "Should still be dragging");
     // dx = 68 - 50 = 18. value_w = 60 after step buttons. dx/value_w = 0.3.
     assert_eq!(
         state.value, 80.0,
@@ -1561,7 +1563,7 @@ fn test_number_edit_drag_releases_when_mouse_up() {
         &mut cmds,
     );
     focus_system.end_frame();
-    assert!(state.is_dragging);
+    assert!(state.press_drag.dragging);
 
     // Frame 2: Mouse released
     input.mouse_down = false;
@@ -1577,7 +1579,7 @@ fn test_number_edit_drag_releases_when_mouse_up() {
     );
     focus_system.end_frame();
     assert!(
-        !state.is_dragging,
+        !state.press_drag.dragging,
         "Dragging should stop when mouse is released"
     );
 }
@@ -1765,7 +1767,7 @@ fn test_number_edit_step_hold_pauses_outside_and_resumes_on_return_when_drag_dis
         state.arrow_step_direction,
         Some(NumberEditStepDirection::Increment)
     );
-    assert!(!state.is_dragging);
+    assert!(!state.press_drag.dragging);
 
     input.mouse_pos = arrow_pos;
     spec.time = 0.5;
@@ -1786,7 +1788,7 @@ fn test_number_edit_step_hold_pauses_outside_and_resumes_on_return_when_drag_dis
         state.arrow_step_direction,
         Some(NumberEditStepDirection::Increment)
     );
-    assert!(!state.is_dragging);
+    assert!(!state.press_drag.dragging);
 
     input.mouse_down = false;
     focus_system.begin_frame();
@@ -1850,7 +1852,7 @@ fn test_number_edit_arrow_step_promotes_to_drag_after_motion_threshold() {
     focus_system.end_frame();
     assert_eq!(state.value, 55.0);
     assert!(state.is_arrow_stepping);
-    assert!(!state.is_dragging);
+    assert!(!state.press_drag.dragging);
 
     // Frame 2: move less than the 4px threshold; stay in arrow-step mode.
     input.mouse_pressed = false;
@@ -1866,7 +1868,7 @@ fn test_number_edit_arrow_step_promotes_to_drag_after_motion_threshold() {
     );
     focus_system.end_frame();
     assert!(state.is_arrow_stepping);
-    assert!(!state.is_dragging);
+    assert!(!state.press_drag.dragging);
 
     // Frame 3: move beyond the threshold; promote to normal drag from current value.
     input.mouse_pos = Vec2::new(arrow_pos.x + 6.0, arrow_pos.y);
@@ -1882,7 +1884,7 @@ fn test_number_edit_arrow_step_promotes_to_drag_after_motion_threshold() {
     focus_system.end_frame();
     assert!(!state.is_arrow_stepping);
     assert_eq!(state.arrow_step_direction, None);
-    assert!(state.is_dragging);
+    assert!(state.press_drag.dragging);
     assert_eq!(state.press_drag.drag_start_pos.x, input.mouse_pos.x);
     assert_eq!(state.drag_start_value, 55.0);
     assert_eq!(
@@ -1917,7 +1919,7 @@ fn test_number_edit_arrow_step_promotes_to_drag_after_motion_threshold() {
         &mut cmds,
     );
     focus_system.end_frame();
-    assert!(!state.is_dragging);
+    assert!(!state.press_drag.dragging);
 }
 
 #[test]
@@ -2083,10 +2085,13 @@ fn test_number_edit_overlapping_press_uses_top_widget() {
     focus_system.end_frame();
 
     assert!(
-        !state_bottom.is_dragging,
-        "Bottom widget should not enter is_dragging"
+        !state_bottom.press_drag.dragging,
+        "Bottom widget should not enter press-drag dragging"
     );
-    assert!(state_top.is_dragging, "Top widget should enter is_dragging");
+    assert!(
+        state_top.press_drag.dragging,
+        "Top widget should enter press-drag dragging"
+    );
     assert!(
         !res_b.input.pressed,
         "Bottom widget result should not be pressed"
@@ -2645,9 +2650,13 @@ fn test_number_edit_text_edit_disabled_exits_edit_mode() {
     let rect = Rect::new(0.0, 0.0, 140.0, 28.0);
     let mut state = NumberEditState {
         value: 10.0,
-        is_dragging: true,
         is_arrow_stepping: true,
         arrow_step_direction: Some(NumberEditStepDirection::Increment),
+        press_drag: crate::widgets::widget_helpers::PressDragState {
+            dragging: true,
+            drag_start_pos: value_area_pos(rect),
+            ..Default::default()
+        },
         ..Default::default()
     };
     enter_edit_state(&mut state, "42.5");
@@ -2659,7 +2668,7 @@ fn test_number_edit_text_edit_disabled_exits_edit_mode() {
 
     assert_eq!(state.value, 10.0);
     assert_inactive(&state.edit);
-    assert!(!state.is_dragging);
+    assert!(!state.press_drag.dragging);
     assert!(!state.is_arrow_stepping);
 }
 
@@ -2942,7 +2951,7 @@ fn test_number_edit_drag_disabled_does_not_start_drag_or_set_ew_resize() {
     );
     focus_system.end_frame();
 
-    assert!(!state.is_dragging);
+    assert!(!state.press_drag.dragging);
     assert_eq!(result.cursor_icon, None);
 }
 
@@ -3062,7 +3071,7 @@ fn test_number_edit_step_button_visual_appearance() {
         value: 50.0,
         is_arrow_stepping: true,
         arrow_step_direction: Some(NumberEditStepDirection::Increment),
-        press_drag: crate::widgets::PressDragState {
+        press_drag: crate::widgets::widget_helpers::PressDragState {
             held: true,
             press_start_pos: Vec2::new(99.0, 24.0),
             drag_start_pos: Vec2::new(99.0, 24.0),

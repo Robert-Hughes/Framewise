@@ -313,7 +313,6 @@ fn draw_prefixed_number_edit_fake_state<T: TextBackend, LS: LayoutState, CF>(
     let rect = b.layout(layout_params, SizeRequest::UNKNOWN);
     let mut state = NumberEditState {
         value: val,
-        is_dragging,
         drag_start_value: val,
         ..Default::default()
     };
@@ -321,6 +320,8 @@ fn draw_prefixed_number_edit_fake_state<T: TextBackend, LS: LayoutState, CF>(
     let mut dummy_input = Input::default();
     if is_dragging {
         dummy_input.mouse_down = true;
+        dummy_input.mouse_pressed = true;
+        dummy_input.mouse_pos = Vec2::new(rect.w * 0.5, rect.h * 0.5);
     }
 
     let mut dummy_focus_sys = if is_focused {
@@ -379,11 +380,6 @@ fn draw_slider_fake_state<T: TextBackend, LS: LayoutState, CF>(
         value: SliderValue::Single(val),
         active_part: is_dragging.then_some(SliderPart::LowerThumb),
         drag_start_value: SliderValue::Single(val),
-        press_drag: framewise::widgets::PressDragState {
-            dragging: is_dragging,
-            drag_start_pos: Vec2::ZERO,
-            ..Default::default()
-        },
         ..Default::default()
     };
     let dummy_input = Input {

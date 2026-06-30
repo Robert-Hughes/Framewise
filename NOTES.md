@@ -7,15 +7,15 @@ Working notes, TODOs, open questions, and half-baked ideas.
 - Drag helper? (see chatgpt)
 - Scroll claim helper? (see chatgpt)
 
-- labelled slider
-- NumberEdit editor policy - on double click or always.
-  - change "padding" widget on spec page to this
-- slider with editor (number edits with Always editor)
-
 - decide on consistent behaviour for click and hold on a widget with a special cursor (e.g. pointer, slider), then move mouse outside of the widget.
 For cases where the behaviour continues (like a slider), the cursor should clearly remain. But for cases where the interaction is 'paused' like a button press or NumberEdit stepper, not sure if the special cursor should also be paused? Consider a widget helper for "click-and-hold/drag"-like behaviour?
 
 - keyboard controls like up/down/left/right page up/down that are equivalent to pressing buttons (like stepper buttons) should show visual pressed states based on those keys. Reusable widget helper?
+
+- labelled slider
+- NumberEdit editor policy - on double click or always.
+  - change "padding" widget on spec page to this
+- slider with editor (number edits with Always editor)
 
 - Go through the spec_page, check/implement/test each widget/aspect to make better match the mock-up and add interactivity as we go (https://claude.ai/design/p/1aab4e86-cbf2-497e-b379-44cf41de2b12?file=Framewise+Widgets.html)
   - Done 01-03

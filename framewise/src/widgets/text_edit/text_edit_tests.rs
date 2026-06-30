@@ -1903,11 +1903,12 @@ fn test_text_edit_scrollbar_interaction_scrolls_text_and_takes_focus_without_sel
     set_selection_byte(&mut drag_state, None);
     drag_state.scroll.vert_slider_state.active_part =
         Some(crate::widgets::slider::SliderPart::Segment);
-    drag_state.scroll.vert_slider_state.press_drag = crate::widgets::PressDragState {
-        dragging: true,
-        drag_start_pos: Vec2::new(196.0, 10.0),
-        ..Default::default()
-    };
+    drag_state.scroll.vert_slider_state.press_drag =
+        crate::widgets::widget_helpers::PressDragState {
+            dragging: true,
+            drag_start_pos: Vec2::new(196.0, 10.0),
+            ..Default::default()
+        };
     drag_state.scroll.vert_slider_state.drag_start_value = crate::widgets::SliderValue::Range {
         lower: 0.0,
         upper: 38.0,

@@ -2,8 +2,8 @@ use super::raw::SliderSpec;
 use super::*;
 use crate::draw::DrawCmd;
 
-fn dragging_from(pos: Vec2) -> crate::widgets::PressDragState {
-    crate::widgets::PressDragState {
+fn dragging_from(pos: Vec2) -> crate::widgets::widget_helpers::PressDragState {
+    crate::widgets::widget_helpers::PressDragState {
         dragging: true,
         press_start_pos: pos,
         drag_start_pos: pos,
