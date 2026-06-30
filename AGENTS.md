@@ -31,3 +31,11 @@ Both `framewise` and `sample` must stay clean:
 - `cargo test` passes.
 
 When making changes to `framewise`, keep `sample` compiling and lint-clean. The sample app is not throwaway — treat it with the same care as the library.
+
+## Agent tools
+
+## Windows Encoding & Shell Constraints
+
+- All source files are encoded in UTF-8 (without BOM).
+- Under Windows, always run PowerShell commands using `pwsh` (PowerShell Core 7) rather than legacy `powershell` to prevent UTF-8 corruption.
+- Avoid using shell output redirection operators (`>` or `>>`) to create or modify code files, as these cause encoding conversions. Use native API file-writing methods instead.

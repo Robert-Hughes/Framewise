@@ -61,14 +61,6 @@ impl FocusTraversalKeys {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum NavDirection {
-    Up,
-    Down,
-    Left,
-    Right,
-}
-
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct NavDirections {
     pub up: bool,
