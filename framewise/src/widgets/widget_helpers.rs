@@ -83,11 +83,25 @@ pub fn begin_held_press_drag(state: &mut PressDragState, mouse_pos: Vec2) {
     state.drag_start_pos = mouse_pos;
 }
 
-pub fn begin_immediate_drag(state: &mut PressDragState, mouse_pos: Vec2) {
+pub fn begin_immediate_drag(
+    state: &mut PressDragState,
+    mouse_pos: Vec2,
+    drag_cursor: Option<crate::output::CursorIcon>,
+) -> PressDragInteraction {
     state.held = false;
     state.dragging = true;
     state.press_start_pos = mouse_pos;
     state.drag_start_pos = mouse_pos;
+
+    PressDragInteraction {
+        held: false,
+        dragging: true,
+        drag_started: true,
+        released: false,
+        press_delta: Vec2::ZERO,
+        drag_delta: Vec2::ZERO,
+        cursor_icon: drag_cursor,
+    }
 }
 
 pub fn handle_press_drag_interaction(
@@ -933,9 +947,35 @@ mod tests {
     }
 
     #[test]
+    fn press_drag_immediate_drag_returns_current_frame_interaction() {
+        let mut state = PressDragState::default();
+
+        let interaction = begin_immediate_drag(
+            &mut state,
+            Vec2::new(10.0, 10.0),
+            Some(crate::output::CursorIcon::EwResize),
+        );
+
+        assert!(interaction.dragging);
+        assert!(interaction.drag_started);
+        assert!(!interaction.held);
+        assert!(!interaction.released);
+        assert_eq!(interaction.press_delta, Vec2::ZERO);
+        assert_eq!(interaction.drag_delta, Vec2::ZERO);
+        assert_eq!(
+            interaction.cursor_icon,
+            Some(crate::output::CursorIcon::EwResize)
+        );
+    }
+
+    #[test]
     fn press_drag_returns_cursor_while_dragging() {
         let mut state = PressDragState::default();
-        begin_immediate_drag(&mut state, Vec2::new(10.0, 10.0));
+        begin_immediate_drag(
+            &mut state,
+            Vec2::new(10.0, 10.0),
+            Some(crate::output::CursorIcon::EwResize),
+        );
 
         let interaction = handle_press_drag_interaction(
             &mut state,
@@ -958,7 +998,7 @@ mod tests {
     #[test]
     fn press_drag_release_clears_state() {
         let mut state = PressDragState::default();
-        begin_immediate_drag(&mut state, Vec2::new(10.0, 10.0));
+        begin_immediate_drag(&mut state, Vec2::new(10.0, 10.0), None);
 
         let interaction = handle_press_drag_interaction(
             &mut state,

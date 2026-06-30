@@ -301,7 +301,11 @@ pub mod raw {
                 state.repeat_timer.start(spec.time, RepeatTiming::PRESS);
             } else if value_hover.can_start && spec.drag_enabled {
                 state.drag_start_value = state.value;
-                begin_immediate_drag(&mut state.press_drag, input.mouse_pos);
+                press_drag = begin_immediate_drag(
+                    &mut state.press_drag,
+                    input.mouse_pos,
+                    Some(crate::output::CursorIcon::EwResize),
+                );
             }
 
             if state.is_arrow_stepping && input.mouse_down && active_step_contains {

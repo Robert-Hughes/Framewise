@@ -1406,7 +1406,7 @@ fn test_number_edit_drag_updates_value() {
     input.mouse_pressed = true;
 
     focus_system.begin_frame();
-    let _res = run_raw(
+    let res = run_raw(
         spec.clone(),
         &mut state,
         &input,
@@ -1420,6 +1420,7 @@ fn test_number_edit_drag_updates_value() {
         state.press_drag.dragging,
         "Should start dragging on mouse press"
     );
+    assert_eq!(res.cursor_icon, Some(crate::output::CursorIcon::EwResize));
     assert_eq!(
         state.value, 50.0,
         "Value shouldn't change on the initial click frame"

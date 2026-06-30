@@ -2133,6 +2133,7 @@ fn test_slider_visual_drag() {
     let mut state = SliderState {
         active_part: Some(SliderPart::LowerThumb),
         value: SliderValue::Single(50.0),
+        press_drag: dragging_from(Vec2::ZERO),
         ..Default::default()
     };
     let mut focus_system = FocusSystem::new();
@@ -2614,7 +2615,7 @@ fn test_segment_only_slider_visual_hover() {
     // Second frame
     focus_system.begin_frame();
     let mut cmds = DrawCommands::new(1.0);
-    raw::post_layout_slider(
+    let result = raw::post_layout_slider(
         spec,
         raw::SliderPreLayoutResult {
             size_request: crate::layout::SizeRequest::UNKNOWN,
@@ -2625,6 +2626,8 @@ fn test_segment_only_slider_visual_hover() {
         &mut cmds,
     );
     focus_system.end_frame();
+
+    assert_eq!(result.cursor_icon, Some(crate::output::CursorIcon::Grab));
 
     let track_color = theme.scrollbar_track_on_paper;
     let border_color = theme.line_soft_on_paper;
@@ -4097,7 +4100,7 @@ fn test_range_slider_segment_drag() {
             ..Default::default()
         };
         focus_system.begin_frame();
-        raw::post_layout_slider(
+        let click_result = raw::post_layout_slider(
             spec.clone(),
             raw::SliderPreLayoutResult {
                 size_request: crate::layout::SizeRequest::UNKNOWN,
@@ -4110,6 +4113,10 @@ fn test_range_slider_segment_drag() {
         focus_system.end_frame();
 
         assert_eq!(state.active_part, Some(SliderPart::Segment));
+        assert_eq!(
+            click_result.cursor_icon,
+            Some(crate::output::CursorIcon::Grabbing)
+        );
 
         // Move the mouse right by 10 value units.
         // track_len is 89px for range 100.

@@ -102,9 +102,8 @@ pub mod raw {
         }
     }
 
-    fn slider_cursor_icon(
+    fn slider_hover_cursor_icon(
         spec: &SliderSpec,
-        state: &SliderState,
         hover_part: Option<SliderPart>,
         track_passive_hovered: bool,
     ) -> Option<crate::output::CursorIcon> {
@@ -112,22 +111,8 @@ pub mod raw {
             return None;
         }
 
-        // If actively dragging:
-        if let Some(active_part) = state.active_part {
-            match active_part {
-                SliderPart::LowerThumb | SliderPart::UpperThumb | SliderPart::Segment => {
-                    return Some(crate::output::CursorIcon::Grabbing);
-                }
-            }
-        }
-
-        // If hovered but not dragging:
-        if let Some(part) = hover_part {
-            match part {
-                SliderPart::LowerThumb | SliderPart::UpperThumb | SliderPart::Segment => {
-                    return Some(crate::output::CursorIcon::Grab);
-                }
-            }
+        if hover_part.is_some() {
+            return Some(crate::output::CursorIcon::Grab);
         }
 
         if track_passive_hovered {
@@ -602,7 +587,11 @@ pub mod raw {
                     }
                     state.active_part = Some(part);
                     state.drag_start_value = state.value;
-                    begin_immediate_drag(&mut state.press_drag, input.mouse_pos);
+                    press_drag = begin_immediate_drag(
+                        &mut state.press_drag,
+                        input.mouse_pos,
+                        Some(crate::output::CursorIcon::Grabbing),
+                    );
                 }
             }
 
@@ -1120,7 +1109,7 @@ pub mod raw {
         };
         let cursor_icon = press_drag
             .cursor_icon
-            .or_else(|| slider_cursor_icon(&spec, state, hover_part, track_hover.passive_hovered));
+            .or_else(|| slider_hover_cursor_icon(&spec, hover_part, track_hover.passive_hovered));
 
         SliderResult {
             focused,
