@@ -416,7 +416,6 @@ pub mod raw {
                         }
                     }
                     repair_values(state, min, max, spec.min_gap, spec.max_gap, spec.value_snap);
-                    state.drag_start_mouse_coord = mouse_coord;
                     state.drag_start_value = state.value;
                     state.active_part = Some(part);
                 }
@@ -431,7 +430,12 @@ pub mod raw {
                 } else {
                     input.mouse_pos.x
                 };
-                let delta = mouse_coord - state.drag_start_mouse_coord;
+                let drag_start_coord = if is_vert {
+                    state.press_drag.drag_start_pos.y
+                } else {
+                    state.press_drag.drag_start_pos.x
+                };
+                let delta = mouse_coord - drag_start_coord;
                 let val_delta = if track_len > 0.0 {
                     (delta / track_len) * range
                 } else {
@@ -551,7 +555,6 @@ pub mod raw {
                     focus_system.take_keyboard_focus(state.focus_id);
                 }
                 state.is_track_clicking = true;
-                state.track_click_start_mouse_pos = input.mouse_pos;
                 begin_held_press_drag(&mut state.press_drag, input.mouse_pos);
                 state.repeat_timer.start(spec.time, RepeatTiming::PRESS);
                 // Page up/down towards mouse
@@ -596,7 +599,6 @@ pub mod raw {
                         focus_system.take_keyboard_focus(state.focus_id);
                     }
                     state.active_part = Some(part);
-                    state.drag_start_mouse_coord = mouse_coord;
                     state.drag_start_value = state.value;
                     begin_immediate_drag(&mut state.press_drag, input.mouse_pos);
                 }
@@ -2169,35 +2171,16 @@ impl SliderValue {
 
 // ── State ─────────────────────────────────────────────────────────────────────
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Default, PartialEq)]
 pub struct SliderState {
     pub value: SliderValue,
     pub focus_id: FocusId,
     pub active_part: Option<SliderPart>,
-    pub drag_start_mouse_coord: f32,
     pub drag_start_value: SliderValue,
     pub is_track_clicking: bool,
-    pub track_click_start_mouse_pos: Vec2,
     pub press_drag: PressDragState,
     pub repeat_timer: RepeatTimer,
     pub track_click_direction: Option<PagingDirection>,
-}
-
-impl Default for SliderState {
-    fn default() -> Self {
-        Self {
-            value: SliderValue::default(),
-            focus_id: FocusId::default(),
-            active_part: None,
-            drag_start_mouse_coord: 0.0,
-            drag_start_value: SliderValue::default(),
-            is_track_clicking: false,
-            track_click_start_mouse_pos: Vec2::ZERO,
-            press_drag: PressDragState::default(),
-            repeat_timer: RepeatTimer::default(),
-            track_click_direction: None,
-        }
-    }
 }
 
 // ── Result ───────────────────────────────────────────────────────────────────

@@ -2,6 +2,15 @@ use super::raw::SliderSpec;
 use super::*;
 use crate::draw::DrawCmd;
 
+fn dragging_from(pos: Vec2) -> crate::widgets::PressDragState {
+    crate::widgets::PressDragState {
+        dragging: true,
+        press_start_pos: pos,
+        drag_start_pos: pos,
+        ..Default::default()
+    }
+}
+
 #[test]
 fn test_slider_overlapping_hover() {
     let mut state1 = SliderState::default();
@@ -233,7 +242,7 @@ fn test_slider_drag() {
     );
     focus_system.end_frame();
     assert!(state.active_part.is_some());
-    assert_eq!(state.drag_start_mouse_coord, 10.0);
+    assert_eq!(state.press_drag.drag_start_pos.y, 10.0);
     assert!(press_result.input.pressed);
     assert_eq!(
         press_result.cursor_icon,
@@ -1137,7 +1146,7 @@ fn test_track_click_cross_axis_drag_captures_pointer_outside_widget() {
         "drag should remain active while the mouse is held, even outside the widget"
     );
 
-    // Drag started at value 50 with drag_start_mouse_coord = 50.
+    // Drag started at value 50 with drag start coordinate = 50.
     // Moving to x=70 gives delta=20.
     // val_delta = 20 / 80 * 100 = 25.
     // expected value = 50 + 25 = 75.
@@ -1498,11 +1507,11 @@ fn test_segment_only_slider_drag_moves_fixed_span() {
             upper: 40.0,
         },
         active_part: Some(SliderPart::Segment),
-        drag_start_mouse_coord: 30.0,
         drag_start_value: SliderValue::Range {
             lower: 20.0,
             upper: 40.0,
         },
+        press_drag: dragging_from(Vec2::new(30.0, 10.0)),
         ..Default::default()
     };
     let mut style = SliderStyle::scrollbar_from_theme(&crate::theme::Theme::framewise());
@@ -2922,11 +2931,11 @@ fn test_lower_drag_respects_min_gap() {
             upper: 80.0,
         },
         active_part: Some(SliderPart::LowerThumb),
-        drag_start_mouse_coord: 30.0,
         drag_start_value: SliderValue::Range {
             lower: 30.0,
             upper: 80.0,
         },
+        press_drag: dragging_from(Vec2::new(30.0, 10.0)),
         ..Default::default()
     };
     // Let's use a horizontal slider from x=0 to x=100.
@@ -2969,11 +2978,11 @@ fn test_upper_drag_respects_min_gap() {
             upper: 80.0,
         },
         active_part: Some(SliderPart::UpperThumb),
-        drag_start_mouse_coord: 80.0,
         drag_start_value: SliderValue::Range {
             lower: 30.0,
             upper: 80.0,
         },
+        press_drag: dragging_from(Vec2::new(80.0, 10.0)),
         ..Default::default()
     };
     // Let's use a horizontal slider from x=0 to x=100.
@@ -3023,11 +3032,11 @@ fn test_away_drags_respect_max_gap() {
                 upper: 50.0,
             },
             active_part: Some(SliderPart::LowerThumb),
-            drag_start_mouse_coord: 30.0,
             drag_start_value: SliderValue::Range {
                 lower: 30.0,
                 upper: 50.0,
             },
+            press_drag: dragging_from(Vec2::new(30.0, 10.0)),
             ..Default::default()
         };
         // Drag lower to 10.0
@@ -3061,11 +3070,11 @@ fn test_away_drags_respect_max_gap() {
                 upper: 50.0,
             },
             active_part: Some(SliderPart::UpperThumb),
-            drag_start_mouse_coord: 50.0,
             drag_start_value: SliderValue::Range {
                 lower: 30.0,
                 upper: 50.0,
             },
+            press_drag: dragging_from(Vec2::new(50.0, 10.0)),
             ..Default::default()
         };
         // Drag upper to 90.0
@@ -5421,11 +5430,11 @@ fn test_slider_value_snap_respects_range_min_gap() {
             upper: 60.0,
         },
         active_part: Some(SliderPart::UpperThumb),
-        drag_start_mouse_coord: 58.8,
         drag_start_value: SliderValue::Range {
             lower: 20.0,
             upper: 60.0,
         },
+        press_drag: dragging_from(Vec2::new(58.8, 10.0)),
         ..Default::default()
     };
     let input = Input {
@@ -5453,11 +5462,11 @@ fn test_slider_value_snap_respects_range_min_gap() {
             upper: 60.0,
         },
         active_part: Some(SliderPart::LowerThumb),
-        drag_start_mouse_coord: 23.6,
         drag_start_value: SliderValue::Range {
             lower: 20.0,
             upper: 60.0,
         },
+        press_drag: dragging_from(Vec2::new(23.6, 10.0)),
         ..Default::default()
     };
     let input = Input {
@@ -5495,11 +5504,11 @@ fn test_slider_value_snap_respects_range_max_gap() {
             upper: 40.0,
         },
         active_part: Some(SliderPart::UpperThumb),
-        drag_start_mouse_coord: 41.2,
         drag_start_value: SliderValue::Range {
             lower: 20.0,
             upper: 40.0,
         },
+        press_drag: dragging_from(Vec2::new(41.2, 10.0)),
         ..Default::default()
     };
     let input = Input {
@@ -5527,11 +5536,11 @@ fn test_slider_value_snap_respects_range_max_gap() {
             upper: 40.0,
         },
         active_part: Some(SliderPart::LowerThumb),
-        drag_start_mouse_coord: 23.6,
         drag_start_value: SliderValue::Range {
             lower: 20.0,
             upper: 40.0,
         },
+        press_drag: dragging_from(Vec2::new(23.6, 10.0)),
         ..Default::default()
     };
     let input = Input {
@@ -5568,11 +5577,11 @@ fn test_slider_value_snap_preserves_fixed_size_range_segment() {
             upper: 50.0,
         },
         active_part: Some(SliderPart::Segment),
-        drag_start_mouse_coord: 40.0,
         drag_start_value: SliderValue::Range {
             lower: 20.0,
             upper: 50.0,
         },
+        press_drag: dragging_from(Vec2::new(40.0, 10.0)),
         ..Default::default()
     };
     let input = Input {

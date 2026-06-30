@@ -378,8 +378,12 @@ fn draw_slider_fake_state<T: TextBackend, LS: LayoutState, CF>(
     let mut state = SliderState {
         value: SliderValue::Single(val),
         active_part: is_dragging.then_some(SliderPart::LowerThumb),
-        drag_start_mouse_coord: 0.0,
         drag_start_value: SliderValue::Single(val),
+        press_drag: framewise::widgets::PressDragState {
+            dragging: is_dragging,
+            drag_start_pos: Vec2::ZERO,
+            ..Default::default()
+        },
         ..Default::default()
     };
     let dummy_input = Input {

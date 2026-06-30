@@ -597,6 +597,11 @@ fn test_number_edit_visual_active() {
         value: 50.0,
         is_dragging: true,
         drag_start_value: 50.0,
+        press_drag: crate::widgets::PressDragState {
+            dragging: true,
+            drag_start_pos: Vec2::new(50.0, 24.0),
+            ..Default::default()
+        },
         ..Default::default()
     };
     let spec = NumberEditSpec {
@@ -618,6 +623,7 @@ fn test_number_edit_visual_active() {
     let style = spec.style;
     let input = Input {
         mouse_down: true,
+        mouse_pos: Vec2::new(50.0, 24.0),
         ..Default::default()
     };
     let mut cmds = DrawCommands::new(1.0);
@@ -1877,7 +1883,7 @@ fn test_number_edit_arrow_step_promotes_to_drag_after_motion_threshold() {
     assert!(!state.is_arrow_stepping);
     assert_eq!(state.arrow_step_direction, None);
     assert!(state.is_dragging);
-    assert_eq!(state.drag_start_x, input.mouse_pos.x);
+    assert_eq!(state.press_drag.drag_start_pos.x, input.mouse_pos.x);
     assert_eq!(state.drag_start_value, 55.0);
     assert_eq!(
         result.cursor_icon,
@@ -3055,8 +3061,13 @@ fn test_number_edit_step_button_visual_appearance() {
     let mut state = NumberEditState {
         value: 50.0,
         is_arrow_stepping: true,
-        arrow_step_start_mouse_pos: Vec2::new(99.0, 24.0),
         arrow_step_direction: Some(NumberEditStepDirection::Increment),
+        press_drag: crate::widgets::PressDragState {
+            held: true,
+            press_start_pos: Vec2::new(99.0, 24.0),
+            drag_start_pos: Vec2::new(99.0, 24.0),
+            ..Default::default()
+        },
         repeat_timer: {
             let mut timer = RepeatTimer::default();
             timer.start(0.5, RepeatTiming::PRESS);

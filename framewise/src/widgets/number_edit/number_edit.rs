@@ -259,16 +259,6 @@ pub mod raw {
         // Display-mode mouse interaction: arrow stepping, repeat, and scrub drag.
         // Edit mode bypasses this so typed values do not also trigger value changes.
         if !spec.disabled && !state.edit.is_editing() {
-            if state.is_arrow_stepping && !state.press_drag.held && !state.press_drag.dragging {
-                begin_held_press_drag(&mut state.press_drag, state.arrow_step_start_mouse_pos);
-            }
-            if state.is_dragging && !state.press_drag.dragging && input.mouse_down {
-                begin_immediate_drag(
-                    &mut state.press_drag,
-                    Vec2::new(state.drag_start_x, input.mouse_pos.y),
-                );
-            }
-
             let drag_threshold = if spec.drag_enabled {
                 DEFAULT_DRAG_THRESHOLD
             } else {
@@ -297,7 +287,6 @@ pub mod raw {
                 state.is_arrow_stepping = false;
                 state.arrow_step_direction = None;
                 state.is_dragging = true;
-                state.drag_start_x = state.press_drag.drag_start_pos.x;
                 state.drag_start_value = state.value;
             }
 
@@ -308,13 +297,11 @@ pub mod raw {
             if let Some(direction) = start_step_direction {
                 step_value(state, direction, spec.step, clamp_min, clamp_max);
                 state.is_arrow_stepping = true;
-                state.arrow_step_start_mouse_pos = input.mouse_pos;
                 state.arrow_step_direction = Some(direction);
                 begin_held_press_drag(&mut state.press_drag, input.mouse_pos);
                 state.repeat_timer.start(spec.time, RepeatTiming::PRESS);
             } else if value_hover.can_start && spec.drag_enabled {
                 state.is_dragging = true;
-                state.drag_start_x = input.mouse_pos.x;
                 state.drag_start_value = state.value;
                 begin_immediate_drag(&mut state.press_drag, input.mouse_pos);
             }
@@ -784,10 +771,8 @@ impl Default for NumberEditStyle {
 pub struct NumberEditState {
     pub value: f32,
     pub is_dragging: bool,
-    pub drag_start_x: f32,
     pub drag_start_value: f32,
     pub is_arrow_stepping: bool,
-    pub arrow_step_start_mouse_pos: Vec2,
     pub arrow_step_direction: Option<NumberEditStepDirection>,
     pub press_drag: PressDragState,
     pub repeat_timer: RepeatTimer,
