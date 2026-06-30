@@ -2259,81 +2259,6 @@ pub fn default_slider_value_formatter(value: SliderValue) -> String {
         SliderValue::Range { lower, upper } => format!("{lower:.2}–{upper:.2}"),
     }
 }
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct ValueLabelledSliderSpec<F = DefaultSliderValueFormatter>
-where
-    F: Fn(SliderValue) -> String,
-{
-    pub slider: SliderSpec,
-    pub value_formatter: F,
-    pub label_style: crate::widgets::label::LabelStyle,
-    pub gap: f32,
-}
-
-impl Default for ValueLabelledSliderSpec<DefaultSliderValueFormatter> {
-    fn default() -> Self {
-        Self {
-            slider: SliderSpec::default(),
-            value_formatter: default_slider_value_formatter,
-            label_style: crate::widgets::label::LabelStyle::default(),
-            gap: 8.0,
-        }
-    }
-}
-
-impl ValueLabelledSliderSpec<DefaultSliderValueFormatter> {
-    pub fn new() -> Self {
-        Self::default()
-    }
-
-    pub fn new_from_theme(theme: &crate::theme::Theme) -> Self {
-        Self::new().theme(theme)
-    }
-}
-
-impl<F> ValueLabelledSliderSpec<F>
-where
-    F: Fn(SliderValue) -> String,
-{
-    pub fn theme(mut self, theme: &crate::theme::Theme) -> Self {
-        self.slider = self.slider.theme(theme);
-        self.label_style = crate::widgets::widget_helpers::trailing_label_style_from_theme(
-            theme,
-            self.slider.disabled,
-            self.slider.style.disabled_alpha,
-        );
-        self
-    }
-
-    pub fn slider(mut self, slider: SliderSpec) -> Self {
-        self.slider = slider;
-        self
-    }
-
-    pub fn value_formatter<G>(self, value_formatter: G) -> ValueLabelledSliderSpec<G>
-    where
-        G: Fn(SliderValue) -> String,
-    {
-        ValueLabelledSliderSpec {
-            slider: self.slider,
-            value_formatter,
-            label_style: self.label_style,
-            gap: self.gap,
-        }
-    }
-
-    pub fn label_style(mut self, label_style: crate::widgets::label::LabelStyle) -> Self {
-        self.label_style = label_style;
-        self
-    }
-
-    pub fn gap(mut self, gap: f32) -> Self {
-        self.gap = gap;
-        self
-    }
-}
-
 // ── High-level widget function ───────────────────────────────────────────────────
 
 /// High-level slider widget function using `WidgetContext`.
@@ -2390,7 +2315,8 @@ pub fn slider<T: TextBackend, S: LayoutState, CF>(
 }
 
 pub fn value_labelled_slider<T: TextBackend, S: LayoutState, CF, F>(
-    spec: ValueLabelledSliderSpec<F>,
+    spec: SliderSpec,
+    value_formatter: F,
     layout_params: S::Params,
     state: &mut SliderState,
     ctx: &mut WidgetContext<T, S, CF>,
@@ -2398,18 +2324,26 @@ pub fn value_labelled_slider<T: TextBackend, S: LayoutState, CF, F>(
 where
     F: Fn(SliderValue) -> String,
 {
-    let label_text = (spec.value_formatter)(state.value);
+    let label_text = value_formatter(state.value);
     let pre_layout_spec = raw::SliderPreLayoutSpec {
-        orientation: spec.slider.orientation,
-        style: spec.slider.style,
+        orientation: spec.orientation,
+        style: spec.style,
     };
     let offer = ctx.peek_offer(layout_params.clone());
     let pre_layout = raw::pre_layout_slider(&pre_layout_spec, offer);
     let slider_size = pre_layout.size_request.preferred.unwrap_or(Vec2::ZERO);
 
+    let mut label_style = crate::widgets::widget_helpers::trailing_label_style_from_theme(
+        &ctx.theme,
+        spec.disabled,
+        spec.style.disabled_alpha,
+    );
+    label_style.text_style.font = ctx.theme.mono_font;
+    label_style.text_style.size = ctx.theme.text_mono;
+
     let label_pre_layout_spec = crate::widgets::label::raw::LabelPreLayoutSpec {
         text: &label_text,
-        style: spec.label_style,
+        style: label_style,
     };
     let label_pre_layout = crate::widgets::label::raw::pre_layout_label(
         &label_pre_layout_spec,
@@ -2418,28 +2352,22 @@ where
     );
     let label_size = label_pre_layout.size_request.preferred.unwrap();
 
+    let gap = 8.0;
+
     let rect = ctx.layout(
         layout_params,
-        crate::widgets::widget_helpers::trailing_label_size_request(
-            slider_size,
-            label_size,
-            spec.gap,
-        ),
+        crate::widgets::widget_helpers::trailing_label_size_request(slider_size, label_size, gap),
     );
-    let control_size = if spec.slider.orientation == Orientation::Vertical {
+    let control_size = if spec.orientation == Orientation::Vertical {
         Vec2::new(slider_size.x.min(rect.w).max(0.0), rect.h)
     } else {
-        Vec2::new((rect.w - spec.gap.max(0.0) - label_size.x).max(0.0), rect.h)
+        Vec2::new((rect.w - gap.max(0.0) - label_size.x).max(0.0), rect.h)
     };
-    let layout = crate::widgets::widget_helpers::layout_trailing_label(
-        rect,
-        control_size,
-        label_size,
-        spec.gap,
-    );
+    let layout =
+        crate::widgets::widget_helpers::layout_trailing_label(rect, control_size, label_size, gap);
 
-    if !spec.slider.disabled
-        && spec.slider.keyboard_focusable
+    if !spec.disabled
+        && spec.keyboard_focusable
         && ctx
             .clip_rect
             .is_none_or(|c| c.contains(ctx.input.mouse_pos))
@@ -2453,20 +2381,20 @@ where
         // Pass only the control rect to the raw slider. The value label is a readout:
         // clicking it may focus the slider, but it must not page, drag, or wheel-adjust the value.
         rect: layout.control_rect,
-        min: spec.slider.min,
-        max: spec.slider.max,
-        min_gap: spec.slider.min_gap,
-        max_gap: spec.slider.max_gap,
-        value_snap: spec.slider.value_snap,
-        page_step: spec.slider.page_step,
-        step: spec.slider.step,
-        orientation: spec.slider.orientation,
-        style: spec.slider.style,
+        min: spec.min,
+        max: spec.max,
+        min_gap: spec.min_gap,
+        max_gap: spec.max_gap,
+        value_snap: spec.value_snap,
+        page_step: spec.page_step,
+        step: spec.step,
+        orientation: spec.orientation,
+        style: spec.style,
         clip_rect: ctx.clip_rect,
-        scroll_claim: spec.slider.scroll_claim,
+        scroll_claim: spec.scroll_claim,
         time: ctx.time,
-        disabled: spec.slider.disabled,
-        keyboard_focusable: spec.slider.keyboard_focusable,
+        disabled: spec.disabled,
+        keyboard_focusable: spec.keyboard_focusable,
         layer: ctx.layer,
     };
 
@@ -2483,7 +2411,7 @@ where
     crate::widgets::widget_helpers::draw_trailing_label(
         layout.label_rect,
         &label_text,
-        spec.label_style,
+        label_style,
         label_pre_layout,
         ctx.layer,
         ctx.text_backend,

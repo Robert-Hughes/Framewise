@@ -1579,8 +1579,9 @@ mod tests {
             Vec2::new(40.0, 16.0),
             8.0,
         );
-        // label_x = 10.0 + 14.0 + 8.0 = 32.0. narrow_outer.right() = 25.0
-        // (25.0 - 32.0).max(0.0) = 0.0
+        // Raw label x would be 10.0 + 14.0 + 8.0 = 32.0, beyond narrow_outer.right() = 25.0.
+        // layout_trailing_label clamps label_x to outer_rect.right(), so the label rect has zero width
+        // and does not extend beyond outer_rect.
         assert_eq!(layout_narrow.label_rect.w, 0.0);
         assert!(layout_narrow.label_rect.right() <= narrow_outer.right());
     }

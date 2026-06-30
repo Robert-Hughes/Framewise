@@ -2316,7 +2316,8 @@ fn test_high_level_explicit_placement_via_manual_layout() {
 }
 
 fn run_value_labelled_slider_once<F>(
-    spec: super::ValueLabelledSliderSpec<F>,
+    spec: super::SliderSpec,
+    formatter: F,
     state: &mut SliderState,
     input: &Input,
     focus: &mut FocusSystem,
@@ -2337,7 +2338,13 @@ where
         Rect::new(0.0, 0.0, 800.0, 600.0),
         cmds,
     );
-    super::value_labelled_slider(spec, Rect::new(0.0, 0.0, 200.0, 20.0), state, &mut ctx)
+    super::value_labelled_slider(
+        spec,
+        formatter,
+        Rect::new(0.0, 0.0, 200.0, 20.0),
+        state,
+        &mut ctx,
+    )
 }
 
 #[test]
@@ -2358,11 +2365,8 @@ fn test_value_labelled_slider_custom_formatter_receives_single_value() {
     let mut cmds = DrawCommands::new(1.0);
 
     run_value_labelled_slider_once(
-        super::ValueLabelledSliderSpec::new()
-            .slider(super::SliderSpec::default_from_theme(
-                &crate::theme::Theme::framewise(),
-            ))
-            .value_formatter(formatter),
+        super::SliderSpec::default_from_theme(&crate::theme::Theme::framewise()),
+        formatter,
         &mut state,
         &input,
         &mut focus,
@@ -2394,11 +2398,8 @@ fn test_value_labelled_slider_custom_formatter_receives_range_value() {
     let mut cmds = DrawCommands::new(1.0);
 
     run_value_labelled_slider_once(
-        super::ValueLabelledSliderSpec::new()
-            .slider(super::SliderSpec::default_from_theme(
-                &crate::theme::Theme::framewise(),
-            ))
-            .value_formatter(formatter),
+        super::SliderSpec::default_from_theme(&crate::theme::Theme::framewise()),
+        formatter,
         &mut state,
         &input,
         &mut focus,
@@ -2428,11 +2429,8 @@ fn test_value_labelled_slider_draws_formatted_value_in_label_area() {
     let mut cmds = DrawCommands::new(1.0);
 
     run_value_labelled_slider_once(
-        super::ValueLabelledSliderSpec::new()
-            .slider(super::SliderSpec::default_from_theme(
-                &crate::theme::Theme::framewise(),
-            ))
-            .value_formatter(|_| "value=50".to_owned()),
+        super::SliderSpec::default_from_theme(&crate::theme::Theme::framewise()),
+        |_| "value=50".to_owned(),
         &mut state,
         &input,
         &mut focus,
@@ -2465,9 +2463,7 @@ fn test_value_labelled_slider_label_press_drag_and_wheel_do_not_change_value() {
     let mut focus = FocusSystem::new();
     let mut text_backend = crate::test_utils::TestTextBackend::default();
     let mut cmds = DrawCommands::new(1.0);
-    let spec = super::ValueLabelledSliderSpec::new().slider(super::SliderSpec::default_from_theme(
-        &crate::theme::Theme::framewise(),
-    ));
+    let spec = super::SliderSpec::default_from_theme(&crate::theme::Theme::framewise());
 
     for input in [
         Input {
@@ -2494,6 +2490,7 @@ fn test_value_labelled_slider_label_press_drag_and_wheel_do_not_change_value() {
         focus.begin_frame();
         run_value_labelled_slider_once(
             spec.clone(),
+            super::default_slider_value_formatter,
             &mut state,
             &input,
             &mut focus,
@@ -2517,9 +2514,7 @@ fn test_value_labelled_slider_control_drag_still_changes_value() {
     let mut focus = FocusSystem::new();
     let mut text_backend = crate::test_utils::TestTextBackend::default();
     let mut cmds = DrawCommands::new(1.0);
-    let spec = super::ValueLabelledSliderSpec::new().slider(super::SliderSpec::default_from_theme(
-        &crate::theme::Theme::framewise(),
-    ));
+    let spec = super::SliderSpec::default_from_theme(&crate::theme::Theme::framewise());
 
     for input in [
         Input {
@@ -2541,6 +2536,7 @@ fn test_value_labelled_slider_control_drag_still_changes_value() {
         focus.begin_frame();
         run_value_labelled_slider_once(
             spec.clone(),
+            super::default_slider_value_formatter,
             &mut state,
             &input,
             &mut focus,
@@ -2566,9 +2562,7 @@ fn test_value_labelled_slider_label_click_focuses_slider() {
     let mut focus = FocusSystem::new();
     let mut text_backend = crate::test_utils::TestTextBackend::default();
     let mut cmds = DrawCommands::new(1.0);
-    let spec = super::ValueLabelledSliderSpec::new().slider(super::SliderSpec::default_from_theme(
-        &crate::theme::Theme::framewise(),
-    ));
+    let spec = super::SliderSpec::default_from_theme(&crate::theme::Theme::framewise());
 
     let input = Input {
         mouse_pos: Vec2::new(170.0, 10.0),
@@ -2580,6 +2574,7 @@ fn test_value_labelled_slider_label_click_focuses_slider() {
     focus.begin_frame();
     let result = run_value_labelled_slider_once(
         spec.clone(),
+        super::default_slider_value_formatter,
         &mut state,
         &input,
         &mut focus,
@@ -2601,6 +2596,65 @@ fn test_value_labelled_slider_label_click_focuses_slider() {
 
     // it does not set active_part
     assert_eq!(state.active_part, None);
+}
+
+#[test]
+fn test_value_labelled_slider_disabled_label_styling_derives_from_spec() {
+    let mut state = SliderState {
+        value: SliderValue::Single(50.0),
+        ..Default::default()
+    };
+    let input = Input::default();
+    let mut focus = FocusSystem::new();
+
+    // First check enabled case:
+    let spec_enabled = super::SliderSpec::default_from_theme(&crate::theme::Theme::framewise());
+    let mut text_backend = crate::test_utils::TestTextBackend::default();
+    let mut cmds_enabled = DrawCommands::new(1.0);
+    run_value_labelled_slider_once(
+        spec_enabled,
+        |_| "val".to_owned(),
+        &mut state,
+        &input,
+        &mut focus,
+        &mut text_backend,
+        &mut cmds_enabled,
+    );
+    let enabled_color = cmds_enabled
+        .iter()
+        .find_map(|cmd| match cmd {
+            crate::draw::DrawCmd::GlyphRun { color, .. } => Some(*color),
+            _ => None,
+        })
+        .expect("Expected a GlyphRun for the label");
+
+    // Second check disabled case:
+    let spec_disabled =
+        super::SliderSpec::default_from_theme(&crate::theme::Theme::framewise()).disabled(true);
+    let mut text_backend = crate::test_utils::TestTextBackend::default();
+    let mut cmds_disabled = DrawCommands::new(1.0);
+    run_value_labelled_slider_once(
+        spec_disabled,
+        |_| "val".to_owned(),
+        &mut state,
+        &input,
+        &mut focus,
+        &mut text_backend,
+        &mut cmds_disabled,
+    );
+    let disabled_color = cmds_disabled
+        .iter()
+        .find_map(|cmd| match cmd {
+            crate::draw::DrawCmd::GlyphRun { color, .. } => Some(*color),
+            _ => None,
+        })
+        .expect("Expected a GlyphRun for the label");
+
+    assert_eq!(disabled_color.r, enabled_color.r);
+    assert_eq!(disabled_color.g, enabled_color.g);
+    assert_eq!(disabled_color.b, enabled_color.b);
+    let expected_alpha = enabled_color.a * 0.32; // default disabled_alpha is 0.32
+    assert!((disabled_color.a - expected_alpha).abs() < 1e-4);
 }
 
 #[test]
