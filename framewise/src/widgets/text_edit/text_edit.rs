@@ -1,7 +1,7 @@
 use crate::output::CursorIcon;
 use crate::{
     draw::{BorderPlacement, DrawCommands},
-    focus::{FocusId, FocusSystem},
+    focus::{FocusId, FocusSystem, NavDirections},
     input::{Input, TextEvent},
     layout::{Align, AxisBound, LayoutState, SizeOffer, SizeRequest},
     text::{
@@ -1226,8 +1226,7 @@ pub mod raw {
         }
 
         if focused {
-            focus_system.claim_pgup_vert(state.focus_id);
-            focus_system.claim_pgdn_vert(state.focus_id);
+            focus_system.claim_page_dirs(state.focus_id, NavDirections::VERTICAL);
         }
 
         let scroll_end_result = end_scroll_area(

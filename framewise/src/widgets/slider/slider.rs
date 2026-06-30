@@ -1,6 +1,6 @@
 use crate::{
     draw::{BorderPlacement, DrawCommands},
-    focus::{FocusId, FocusSystem},
+    focus::{FocusId, FocusSystem, NavDirections},
     input::Input,
     layout::{LayoutState, SizeOffer},
     text::TextBackend,
@@ -65,6 +65,23 @@ pub mod raw {
         pub input: InputInfo,
         pub focused: bool,
         pub cursor_icon: Option<crate::output::CursorIcon>,
+    }
+
+    fn slider_nav_claim_dirs(
+        orientation: Orientation,
+        policy: ScrollClaimPolicy,
+        at_min: bool,
+        at_max: bool,
+    ) -> NavDirections {
+        match policy {
+            ScrollClaimPolicy::ClaimAllDirections => NavDirections::ALL,
+            ScrollClaimPolicy::YieldSameAxisAtEnds => match orientation {
+                Orientation::Vertical => NavDirections::ALL.with_up(!at_min).with_down(!at_max),
+                Orientation::Horizontal => {
+                    NavDirections::ALL.with_left(!at_min).with_right(!at_max)
+                }
+            },
+        }
     }
 
     /// Return the size this slider would request under `offer`.
@@ -447,43 +464,13 @@ pub mod raw {
                 let at_min = active_min_value(state) <= min;
                 let at_max = active_max_value(state) >= max;
 
-                match spec.scroll_claim {
-                    ScrollClaimPolicy::ClaimAllDirections => {
-                        focus_system.claim_scroll_up(state.focus_id);
-                        focus_system.claim_scroll_down(state.focus_id);
-                        focus_system.claim_scroll_left(state.focus_id);
-                        focus_system.claim_scroll_right(state.focus_id);
-                    }
-                    ScrollClaimPolicy::YieldSameAxisAtEnds => {
-                        if is_vert {
-                            // Vertical slider:
-                            // Conditionally claim vertical scrolling to allow same-axis bubbling.
-                            if !at_min {
-                                focus_system.claim_scroll_up(state.focus_id);
-                            }
-                            if !at_max {
-                                focus_system.claim_scroll_down(state.focus_id);
-                            }
-                            // Unconditionally claim horizontal scrolling to isolate from the horizontal axis.
-                            focus_system.claim_scroll_left(state.focus_id);
-                            focus_system.claim_scroll_right(state.focus_id);
-                        } else {
-                            // Horizontal slider:
-                            // Conditionally claim horizontal scrolling to allow same-axis bubbling.
-                            if !at_min {
-                                focus_system.claim_scroll_left(state.focus_id);
-                            }
-                            if !at_max {
-                                focus_system.claim_scroll_right(state.focus_id);
-                            }
-                            // Unconditionally claim vertical scrolling to isolate from the vertical axis.
-                            focus_system.claim_scroll_up(state.focus_id);
-                            focus_system.claim_scroll_down(state.focus_id);
-                        }
-                    }
-                }
+                focus_system.claim_scroll_dirs(
+                    state.focus_id,
+                    slider_nav_claim_dirs(spec.orientation, spec.scroll_claim, at_min, at_max),
+                );
 
                 if is_hover_active {
+                    let active_scroll_dirs = focus_system.active_scroll_dirs(state.focus_id);
                     let scroll_delta = if is_vert {
                         input.scroll_delta.y
                     } else {
@@ -497,16 +484,14 @@ pub mod raw {
                     };
 
                     let is_active_up_left = if is_vert {
-                        focus_system.is_active_scroll_up(state.focus_id)
+                        active_scroll_dirs.up
                     } else {
-                        focus_system.is_active_scroll_left(state.focus_id)
-                            || focus_system.is_active_scroll_up(state.focus_id)
+                        active_scroll_dirs.left || active_scroll_dirs.up
                     };
                     let is_active_down_right = if is_vert {
-                        focus_system.is_active_scroll_down(state.focus_id)
+                        active_scroll_dirs.down
                     } else {
-                        focus_system.is_active_scroll_right(state.focus_id)
-                            || focus_system.is_active_scroll_down(state.focus_id)
+                        active_scroll_dirs.right || active_scroll_dirs.down
                     };
 
                     if scroll_delta > 0.0 && is_active_up_left {
@@ -676,52 +661,21 @@ pub mod raw {
                 let at_min = active_min_value(state) <= min;
                 let at_max = active_max_value(state) >= max;
 
-                match spec.scroll_claim {
-                    ScrollClaimPolicy::ClaimAllDirections => {
-                        if is_vert {
-                            focus_system.claim_pgup_vert(state.focus_id);
-                            focus_system.claim_pgdn_vert(state.focus_id);
-                            focus_system.claim_pgup_horiz(state.focus_id);
-                            focus_system.claim_pgdn_horiz(state.focus_id);
-                        } else {
-                            focus_system.claim_pgup_horiz(state.focus_id);
-                            focus_system.claim_pgdn_horiz(state.focus_id);
-                            focus_system.claim_pgup_vert(state.focus_id);
-                            focus_system.claim_pgdn_vert(state.focus_id);
-                        }
-                    }
-                    ScrollClaimPolicy::YieldSameAxisAtEnds => {
-                        if is_vert {
-                            if !at_min {
-                                focus_system.claim_pgup_vert(state.focus_id);
-                            }
-                            if !at_max {
-                                focus_system.claim_pgdn_vert(state.focus_id);
-                            }
-                            focus_system.claim_pgup_horiz(state.focus_id);
-                            focus_system.claim_pgdn_horiz(state.focus_id);
-                        } else {
-                            if !at_min {
-                                focus_system.claim_pgup_horiz(state.focus_id);
-                            }
-                            if !at_max {
-                                focus_system.claim_pgdn_horiz(state.focus_id);
-                            }
-                            focus_system.claim_pgup_vert(state.focus_id);
-                            focus_system.claim_pgdn_vert(state.focus_id);
-                        }
-                    }
-                }
+                focus_system.claim_page_dirs(
+                    state.focus_id,
+                    slider_nav_claim_dirs(spec.orientation, spec.scroll_claim, at_min, at_max),
+                );
 
+                let active_page_dirs = focus_system.active_page_dirs(state.focus_id);
                 let is_active_pgup = if is_vert {
-                    focus_system.is_active_pgup_vert(state.focus_id)
+                    active_page_dirs.up
                 } else {
-                    focus_system.is_active_pgup_horiz(state.focus_id)
+                    active_page_dirs.left
                 };
                 let is_active_pgdn = if is_vert {
-                    focus_system.is_active_pgdn_vert(state.focus_id)
+                    active_page_dirs.down
                 } else {
-                    focus_system.is_active_pgdn_horiz(state.focus_id)
+                    active_page_dirs.right
                 };
 
                 if input.key_pressed_page_up && is_active_pgup {

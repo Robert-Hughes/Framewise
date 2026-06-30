@@ -1005,10 +1005,10 @@ fn test_number_edit_focused_page_home_end_keys() {
         input.key_pressed_page_up = true;
     });
     assert_eq!(state.value, 30.0);
-    assert!(focus_system.is_active_pgup_vert(state.focus_id));
-    assert!(focus_system.is_active_pgdn_vert(state.focus_id));
-    assert!(focus_system.is_active_pgup_horiz(state.focus_id));
-    assert!(focus_system.is_active_pgdn_horiz(state.focus_id));
+    assert!(focus_system.active_page_dirs(state.focus_id).up);
+    assert!(focus_system.active_page_dirs(state.focus_id).down);
+    assert!(focus_system.active_page_dirs(state.focus_id).left);
+    assert!(focus_system.active_page_dirs(state.focus_id).right);
 
     run_key(spec.clone(), &mut state, &mut focus_system, |input| {
         input.key_pressed_page_down = true;

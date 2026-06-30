@@ -1,6 +1,6 @@
 use crate::{
     draw::{DrawCmd, DrawCommands},
-    focus::{FocusId, FocusSystem},
+    focus::{FocusId, FocusSystem, NavDirections},
     input::Input,
     layout::{AxisBound, Layout, LayoutSpace, LayoutState, SizeOffer},
     text::TextBackend,
@@ -129,6 +129,25 @@ pub mod raw {
             }
             super::ScrollExtent::AtMost(super::ScrollLen::Px(n)) => AxisBound::AtMost(n),
             super::ScrollExtent::Unbounded => AxisBound::Unbounded,
+        }
+    }
+
+    fn scroll_mode_claim_dirs(
+        mode: ScrollMode,
+        at_top: bool,
+        at_bottom: bool,
+        at_left: bool,
+        at_right: bool,
+    ) -> NavDirections {
+        match mode {
+            ScrollMode::None => NavDirections::NONE,
+            ScrollMode::Vert => NavDirections::ALL.with_up(!at_top).with_down(!at_bottom),
+            ScrollMode::Horiz => NavDirections::ALL.with_left(!at_left).with_right(!at_right),
+            ScrollMode::Both => NavDirections::ALL
+                .with_up(!at_top)
+                .with_down(!at_bottom)
+                .with_left(!at_left)
+                .with_right(!at_right),
         }
     }
 
@@ -394,44 +413,9 @@ pub mod raw {
         let is_visible = token
             .clip_rect
             .is_none_or(|clip| clip.contains(input.mouse_pos));
+        let dirs = scroll_mode_claim_dirs(mode, at_top, at_bottom, at_left, at_right);
         if token.content_bounds.contains(input.mouse_pos) && is_visible {
-            match mode {
-                ScrollMode::None => {}
-                ScrollMode::Vert => {
-                    if !at_top {
-                        focus_system.claim_scroll_up(token.id);
-                    }
-                    if !at_bottom {
-                        focus_system.claim_scroll_down(token.id);
-                    }
-                    focus_system.claim_scroll_left(token.id);
-                    focus_system.claim_scroll_right(token.id);
-                }
-                ScrollMode::Horiz => {
-                    if !at_left {
-                        focus_system.claim_scroll_left(token.id);
-                    }
-                    if !at_right {
-                        focus_system.claim_scroll_right(token.id);
-                    }
-                    focus_system.claim_scroll_up(token.id);
-                    focus_system.claim_scroll_down(token.id);
-                }
-                ScrollMode::Both => {
-                    if !at_top {
-                        focus_system.claim_scroll_up(token.id);
-                    }
-                    if !at_bottom {
-                        focus_system.claim_scroll_down(token.id);
-                    }
-                    if !at_left {
-                        focus_system.claim_scroll_left(token.id);
-                    }
-                    if !at_right {
-                        focus_system.claim_scroll_right(token.id);
-                    }
-                }
-            }
+            focus_system.claim_scroll_dirs(token.id, dirs);
         }
 
         if focus_system.focused_scroll_path().contains(&token.id) {
@@ -440,43 +424,7 @@ pub mod raw {
             // first-caller-wins — see focus.rs). Cross-axis claims are
             // unconditional: they isolate this scope from the other axis,
             // preventing orthogonal keystrokes from leaking to a parent.
-            match mode {
-                ScrollMode::None => {}
-                ScrollMode::Vert => {
-                    if !at_top {
-                        focus_system.claim_pgup_vert(token.id);
-                    }
-                    if !at_bottom {
-                        focus_system.claim_pgdn_vert(token.id);
-                    }
-                    focus_system.claim_pgup_horiz(token.id);
-                    focus_system.claim_pgdn_horiz(token.id);
-                }
-                ScrollMode::Horiz => {
-                    if !at_left {
-                        focus_system.claim_pgup_horiz(token.id);
-                    }
-                    if !at_right {
-                        focus_system.claim_pgdn_horiz(token.id);
-                    }
-                    focus_system.claim_pgup_vert(token.id);
-                    focus_system.claim_pgdn_vert(token.id);
-                }
-                ScrollMode::Both => {
-                    if !at_top {
-                        focus_system.claim_pgup_vert(token.id);
-                    }
-                    if !at_bottom {
-                        focus_system.claim_pgdn_vert(token.id);
-                    }
-                    if !at_left {
-                        focus_system.claim_pgup_horiz(token.id);
-                    }
-                    if !at_right {
-                        focus_system.claim_pgdn_horiz(token.id);
-                    }
-                }
-            }
+            focus_system.claim_page_dirs(token.id, dirs);
         }
 
         ScrollAreaEndResult {
@@ -496,48 +444,47 @@ pub mod raw {
     ) {
         let dy = input.scroll_delta.y;
         let dx_raw = input.scroll_delta.x;
+        let active_scroll_dirs = focus_system.active_scroll_dirs(state.id);
 
-        let scroll_vert = |state: &mut ScrollState, focus_system: &FocusSystem| {
-            if dy > 0.0 && focus_system.is_active_scroll_up(state.id) {
+        let scroll_vert = |state: &mut ScrollState| {
+            if dy > 0.0 && active_scroll_dirs.up {
                 state.offset.y -= dy * SCROLL_PIXELS_PER_LINE;
             }
-            if dy < 0.0 && focus_system.is_active_scroll_down(state.id) {
+            if dy < 0.0 && active_scroll_dirs.down {
                 state.offset.y -= dy * SCROLL_PIXELS_PER_LINE;
             }
         };
-        let scroll_horiz = |state: &mut ScrollState, focus_system: &FocusSystem, dx: f32| {
-            if dx > 0.0 && focus_system.is_active_scroll_left(state.id) {
+        let scroll_horiz = |state: &mut ScrollState, dx: f32| {
+            if dx > 0.0 && active_scroll_dirs.left {
                 state.offset.x -= dx * SCROLL_PIXELS_PER_LINE;
             }
-            if dx < 0.0 && focus_system.is_active_scroll_right(state.id) {
+            if dx < 0.0 && active_scroll_dirs.right {
                 state.offset.x -= dx * SCROLL_PIXELS_PER_LINE;
             }
         };
 
         match mode {
             ScrollMode::None => {}
-            ScrollMode::Vert => scroll_vert(state, focus_system),
+            ScrollMode::Vert => scroll_vert(state),
             ScrollMode::Horiz => {
                 // Vertical wheel remaps to horizontal when there's no explicit dx.
                 let dx = if dx_raw == 0.0 { dy } else { dx_raw };
-                scroll_horiz(state, focus_system, dx);
+                scroll_horiz(state, dx);
             }
             ScrollMode::Both => {
-                scroll_vert(state, focus_system);
+                scroll_vert(state);
                 // If we won the horizontal claim but NOT the vertical one (a nested
                 // horiz slider blocked vertical), remap dy → dx so the vertical
                 // wheel still bubbles to our horizontal axis.
                 let mut dx = dx_raw;
                 if dx == 0.0 && dy != 0.0 {
-                    let won_horiz = focus_system.is_active_scroll_left(state.id)
-                        || focus_system.is_active_scroll_right(state.id);
-                    let own_vert = focus_system.is_active_scroll_up(state.id)
-                        || focus_system.is_active_scroll_down(state.id);
+                    let won_horiz = active_scroll_dirs.left || active_scroll_dirs.right;
+                    let own_vert = active_scroll_dirs.up || active_scroll_dirs.down;
                     if won_horiz && !own_vert {
                         dx = dy;
                     }
                 }
-                scroll_horiz(state, focus_system, dx);
+                scroll_horiz(state, dx);
             }
         }
     }
@@ -557,23 +504,16 @@ pub mod raw {
         } else {
             -1.0
         };
-        let (is_pgup_vert, is_pgdn_vert) = (
-            focus_system.is_active_pgup_vert(state.id),
-            focus_system.is_active_pgdn_vert(state.id),
-        );
-        let (is_pgup_horiz, is_pgdn_horiz) = (
-            focus_system.is_active_pgup_horiz(state.id),
-            focus_system.is_active_pgdn_horiz(state.id),
-        );
+        let active_page_dirs = focus_system.active_page_dirs(state.id);
         let active_vert = if sign > 0.0 {
-            is_pgdn_vert
+            active_page_dirs.down
         } else {
-            is_pgup_vert
+            active_page_dirs.up
         };
         let active_horiz = if sign > 0.0 {
-            is_pgdn_horiz
+            active_page_dirs.right
         } else {
-            is_pgup_horiz
+            active_page_dirs.left
         };
 
         match mode {

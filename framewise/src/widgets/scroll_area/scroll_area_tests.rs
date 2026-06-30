@@ -3078,14 +3078,14 @@ mod nested_bubbling_tests {
     // ── Reversed axis: outer HORIZONTAL, inner VERTICAL ──────────────────────
     //
     // Bug: outer_horiz always wins scroll_left (inner_vert never claims it).
-    // The horiz_uses_vert_wheel path maps delta.y → dx and fires whenever is_active_scroll_left
+    // The horiz_uses_vert_wheel path maps delta.y → dx and fires whenever the active left scroll direction
     // is true, so outer scrolls horizontally at the same time as inner scrolls
     // vertically — both fire on every vertical wheel tick.
 
     // 9. Mouse Wheel / Outer Horiz → Inner Vert / Content area, inner at top (at_min)
     //    Vertical wheel on inner vert content when inner is already at top.
-    //    Bug: inner content block skips claim_scroll_up (at_top), so outer retains
-    //    active_scroll_up from its horiz_uses_vert_wheel claim and fires via horiz_uses_vert_wheel dx=delta.y.
+    //    Bug: inner content block skips the upward scroll claim (at_top), so outer retains
+    //    the active upward scroll direction from its horiz_uses_vert_wheel claim and fires via horiz_uses_vert_wheel dx=delta.y.
     #[test]
     fn test_outer_horiz_inner_vert_mouse_content_cross_axis_isolates() {
         let mut focus_system = FocusSystem::new();
@@ -3096,7 +3096,7 @@ mod nested_bubbling_tests {
         // outer: (0,0,400,200) horiz-only, content 800w; content_bounds=(0,0,400,188)
         // inner: (0,0,200,200) vert-only,  content 400h; content_bounds=(0,0,188,200)
         // mouse (50,50): inside both content areas
-        // inner.offset.y=0 (at_top): content block skips claim_scroll_up → outer retains it
+        // inner.offset.y=0 (at_top): content block skips the upward scroll claim → outer retains it
 
         for frame in 0..3 {
             focus_system.begin_frame();
@@ -3200,7 +3200,7 @@ mod nested_bubbling_tests {
     // 10. Mouse Wheel / Outer Horiz → Inner Vert / Scrollbar track, inner at top (at_min)
     //     Vertical wheel on inner vert scrollbar when inner is already at top.
     //     Bug: inner slider doesn't claim scroll_up when at_min (conditional claim), so outer
-    //     retains active_scroll_up from its horiz_uses_vert_wheel claim and fires via horiz_uses_vert_wheel dx=delta.y.
+    //     retains the active upward scroll direction from its horiz_uses_vert_wheel claim and fires via horiz_uses_vert_wheel dx=delta.y.
     //
     //     The bug is NOT visible when inner is mid-scroll (inner slider claims scroll_up,
     //     overwriting outer's claim). It only triggers at the limit — matching what the
@@ -3214,7 +3214,7 @@ mod nested_bubbling_tests {
 
         // inner vert slider track: x=188..200, y=0..200
         // mouse (195,50): in outer content_bounds (0,0,400,188), outside inner content_bounds (0,0,188,200)
-        // inner.offset.y=0 (at_min): slider skips claim_scroll_up → outer retains active_scroll_up
+        // inner.offset.y=0 (at_min): slider skips the upward scroll claim → outer retains the active upward scroll direction
 
         for frame in 0..3 {
             focus_system.begin_frame();
@@ -6353,8 +6353,16 @@ mod nested_bubbling_tests {
 
         // Assert: vertical slider claims hover and scroll down, but not scroll up (at min limit)
         assert!(focus_system.is_hover_active(state.vert_slider_state.focus_id));
-        assert!(!focus_system.is_active_scroll_up(state.vert_slider_state.focus_id));
-        assert!(focus_system.is_active_scroll_down(state.vert_slider_state.focus_id));
+        assert!(
+            !focus_system
+                .active_scroll_dirs(state.vert_slider_state.focus_id)
+                .up
+        );
+        assert!(
+            focus_system
+                .active_scroll_dirs(state.vert_slider_state.focus_id)
+                .down
+        );
         focus_system.end_frame();
 
         // Frame 3: Click the scrollbar

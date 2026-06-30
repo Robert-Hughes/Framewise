@@ -4,7 +4,6 @@ Working notes, TODOs, open questions, and half-baked ideas.
 
 ## Current Work
 
-- Drag helper? (see chatgpt)
 - Scroll claim helper? (see chatgpt)
 
 - decide on consistent behaviour for click and hold on a widget with a special cursor (e.g. pointer, slider), then move mouse outside of the widget.

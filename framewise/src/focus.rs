@@ -61,6 +61,72 @@ impl FocusTraversalKeys {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum NavDirection {
+    Up,
+    Down,
+    Left,
+    Right,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct NavDirections {
+    pub up: bool,
+    pub down: bool,
+    pub left: bool,
+    pub right: bool,
+}
+
+impl NavDirections {
+    pub const NONE: Self = Self {
+        up: false,
+        down: false,
+        left: false,
+        right: false,
+    };
+
+    pub const ALL: Self = Self {
+        up: true,
+        down: true,
+        left: true,
+        right: true,
+    };
+
+    pub const VERTICAL: Self = Self {
+        up: true,
+        down: true,
+        left: false,
+        right: false,
+    };
+
+    pub const HORIZONTAL: Self = Self {
+        up: false,
+        down: false,
+        left: true,
+        right: true,
+    };
+
+    pub fn with_up(mut self, value: bool) -> Self {
+        self.up = value;
+        self
+    }
+
+    pub fn with_down(mut self, value: bool) -> Self {
+        self.down = value;
+        self
+    }
+
+    pub fn with_left(mut self, value: bool) -> Self {
+        self.left = value;
+        self
+    }
+
+    pub fn with_right(mut self, value: bool) -> Self {
+        self.right = value;
+        self
+    }
+}
+
 /// An inter-frame identifier for interactive widgets.
 /// Used primarily by the `FocusSystem` to track keyboard focus.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -324,46 +390,31 @@ impl FocusSystem {
         self.active_hover_id == Some(id)
     }
 
-    pub fn claim_scroll_up(&mut self, id: FocusId) {
-        if self.next_scroll_up_id.is_none() {
+    pub fn claim_scroll_dirs(&mut self, id: FocusId, dirs: NavDirections) {
+        if dirs.up && self.next_scroll_up_id.is_none() {
             self.next_scroll_up_id = Some(id);
         }
-    }
 
-    pub fn claim_scroll_down(&mut self, id: FocusId) {
-        if self.next_scroll_down_id.is_none() {
+        if dirs.down && self.next_scroll_down_id.is_none() {
             self.next_scroll_down_id = Some(id);
         }
-    }
 
-    pub fn claim_scroll_left(&mut self, id: FocusId) {
-        if self.next_scroll_left_id.is_none() {
+        if dirs.left && self.next_scroll_left_id.is_none() {
             self.next_scroll_left_id = Some(id);
         }
-    }
 
-    pub fn claim_scroll_right(&mut self, id: FocusId) {
-        if self.next_scroll_right_id.is_none() {
+        if dirs.right && self.next_scroll_right_id.is_none() {
             self.next_scroll_right_id = Some(id);
         }
     }
 
-    /// Returns true if this widget won the upward-scroll claim in the previous frame.
-    pub fn is_active_scroll_up(&self, id: FocusId) -> bool {
-        self.active_scroll_up_id == Some(id)
-    }
-
-    /// Returns true if this widget won the downward-scroll claim in the previous frame.
-    pub fn is_active_scroll_down(&self, id: FocusId) -> bool {
-        self.active_scroll_down_id == Some(id)
-    }
-
-    pub fn is_active_scroll_left(&self, id: FocusId) -> bool {
-        self.active_scroll_left_id == Some(id)
-    }
-
-    pub fn is_active_scroll_right(&self, id: FocusId) -> bool {
-        self.active_scroll_right_id == Some(id)
+    pub fn active_scroll_dirs(&self, id: FocusId) -> NavDirections {
+        NavDirections {
+            up: self.active_scroll_up_id == Some(id),
+            down: self.active_scroll_down_id == Some(id),
+            left: self.active_scroll_left_id == Some(id),
+            right: self.active_scroll_right_id == Some(id),
+        }
     }
 
     /// Push a new keyboard scroll scope (e.g. entering a scroll area).
@@ -391,45 +442,33 @@ impl FocusSystem {
     // skip: when the inner skipped (at its limit), no claim was made yet, so
     // the outer's call goes through.
     //
-    // Contrast with scroll claims above (last-caller-wins).
-    pub fn claim_pgup_vert(&mut self, id: FocusId) {
-        if self.next_pgup_vert_id.is_none() {
+    // Same first-caller-wins convention as scroll claims above. Mouse hover
+    // claims are the separate last-caller-wins mechanism.
+    pub fn claim_page_dirs(&mut self, id: FocusId, dirs: NavDirections) {
+        if dirs.up && self.next_pgup_vert_id.is_none() {
             self.next_pgup_vert_id = Some(id);
         }
-    }
 
-    pub fn claim_pgdn_vert(&mut self, id: FocusId) {
-        if self.next_pgdn_vert_id.is_none() {
+        if dirs.down && self.next_pgdn_vert_id.is_none() {
             self.next_pgdn_vert_id = Some(id);
         }
-    }
 
-    pub fn claim_pgup_horiz(&mut self, id: FocusId) {
-        if self.next_pgup_horiz_id.is_none() {
+        if dirs.left && self.next_pgup_horiz_id.is_none() {
             self.next_pgup_horiz_id = Some(id);
         }
-    }
 
-    pub fn claim_pgdn_horiz(&mut self, id: FocusId) {
-        if self.next_pgdn_horiz_id.is_none() {
+        if dirs.right && self.next_pgdn_horiz_id.is_none() {
             self.next_pgdn_horiz_id = Some(id);
         }
     }
 
-    pub fn is_active_pgup_vert(&self, id: FocusId) -> bool {
-        self.active_pgup_vert_id == Some(id)
-    }
-
-    pub fn is_active_pgdn_vert(&self, id: FocusId) -> bool {
-        self.active_pgdn_vert_id == Some(id)
-    }
-
-    pub fn is_active_pgup_horiz(&self, id: FocusId) -> bool {
-        self.active_pgup_horiz_id == Some(id)
-    }
-
-    pub fn is_active_pgdn_horiz(&self, id: FocusId) -> bool {
-        self.active_pgdn_horiz_id == Some(id)
+    pub fn active_page_dirs(&self, id: FocusId) -> NavDirections {
+        NavDirections {
+            up: self.active_pgup_vert_id == Some(id),
+            down: self.active_pgdn_vert_id == Some(id),
+            left: self.active_pgup_horiz_id == Some(id),
+            right: self.active_pgdn_horiz_id == Some(id),
+        }
     }
 
     /// Resolves any pending focus shifts using the order built this frame.
@@ -598,6 +637,62 @@ mod tests {
 
     fn r(x: f32, y: f32) -> Rect {
         Rect::new(x, y, 80.0, 30.0)
+    }
+
+    #[test]
+    fn claim_scroll_dirs_fills_only_requested_directions() {
+        let id = FocusId::new();
+        let mut focus = FocusSystem::new();
+
+        focus.claim_scroll_dirs(id, NavDirections::NONE.with_up(true).with_right(true));
+        focus.end_frame();
+
+        assert_eq!(
+            focus.active_scroll_dirs(id),
+            NavDirections::NONE.with_up(true).with_right(true)
+        );
+    }
+
+    #[test]
+    fn claim_scroll_dirs_is_first_caller_wins_per_direction() {
+        let first = FocusId::new();
+        let second = FocusId::new();
+        let mut focus = FocusSystem::new();
+
+        focus.claim_scroll_dirs(first, NavDirections::ALL);
+        focus.claim_scroll_dirs(second, NavDirections::ALL);
+        focus.end_frame();
+
+        assert_eq!(focus.active_scroll_dirs(first), NavDirections::ALL);
+        assert_eq!(focus.active_scroll_dirs(second), NavDirections::NONE);
+    }
+
+    #[test]
+    fn claim_page_dirs_fills_only_requested_directions() {
+        let id = FocusId::new();
+        let mut focus = FocusSystem::new();
+
+        focus.claim_page_dirs(id, NavDirections::NONE.with_down(true).with_left(true));
+        focus.end_frame();
+
+        assert_eq!(
+            focus.active_page_dirs(id),
+            NavDirections::NONE.with_down(true).with_left(true)
+        );
+    }
+
+    #[test]
+    fn claim_page_dirs_is_first_caller_wins_per_direction() {
+        let first = FocusId::new();
+        let second = FocusId::new();
+        let mut focus = FocusSystem::new();
+
+        focus.claim_page_dirs(first, NavDirections::ALL);
+        focus.claim_page_dirs(second, NavDirections::ALL);
+        focus.end_frame();
+
+        assert_eq!(focus.active_page_dirs(first), NavDirections::ALL);
+        assert_eq!(focus.active_page_dirs(second), NavDirections::NONE);
     }
 
     // ── Linear nav tests ───────────────────────────────────────────────────────

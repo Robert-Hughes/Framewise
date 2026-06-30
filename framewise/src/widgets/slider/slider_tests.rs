@@ -793,7 +793,7 @@ fn test_slider_wheel_over_overhanging_thumb() {
         &mut cmds,
     );
     // Simulate a parent container registration to test claim/blocking
-    focus_system.claim_scroll_down(parent_id);
+    focus_system.claim_scroll_dirs(parent_id, NavDirections::NONE.with_down(true));
     focus_system.end_frame();
 
     assert_eq!(state.value.lower(), 0.0); // Hasn't scrolled yet
@@ -811,7 +811,7 @@ fn test_slider_wheel_over_overhanging_thumb() {
         &mut focus_system,
         &mut cmds,
     );
-    focus_system.claim_scroll_down(parent_id);
+    focus_system.claim_scroll_dirs(parent_id, NavDirections::NONE.with_down(true));
     focus_system.end_frame();
 
     // Assert that the slider processed the wheel while the pointer was on the overhanging thumb.
@@ -821,7 +821,7 @@ fn test_slider_wheel_over_overhanging_thumb() {
 
     // Assert that the parent did not win the scroll down direction
     assert!(
-        !focus_system.is_active_scroll_down(parent_id),
+        !focus_system.active_scroll_dirs(parent_id).down,
         "parent should not win scroll-down; slider should have claimed it"
     );
 
@@ -839,7 +839,7 @@ fn test_slider_wheel_over_overhanging_thumb() {
         &mut focus_system,
         &mut cmds,
     );
-    focus_system.claim_scroll_down(parent_id);
+    focus_system.claim_scroll_dirs(parent_id, NavDirections::NONE.with_down(true));
     focus_system.end_frame();
 
     let after_second = state.value.lower();
@@ -848,7 +848,7 @@ fn test_slider_wheel_over_overhanging_thumb() {
 
     // Assert that the parent did not win the scroll down direction on the second detent either
     assert!(
-        !focus_system.is_active_scroll_down(parent_id),
+        !focus_system.active_scroll_dirs(parent_id).down,
         "parent should not win scroll-down on second detent; slider should have claimed it"
     );
 }
@@ -1576,13 +1576,13 @@ fn test_standalone_slider_wheel_at_min_blocks_propagation() {
         &mut cmds,
     );
     // Parent registers after (outer, simulating parent's end())
-    focus_system.claim_scroll_up(parent_id);
-    focus_system.claim_scroll_down(parent_id);
+    focus_system.claim_scroll_dirs(parent_id, NavDirections::NONE.with_up(true));
+    focus_system.claim_scroll_dirs(parent_id, NavDirections::NONE.with_down(true));
     focus_system.end_frame();
 
     // Frame 2: parent checks — it should NOT have won either direction
     assert!(
-        !focus_system.is_active_scroll_up(parent_id),
+        !focus_system.active_scroll_dirs(parent_id).up,
         "parent should not win scroll-up; standalone slider blocked it"
     );
     // Value stays at 0.0 (clamped, can't go below min)
@@ -1617,12 +1617,12 @@ fn test_standalone_slider_wheel_at_max_blocks_propagation() {
         &mut cmds,
     );
     // Parent claims after (simulating parent's end())
-    focus_system.claim_scroll_up(parent_id);
-    focus_system.claim_scroll_down(parent_id);
+    focus_system.claim_scroll_dirs(parent_id, NavDirections::NONE.with_up(true));
+    focus_system.claim_scroll_dirs(parent_id, NavDirections::NONE.with_down(true));
     focus_system.end_frame();
 
     assert!(
-        !focus_system.is_active_scroll_down(parent_id),
+        !focus_system.active_scroll_dirs(parent_id).down,
         "parent should not win scroll-down; standalone slider blocked it"
     );
     assert_eq!(state.value.lower(), 100.0);
@@ -1631,7 +1631,7 @@ fn test_standalone_slider_wheel_at_max_blocks_propagation() {
 #[test]
 fn test_vertical_standalone_slider_blocks_horizontal_scroll() {
     // Regression: vertical standalone slider inside a horizontal scroll area was
-    // letting horizontal scroll events propagate because claim_scroll_at_ends only
+    // letting horizontal scroll events propagate because YieldSameAxisAtEnds only
     // claimed up/down, not left/right.
     let mut state = SliderState {
         value: SliderValue::Single(50.0),
@@ -1659,16 +1659,16 @@ fn test_vertical_standalone_slider_blocks_horizontal_scroll() {
         &mut cmds,
     );
     // Parent claims after (simulating parent's end())
-    focus_system.claim_scroll_left(parent_id);
-    focus_system.claim_scroll_right(parent_id);
+    focus_system.claim_scroll_dirs(parent_id, NavDirections::NONE.with_left(true));
+    focus_system.claim_scroll_dirs(parent_id, NavDirections::NONE.with_right(true));
     focus_system.end_frame();
 
     assert!(
-        !focus_system.is_active_scroll_left(parent_id),
+        !focus_system.active_scroll_dirs(parent_id).left,
         "parent should not win scroll-left; vertical standalone slider should block it"
     );
     assert!(
-        !focus_system.is_active_scroll_right(parent_id),
+        !focus_system.active_scroll_dirs(parent_id).right,
         "parent should not win scroll-right; vertical standalone slider should block it"
     );
 }
@@ -1690,7 +1690,7 @@ fn test_propagating_slider_at_min_yields_scroll_up_to_parent() {
 
     // Frame 1: inner propagating slider first, then parent claims simulating parent's end()
     focus_system.begin_frame();
-    // Inner propagating slider at min: skips claim_scroll_up
+    // Inner propagating slider at min: skips the upward scroll claim
     let mut cmds = DrawCommands::new(1.0);
     raw::post_layout_slider(
         test_spec(0.0, 100.0, false),
@@ -1703,13 +1703,13 @@ fn test_propagating_slider_at_min_yields_scroll_up_to_parent() {
         &mut cmds,
     );
     // Parent claims after (simulating parent's end())
-    focus_system.claim_scroll_up(parent_id); // parent can scroll up
-    focus_system.claim_scroll_down(parent_id);
+    focus_system.claim_scroll_dirs(parent_id, NavDirections::NONE.with_up(true)); // parent can scroll up
+    focus_system.claim_scroll_dirs(parent_id, NavDirections::NONE.with_down(true));
     focus_system.end_frame();
 
     // Parent should have retained the scroll-up claim
     assert!(
-        focus_system.is_active_scroll_up(parent_id),
+        focus_system.active_scroll_dirs(parent_id).up,
         "parent should win scroll-up when inner is at its minimum"
     );
     assert_eq!(state.value.lower(), 0.0, "inner value unchanged");
@@ -1743,12 +1743,12 @@ fn test_propagating_slider_at_max_yields_scroll_down_to_parent() {
         &mut cmds,
     );
     // Parent claims after (simulating parent's end())
-    focus_system.claim_scroll_up(parent_id);
-    focus_system.claim_scroll_down(parent_id); // parent can scroll down
+    focus_system.claim_scroll_dirs(parent_id, NavDirections::NONE.with_up(true));
+    focus_system.claim_scroll_dirs(parent_id, NavDirections::NONE.with_down(true)); // parent can scroll down
     focus_system.end_frame();
 
     assert!(
-        focus_system.is_active_scroll_down(parent_id),
+        focus_system.active_scroll_dirs(parent_id).down,
         "parent should win scroll-down when inner is at its maximum"
     );
     assert_eq!(state.value.lower(), 100.0, "inner value unchanged");
@@ -1784,16 +1784,16 @@ fn test_propagating_slider_mid_range_wins_both_directions() {
         &mut cmds,
     );
     // Parent claims after (simulating parent's end())
-    focus_system.claim_scroll_up(parent_id);
-    focus_system.claim_scroll_down(parent_id);
+    focus_system.claim_scroll_dirs(parent_id, NavDirections::NONE.with_up(true));
+    focus_system.claim_scroll_dirs(parent_id, NavDirections::NONE.with_down(true));
     focus_system.end_frame();
 
     assert!(
-        !focus_system.is_active_scroll_up(parent_id),
+        !focus_system.active_scroll_dirs(parent_id).up,
         "parent should not win"
     );
     assert!(
-        !focus_system.is_active_scroll_down(parent_id),
+        !focus_system.active_scroll_dirs(parent_id).down,
         "parent should not win"
     );
 }
@@ -1894,12 +1894,12 @@ fn test_disabled_slider_does_not_block_parent_scroll() {
         &mut cmds,
     );
     // Parent claims after (inner-first ordering).
-    focus_system.claim_scroll_up(parent_id);
-    focus_system.claim_scroll_down(parent_id);
+    focus_system.claim_scroll_dirs(parent_id, NavDirections::NONE.with_up(true));
+    focus_system.claim_scroll_dirs(parent_id, NavDirections::NONE.with_down(true));
     focus_system.end_frame();
 
     assert!(
-        focus_system.is_active_scroll_up(parent_id),
+        focus_system.active_scroll_dirs(parent_id).up,
         "disabled slider must let the parent win the wheel"
     );
 }
@@ -2467,8 +2467,8 @@ fn test_non_keyboard_focusable_slider() {
 
     // Assert: claims hover and scroll up/down
     assert!(focus_system.is_hover_active(state.focus_id));
-    assert!(focus_system.is_active_scroll_up(state.focus_id));
-    assert!(focus_system.is_active_scroll_down(state.focus_id));
+    assert!(focus_system.active_scroll_dirs(state.focus_id).up);
+    assert!(focus_system.active_scroll_dirs(state.focus_id).down);
     focus_system.end_frame();
 
     // 2. Click does NOT take keyboard focus

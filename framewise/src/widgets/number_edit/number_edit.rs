@@ -1,6 +1,6 @@
 use crate::{
     draw::{BorderPlacement, DrawCmd, DrawCommands},
-    focus::{FocusId, FocusSystem},
+    focus::{FocusId, FocusSystem, NavDirections},
     input::Input,
     layout::{Align, AxisBound, LayoutState, SizeOffer},
     text::{layout_text, TextBackend, TextBounds, TextLineAlign},
@@ -332,10 +332,7 @@ pub mod raw {
 
         // Display-mode keyboard stepping. TextEdit consumes caret movement while editing.
         if focused && !spec.disabled && !state.edit.is_editing() {
-            focus_system.claim_pgup_vert(state.focus_id);
-            focus_system.claim_pgdn_vert(state.focus_id);
-            focus_system.claim_pgup_horiz(state.focus_id);
-            focus_system.claim_pgdn_horiz(state.focus_id);
+            focus_system.claim_page_dirs(state.focus_id, NavDirections::ALL);
 
             if input.key_pressed_left || input.key_pressed_up {
                 state.value = clamp_optional(state.value - spec.step, clamp_min, clamp_max);
