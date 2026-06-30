@@ -670,6 +670,7 @@ pub mod raw {
             spec.disabled,
             is_hover_active,
             state.is_dragging,
+            Some(CursorIcon::Text),
             input,
         );
         let contains = text_hover.passive_hovered;
@@ -1272,9 +1273,7 @@ pub mod raw {
                 clicked: input.mouse_clicked && text_hover.passive_hovered,
             },
             // Scrollbar interaction takes priority over the text cursor.
-            cursor_icon: scroll_end_result
-                .cursor_icon
-                .or_else(|| text_hover.passive_hovered.then_some(CursorIcon::Text)),
+            cursor_icon: scroll_end_result.cursor_icon.or(text_hover.cursor_icon),
         }
     }
 
@@ -2372,6 +2371,7 @@ pub fn prefixed_text_edit<T: TextBackend, S: LayoutState, CF>(
         spec.disabled,
         ctx.focus_system.is_hover_active(state.focus_id),
         false,
+        None,
         ctx.input,
     );
     if prefix_hover.can_start {

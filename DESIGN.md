@@ -1631,6 +1631,8 @@ Because Framewise lacks a retained UI tree, routing user input to the correct wi
 - **The Solution:** *Purely Local State.* We use the app-owned state (e.g., `ButtonState`) to record `pressed = true`. As long as that specific struct remembers it was pressed, it captures the interaction and ignores bounds checks.
 - **Why it works:** The interaction starts with a definitive historical event ("Mouse Down") that locks the state. It requires 0 frames of lag and no global ID registry.
 
+Cursor persistence follows the operation, not merely the captured mouse press: **a cursor should persist outside the widget only when the operation itself continues outside the widget.** Slider thumb dragging, slider segment dragging, scrollbar dragging, and `NumberEdit` value scrubbing continue outside the widget, so their drag cursor persists until release. Button presses, toggle presses, and `NumberEdit` stepper holds are paused or cancelled when the pointer leaves the active target, so their hover or pointer cursor disappears outside that active target.
+
 ### 2. Sequential Interaction (Keyboard Focus Tabbing)
 
 - **The Problem:** Pressing 'Tab' should move focus to the "next" widget, but in top-down evaluation, the "next" widget hasn't been evaluated yet.

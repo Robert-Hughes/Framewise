@@ -141,6 +141,7 @@ pub mod raw {
             spec.disabled,
             hover_active,
             false,
+            Some(crate::output::CursorIcon::Pointer),
             input,
         );
 
@@ -232,7 +233,7 @@ pub mod raw {
         }
 
         // Mouse interaction with popup when open
-        let mut popup_passive_hovered = false;
+        let mut popup_cursor_icon = None;
         if state.open && !spec.disabled && !spec.items.is_empty() {
             for i in 0..spec.items.len() {
                 let row = Rect::new(
@@ -247,13 +248,14 @@ pub mod raw {
                     spec.disabled,
                     hover_active,
                     false,
+                    Some(crate::output::CursorIcon::Pointer),
                     input,
                 );
                 // TODO: state.hovered mixes keyboard highlight with passive mouse hover.
                 // Split keyboard-highlighted row from this-frame passive hover, or draw
                 // s.hover only from current-frame row_hover.passive_hovered.
                 if row_hover.passive_hovered {
-                    popup_passive_hovered = true;
+                    popup_cursor_icon = popup_cursor_icon.or(row_hover.cursor_icon);
                     state.hovered = Some(i);
                 }
                 if row_hover.can_start {
@@ -426,11 +428,7 @@ pub mod raw {
             clicked: is_clicked,
         };
 
-        let cursor_icon = if !spec.disabled && (input_info.hovered || popup_passive_hovered) {
-            Some(crate::output::CursorIcon::Pointer)
-        } else {
-            None
-        };
+        let cursor_icon = input_hover.cursor_icon.or(popup_cursor_icon);
 
         SelectResult {
             input: input_info,

@@ -7,8 +7,9 @@ use crate::{
     types::{ClipRect, Color, Layer, Outline, Rect, Stroke, Vec2},
     widget::{InputInfo, LayoutInfo, WidgetContext},
     widgets::widget_helpers::{
-        begin_held_press_drag, begin_immediate_drag, handle_press_drag_interaction, PressDragState,
-        RepeatTimer, RepeatTiming, DEFAULT_DRAG_THRESHOLD,
+        begin_held_press_drag, begin_immediate_drag, handle_press_drag_interaction,
+        HeldCursorPolicy, PressDragInteractionSpec, PressDragState, RepeatTimer, RepeatTiming,
+        DEFAULT_DRAG_THRESHOLD,
     },
 };
 
@@ -117,26 +118,6 @@ pub mod raw {
         } else {
             crate::layout::SizeRequest::preferred(Vec2::new(0.0, cross))
         }
-    }
-
-    fn slider_hover_cursor_icon(
-        spec: &SliderSpec,
-        hover_part: Option<SliderPart>,
-        track_passive_hovered: bool,
-    ) -> Option<crate::output::CursorIcon> {
-        if spec.disabled {
-            return None;
-        }
-
-        if hover_part.is_some() {
-            return Some(crate::output::CursorIcon::Grab);
-        }
-
-        if track_passive_hovered {
-            return Some(crate::output::CursorIcon::Pointer);
-        }
-
-        None
     }
 
     pub fn post_layout_slider(
@@ -322,6 +303,7 @@ pub mod raw {
                     spec.disabled,
                     is_hover_active,
                     state.active_part == Some(SliderPart::LowerThumb),
+                    Some(crate::output::CursorIcon::Grab),
                     input,
                 )
             })
@@ -335,6 +317,7 @@ pub mod raw {
                     spec.disabled,
                     is_hover_active,
                     state.active_part == Some(SliderPart::UpperThumb),
+                    Some(crate::output::CursorIcon::Grab),
                     input,
                 )
             })
@@ -348,6 +331,7 @@ pub mod raw {
                     spec.disabled,
                     is_hover_active,
                     state.active_part == Some(SliderPart::Segment),
+                    Some(crate::output::CursorIcon::Grab),
                     input,
                 )
             })
@@ -358,6 +342,7 @@ pub mod raw {
             spec.disabled,
             is_hover_active,
             state.is_track_clicking,
+            Some(crate::output::CursorIcon::Pointer),
             input,
         );
 
@@ -375,9 +360,13 @@ pub mod raw {
             press_drag = handle_press_drag_interaction(
                 &mut state.press_drag,
                 input,
-                true,
-                DEFAULT_DRAG_THRESHOLD,
-                Some(crate::output::CursorIcon::Grabbing),
+                PressDragInteractionSpec {
+                    enabled: true,
+                    threshold: DEFAULT_DRAG_THRESHOLD,
+                    held_cursor_policy: HeldCursorPolicy::None,
+                    active_contains: false,
+                    drag_cursor_icon: Some(crate::output::CursorIcon::Grabbing),
+                },
             );
 
             if press_drag.released {
@@ -1052,18 +1041,12 @@ pub mod raw {
             }
         }
 
-        let hover_part = if lower_hover.passive_hovered {
-            Some(SliderPart::LowerThumb)
-        } else if upper_hover.passive_hovered {
-            Some(SliderPart::UpperThumb)
-        } else if segment_hover.passive_hovered {
-            Some(SliderPart::Segment)
-        } else {
-            None
-        };
         let cursor_icon = press_drag
             .cursor_icon
-            .or_else(|| slider_hover_cursor_icon(&spec, hover_part, track_hover.passive_hovered));
+            .or(lower_hover.cursor_icon)
+            .or(upper_hover.cursor_icon)
+            .or(segment_hover.cursor_icon)
+            .or(track_hover.cursor_icon);
 
         SliderResult {
             focused,

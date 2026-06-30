@@ -77,6 +77,7 @@ pub mod raw {
                 clip_rect: spec.clip_rect,
                 disabled: spec.disabled,
                 traversal_keys: crate::focus::FocusTraversalKeys::all(),
+                hover_cursor_icon: Some(crate::output::CursorIcon::Pointer),
             },
             input,
             focus_system,
@@ -162,17 +163,11 @@ pub mod raw {
             spec.layer.get_z(),
         );
 
-        let cursor_icon = if input_info.hovered && !spec.disabled {
-            Some(crate::output::CursorIcon::Pointer)
-        } else {
-            None
-        };
-
         SwitchResult {
             input: input_info,
             focused,
             content_bounds: r.inset(border_width),
-            cursor_icon,
+            cursor_icon: interaction.cursor_icon,
         }
     }
 }

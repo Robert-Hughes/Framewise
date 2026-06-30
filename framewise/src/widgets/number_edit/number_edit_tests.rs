@@ -1732,7 +1732,7 @@ fn test_number_edit_step_hold_pauses_outside_and_resumes_on_return_when_drag_dis
     input.mouse_pressed = true;
     spec.time = 0.0;
     focus_system.begin_frame();
-    let _ = run_raw(
+    let press_result = run_raw(
         spec.clone(),
         &mut state,
         &input,
@@ -1742,6 +1742,10 @@ fn test_number_edit_step_hold_pauses_outside_and_resumes_on_return_when_drag_dis
     );
     focus_system.end_frame();
     assert_eq!(state.value, 55.0);
+    assert_eq!(
+        press_result.cursor_icon,
+        Some(crate::output::CursorIcon::Pointer)
+    );
     assert!(state.is_arrow_stepping);
     assert_eq!(
         state.arrow_step_direction,
@@ -1752,7 +1756,7 @@ fn test_number_edit_step_hold_pauses_outside_and_resumes_on_return_when_drag_dis
     input.mouse_pos = Vec2::new(rect.right() + 20.0, rect.y + rect.h / 2.0);
     spec.time = 0.6;
     focus_system.begin_frame();
-    let _ = run_raw(
+    let outside_result = run_raw(
         spec.clone(),
         &mut state,
         &input,
@@ -1763,6 +1767,7 @@ fn test_number_edit_step_hold_pauses_outside_and_resumes_on_return_when_drag_dis
     focus_system.end_frame();
 
     assert_eq!(state.value, 55.0);
+    assert_eq!(outside_result.cursor_icon, None);
     assert!(state.is_arrow_stepping);
     assert_eq!(
         state.arrow_step_direction,
@@ -1773,7 +1778,7 @@ fn test_number_edit_step_hold_pauses_outside_and_resumes_on_return_when_drag_dis
     input.mouse_pos = arrow_pos;
     spec.time = 0.5;
     focus_system.begin_frame();
-    let _ = run_raw(
+    let return_result = run_raw(
         spec.clone(),
         &mut state,
         &input,
@@ -1784,6 +1789,10 @@ fn test_number_edit_step_hold_pauses_outside_and_resumes_on_return_when_drag_dis
     focus_system.end_frame();
 
     assert_eq!(state.value, 60.0);
+    assert_eq!(
+        return_result.cursor_icon,
+        Some(crate::output::CursorIcon::Pointer)
+    );
     assert!(state.is_arrow_stepping);
     assert_eq!(
         state.arrow_step_direction,

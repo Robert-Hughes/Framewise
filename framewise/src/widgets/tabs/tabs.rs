@@ -125,6 +125,7 @@ pub mod raw {
 
         let mut is_clicked = false;
         let mut any_passive_hover = false;
+        let mut cursor_icon = None;
         let mut pressed = false;
 
         // Left/Right keyboard navigation
@@ -151,9 +152,11 @@ pub mod raw {
                 spec.disabled,
                 hover_active,
                 false,
+                Some(crate::output::CursorIcon::Pointer),
                 input,
             );
             any_passive_hover |= hover.passive_hovered;
+            cursor_icon = cursor_icon.or(hover.cursor_icon);
             pressed |= hover.active_now && input.mouse_down;
             if hover.can_start {
                 focus_system.take_keyboard_focus(state.focus_id);
@@ -262,12 +265,6 @@ pub mod raw {
 
             x += tab_w;
         }
-
-        let cursor_icon = if any_passive_hover && !spec.disabled {
-            Some(crate::output::CursorIcon::Pointer)
-        } else {
-            None
-        };
 
         TabsResult {
             input: InputInfo {

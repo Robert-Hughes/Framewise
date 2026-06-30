@@ -72,6 +72,7 @@ pub mod raw {
                 clip_rect: spec.clip_rect,
                 disabled: spec.disabled,
                 traversal_keys: crate::focus::FocusTraversalKeys::all(),
+                hover_cursor_icon: Some(crate::output::CursorIcon::Pointer),
             },
             input,
             focus_system,
@@ -157,17 +158,11 @@ pub mod raw {
             });
         }
 
-        let cursor_icon = if input_info.hovered && !spec.disabled {
-            Some(crate::output::CursorIcon::Pointer)
-        } else {
-            None
-        };
-
         RadioResult {
             input: input_info,
             focused,
             content_bounds: r.inset(s.border.map_or(0.0, |st| st.width)),
-            cursor_icon,
+            cursor_icon: interaction.cursor_icon,
         }
     }
 }

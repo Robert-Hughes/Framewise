@@ -76,17 +76,48 @@ pub struct PressDragInteraction {
     pub cursor_icon: Option<crate::output::CursorIcon>,
 }
 
-pub fn begin_held_press_drag(state: &mut PressDragState, mouse_pos: Vec2) {
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub(crate) enum HeldCursorPolicy {
+    /// Do not show a special cursor while the pointer is merely held.
+    ///
+    /// Use this when the held phase does not represent a continuing operation.
+    /// A drag cursor may still be shown once the interaction is promoted to a drag.
+    None,
+
+    /// Show this cursor for as long as this interaction owns the held press.
+    ///
+    /// Use this only when the held operation continues even if the pointer leaves
+    /// the widget or active part.
+    #[allow(dead_code)]
+    PersistWhileHeld(crate::output::CursorIcon),
+
+    /// Show this cursor only while the pointer is still inside the active part.
+    ///
+    /// Use this for paused or cancellable held interactions, such as a stepper
+    /// button repeating while the pointer remains over the pressed step button.
+    WhileActiveContains(crate::output::CursorIcon),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub(crate) struct PressDragInteractionSpec {
+    pub enabled: bool,
+    pub threshold: f32,
+    pub held_cursor_policy: HeldCursorPolicy,
+    pub active_contains: bool,
+    pub drag_cursor_icon: Option<crate::output::CursorIcon>,
+}
+
+pub(crate) fn begin_held_press_drag(state: &mut PressDragState, mouse_pos: Vec2) {
     state.held = true;
     state.dragging = false;
     state.press_start_pos = mouse_pos;
     state.drag_start_pos = mouse_pos;
 }
 
-pub fn begin_immediate_drag(
+pub(crate) fn begin_immediate_drag(
     state: &mut PressDragState,
     mouse_pos: Vec2,
-    drag_cursor: Option<crate::output::CursorIcon>,
+    drag_cursor_icon: Option<crate::output::CursorIcon>,
 ) -> PressDragInteraction {
     state.held = false;
     state.dragging = true;
@@ -100,19 +131,17 @@ pub fn begin_immediate_drag(
         released: false,
         press_delta: Vec2::ZERO,
         drag_delta: Vec2::ZERO,
-        cursor_icon: drag_cursor,
+        cursor_icon: drag_cursor_icon,
     }
 }
 
-pub fn handle_press_drag_interaction(
+pub(crate) fn handle_press_drag_interaction(
     state: &mut PressDragState,
     input: &Input,
-    enabled: bool,
-    threshold: f32,
-    drag_cursor: Option<crate::output::CursorIcon>,
+    spec: PressDragInteractionSpec,
 ) -> PressDragInteraction {
     let was_active = state.held || state.dragging;
-    if !enabled {
+    if !spec.enabled {
         *state = PressDragState::default();
         return PressDragInteraction {
             released: was_active,
@@ -140,7 +169,7 @@ pub fn handle_press_drag_interaction(
 
     if state.held {
         let press_delta = input.mouse_pos - state.press_start_pos;
-        if press_delta.x.hypot(press_delta.y) > threshold {
+        if press_delta.x.hypot(press_delta.y) > spec.threshold {
             state.held = false;
             state.dragging = true;
             state.drag_start_pos = input.mouse_pos;
@@ -153,8 +182,20 @@ pub fn handle_press_drag_interaction(
     if state.dragging {
         interaction.dragging = true;
         interaction.drag_delta = input.mouse_pos - state.drag_start_pos;
-        interaction.cursor_icon = drag_cursor;
     }
+
+    interaction.cursor_icon = if state.dragging {
+        spec.drag_cursor_icon
+    } else if state.held {
+        match spec.held_cursor_policy {
+            HeldCursorPolicy::None => None,
+            HeldCursorPolicy::PersistWhileHeld(icon) => Some(icon),
+            HeldCursorPolicy::WhileActiveContains(icon) if spec.active_contains => Some(icon),
+            HeldCursorPolicy::WhileActiveContains(_) => None,
+        }
+    } else {
+        None
+    };
 
     interaction
 }
@@ -173,6 +214,8 @@ pub struct HoverInteraction {
     pub active_now: bool,
     /// Passive hover effects may be shown for this rect/sub-part.
     pub passive_hovered: bool,
+    /// Passive cursor hint for this rect/sub-part.
+    pub cursor_icon: Option<crate::output::CursorIcon>,
 }
 
 /// Computes pointer hover state for one rect or sub-part.
@@ -187,6 +230,7 @@ pub fn handle_hover_interaction(
     disabled: bool,
     hover_active: bool,
     was_active: bool,
+    hover_cursor_icon: Option<crate::output::CursorIcon>,
     input: &Input,
 ) -> HoverInteraction {
     let contains = !disabled
@@ -196,12 +240,18 @@ pub fn handle_hover_interaction(
     // A press that begins this frame is active immediately while mouse_down is already true.
     let active_now = was_active || can_start;
     let passive_hovered = contains && hover_active && (!input.mouse_down || active_now);
+    let cursor_icon = if passive_hovered {
+        hover_cursor_icon
+    } else {
+        None
+    };
 
     HoverInteraction {
         contains,
         can_start,
         active_now,
         passive_hovered,
+        cursor_icon,
     }
 }
 
@@ -240,6 +290,7 @@ pub fn handle_keyboard_focus(
 pub struct PressInteraction {
     pub input: InputInfo,
     pub focused: bool,
+    pub cursor_icon: Option<crate::output::CursorIcon>,
     /// The underlying hover result used to produce `input`.
     pub hover: HoverInteraction,
 }
@@ -252,6 +303,7 @@ pub struct PressInteractionSpec {
     pub clip_rect: ClipRect,
     pub disabled: bool,
     pub traversal_keys: FocusTraversalKeys,
+    pub hover_cursor_icon: Option<crate::output::CursorIcon>,
 }
 
 /// Handles keyboard focus, pointer hover, mouse press/release, and keyboard
@@ -282,6 +334,7 @@ pub fn handle_press_interaction(
         return PressInteraction {
             input: InputInfo::default(),
             focused: false,
+            cursor_icon: None,
             hover: HoverInteraction::default(),
         };
     }
@@ -300,6 +353,7 @@ pub fn handle_press_interaction(
         spec.disabled,
         hover_active,
         *is_active,
+        spec.hover_cursor_icon,
         input,
     );
 
@@ -337,6 +391,7 @@ pub fn handle_press_interaction(
             clicked,
         },
         focused: keyboard.focused,
+        cursor_icon: hover.cursor_icon,
         hover,
     }
 }
@@ -538,6 +593,27 @@ mod tests {
         }
     }
 
+    fn press_spec(id: FocusId) -> PressInteractionSpec {
+        PressInteractionSpec {
+            focus_id: id,
+            rect: rect(),
+            clip_rect: None,
+            disabled: false,
+            traversal_keys: FocusTraversalKeys::all(),
+            hover_cursor_icon: None,
+        }
+    }
+
+    fn drag_spec(drag_cursor_icon: Option<crate::output::CursorIcon>) -> PressDragInteractionSpec {
+        PressDragInteractionSpec {
+            enabled: true,
+            threshold: DEFAULT_DRAG_THRESHOLD,
+            held_cursor_policy: HeldCursorPolicy::None,
+            active_contains: false,
+            drag_cursor_icon,
+        }
+    }
+
     #[test]
     fn hover_interaction_reports_contains_inside_rect_and_clip() {
         let input = inside_input();
@@ -547,6 +623,7 @@ mod tests {
             false,
             true,
             false,
+            None,
             &input,
         );
 
@@ -557,7 +634,7 @@ mod tests {
     fn hover_interaction_suppresses_contains_when_disabled_outside_or_clipped() {
         let input = inside_input();
 
-        assert!(!handle_hover_interaction(rect(), None, true, true, false, &input).contains);
+        assert!(!handle_hover_interaction(rect(), None, true, true, false, None, &input).contains);
         assert!(
             !handle_hover_interaction(
                 Rect::new(30.0, 30.0, 20.0, 20.0),
@@ -565,6 +642,7 @@ mod tests {
                 false,
                 true,
                 false,
+                None,
                 &input,
             )
             .contains
@@ -576,6 +654,7 @@ mod tests {
                 false,
                 true,
                 false,
+                None,
                 &input,
             )
             .contains
@@ -590,7 +669,7 @@ mod tests {
             ..inside_input()
         };
 
-        let hover = handle_hover_interaction(rect(), None, false, true, false, &input);
+        let hover = handle_hover_interaction(rect(), None, false, true, false, None, &input);
 
         assert!(hover.can_start);
         assert!(hover.active_now);
@@ -604,7 +683,7 @@ mod tests {
             ..inside_input()
         };
 
-        let hover = handle_hover_interaction(rect(), None, false, true, true, &input);
+        let hover = handle_hover_interaction(rect(), None, false, true, true, None, &input);
 
         assert!(hover.active_now);
         assert!(hover.passive_hovered);
@@ -617,7 +696,7 @@ mod tests {
             ..inside_input()
         };
 
-        let hover = handle_hover_interaction(rect(), None, false, true, false, &input);
+        let hover = handle_hover_interaction(rect(), None, false, true, false, None, &input);
 
         assert!(hover.contains);
         assert!(!hover.passive_hovered);
@@ -631,11 +710,39 @@ mod tests {
             ..inside_input()
         };
 
-        let hover = handle_hover_interaction(rect(), None, false, false, false, &input);
+        let hover = handle_hover_interaction(rect(), None, false, false, false, None, &input);
 
         assert!(hover.contains);
         assert!(!hover.can_start);
         assert!(!hover.passive_hovered);
+    }
+
+    #[test]
+    fn hover_interaction_reports_passive_hover_cursor_only_while_passive_hovered() {
+        let hover = handle_hover_interaction(
+            rect(),
+            None,
+            false,
+            true,
+            false,
+            Some(crate::output::CursorIcon::Pointer),
+            &inside_input(),
+        );
+        assert_eq!(hover.cursor_icon, Some(crate::output::CursorIcon::Pointer));
+
+        let suppressed = handle_hover_interaction(
+            rect(),
+            None,
+            false,
+            true,
+            false,
+            Some(crate::output::CursorIcon::Pointer),
+            &Input {
+                mouse_down: true,
+                ..inside_input()
+            },
+        );
+        assert_eq!(suppressed.cursor_icon, None);
     }
 
     #[test]
@@ -646,13 +753,7 @@ mod tests {
         let mut space_is_active = false;
 
         let result = handle_press_interaction(
-            PressInteractionSpec {
-                focus_id: id,
-                rect: rect(),
-                clip_rect: None,
-                disabled: false,
-                traversal_keys: FocusTraversalKeys::all(),
-            },
+            press_spec(id),
             &inside_input(),
             &mut focus,
             &mut is_active,
@@ -662,6 +763,58 @@ mod tests {
         assert!(result.input.hovered);
         assert!(!result.input.pressed);
         assert!(!result.input.clicked);
+    }
+
+    #[test]
+    fn press_interaction_cursor_tracks_simple_press_active_target() {
+        let id = FocusId::new();
+        let mut is_active = false;
+        let mut space_is_active = false;
+        let spec = PressInteractionSpec {
+            hover_cursor_icon: Some(crate::output::CursorIcon::Pointer),
+            ..press_spec(id)
+        };
+
+        let mut focus = FocusSystem::new_mocked(None, Some(id));
+        let hover = handle_press_interaction(
+            spec,
+            &inside_input(),
+            &mut focus,
+            &mut is_active,
+            &mut space_is_active,
+        );
+        assert_eq!(hover.cursor_icon, Some(crate::output::CursorIcon::Pointer));
+
+        is_active = true;
+        let mut focus = FocusSystem::new_mocked(None, Some(id));
+        let outside = handle_press_interaction(
+            spec,
+            &Input {
+                mouse_pos: Vec2::new(30.0, 10.0),
+                mouse_down: true,
+                ..Default::default()
+            },
+            &mut focus,
+            &mut is_active,
+            &mut space_is_active,
+        );
+        assert_eq!(outside.cursor_icon, None);
+
+        let mut focus = FocusSystem::new_mocked(None, Some(id));
+        let returned = handle_press_interaction(
+            spec,
+            &Input {
+                mouse_down: true,
+                ..inside_input()
+            },
+            &mut focus,
+            &mut is_active,
+            &mut space_is_active,
+        );
+        assert_eq!(
+            returned.cursor_icon,
+            Some(crate::output::CursorIcon::Pointer)
+        );
     }
 
     #[test]
@@ -676,13 +829,7 @@ mod tests {
         };
 
         let result = handle_press_interaction(
-            PressInteractionSpec {
-                focus_id: id,
-                rect: rect(),
-                clip_rect: None,
-                disabled: false,
-                traversal_keys: FocusTraversalKeys::all(),
-            },
+            press_spec(id),
             &input,
             &mut focus,
             &mut is_active,
@@ -706,13 +853,7 @@ mod tests {
         };
 
         let result = handle_press_interaction(
-            PressInteractionSpec {
-                focus_id: id,
-                rect: rect(),
-                clip_rect: None,
-                disabled: false,
-                traversal_keys: FocusTraversalKeys::all(),
-            },
+            press_spec(id),
             &input,
             &mut focus,
             &mut is_active,
@@ -737,13 +878,7 @@ mod tests {
         };
 
         let result = handle_press_interaction(
-            PressInteractionSpec {
-                focus_id: id,
-                rect: rect(),
-                clip_rect: None,
-                disabled: false,
-                traversal_keys: FocusTraversalKeys::all(),
-            },
+            press_spec(id),
             &input,
             &mut focus,
             &mut is_active,
@@ -769,11 +904,8 @@ mod tests {
 
         let result = handle_press_interaction(
             PressInteractionSpec {
-                focus_id: id,
-                rect: rect(),
-                clip_rect: None,
                 disabled: true,
-                traversal_keys: FocusTraversalKeys::all(),
+                ..press_spec(id)
             },
             &input,
             &mut focus,
@@ -795,13 +927,7 @@ mod tests {
         let mut space_is_active = false;
 
         let enter = handle_press_interaction(
-            PressInteractionSpec {
-                focus_id: id,
-                rect: rect(),
-                clip_rect: None,
-                disabled: false,
-                traversal_keys: FocusTraversalKeys::all(),
-            },
+            press_spec(id),
             &Input {
                 key_pressed_enter: true,
                 ..Default::default()
@@ -814,13 +940,7 @@ mod tests {
 
         let mut focus = FocusSystem::new_mocked(Some(id), None);
         let space_down = handle_press_interaction(
-            PressInteractionSpec {
-                focus_id: id,
-                rect: rect(),
-                clip_rect: None,
-                disabled: false,
-                traversal_keys: FocusTraversalKeys::all(),
-            },
+            press_spec(id),
             &Input {
                 key_pressed_space: true,
                 key_down_space: true,
@@ -834,13 +954,7 @@ mod tests {
 
         let mut focus = FocusSystem::new_mocked(Some(id), None);
         let space_up = handle_press_interaction(
-            PressInteractionSpec {
-                focus_id: id,
-                rect: rect(),
-                clip_rect: None,
-                disabled: false,
-                traversal_keys: FocusTraversalKeys::all(),
-            },
+            press_spec(id),
             &Input {
                 key_released_space: true,
                 ..Default::default()
@@ -864,9 +978,7 @@ mod tests {
                 mouse_down: true,
                 ..Default::default()
             },
-            true,
-            DEFAULT_DRAG_THRESHOLD,
-            None,
+            drag_spec(None),
         );
         assert!(below.held);
         assert!(!below.dragging);
@@ -879,9 +991,7 @@ mod tests {
                 mouse_down: true,
                 ..Default::default()
             },
-            true,
-            DEFAULT_DRAG_THRESHOLD,
-            None,
+            drag_spec(None),
         );
         assert!(equal.held);
         assert!(!equal.dragging);
@@ -900,9 +1010,7 @@ mod tests {
                 mouse_down: true,
                 ..Default::default()
             },
-            true,
-            DEFAULT_DRAG_THRESHOLD,
-            None,
+            drag_spec(None),
         );
 
         assert!(interaction.drag_started);
@@ -924,9 +1032,7 @@ mod tests {
                 mouse_down: true,
                 ..Default::default()
             },
-            true,
-            DEFAULT_DRAG_THRESHOLD,
-            None,
+            drag_spec(None),
         );
         assert_eq!(promoted.press_delta, Vec2::new(5.0, 0.0));
         assert_eq!(promoted.drag_delta, Vec2::ZERO);
@@ -938,9 +1044,7 @@ mod tests {
                 mouse_down: true,
                 ..Default::default()
             },
-            true,
-            DEFAULT_DRAG_THRESHOLD,
-            None,
+            drag_spec(None),
         );
         assert_eq!(dragged.press_delta, Vec2::new(8.0, 2.0));
         assert_eq!(dragged.drag_delta, Vec2::new(3.0, 2.0));
@@ -984,15 +1088,53 @@ mod tests {
                 mouse_down: true,
                 ..Default::default()
             },
-            true,
-            DEFAULT_DRAG_THRESHOLD,
-            Some(crate::output::CursorIcon::EwResize),
+            drag_spec(Some(crate::output::CursorIcon::EwResize)),
         );
 
         assert_eq!(
             interaction.cursor_icon,
             Some(crate::output::CursorIcon::EwResize)
         );
+    }
+
+    #[test]
+    fn press_drag_held_cursor_policy_controls_held_cursor() {
+        let mut state = PressDragState::default();
+        begin_held_press_drag(&mut state, Vec2::new(10.0, 10.0));
+
+        let inactive = handle_press_drag_interaction(
+            &mut state,
+            &Input {
+                mouse_pos: Vec2::new(11.0, 10.0),
+                mouse_down: true,
+                ..Default::default()
+            },
+            PressDragInteractionSpec {
+                held_cursor_policy: HeldCursorPolicy::WhileActiveContains(
+                    crate::output::CursorIcon::Pointer,
+                ),
+                active_contains: false,
+                ..drag_spec(Some(crate::output::CursorIcon::EwResize))
+            },
+        );
+        assert_eq!(inactive.cursor_icon, None);
+
+        let active = handle_press_drag_interaction(
+            &mut state,
+            &Input {
+                mouse_pos: Vec2::new(12.0, 10.0),
+                mouse_down: true,
+                ..Default::default()
+            },
+            PressDragInteractionSpec {
+                held_cursor_policy: HeldCursorPolicy::WhileActiveContains(
+                    crate::output::CursorIcon::Pointer,
+                ),
+                active_contains: true,
+                ..drag_spec(Some(crate::output::CursorIcon::EwResize))
+            },
+        );
+        assert_eq!(active.cursor_icon, Some(crate::output::CursorIcon::Pointer));
     }
 
     #[test]
@@ -1007,9 +1149,7 @@ mod tests {
                 mouse_down: false,
                 ..Default::default()
             },
-            true,
-            DEFAULT_DRAG_THRESHOLD,
-            None,
+            drag_spec(None),
         );
 
         assert!(interaction.released);

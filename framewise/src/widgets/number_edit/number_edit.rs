@@ -11,8 +11,9 @@ use crate::{
         widget_helpers::{
             begin_held_press_drag, begin_immediate_drag, draw_prefixed_control_prefix_and_chrome,
             handle_press_drag_interaction, layout_prefixed_control, prefixed_control_child_offer,
-            prefixed_control_prefix_width, prefixed_control_size_request, PrefixedControlDrawSpec,
-            PrefixedControlStyle, PressDragInteraction, PressDragState, RepeatTimer, RepeatTiming,
+            prefixed_control_prefix_width, prefixed_control_size_request, HeldCursorPolicy,
+            PrefixedControlDrawSpec, PrefixedControlStyle, PressDragInteraction,
+            PressDragInteractionSpec, PressDragState, RepeatTimer, RepeatTiming,
             DEFAULT_DRAG_THRESHOLD,
         },
     },
@@ -163,6 +164,7 @@ pub mod raw {
             is_hover_active,
             state.is_arrow_stepping
                 && state.arrow_step_direction == Some(NumberEditStepDirection::Decrement),
+            Some(crate::output::CursorIcon::Pointer),
             input,
         );
         let increment_hover = crate::widgets::widget_helpers::handle_hover_interaction(
@@ -172,6 +174,7 @@ pub mod raw {
             is_hover_active,
             state.is_arrow_stepping
                 && state.arrow_step_direction == Some(NumberEditStepDirection::Increment),
+            Some(crate::output::CursorIcon::Pointer),
             input,
         );
         let value_hover = crate::widgets::widget_helpers::handle_hover_interaction(
@@ -180,6 +183,8 @@ pub mod raw {
             spec.disabled,
             is_hover_active,
             state.press_drag.dragging,
+            spec.drag_enabled
+                .then_some(crate::output::CursorIcon::EwResize),
             input,
         );
 
@@ -265,12 +270,20 @@ pub mod raw {
             } else {
                 f32::INFINITY
             };
+            let active_contains =
+                active_step_contains(state, contains_decrement, contains_increment);
             press_drag = handle_press_drag_interaction(
                 &mut state.press_drag,
                 input,
-                state.is_arrow_stepping || spec.drag_enabled,
-                drag_threshold,
-                Some(crate::output::CursorIcon::EwResize),
+                PressDragInteractionSpec {
+                    enabled: state.is_arrow_stepping || spec.drag_enabled,
+                    threshold: drag_threshold,
+                    held_cursor_policy: HeldCursorPolicy::WhileActiveContains(
+                        crate::output::CursorIcon::Pointer,
+                    ),
+                    active_contains,
+                    drag_cursor_icon: Some(crate::output::CursorIcon::EwResize),
+                },
             );
 
             if press_drag.released {
@@ -278,11 +291,6 @@ pub mod raw {
                 state.arrow_step_direction = None;
             }
 
-            let active_step_contains = match state.arrow_step_direction {
-                Some(NumberEditStepDirection::Decrement) => contains_decrement,
-                Some(NumberEditStepDirection::Increment) => contains_increment,
-                None => false,
-            };
             if state.is_arrow_stepping && spec.drag_enabled && press_drag.drag_started {
                 state.is_arrow_stepping = false;
                 state.arrow_step_direction = None;
@@ -308,7 +316,10 @@ pub mod raw {
                 );
             }
 
-            if state.is_arrow_stepping && input.mouse_down && active_step_contains {
+            if state.is_arrow_stepping
+                && input.mouse_down
+                && active_step_contains(state, contains_decrement, contains_increment)
+            {
                 if let Some(direction) = state.arrow_step_direction {
                     if state
                         .repeat_timer
@@ -581,19 +592,16 @@ pub mod raw {
             || increment_hover.passive_hovered
             || value_hover.passive_hovered;
 
-        let active_step = state.is_arrow_stepping && !spec.disabled;
-        let hovered_step = !spec.disabled && (hovered_decrement || hovered_increment);
         let cursor_icon = if state.edit.is_editing() {
             edit_cursor_icon
-        } else if press_drag.cursor_icon.is_some() {
-            press_drag.cursor_icon
-        } else if active_step || hovered_step {
-            Some(crate::output::CursorIcon::Pointer)
-        } else if spec.drag_enabled && !spec.disabled && value_hover.passive_hovered {
-            Some(crate::output::CursorIcon::EwResize)
         } else {
-            None
+            press_drag
+                .cursor_icon
+                .or(decrement_hover.cursor_icon)
+                .or(increment_hover.cursor_icon)
+                .or(value_hover.cursor_icon)
         };
+        let active_step = state.is_arrow_stepping && !spec.disabled;
 
         NumberEditResult {
             input: edit_input_info.unwrap_or(InputInfo {
@@ -856,6 +864,18 @@ fn drag_value_range(min: Option<f32>, max: Option<f32>) -> f32 {
     match (min, max) {
         (Some(min), Some(max)) if max != min => max - min,
         _ => 100.0,
+    }
+}
+
+fn active_step_contains(
+    state: &NumberEditState,
+    contains_decrement: bool,
+    contains_increment: bool,
+) -> bool {
+    match state.arrow_step_direction {
+        Some(NumberEditStepDirection::Decrement) => contains_decrement,
+        Some(NumberEditStepDirection::Increment) => contains_increment,
+        None => false,
     }
 }
 
@@ -1247,6 +1267,7 @@ where
         spec.disabled,
         ctx.focus_system.is_hover_active(state.focus_id),
         false,
+        None,
         ctx.input,
     );
     if prefix_hover.can_start {
