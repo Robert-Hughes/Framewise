@@ -10,11 +10,12 @@ use crate::{
         text_edit::{self, NewlinePolicy, TextEditState, TextEditStyle},
         widget_helpers::{
             begin_held_press_drag, begin_immediate_drag, draw_prefixed_control_prefix_and_chrome,
-            handle_press_drag_interaction, layout_prefixed_control, prefixed_control_child_offer,
-            prefixed_control_prefix_width, prefixed_control_size_request, HeldCursorPolicy,
-            PrefixedControlDrawSpec, PrefixedControlStyle, PressDragInteraction,
-            PressDragInteractionSpec, PressDragState, RepeatTimer, RepeatTiming,
-            DEFAULT_DRAG_THRESHOLD,
+            handle_key_press_interaction, handle_press_drag_interaction, layout_prefixed_control,
+            prefixed_control_child_offer, prefixed_control_prefix_width,
+            prefixed_control_size_request, HeldCursorPolicy, KeyPressActivation,
+            KeyPressInteractionSpec, PrefixedControlDrawSpec, PrefixedControlStyle,
+            PressDragInteraction, PressDragInteractionSpec, PressDragState, RepeatTimer,
+            RepeatTiming, DEFAULT_DRAG_THRESHOLD,
         },
     },
 };
@@ -341,37 +342,92 @@ pub mod raw {
             state.press_drag = PressDragState::default();
         }
 
+        let keyboard_enabled = focused && !spec.disabled && !state.edit.is_editing();
+        let mut key_arrow_left_active = false;
+        let mut key_arrow_up_active = false;
+        let mut key_page_up_active = false;
+        let mut key_arrow_right_active = false;
+        let mut key_arrow_down_active = false;
+        let mut key_page_down_active = false;
+        let mut key_home_active = false;
+        let mut key_end_active = false;
+        let key_spec = |key| KeyPressInteractionSpec {
+            focused: keyboard_enabled,
+            disabled: false,
+            key,
+            activation: KeyPressActivation::Press,
+        };
+        let arrow_left = handle_key_press_interaction(
+            &mut key_arrow_left_active,
+            input,
+            key_spec(crate::input::Key::ArrowLeft),
+        );
+        let arrow_up = handle_key_press_interaction(
+            &mut key_arrow_up_active,
+            input,
+            key_spec(crate::input::Key::ArrowUp),
+        );
+        let page_up = handle_key_press_interaction(
+            &mut key_page_up_active,
+            input,
+            key_spec(crate::input::Key::PageUp),
+        );
+        let arrow_right = handle_key_press_interaction(
+            &mut key_arrow_right_active,
+            input,
+            key_spec(crate::input::Key::ArrowRight),
+        );
+        let arrow_down = handle_key_press_interaction(
+            &mut key_arrow_down_active,
+            input,
+            key_spec(crate::input::Key::ArrowDown),
+        );
+        let page_down = handle_key_press_interaction(
+            &mut key_page_down_active,
+            input,
+            key_spec(crate::input::Key::PageDown),
+        );
+        let home = handle_key_press_interaction(
+            &mut key_home_active,
+            input,
+            key_spec(crate::input::Key::Home),
+        );
+        let end = handle_key_press_interaction(
+            &mut key_end_active,
+            input,
+            key_spec(crate::input::Key::End),
+        );
+
         // Display-mode keyboard stepping. TextEdit consumes caret movement while editing.
-        if focused && !spec.disabled && !state.edit.is_editing() {
+        if keyboard_enabled {
             focus_system.claim_page_dirs(state.focus_id, NavDirections::ALL);
 
-            if input.key_pressed(crate::input::Key::ArrowLeft)
-                || input.key_pressed(crate::input::Key::ArrowUp)
-            {
+            if arrow_left.clicked || arrow_up.clicked {
                 state.value = clamp_optional(state.value - spec.step, clamp_min, clamp_max);
             }
-            if input.key_pressed(crate::input::Key::ArrowRight)
-                || input.key_pressed(crate::input::Key::ArrowDown)
-            {
+            if arrow_right.clicked || arrow_down.clicked {
                 state.value = clamp_optional(state.value + spec.step, clamp_min, clamp_max);
             }
-            if input.key_pressed(crate::input::Key::PageUp) {
+            if page_up.clicked {
                 state.value = clamp_optional(state.value - spec.page_step, clamp_min, clamp_max);
             }
-            if input.key_pressed(crate::input::Key::PageDown) {
+            if page_down.clicked {
                 state.value = clamp_optional(state.value + spec.page_step, clamp_min, clamp_max);
             }
-            if input.key_pressed(crate::input::Key::Home) {
+            if home.clicked {
                 if let Some(min) = clamp_min {
                     state.value = min;
                 }
             }
-            if input.key_pressed(crate::input::Key::End) {
+            if end.clicked {
                 if let Some(max) = clamp_max {
                     state.value = max;
                 }
             }
         }
+
+        let decrement_key_pressed = arrow_left.pressed || arrow_up.pressed || page_up.pressed;
+        let increment_key_pressed = arrow_right.pressed || arrow_down.pressed || page_down.pressed;
 
         let alpha = if spec.disabled { s.disabled_alpha } else { 1.0 };
         let tint = |c: Color| Color::linear_rgba(c.r, c.g, c.b, c.a * alpha);
@@ -439,7 +495,11 @@ pub mod raw {
                 NumberEditStepDirection::Decrement => contains_decrement,
                 NumberEditStepDirection::Increment => contains_increment,
             };
-            let pressed = is_active_step_button && active_direction_contains;
+            let keyboard_pressed = match direction {
+                NumberEditStepDirection::Decrement => decrement_key_pressed,
+                NumberEditStepDirection::Increment => increment_key_pressed,
+            };
+            let pressed = (is_active_step_button && active_direction_contains) || keyboard_pressed;
             let background = if pressed {
                 s.step_button.background_pressed
             } else if hovered {

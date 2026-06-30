@@ -3219,6 +3219,96 @@ fn test_number_edit_step_button_visual_appearance() {
 }
 
 #[test]
+fn test_number_edit_arrow_key_draws_stepper_button_pressed() {
+    let mut style = default_style();
+    style.step_button.background_pressed = Color::linear_rgba(0.73, 0.12, 0.31, 1.0);
+    let spec = raw::NumberEditSpec {
+        style,
+        ..default_spec(Rect::new(10.0, 10.0, 100.0, 28.0))
+    };
+    let mut state = NumberEditState {
+        value: 50.0,
+        ..Default::default()
+    };
+    let mut focus_system = FocusSystem::new();
+    focus_system.take_keyboard_focus(state.focus_id);
+    let mut text_backend = TestTextBackend::default();
+
+    let mut cmds = DrawCommands::new(1.0);
+    focus_system.begin_frame();
+    let _ = run_raw(
+        spec.clone(),
+        &mut state,
+        &Input {
+            keys_down: crate::input::KeySet::from_key(crate::input::Key::ArrowLeft),
+            ..Default::default()
+        },
+        &mut focus_system,
+        &mut text_backend,
+        &mut cmds,
+    );
+    focus_system.end_frame();
+
+    assert_eq!(
+        state.value, 50.0,
+        "held-only ArrowLeft should draw pressed without stepping the value"
+    );
+    assert!(cmds.commands().iter().any(|cmd| {
+        matches!(
+            cmd,
+            DrawCmd::FillRect { rect, color, .. }
+                if *rect == Rect::new(10.0, 10.0, 20.0, 28.0)
+                    && *color == style.step_button.background_pressed
+        )
+    }));
+    assert!(!cmds.commands().iter().any(|cmd| {
+        matches!(
+            cmd,
+            DrawCmd::FillRect { rect, color, .. }
+                if *rect == Rect::new(90.0, 10.0, 20.0, 28.0)
+                    && *color == style.step_button.background_pressed
+        )
+    }));
+
+    let mut cmds = DrawCommands::new(1.0);
+    focus_system.take_keyboard_focus(state.focus_id);
+    focus_system.begin_frame();
+    let _ = run_raw(
+        spec,
+        &mut state,
+        &Input {
+            keys_down: crate::input::KeySet::from_key(crate::input::Key::ArrowRight),
+            ..Default::default()
+        },
+        &mut focus_system,
+        &mut text_backend,
+        &mut cmds,
+    );
+    focus_system.end_frame();
+
+    assert_eq!(
+        state.value, 50.0,
+        "held-only ArrowRight should draw pressed without stepping the value"
+    );
+    assert!(cmds.commands().iter().any(|cmd| {
+        matches!(
+            cmd,
+            DrawCmd::FillRect { rect, color, .. }
+                if *rect == Rect::new(90.0, 10.0, 20.0, 28.0)
+                    && *color == style.step_button.background_pressed
+        )
+    }));
+    assert!(!cmds.commands().iter().any(|cmd| {
+        matches!(
+            cmd,
+            DrawCmd::FillRect { rect, color, .. }
+                if *rect == Rect::new(10.0, 10.0, 20.0, 28.0)
+                    && *color == style.step_button.background_pressed
+        )
+    }));
+}
+
+#[test]
 fn test_number_edit_step_buttons_increment_and_decrement_with_optional_bounds() {
     let rect = Rect::new(0.0, 0.0, 100.0, 28.0);
     let mut spec = default_spec(rect);

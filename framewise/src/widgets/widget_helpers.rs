@@ -285,6 +285,70 @@ pub fn handle_keyboard_focus(
     KeyboardFocusInteraction { focused }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum KeyPressActivation {
+    /// Activate on key press events, including key-repeat.
+    ///
+    /// Use this for Enter, arrows, PageUp/PageDown, Home, End, etc.
+    Press,
+
+    /// Activate on key release, after being armed by a key press.
+    ///
+    /// Use this for Space-style button activation.
+    Release,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) struct KeyPressInteractionSpec {
+    pub focused: bool,
+    pub disabled: bool,
+    pub key: crate::input::Key,
+    pub activation: KeyPressActivation,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub(crate) struct KeyPressInteraction {
+    /// True when this key/part should draw its pressed visual state this frame.
+    pub pressed: bool,
+    /// True when this key/part's action should run this frame.
+    pub clicked: bool,
+}
+
+pub(crate) fn handle_key_press_interaction(
+    is_active: &mut bool,
+    input: &crate::input::Input,
+    spec: KeyPressInteractionSpec,
+) -> KeyPressInteraction {
+    if spec.disabled || !spec.focused {
+        *is_active = false;
+        return KeyPressInteraction::default();
+    }
+
+    match spec.activation {
+        KeyPressActivation::Press => {
+            let pressed = input.key_down(spec.key);
+            let clicked = input.key_pressed(spec.key);
+            *is_active = pressed;
+
+            KeyPressInteraction { pressed, clicked }
+        }
+        KeyPressActivation::Release => {
+            if input.key_pressed(spec.key) {
+                *is_active = true;
+            }
+
+            let clicked = *is_active && input.key_released(spec.key);
+            let pressed = *is_active && input.key_down(spec.key);
+
+            if !input.key_down(spec.key) {
+                *is_active = false;
+            }
+
+            KeyPressInteraction { pressed, clicked }
+        }
+    }
+}
+
 /// Result of a simple single-part pressable interaction.
 #[derive(Debug, Clone, Copy, Default, PartialEq)]
 pub struct PressInteraction {
@@ -362,30 +426,39 @@ pub fn handle_press_interaction(
         focus_system.take_keyboard_focus(spec.focus_id);
     }
 
+    let mut enter_is_active = false;
+    let enter = handle_key_press_interaction(
+        &mut enter_is_active,
+        input,
+        KeyPressInteractionSpec {
+            focused: keyboard.focused,
+            disabled: spec.disabled,
+            key: crate::input::Key::Enter,
+            activation: KeyPressActivation::Press,
+        },
+    );
+    let space = handle_key_press_interaction(
+        space_is_active,
+        input,
+        KeyPressInteractionSpec {
+            focused: keyboard.focused,
+            disabled: spec.disabled,
+            key: crate::input::Key::Space,
+            activation: KeyPressActivation::Release,
+        },
+    );
+
     let mut clicked = *is_active && hover.passive_hovered && input.mouse_clicked;
-
-    if keyboard.focused && input.key_pressed(crate::input::Key::Enter) {
+    if enter.clicked || space.clicked {
         clicked = true;
-    }
-    if *space_is_active && input.key_released(crate::input::Key::Space) {
-        clicked = true;
-    }
-
-    if !keyboard.focused || !input.key_down(crate::input::Key::Space) {
-        *space_is_active = false;
-    }
-    if keyboard.focused && input.key_pressed(crate::input::Key::Space) {
-        *space_is_active = true;
     }
 
     if !input.mouse_down {
         *is_active = false;
     }
 
-    let enter_is_active = keyboard.focused && input.key_down(crate::input::Key::Enter);
-    let pressed = (*is_active && hover.passive_hovered && input.mouse_down)
-        || *space_is_active
-        || enter_is_active;
+    let pressed =
+        (*is_active && hover.passive_hovered && input.mouse_down) || enter.pressed || space.pressed;
 
     PressInteraction {
         input: InputInfo {
@@ -614,6 +687,160 @@ mod tests {
             held_cursor_policy: HeldCursorPolicy::None,
             active_contains: false,
             drag_cursor_icon,
+        }
+    }
+
+    #[test]
+    fn key_press_interaction_press_activation_clicks_and_tracks_held_state() {
+        let mut is_active = false;
+        let spec = KeyPressInteractionSpec {
+            focused: true,
+            disabled: false,
+            key: crate::input::Key::Enter,
+            activation: KeyPressActivation::Press,
+        };
+
+        let pressed = handle_key_press_interaction(
+            &mut is_active,
+            &Input {
+                keys_pressed: crate::input::KeySet::from_key(crate::input::Key::Enter),
+                keys_down: crate::input::KeySet::from_key(crate::input::Key::Enter),
+                ..Default::default()
+            },
+            spec,
+        );
+        assert!(pressed.clicked);
+        assert!(pressed.pressed);
+        assert!(is_active);
+
+        let held = handle_key_press_interaction(
+            &mut is_active,
+            &Input {
+                keys_down: crate::input::KeySet::from_key(crate::input::Key::Enter),
+                ..Default::default()
+            },
+            spec,
+        );
+        assert!(!held.clicked);
+        assert!(held.pressed);
+        assert!(is_active);
+    }
+
+    #[test]
+    fn key_press_interaction_press_activation_includes_repeat_events() {
+        let mut is_active = true;
+        let interaction = handle_key_press_interaction(
+            &mut is_active,
+            &Input {
+                keys_pressed: crate::input::KeySet::from_key(crate::input::Key::ArrowRight),
+                keys_down: crate::input::KeySet::from_key(crate::input::Key::ArrowRight),
+                ..Default::default()
+            },
+            KeyPressInteractionSpec {
+                focused: true,
+                disabled: false,
+                key: crate::input::Key::ArrowRight,
+                activation: KeyPressActivation::Press,
+            },
+        );
+
+        assert!(interaction.clicked);
+        assert!(interaction.pressed);
+    }
+
+    #[test]
+    fn key_press_interaction_release_activation_arms_holds_clicks_and_clears() {
+        let mut is_active = false;
+        let spec = KeyPressInteractionSpec {
+            focused: true,
+            disabled: false,
+            key: crate::input::Key::Space,
+            activation: KeyPressActivation::Release,
+        };
+
+        let armed = handle_key_press_interaction(
+            &mut is_active,
+            &Input {
+                keys_pressed: crate::input::KeySet::from_key(crate::input::Key::Space),
+                keys_down: crate::input::KeySet::from_key(crate::input::Key::Space),
+                ..Default::default()
+            },
+            spec,
+        );
+        assert!(armed.pressed);
+        assert!(!armed.clicked);
+        assert!(is_active);
+
+        let held = handle_key_press_interaction(
+            &mut is_active,
+            &Input {
+                keys_down: crate::input::KeySet::from_key(crate::input::Key::Space),
+                ..Default::default()
+            },
+            spec,
+        );
+        assert!(held.pressed);
+        assert!(!held.clicked);
+        assert!(is_active);
+
+        let released = handle_key_press_interaction(
+            &mut is_active,
+            &Input {
+                keys_released: crate::input::KeySet::from_key(crate::input::Key::Space),
+                ..Default::default()
+            },
+            spec,
+        );
+        assert!(!released.pressed);
+        assert!(released.clicked);
+        assert!(!is_active);
+    }
+
+    #[test]
+    fn key_press_interaction_release_activation_handles_same_frame_tap() {
+        let mut is_active = false;
+        let interaction = handle_key_press_interaction(
+            &mut is_active,
+            &Input {
+                keys_pressed: crate::input::KeySet::from_key(crate::input::Key::Space),
+                keys_released: crate::input::KeySet::from_key(crate::input::Key::Space),
+                ..Default::default()
+            },
+            KeyPressInteractionSpec {
+                focused: true,
+                disabled: false,
+                key: crate::input::Key::Space,
+                activation: KeyPressActivation::Release,
+            },
+        );
+
+        assert!(!interaction.pressed);
+        assert!(interaction.clicked);
+        assert!(!is_active);
+    }
+
+    #[test]
+    fn key_press_interaction_clears_active_when_unfocused_or_disabled() {
+        for (focused, disabled) in [(false, false), (true, true)] {
+            let mut is_active = true;
+            let interaction = handle_key_press_interaction(
+                &mut is_active,
+                &Input {
+                    keys_down: crate::input::KeySet::from_key(crate::input::Key::Space),
+                    keys_released: crate::input::KeySet::from_key(crate::input::Key::Space),
+                    ..Default::default()
+                },
+                KeyPressInteractionSpec {
+                    focused,
+                    disabled,
+                    key: crate::input::Key::Space,
+                    activation: KeyPressActivation::Release,
+                },
+            );
+
+            assert!(!interaction.pressed);
+            assert!(!interaction.clicked);
+            assert!(!is_active);
         }
     }
 
