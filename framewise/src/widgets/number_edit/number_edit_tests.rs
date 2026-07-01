@@ -20,6 +20,7 @@ fn default_spec(rect: Rect) -> raw::NumberEditSpec {
         page_step: 10.0,
         text_entry_mode: NumberEditTextEntryMode::OnDemand,
         drag_enabled: true,
+        step_buttons_enabled: true,
         value_fill_enabled: true,
         value_formatter: default_number_edit_value_formatter,
         time: 0.0,
@@ -177,19 +178,25 @@ where
 }
 
 #[test]
-fn test_number_edit_custom_formatter_affects_measurement_and_rendering() {
+fn test_number_edit_measurement_and_rendering() {
     let style = NumberEditStyle::from_theme(&crate::theme::Theme::framewise());
     let default_formatter = default_number_edit_value_formatter;
     let integer_formatter = |v: f32| format!("{v:.0}");
     let default_spec = raw::NumberEditPreLayoutSpec {
         style,
         value: 50.0,
+        step_buttons_enabled: true,
         value_formatter: &default_formatter,
     };
     let integer_spec = raw::NumberEditPreLayoutSpec {
         style,
         value: 50.0,
+        step_buttons_enabled: true,
         value_formatter: &integer_formatter,
+    };
+    let no_step_buttons_spec = raw::NumberEditPreLayoutSpec {
+        step_buttons_enabled: false,
+        ..default_spec
     };
     let mut text_backend = TestTextBackend::default();
     let default_size = raw::pre_layout_number_edit(
@@ -204,11 +211,22 @@ fn test_number_edit_custom_formatter_affects_measurement_and_rendering() {
         &mut text_backend,
     )
     .size_request;
+    let no_step_buttons_size = raw::pre_layout_number_edit(
+        &no_step_buttons_spec,
+        crate::layout::SizeOffer::UNBOUNDED,
+        &mut text_backend,
+    )
+    .size_request;
 
     assert!(
         integer_size.preferred.unwrap().x < default_size.preferred.unwrap().x,
         "integer formatter should request less width than default formatter"
     );
+    let default_w = default_size.preferred.unwrap().x;
+    let no_step_buttons_w = no_step_buttons_size.preferred.unwrap().x;
+    let expected_no_step_buttons_w = "50.00".len() as f32 * 8.0 + style.text_pad_x * 2.0;
+    assert!(default_w > no_step_buttons_w);
+    assert_eq!(no_step_buttons_w, expected_no_step_buttons_w);
 
     let spec = raw::NumberEditSpec {
         layer: Layer::default(),
@@ -219,6 +237,7 @@ fn test_number_edit_custom_formatter_affects_measurement_and_rendering() {
         page_step: 10.0,
         text_entry_mode: NumberEditTextEntryMode::OnDemand,
         drag_enabled: true,
+        step_buttons_enabled: true,
         value_fill_enabled: true,
         value_formatter: integer_formatter,
         time: 0.0,
@@ -262,6 +281,7 @@ fn test_number_edit_visual_normal() {
         page_step: 10.0,
         text_entry_mode: NumberEditTextEntryMode::OnDemand,
         drag_enabled: true,
+        step_buttons_enabled: true,
         value_fill_enabled: true,
         value_formatter: default_number_edit_value_formatter,
         time: 0.0,
@@ -348,6 +368,46 @@ fn test_number_edit_visual_normal() {
 }
 
 #[test]
+fn test_number_edit_visual_without_step_buttons_uses_full_value_rect() {
+    let rect = Rect::new(10.0, 10.0, 100.0, 28.0);
+    let mut spec = default_spec(rect);
+    spec.step_buttons_enabled = false;
+    spec.value_fill_enabled = true;
+    spec.text_entry_mode = NumberEditTextEntryMode::OnDemand;
+    let style = spec.style;
+
+    let (_res, cmds) = number_edit(spec, 50.0);
+
+    assert!(cmds.commands().contains(&DrawCmd::FillRect {
+        rect,
+        color: style.background,
+        z: 0,
+    }));
+    assert!(cmds.commands().contains(&DrawCmd::FillRect {
+        rect: Rect::new(10.0, 10.0, 50.0, 28.0),
+        color: style.value_fill,
+        z: 0,
+    }));
+    assert!(cmds.commands().contains(&DrawCmd::BorderRect {
+        rect,
+        color: style.border.unwrap().color,
+        width: style.border.unwrap().width,
+        placement: crate::BorderPlacement::Inside,
+        z: 0,
+    }));
+    assert!(cmds
+        .commands()
+        .iter()
+        .any(|cmd| matches!(cmd, DrawCmd::GlyphRun { color, .. } if *color == style.value_text)));
+    assert!(!cmds.commands().iter().any(
+        |cmd| matches!(cmd, DrawCmd::GlyphRun { color, .. } if *color == style.step_button.glyph_color)
+    ));
+    assert!(!cmds.glyphs().iter().any(|glyph| {
+        glyph.token == PreparedGlyphToken(8249) || glyph.token == PreparedGlyphToken(8250)
+    }));
+}
+
+#[test]
 fn test_number_edit_visual_editing() {
     let spec = NumberEditSpec {
         layer: Layer::default(),
@@ -358,6 +418,7 @@ fn test_number_edit_visual_editing() {
         page_step: 10.0,
         text_entry_mode: NumberEditTextEntryMode::OnDemand,
         drag_enabled: true,
+        step_buttons_enabled: true,
         value_fill_enabled: true,
         value_formatter: default_number_edit_value_formatter,
         time: 0.0,
@@ -479,6 +540,41 @@ fn test_number_edit_visual_editing() {
 }
 
 #[test]
+fn test_number_edit_always_without_step_buttons_editor_uses_full_rect() {
+    let rect = Rect::new(10.0, 10.0, 100.0, 28.0);
+    let mut spec = default_spec(rect);
+    spec.step_buttons_enabled = false;
+    spec.text_entry_mode = NumberEditTextEntryMode::Always;
+    let mut state = NumberEditState {
+        value: 12.0,
+        ..Default::default()
+    };
+    let mut focus_system = FocusSystem::new();
+    let mut text_backend = TestTextBackend::default();
+    let mut cmds = DrawCommands::new(1.0);
+
+    focus_system.begin_frame();
+    let _ = run_raw(
+        spec,
+        &mut state,
+        &Input::default(),
+        &mut focus_system,
+        &mut text_backend,
+        &mut cmds,
+    );
+    focus_system.end_frame();
+
+    assert!(state.edit.is_editing());
+    assert!(cmds
+        .commands()
+        .iter()
+        .any(|cmd| matches!(cmd, DrawCmd::PushClip { rect: clip } if *clip == rect)));
+    assert!(!cmds.glyphs().iter().any(|glyph| {
+        glyph.token == PreparedGlyphToken(8249) || glyph.token == PreparedGlyphToken(8250)
+    }));
+}
+
+#[test]
 fn test_number_edit_visual_editing_hovered() {
     let spec = NumberEditSpec {
         layer: Layer::default(),
@@ -489,6 +585,7 @@ fn test_number_edit_visual_editing_hovered() {
         page_step: 10.0,
         text_entry_mode: NumberEditTextEntryMode::OnDemand,
         drag_enabled: true,
+        step_buttons_enabled: true,
         value_fill_enabled: true,
         value_formatter: default_number_edit_value_formatter,
         time: 0.0,
@@ -609,6 +706,7 @@ fn test_number_edit_visual_hovered_value_area_draws_arrows() {
         page_step: 10.0,
         text_entry_mode: NumberEditTextEntryMode::OnDemand,
         drag_enabled: true,
+        step_buttons_enabled: true,
         value_fill_enabled: true,
         value_formatter: default_number_edit_value_formatter,
         time: 0.0,
@@ -754,6 +852,7 @@ fn test_number_edit_visual_active() {
         page_step: 10.0,
         text_entry_mode: NumberEditTextEntryMode::OnDemand,
         drag_enabled: true,
+        step_buttons_enabled: true,
         value_fill_enabled: true,
         value_formatter: default_number_edit_value_formatter,
         time: 0.0,
@@ -903,6 +1002,7 @@ fn test_number_edit_visual_min_value() {
         page_step: 10.0,
         text_entry_mode: NumberEditTextEntryMode::OnDemand,
         drag_enabled: true,
+        step_buttons_enabled: true,
         value_fill_enabled: true,
         value_formatter: default_number_edit_value_formatter,
         time: 0.0,
@@ -1011,6 +1111,7 @@ fn test_number_edit_click_takes_focus() {
         page_step: 10.0,
         text_entry_mode: NumberEditTextEntryMode::OnDemand,
         drag_enabled: true,
+        step_buttons_enabled: true,
         value_fill_enabled: true,
         value_formatter: default_number_edit_value_formatter,
         time: 0.0,
@@ -1070,6 +1171,7 @@ fn test_number_edit_clipped_click_does_not_take_focus() {
         page_step: 10.0,
         text_entry_mode: NumberEditTextEntryMode::OnDemand,
         drag_enabled: true,
+        step_buttons_enabled: true,
         value_fill_enabled: true,
         value_formatter: default_number_edit_value_formatter,
         time: 0.0,
@@ -1258,6 +1360,7 @@ fn test_spec_new_from_theme_applies_theme_style() {
     assert_eq!(spec.step, 1.0);
     assert_eq!(spec.page_step, 10.0);
     assert!(spec.drag_enabled);
+    assert!(spec.step_buttons_enabled);
     assert!(spec.value_fill_enabled);
     assert!(!spec.disabled);
 }
@@ -1593,6 +1696,74 @@ fn test_number_edit_drag_updates_value() {
         state.value, 80.0,
         "Value should update proportionally to mouse drag"
     );
+}
+
+#[test]
+fn test_number_edit_without_step_buttons_old_button_region_drags_value() {
+    let rect = Rect::new(0.0, 0.0, 100.0, 28.0);
+    let mut spec = default_spec(rect);
+    spec.step_buttons_enabled = false;
+    spec.drag_enabled = true;
+    spec.text_entry_mode = NumberEditTextEntryMode::OnDemand;
+    let mut state = NumberEditState {
+        value: 50.0,
+        ..Default::default()
+    };
+    let mut focus_system = FocusSystem::new();
+    let mut text_backend = TestTextBackend::default();
+    let mut cmds = DrawCommands::new(1.0);
+    let mut input = Input {
+        mouse_pos: right_arrow_pos(rect),
+        ..Default::default()
+    };
+
+    focus_system.begin_frame();
+    let _ = run_raw(
+        spec.clone(),
+        &mut state,
+        &input,
+        &mut focus_system,
+        &mut text_backend,
+        &mut cmds,
+    );
+    focus_system.end_frame();
+
+    input.mouse_pressed = true;
+    input.mouse_down = true;
+    focus_system.begin_frame();
+    let result = run_raw(
+        spec.clone(),
+        &mut state,
+        &input,
+        &mut focus_system,
+        &mut text_backend,
+        &mut cmds,
+    );
+    focus_system.end_frame();
+
+    assert_eq!(state.value, 50.0);
+    assert!(!state.is_arrow_stepping);
+    assert_eq!(state.arrow_step_direction, None);
+    assert!(state.press_drag.dragging);
+    assert_eq!(
+        result.cursor_icon,
+        Some(crate::output::CursorIcon::EwResize)
+    );
+
+    input.mouse_pressed = false;
+    input.mouse_pos = Vec2::new(100.0, rect.y + rect.h * 0.5);
+    focus_system.begin_frame();
+    let _ = run_raw(
+        spec,
+        &mut state,
+        &input,
+        &mut focus_system,
+        &mut text_backend,
+        &mut cmds,
+    );
+    focus_system.end_frame();
+
+    assert!((state.value - 60.0).abs() < 0.0001);
 }
 
 #[test]
@@ -2098,6 +2269,7 @@ fn test_number_edit_min_greater_than_max_keyboard_does_not_panic() {
         page_step: 10.0,
         text_entry_mode: NumberEditTextEntryMode::OnDemand,
         drag_enabled: true,
+        step_buttons_enabled: true,
         value_fill_enabled: true,
         value_formatter: default_number_edit_value_formatter,
         time: 0.0,
@@ -3983,6 +4155,7 @@ fn test_number_edit_step_button_visual_appearance() {
     let pre_layout_spec = raw::NumberEditPreLayoutSpec {
         style,
         value: 50.0,
+        step_buttons_enabled: true,
         value_formatter: &value_formatter,
     };
     let mut text_backend = TestTextBackend::default()

@@ -986,6 +986,14 @@ impl Default for SpecWidgetsState {
                     value: 12.0,
                     ..Default::default()
                 },
+                NumberEditState {
+                    value: 12.0,
+                    ..Default::default()
+                },
+                NumberEditState {
+                    value: 50.0,
+                    ..Default::default()
+                },
             ],
             #[cfg(all(
                 feature = "select",
@@ -2697,59 +2705,27 @@ fn section_04_sliders<CF>(
         b.finish();
     }
 
-    group_y(b, "numeric stepper  ·  colour swatch");
+    group_y(b, "numeric stepper");
     {
         let mut b = b.child_with_layout(
             ColumnLayoutParams::fixed(content_w, b.theme.h_md),
             ManualLayout,
         );
-        let stepper_x = 0.0;
-        let origin = b.layout(Rect::new(0.0, 0.0, 0.0, 0.0), SizeRequest::UNKNOWN);
-        let abs_rect = |x: f32, y: f32, w: f32, h: f32| Rect::new(origin.x + x, origin.y + y, w, h);
         let local_rect = |x: f32, y: f32, w: f32, h: f32| Rect::new(x, y, w, h);
-        b.append_cmds(DrawCommands::from_vec(
-            vec![
-                DrawCmd::FillRect {
-                    rect: abs_rect(stepper_x, 0.0, 64.0, b.theme.h_md),
-                    color: b.theme.paper_hover,
-                    z: 0,
-                },
-                DrawCmd::BorderRect {
-                    rect: abs_rect(stepper_x, 0.0, 64.0, b.theme.h_md),
-                    color: b.theme.line_on_paper,
-                    width: 1.0,
-                    placement: framewise::BorderPlacement::Inside,
-                    z: 0,
-                },
-                DrawCmd::FillRect {
-                    rect: abs_rect(stepper_x + 64.0, 0.0, 40.0, b.theme.h_md),
-                    color: b.theme.paper_elev,
-                    z: 0,
-                },
-                DrawCmd::BorderRect {
-                    rect: abs_rect(stepper_x + 64.0, 0.0, 40.0, b.theme.h_md),
-                    color: b.theme.line_on_paper,
-                    width: 1.0,
-                    placement: framewise::BorderPlacement::Inside,
-                    z: 0,
-                },
-            ],
-            b.cmds.physical_pixels_per_logical_pixel(),
-        ));
-        for (text, rect, color) in [
-            ("padding", local_rect(6.0, 7.0, 56.0, 14.0), b.theme.muted),
-            ("12", local_rect(72.0, 7.0, 24.0, 14.0), b.theme.ink),
-        ] {
-            let spec = LabelSpec::new(text).style(LabelStyle {
-                text_style: framewise::TextStyle {
-                    size: b.theme.text_sm,
-                    ..(LabelStyle::from_theme(&b.theme)).text_style
-                },
-                text_color: color,
-                ..LabelStyle::from_theme(&b.theme)
-            });
-            label(spec, rect, &mut b);
-        }
+
+        prefixed_number_edit(
+            "padding",
+            NumberEditSpec::new_from_theme(&b.theme)
+                .range(0.0, 100.0)
+                .drag_enabled(false)
+                .value_fill_enabled(false)
+                .text_entry_mode(NumberEditTextEntryMode::Always)
+                .step_buttons_enabled(false)
+                .style(NumberEditStyle::compact_stepper_from_theme(&b.theme)),
+            local_rect(0.0, 0.0, 110.0, b.theme.h_md),
+            &mut state.number_edit_state[3],
+            &mut b,
+        );
 
         number_edit(
             NumberEditSpec::new_from_theme(&b.theme)
@@ -2759,12 +2735,34 @@ fn section_04_sliders<CF>(
                 .text_entry_mode(NumberEditTextEntryMode::Always)
                 .style(NumberEditStyle::compact_stepper_from_theme(&b.theme)),
             local_rect(120.0, 0.0, 96.0, b.theme.h_sm),
-            &mut state.number_edit_state[3],
+            &mut state.number_edit_state[4],
             &mut b,
         );
 
+        prefixed_number_edit(
+            "opacity",
+            NumberEditSpec::new_from_theme(&b.theme)
+                .range(0.0, 100.0)
+                .step_buttons_enabled(false)
+                .text_entry_mode(NumberEditTextEntryMode::OnDemand)
+                .style(NumberEditStyle::compact_stepper_from_theme(&b.theme)),
+            local_rect(220.0, 0.0, 120.0, b.theme.h_sm),
+            &mut state.number_edit_state[5],
+            &mut b,
+        );
+
+        b.finish();
+    }
+
+    group_y(b, "colour swatch");
+    {
+        let mut b = b.child_with_layout(
+            ColumnLayoutParams::fixed(content_w, b.theme.h_md),
+            ManualLayout,
+        );
+        let local_rect = |x: f32, y: f32, w: f32, h: f32| Rect::new(x, y, w, h);
         let swatches: &[(Color, &str)] = &[(b.theme.ink, "#15130f"), (b.theme.rust, "#c25a2c")];
-        let mut x = 220.0;
+        let mut x = 0.0;
         for (color, hex) in swatches {
             let spec = ColorSwatchSpec::new(*color).border(Some(framewise::types::Stroke::new(
                 b.theme.line_on_paper,

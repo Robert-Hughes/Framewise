@@ -38,6 +38,7 @@ pub mod raw {
         pub page_step: f32,
         pub text_entry_mode: super::NumberEditTextEntryMode,
         pub drag_enabled: bool,
+        pub step_buttons_enabled: bool,
         pub value_fill_enabled: bool,
         pub value_formatter: F,
         pub time: f64,
@@ -52,6 +53,7 @@ pub mod raw {
     {
         pub style: super::NumberEditStyle,
         pub value: f32,
+        pub step_buttons_enabled: bool,
         pub value_formatter: &'f F,
     }
 
@@ -102,8 +104,12 @@ pub mod raw {
             crate::text::TextBounds::UNBOUNDED,
         );
         let value_w = value_layout.metrics().logical_size.x + s.text_pad_x * 2.0;
-        let step_button_w = number_edit_step_button_width(s.step_button, text_backend);
-        let preferred_w = value_w + step_button_w * 2.0;
+        let preferred_w = if spec.step_buttons_enabled {
+            let step_button_w = number_edit_step_button_width(s.step_button, text_backend);
+            value_w + step_button_w * 2.0
+        } else {
+            value_w
+        };
         crate::layout::SizeRequest::preferred(Vec2::new(preferred_w, s.height))
     }
 
@@ -138,27 +144,15 @@ pub mod raw {
                 clamp_min,
                 clamp_max,
             );
+            if !spec.step_buttons_enabled {
+                state.is_arrow_stepping = false;
+                state.arrow_step_direction = None;
+            }
         }
 
         let s = spec.style;
-        let step_button_w =
-            number_edit_step_button_width(s.step_button, text_backend).min(spec.rect.w * 0.5);
-
-        // All interaction and drawing below split the full control into always
-        // present step button regions and the central value/edit area.
-        let decrement_rect = Rect::new(spec.rect.x, spec.rect.y, step_button_w, spec.rect.h);
-        let increment_rect = Rect::new(
-            spec.rect.right() - step_button_w,
-            spec.rect.y,
-            step_button_w,
-            spec.rect.h,
-        );
-        let value_rect = Rect::new(
-            spec.rect.x + step_button_w,
-            spec.rect.y,
-            (spec.rect.w - step_button_w * 2.0).max(0.0),
-            spec.rect.h,
-        );
+        let parts = number_edit_parts(&spec, text_backend);
+        let value_rect = parts.value_rect;
 
         let is_visible = spec.clip_rect.is_none_or(|c| c.contains(input.mouse_pos));
         let contains = spec.rect.contains(input.mouse_pos) && is_visible;
@@ -167,26 +161,30 @@ pub mod raw {
             focus_system.claim_hover(state.focus_id);
         }
         let is_hover_active = focus_system.is_hover_active(state.focus_id);
-        let decrement_hover = crate::widgets::widget_helpers::handle_hover_interaction(
-            decrement_rect,
-            spec.clip_rect,
-            spec.disabled,
-            is_hover_active,
-            state.is_arrow_stepping
-                && state.arrow_step_direction == Some(NumberEditStepDirection::Decrement),
-            Some(crate::output::CursorIcon::Pointer),
-            input,
-        );
-        let increment_hover = crate::widgets::widget_helpers::handle_hover_interaction(
-            increment_rect,
-            spec.clip_rect,
-            spec.disabled,
-            is_hover_active,
-            state.is_arrow_stepping
-                && state.arrow_step_direction == Some(NumberEditStepDirection::Increment),
-            Some(crate::output::CursorIcon::Pointer),
-            input,
-        );
+        let decrement_hover = parts.decrement_rect.map(|rect| {
+            crate::widgets::widget_helpers::handle_hover_interaction(
+                rect,
+                spec.clip_rect,
+                spec.disabled,
+                is_hover_active,
+                state.is_arrow_stepping
+                    && state.arrow_step_direction == Some(NumberEditStepDirection::Decrement),
+                Some(crate::output::CursorIcon::Pointer),
+                input,
+            )
+        });
+        let increment_hover = parts.increment_rect.map(|rect| {
+            crate::widgets::widget_helpers::handle_hover_interaction(
+                rect,
+                spec.clip_rect,
+                spec.disabled,
+                is_hover_active,
+                state.is_arrow_stepping
+                    && state.arrow_step_direction == Some(NumberEditStepDirection::Increment),
+                Some(crate::output::CursorIcon::Pointer),
+                input,
+            )
+        });
         let text_edit_visible = state.edit.is_editing();
         let value_hover = crate::widgets::widget_helpers::handle_hover_interaction(
             value_rect,
@@ -219,13 +217,13 @@ pub mod raw {
         );
 
         let mut started_editing_this_frame = false;
-        let contains_decrement = decrement_hover.contains;
-        let contains_increment = increment_hover.contains;
-        let hovered_decrement = decrement_hover.passive_hovered;
-        let hovered_increment = increment_hover.passive_hovered;
-        let start_step_direction = if decrement_hover.can_start {
+        let contains_decrement = decrement_hover.is_some_and(|hover| hover.contains);
+        let contains_increment = increment_hover.is_some_and(|hover| hover.contains);
+        let hovered_decrement = decrement_hover.is_some_and(|hover| hover.passive_hovered);
+        let hovered_increment = increment_hover.is_some_and(|hover| hover.passive_hovered);
+        let start_step_direction = if decrement_hover.is_some_and(|hover| hover.can_start) {
             Some(NumberEditStepDirection::Decrement)
-        } else if increment_hover.can_start {
+        } else if increment_hover.is_some_and(|hover| hover.can_start) {
             Some(NumberEditStepDirection::Increment)
         } else {
             None
@@ -273,12 +271,12 @@ pub mod raw {
         };
 
         // Mouse interaction: the central scrub lane is display-mode only, but
-        // Always mode still allows the step buttons while the editor is visible.
+        // Always mode still allows enabled step buttons while the editor is visible.
         let editing = state.edit.is_editing();
-        let step_buttons_enabled =
-            !editing || spec.text_entry_mode == super::NumberEditTextEntryMode::Always;
+        let mouse_step_buttons_enabled = spec.step_buttons_enabled
+            && (!editing || spec.text_entry_mode == super::NumberEditTextEntryMode::Always);
         let value_drag_enabled = spec.drag_enabled && !editing;
-        if !spec.disabled && step_buttons_enabled {
+        if !spec.disabled && (mouse_step_buttons_enabled || value_drag_enabled) {
             let drag_threshold = if value_drag_enabled {
                 DEFAULT_DRAG_THRESHOLD
             } else {
@@ -311,14 +309,14 @@ pub mod raw {
                 state.drag_start_value = state.value;
             }
 
-            if decrement_hover.can_start
-                || increment_hover.can_start
+            if decrement_hover.is_some_and(|hover| hover.can_start)
+                || increment_hover.is_some_and(|hover| hover.can_start)
                 || (value_hover.can_start && value_drag_enabled)
             {
                 focus_system.take_keyboard_focus(state.focus_id);
             }
 
-            if let Some(direction) = start_step_direction {
+            if let Some(direction) = start_step_direction.filter(|_| mouse_step_buttons_enabled) {
                 let step_allowed = spec.text_entry_mode != super::NumberEditTextEntryMode::Always
                     || try_commit_number_edit_keep_editing(state, clamp_min, clamp_max);
                 if step_allowed {
@@ -340,7 +338,8 @@ pub mod raw {
                 );
             }
 
-            if state.is_arrow_stepping
+            if mouse_step_buttons_enabled
+                && state.is_arrow_stepping
                 && input.mouse_down
                 && active_step_contains(state, contains_decrement, contains_increment)
             {
@@ -506,17 +505,16 @@ pub mod raw {
         }
 
         for (direction, rect, hovered) in [
-            (
-                NumberEditStepDirection::Decrement,
-                decrement_rect,
-                hovered_decrement,
-            ),
-            (
-                NumberEditStepDirection::Increment,
-                increment_rect,
-                hovered_increment,
-            ),
-        ] {
+            parts
+                .decrement_rect
+                .map(|rect| (NumberEditStepDirection::Decrement, rect, hovered_decrement)),
+            parts
+                .increment_rect
+                .map(|rect| (NumberEditStepDirection::Increment, rect, hovered_increment)),
+        ]
+        .into_iter()
+        .flatten()
+        {
             let is_active_step_button =
                 state.is_arrow_stepping && state.arrow_step_direction == Some(direction);
             let active_direction_contains = match direction {
@@ -628,24 +626,28 @@ pub mod raw {
             );
         }
 
-        draw_step_button_glyph(
-            decrement_rect,
-            s.step_button.decrement_glyph,
-            s.step_button,
-            tint(s.step_button.glyph_color),
-            spec.layer,
-            text_backend,
-            cmds,
-        );
-        draw_step_button_glyph(
-            increment_rect,
-            s.step_button.increment_glyph,
-            s.step_button,
-            tint(s.step_button.glyph_color),
-            spec.layer,
-            text_backend,
-            cmds,
-        );
+        if let Some(decrement_rect) = parts.decrement_rect {
+            draw_step_button_glyph(
+                decrement_rect,
+                s.step_button.decrement_glyph,
+                s.step_button,
+                tint(s.step_button.glyph_color),
+                spec.layer,
+                text_backend,
+                cmds,
+            );
+        }
+        if let Some(increment_rect) = parts.increment_rect {
+            draw_step_button_glyph(
+                increment_rect,
+                s.step_button.increment_glyph,
+                s.step_button,
+                tint(s.step_button.glyph_color),
+                spec.layer,
+                text_backend,
+                cmds,
+            );
+        }
 
         // Border pushed at the very end to draw on top of the value fill.
         let tinted_border = s.border.map(|b| Stroke::new(tint(b.color), b.width));
@@ -672,8 +674,12 @@ pub mod raw {
             let clicked_outside_text_edit =
                 input.mouse_pressed && !value_rect.contains(input.mouse_pos);
             let clicked_step_button = input.mouse_pressed
-                && (decrement_rect.contains(input.mouse_pos)
-                    || increment_rect.contains(input.mouse_pos));
+                && (parts
+                    .decrement_rect
+                    .is_some_and(|rect| rect.contains(input.mouse_pos))
+                    || parts
+                        .increment_rect
+                        .is_some_and(|rect| rect.contains(input.mouse_pos)));
             if editor_has_keyboard_focus && input.key_pressed(crate::input::Key::Escape) {
                 if spec.text_entry_mode == super::NumberEditTextEntryMode::Always {
                     reset_number_edit_draft_from_value(state);
@@ -720,17 +726,15 @@ pub mod raw {
             sync_number_edit_draft_from_value_if_clean_and_unfocused(state, focus_system);
         }
 
-        let hovered = decrement_hover.passive_hovered
-            || increment_hover.passive_hovered
-            || value_hover.passive_hovered;
+        let hovered = hovered_decrement || hovered_increment || value_hover.passive_hovered;
 
         let cursor_icon = if state.edit.is_editing() {
             edit_cursor_icon
         } else {
             press_drag
                 .cursor_icon
-                .or(decrement_hover.cursor_icon)
-                .or(increment_hover.cursor_icon)
+                .or(decrement_hover.and_then(|hover| hover.cursor_icon))
+                .or(increment_hover.and_then(|hover| hover.cursor_icon))
                 .or(value_hover.cursor_icon)
         };
         let active_step = state.is_arrow_stepping && !spec.disabled;
@@ -1007,6 +1011,52 @@ fn active_step_contains(
         Some(NumberEditStepDirection::Decrement) => contains_decrement,
         Some(NumberEditStepDirection::Increment) => contains_increment,
         None => false,
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+struct NumberEditParts {
+    decrement_rect: Option<Rect>,
+    value_rect: Rect,
+    increment_rect: Option<Rect>,
+}
+
+fn number_edit_parts<T: TextBackend, F>(
+    spec: &raw::NumberEditSpec<F>,
+    text_backend: &mut T,
+) -> NumberEditParts
+where
+    F: Fn(f32) -> String,
+{
+    if !spec.step_buttons_enabled {
+        return NumberEditParts {
+            decrement_rect: None,
+            value_rect: spec.rect,
+            increment_rect: None,
+        };
+    }
+
+    let step_button_w =
+        number_edit_step_button_width(spec.style.step_button, text_backend).min(spec.rect.w * 0.5);
+    NumberEditParts {
+        decrement_rect: Some(Rect::new(
+            spec.rect.x,
+            spec.rect.y,
+            step_button_w,
+            spec.rect.h,
+        )),
+        value_rect: Rect::new(
+            spec.rect.x + step_button_w,
+            spec.rect.y,
+            (spec.rect.w - step_button_w * 2.0).max(0.0),
+            spec.rect.h,
+        ),
+        increment_rect: Some(Rect::new(
+            spec.rect.right() - step_button_w,
+            spec.rect.y,
+            step_button_w,
+            spec.rect.h,
+        )),
     }
 }
 
@@ -1316,6 +1366,10 @@ where
     ///
     /// Ignored when `text_entry_mode` is `NumberEditTextEntryMode::Always`.
     pub drag_enabled: bool,
+    /// Shows clickable decrement/increment step buttons around the value area.
+    ///
+    /// Keyboard stepping remains available when this is false.
+    pub step_buttons_enabled: bool,
     /// Enables the proportional value fill in the central value area.
     ///
     /// The fill is shown only while the value area is in display mode, not while
@@ -1335,6 +1389,7 @@ impl Default for NumberEditSpec<DefaultNumberEditValueFormatter> {
             page_step: 10.0,
             text_entry_mode: NumberEditTextEntryMode::OnDemand,
             drag_enabled: true,
+            step_buttons_enabled: true,
             value_fill_enabled: true,
             value_formatter: default_number_edit_value_formatter,
             disabled: false,
@@ -1418,6 +1473,16 @@ where
         self
     }
 
+    pub fn step_buttons_enabled(mut self, enabled: bool) -> Self {
+        self.step_buttons_enabled = enabled;
+        self
+    }
+
+    pub fn without_step_buttons(mut self) -> Self {
+        self.step_buttons_enabled = false;
+        self
+    }
+
     pub fn value_fill_enabled(mut self, enabled: bool) -> Self {
         self.value_fill_enabled = enabled;
         self
@@ -1435,6 +1500,7 @@ where
             page_step: self.page_step,
             text_entry_mode: self.text_entry_mode,
             drag_enabled: self.drag_enabled,
+            step_buttons_enabled: self.step_buttons_enabled,
             value_fill_enabled: self.value_fill_enabled,
             value_formatter,
             disabled: self.disabled,
@@ -1469,6 +1535,7 @@ where
         page_step: spec.page_step,
         text_entry_mode: spec.text_entry_mode,
         drag_enabled: spec.drag_enabled,
+        step_buttons_enabled: spec.step_buttons_enabled,
         value_fill_enabled: spec.value_fill_enabled,
         value_formatter: spec.value_formatter,
         time: ctx.time,
@@ -1510,6 +1577,7 @@ where
     let pre_layout_spec = raw::NumberEditPreLayoutSpec {
         style: spec.style,
         value: state.value,
+        step_buttons_enabled: spec.step_buttons_enabled,
         value_formatter: &spec.value_formatter,
     };
     let offer = ctx.peek_offer(layout_params.clone());
@@ -1544,6 +1612,7 @@ where
     let pre_layout_spec = raw::NumberEditPreLayoutSpec {
         style: spec.style,
         value: state.value,
+        step_buttons_enabled: spec.step_buttons_enabled,
         value_formatter: &spec.value_formatter,
     };
     let pre_layout = raw::pre_layout_number_edit(&pre_layout_spec, child_offer, ctx.text_backend);
@@ -1585,6 +1654,7 @@ where
         page_step: spec.page_step,
         text_entry_mode: spec.text_entry_mode,
         drag_enabled: spec.drag_enabled,
+        step_buttons_enabled: spec.step_buttons_enabled,
         value_fill_enabled: spec.value_fill_enabled,
         value_formatter: spec.value_formatter,
         disabled: spec.disabled,
