@@ -310,6 +310,7 @@ impl App {
                     text_backend,
                 )
             }
+            #[cfg(feature = "page_frame_demo")]
             AppPage::FrameDemo => {
                 #[cfg(feature = "page_frame_demo")]
                 {
@@ -334,6 +335,7 @@ impl App {
                     text_backend,
                 )
             }
+            #[cfg(feature = "page_layout_demo")]
             AppPage::LayoutDemo => {
                 #[cfg(feature = "page_layout_demo")]
                 {
@@ -358,6 +360,7 @@ impl App {
                     text_backend,
                 )
             }
+            #[cfg(feature = "page_label_demo")]
             AppPage::LabelDemo => {
                 #[cfg(feature = "page_label_demo")]
                 {
@@ -382,6 +385,7 @@ impl App {
                     text_backend,
                 )
             }
+            #[cfg(feature = "page_text_edit")]
             AppPage::TextEditDemo => {
                 #[cfg(feature = "page_text_edit")]
                 {

@@ -13,6 +13,15 @@ use crate::{
     },
 };
 
+#[cfg(feature = "number_edit")]
+#[path = "slider_with_editor.rs"]
+mod slider_with_editor;
+
+#[cfg(feature = "number_edit")]
+pub use slider_with_editor::{
+    slider_with_editor, SliderWithEditorResult, SliderWithEditorSpec, SliderWithEditorState,
+};
+
 pub mod raw {
     use super::*;
 

@@ -1512,7 +1512,7 @@ where
 
 // ── High-level widget function ───────────────────────────────────────────────────
 
-fn run_number_edit_resolved_rect<T: TextBackend, S: LayoutState, CF, F>(
+pub(crate) fn run_number_edit_at_rect<T: TextBackend, S: LayoutState, CF, F>(
     spec: NumberEditSpec<F>,
     rect: Rect,
     pre_layout: raw::NumberEditPreLayoutResult,
@@ -1580,7 +1580,7 @@ where
     let offer = ctx.peek_offer(layout_params.clone());
     let pre_layout = raw::pre_layout_number_edit(&pre_layout_spec, offer, ctx.text_backend);
     let rect = ctx.layout(layout_params, pre_layout.size_request);
-    run_number_edit_resolved_rect(spec, rect, pre_layout, state, ctx)
+    run_number_edit_at_rect(spec, rect, pre_layout, state, ctx)
 }
 
 /// High-level number edit with an integrated leading prefix segment.
@@ -1656,8 +1656,7 @@ where
         value_formatter: spec.value_formatter,
         disabled: spec.disabled,
     };
-    let result =
-        run_number_edit_resolved_rect(child_spec, layout.child_rect, pre_layout, state, ctx);
+    let result = run_number_edit_at_rect(child_spec, layout.child_rect, pre_layout, state, ctx);
 
     draw_prefixed_control_prefix_and_chrome(
         PrefixedControlDrawSpec {

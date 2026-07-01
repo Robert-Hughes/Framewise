@@ -124,6 +124,10 @@ pub use slider::{
     DefaultSliderValueFormatter, InteractiveColor, Orientation, ScrollClaimPolicy, SegmentStyle,
     SliderPart, SliderResult, SliderSpec, SliderState, SliderStyle, SliderValue, ThumbStyle,
 };
+#[cfg(all(feature = "slider", feature = "number_edit"))]
+pub use slider::{
+    slider_with_editor, SliderWithEditorResult, SliderWithEditorSpec, SliderWithEditorState,
+};
 #[cfg(feature = "spinner")]
 pub use spinner::{spinner, SpinnerResult, SpinnerSpec, SpinnerStyle};
 #[cfg(feature = "status")]

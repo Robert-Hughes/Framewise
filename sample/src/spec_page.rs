@@ -83,6 +83,9 @@ use framewise::widgets::slider::{
     slider, value_labelled_slider, Orientation, ScrollClaimPolicy, SliderPart, SliderSpec,
     SliderState, SliderStyle, SliderValue, TrackMarksStyle,
 };
+#[cfg(all(feature = "slider", feature = "number_edit"))]
+#[allow(unused_imports)]
+use framewise::widgets::slider::{slider_with_editor, SliderWithEditorSpec, SliderWithEditorState};
 #[cfg(feature = "spinner")]
 #[allow(unused_imports)]
 use framewise::widgets::spinner::{spinner, SpinnerSpec};
@@ -642,6 +645,8 @@ pub struct SpecWidgetsState {
     #[cfg(all(feature = "slider", feature = "number_edit", feature = "color_swatch"))]
     pub slider4_state: SliderState, // stepped 0–9
     #[cfg(all(feature = "slider", feature = "number_edit", feature = "color_swatch"))]
+    pub slider_with_editor_state: SliderWithEditorState,
+    #[cfg(all(feature = "slider", feature = "number_edit", feature = "color_swatch"))]
     pub slider_range_state: SliderState,
     #[cfg(all(feature = "slider", feature = "number_edit", feature = "color_swatch"))]
     pub number_edit_state: Vec<NumberEditState>, // X(320), Y(144), H(400, disabled) — W stays fake
@@ -929,6 +934,17 @@ impl Default for SpecWidgetsState {
             slider4_state: SliderState {
                 value: SliderValue::Single(3.0),
                 ..Default::default()
+            },
+            #[cfg(all(feature = "slider", feature = "number_edit", feature = "color_swatch"))]
+            slider_with_editor_state: SliderWithEditorState {
+                slider: SliderState {
+                    value: SliderValue::Single(0.5),
+                    ..Default::default()
+                },
+                editor: NumberEditState {
+                    value: 0.5,
+                    ..Default::default()
+                },
             },
             #[cfg(all(feature = "slider", feature = "number_edit", feature = "color_swatch"))]
             slider_range_state: SliderState {
@@ -2636,6 +2652,26 @@ fn section_04_sliders<CF>(
         b.finish();
     }
 
+    group_y(b, "slider · with editor");
+    {
+        let mut b = b.child_with_layout(ColumnLayoutParams::auto(), RowLayout);
+        slider_with_editor(
+            SliderWithEditorSpec::default_from_theme(&b.theme)
+                .slider(
+                    SliderSpec::default_from_theme(&b.theme)
+                        .max(1.0)
+                        .step(0.01)
+                        .page_step(0.1)
+                        .value_snap(Some(0.01)),
+                )
+                .editor_width(84.0),
+            RowLayoutParams::auto().fixed_x(352.0),
+            &mut state.slider_with_editor_state,
+            &mut b,
+        );
+        b.finish();
+    }
+
     group_y(b, "range slider");
     {
         let mut b = b.child_with_layout(ColumnLayoutParams::auto(), RowLayout);
@@ -2661,7 +2697,7 @@ fn section_04_sliders<CF>(
         b.finish();
     }
 
-    group_y(b, "drag-number");
+    group_y(b, "number edit · drag");
     {
         const DRAG_W: f32 = 168.0;
         const GAP: f32 = 12.0;
@@ -2705,7 +2741,7 @@ fn section_04_sliders<CF>(
         b.finish();
     }
 
-    group_y(b, "numeric stepper");
+    group_y(b, "number edit · compact");
     {
         let mut b = b.child_with_layout(
             ColumnLayoutParams::fixed(content_w, b.theme.h_md),

@@ -10,6 +10,10 @@ Working notes, TODOs, open questions, and half-baked ideas.
    - Where could we put this on the spec page? Probably a new one in section 04 near the existing number edits
    - general tidy-up of the section 04 bits
 
+   - tab order broken
+   - for "always" number edit editor, losing focus should probably still commit/validate/error
+   - flickering with slider changes due to precision 0.29999978, even though slider has value_snap(Some(0.01))?
+
 - Go through the spec_page, check/implement/test each widget/aspect to make better match the mock-up and add interactivity as we go (https://claude.ai/design/p/1aab4e86-cbf2-497e-b379-44cf41de2b12?file=Framewise+Widgets.html)
   - Done 01-03
   - Section 04 in-progress - perhaps replace the "padding" field with another variation of NumberEdit? One that always has the text-edit functionality available?
