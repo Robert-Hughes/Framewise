@@ -3547,6 +3547,42 @@ fn test_number_edit_always_step_button_updates_clean_visible_text_after_stepping
     }
     let mut focus_system = FocusSystem::new();
 
+    let mut text_backend = TestTextBackend::default();
+    let mut cmds = DrawCommands::new(1.0);
+    let input = Input {
+        mouse_pos: right_arrow_pos(rect),
+        ..Default::default()
+    };
+
+    // Frame 1: Warm up the hover claim
+    focus_system.begin_frame();
+    let _ = run_raw(
+        always_text_entry_spec(rect),
+        &mut state,
+        &input,
+        &mut focus_system,
+        &mut text_backend,
+        &mut cmds,
+    );
+    focus_system.end_frame();
+
+    // Frame 2: Hover active
+    focus_system.begin_frame();
+    let hover_result = run_raw(
+        always_text_entry_spec(rect),
+        &mut state,
+        &input,
+        &mut focus_system,
+        &mut text_backend,
+        &mut cmds,
+    );
+    focus_system.end_frame();
+
+    assert_eq!(
+        hover_result.cursor_icon,
+        Some(crate::output::CursorIcon::Pointer)
+    );
+
     click_always_increment_step(rect, &mut state, &mut focus_system);
 
     assert_eq!(state.value, 51.0);

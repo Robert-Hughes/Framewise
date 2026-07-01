@@ -728,15 +728,12 @@ pub mod raw {
 
         let hovered = hovered_decrement || hovered_increment || value_hover.passive_hovered;
 
-        let cursor_icon = if state.edit.is_editing() {
-            edit_cursor_icon
-        } else {
-            press_drag
-                .cursor_icon
-                .or(decrement_hover.and_then(|hover| hover.cursor_icon))
-                .or(increment_hover.and_then(|hover| hover.cursor_icon))
-                .or(value_hover.cursor_icon)
-        };
+        let cursor_icon = press_drag
+            .cursor_icon
+            .or(decrement_hover.and_then(|hover| hover.cursor_icon))
+            .or(increment_hover.and_then(|hover| hover.cursor_icon))
+            .or(edit_cursor_icon)
+            .or(value_hover.cursor_icon);
         let active_step = state.is_arrow_stepping && !spec.disabled;
 
         NumberEditResult {

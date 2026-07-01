@@ -4,10 +4,6 @@ Working notes, TODOs, open questions, and half-baked ideas.
 
 ## Current Work
 
-- option to turn off the stepper buttons, leaving a simple text_edit that validates for numbers/min/max etc.!
-  - change "padding" widget on spec page to this (prefixed_number_edit)
-  - add a number_edit with on-demand editor and no step buttons
-  - move color swatch to its own sub-section (group) within 04
 - Add a "slider_with_editor" helper function that adds a slider and a sibling number_edit widget (with 'Always' editor and no steppers)
    - c.f. the existing labelled_ and prefixed_ and value_labelled_ widget pairs. Let's try to make this new one consistent.
    - We need to decide which Spec and State struct is the 'primary' one that drives the combined widget, or perhaps we need a new one to combine?
