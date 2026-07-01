@@ -4,13 +4,8 @@ Working notes, TODOs, open questions, and half-baked ideas.
 
 ## Current Work
 
-- Add a "slider_with_editor" helper function that adds a slider and a sibling number_edit widget (with 'Always' editor and no steppers)
-   - c.f. the existing labelled_ and prefixed_ and value_labelled_ widget pairs. Let's try to make this new one consistent.
-   - We need to decide which Spec and State struct is the 'primary' one that drives the combined widget, or perhaps we need a new one to combine?
-   - Where could we put this on the spec page? Probably a new one in section 04 near the existing number edits
-   - general tidy-up of the section 04 bits
-
-   - tab order broken
+- slider_with_editor
+   - tab order override needs to support next AND prev
    - for "always" number edit editor, losing focus should probably still commit/validate/error
    - flickering with slider changes due to precision 0.29999978, even though slider has value_snap(Some(0.01))?
 
