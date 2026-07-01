@@ -4,7 +4,6 @@ Working notes, TODOs, open questions, and half-baked ideas.
 
 ## Current Work
 
-- NumberEdit editor policy - on double click or always.
 - option to turn off the stepper buttons, leaving a simple text_edit that validates for numbers/min/max etc.!
 - change "padding" widget on spec page to this
 - slider with editor (number_edit with Always editor and no steppers)

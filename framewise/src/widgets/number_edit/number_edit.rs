@@ -787,8 +787,6 @@ impl NumberEditStyle {
         text_edit_style.padding_y = 0.0;
         text_edit_style.border = None;
         text_edit_style.focus_border = None;
-        text_edit_style.background = Color::TRANSPARENT;
-        text_edit_style.background_hovered = Color::TRANSPARENT;
         text_edit_style.text_color = theme.ink;
         text_edit_style.caret_color = theme.rust;
 

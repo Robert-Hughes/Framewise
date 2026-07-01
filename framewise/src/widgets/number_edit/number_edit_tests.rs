@@ -479,6 +479,126 @@ fn test_number_edit_visual_editing() {
 }
 
 #[test]
+fn test_number_edit_visual_editing_hovered() {
+    let spec = NumberEditSpec {
+        layer: Layer::default(),
+        rect: Rect::new(10.0, 10.0, 100.0, 28.0),
+        min: Some(0.0),
+        max: Some(100.0),
+        step: 1.0,
+        page_step: 10.0,
+        text_entry_mode: NumberEditTextEntryMode::OnDemand,
+        drag_enabled: true,
+        value_fill_enabled: true,
+        value_formatter: default_number_edit_value_formatter,
+        time: 0.0,
+        disabled: false,
+        style: NumberEditStyle::from_theme(&crate::theme::Theme::framewise()),
+        clip_rect: None,
+    };
+    let style = spec.style;
+    let mut state = NumberEditState {
+        value: 50.5,
+        ..Default::default()
+    };
+    enter_edit_state(&mut state, "50.5");
+
+    let mut focus_system = FocusSystem::new();
+    focus_system.take_keyboard_focus(state.focus_id);
+    let mut text_backend = TestTextBackend::default();
+    let mut cmds = DrawCommands::new(1.0);
+    let input = Input {
+        mouse_pos: value_area_pos(spec.rect),
+        ..Default::default()
+    };
+
+    // Warmup frame: claim hover for the embedded text edit.
+    focus_system.begin_frame();
+    let _ = run_raw(
+        spec.clone(),
+        &mut state,
+        &input,
+        &mut focus_system,
+        &mut text_backend,
+        &mut cmds,
+    );
+    focus_system.end_frame();
+
+    // Hover frame: the embedded TextEdit should draw using background_hovered.
+    let mut cmds = DrawCommands::new(1.0);
+    focus_system.begin_frame();
+    let _ = run_raw(
+        spec,
+        &mut state,
+        &input,
+        &mut focus_system,
+        &mut text_backend,
+        &mut cmds,
+    );
+    focus_system.end_frame();
+
+    let focus_style = style.focus.unwrap();
+    assert_eq!(
+        cmds.commands(),
+        vec![
+            DrawCmd::BorderRect {
+                rect: Rect::new(11.0, 11.0, 98.0, 26.0),
+                color: focus_style.stroke.color,
+                width: focus_style.stroke.width,
+                placement: crate::BorderPlacement::Outside,
+                z: 1,
+            },
+            DrawCmd::FillRect {
+                rect: Rect::new(10.0, 10.0, 100.0, 28.0),
+                color: style.background,
+                z: 0,
+            },
+            DrawCmd::FillRect {
+                rect: Rect::new(30.0, 10.0, 60.0, 28.0),
+                color: style.text_edit_style.background_hovered,
+                z: 0,
+            },
+            DrawCmd::PushClip {
+                rect: Rect::new(30.0, 10.0, 60.0, 28.0),
+            },
+            DrawCmd::FillRect {
+                rect: Rect::new(44.0, 16.0, 32.0, 16.0),
+                color: style.text_edit_style.select_color,
+                z: 0,
+            },
+            DrawCmd::GlyphRun {
+                glyphs: 0..4,
+                color: style.text_edit_style.text_color,
+                z: 0,
+            },
+            DrawCmd::FillRect {
+                rect: Rect::new(76.0, 16.0, 2.0, 16.0),
+                color: style.text_edit_style.caret_color,
+                z: 0,
+            },
+            DrawCmd::PopClip,
+            DrawCmd::GlyphRun {
+                glyphs: 4..5,
+                color: style.step_button.glyph_color,
+                z: 0,
+            },
+            DrawCmd::GlyphRun {
+                glyphs: 5..6,
+                color: style.step_button.glyph_color,
+                z: 0,
+            },
+            DrawCmd::BorderRect {
+                rect: Rect::new(10.0, 10.0, 100.0, 28.0),
+                color: style.border.unwrap().color,
+                width: style.border.unwrap().width,
+                placement: crate::BorderPlacement::Inside,
+                z: 0,
+            },
+        ]
+    );
+}
+
+#[test]
 fn test_number_edit_visual_hovered_value_area_draws_arrows() {
     let spec = NumberEditSpec {
         layer: Layer::default(),
