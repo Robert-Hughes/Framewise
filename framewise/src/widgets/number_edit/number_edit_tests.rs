@@ -3071,6 +3071,33 @@ fn test_number_edit_always_enter_commits_or_marks_error_without_exiting() {
 }
 
 #[test]
+fn test_number_edit_always_enter_clamped_commit_updates_visible_text() {
+    let rect = Rect::new(0.0, 0.0, 160.0, 28.0);
+    let mut spec = always_text_entry_spec(rect);
+    spec.min = Some(0.0);
+    spec.max = Some(100.0);
+    let mut state = NumberEditState {
+        value: 10.0,
+        ..Default::default()
+    };
+    enter_edit_state(&mut state, "150");
+    let mut focus_system = FocusSystem::new();
+    focus_system.take_keyboard_focus(state.focus_id);
+
+    run_key(spec, &mut state, &mut focus_system, |input| {
+        input.keys_pressed.insert(crate::input::Key::Enter);
+    });
+
+    assert_eq!(state.value, 100.0);
+    let (text_edit, error, dirty) = assert_editing(&state.edit);
+    assert_eq!(text_edit.value, "100");
+    assert_eq!(text_edit.caret.insertion_byte_hint(), text_edit.value.len());
+    assert_eq!(selection_byte(text_edit), Some(0));
+    assert!(!error);
+    assert!(!dirty);
+}
+
+#[test]
 fn test_number_edit_always_enter_and_escape_are_ignored_when_unfocused() {
     let rect = Rect::new(0.0, 0.0, 160.0, 28.0);
     let other_focus = FocusId::new();
@@ -3179,37 +3206,84 @@ fn test_number_edit_always_ignores_drag_and_value_fill() {
     )));
 }
 
+fn click_always_increment_step(
+    rect: Rect,
+    state: &mut NumberEditState,
+    focus_system: &mut FocusSystem,
+) {
+    run_key(always_text_entry_spec(rect), state, focus_system, |input| {
+        input.mouse_pos = right_arrow_pos(rect);
+    });
+    run_key(always_text_entry_spec(rect), state, focus_system, |input| {
+        input.mouse_pos = right_arrow_pos(rect);
+        input.mouse_pressed = true;
+        input.mouse_down = true;
+    });
+}
+
 #[test]
-fn test_number_edit_always_step_buttons_adjust_committed_value() {
+fn test_number_edit_always_step_button_commits_dirty_valid_draft_before_stepping() {
+    let rect = Rect::new(0.0, 0.0, 160.0, 28.0);
+    let mut state = NumberEditState {
+        value: 10.0,
+        ..Default::default()
+    };
+    enter_edit_state(&mut state, "42");
+    let mut focus_system = FocusSystem::new();
+
+    click_always_increment_step(rect, &mut state, &mut focus_system);
+
+    assert_eq!(state.value, 43.0);
+    let (text_edit, error, dirty) = assert_editing(&state.edit);
+    assert_eq!(text_edit.value, "43");
+    assert_eq!(text_edit.caret.insertion_byte_hint(), text_edit.value.len());
+    assert_eq!(selection_byte(text_edit), Some(0));
+    assert!(!error);
+    assert!(!dirty);
+}
+
+#[test]
+fn test_number_edit_always_step_button_updates_clean_visible_text_after_stepping() {
     let rect = Rect::new(0.0, 0.0, 160.0, 28.0);
     let mut state = NumberEditState {
         value: 50.0,
         ..Default::default()
     };
+    enter_edit_state(&mut state, "50");
+    if let NumberEditEditState::Editing { dirty, .. } = &mut state.edit {
+        *dirty = false;
+    }
     let mut focus_system = FocusSystem::new();
 
-    run_key(
-        always_text_entry_spec(rect),
-        &mut state,
-        &mut focus_system,
-        |input| {
-            input.mouse_pos = right_arrow_pos(rect);
-        },
-    );
-    run_key(
-        always_text_entry_spec(rect),
-        &mut state,
-        &mut focus_system,
-        |input| {
-            input.mouse_pos = right_arrow_pos(rect);
-            input.mouse_pressed = true;
-            input.mouse_down = true;
-        },
-    );
+    click_always_increment_step(rect, &mut state, &mut focus_system);
 
     assert_eq!(state.value, 51.0);
-    let (_, _, dirty) = assert_editing(&state.edit);
+    let (text_edit, error, dirty) = assert_editing(&state.edit);
+    assert_eq!(text_edit.value, "51");
+    assert_eq!(text_edit.caret.insertion_byte_hint(), text_edit.value.len());
+    assert_eq!(selection_byte(text_edit), Some(0));
+    assert!(!error);
     assert!(!dirty);
+}
+
+#[test]
+fn test_number_edit_always_step_button_invalid_draft_blocks_step() {
+    let rect = Rect::new(0.0, 0.0, 160.0, 28.0);
+    let mut state = NumberEditState {
+        value: 10.0,
+        ..Default::default()
+    };
+    enter_edit_state(&mut state, "bad");
+    let mut focus_system = FocusSystem::new();
+
+    click_always_increment_step(rect, &mut state, &mut focus_system);
+
+    assert_eq!(state.value, 10.0);
+    let (text_edit, error, dirty) = assert_editing(&state.edit);
+    assert_eq!(text_edit.value, "bad");
+    assert!(error);
+    assert!(dirty);
+    assert!(!state.is_arrow_stepping);
 }
 
 #[test]
@@ -3409,6 +3483,7 @@ fn test_number_edit_mode_transitions() {
     let rect = Rect::new(0.0, 0.0, 160.0, 28.0);
     let mut focus_system = FocusSystem::new();
 
+    // OnDemand remembered invalid draft -> Always restores the draft and marks it dirty.
     let mut state = NumberEditState {
         value: 10.0,
         edit: NumberEditEditState::Remembered {
@@ -3426,6 +3501,7 @@ fn test_number_edit_mode_transitions() {
     assert_eq!(text_edit.value, "abc");
     assert!(dirty);
 
+    // OnDemand editing valid draft -> Disabled commits the draft and exits editing.
     enter_edit_state(&mut state, "44");
     run_key(
         disabled_text_entry_spec(rect),
@@ -3436,6 +3512,7 @@ fn test_number_edit_mode_transitions() {
     assert_eq!(state.value, 44.0);
     assert_inactive(&state.edit);
 
+    // OnDemand editing invalid draft -> Disabled discards the draft and exits editing.
     enter_edit_state(&mut state, "bad");
     run_key(
         disabled_text_entry_spec(rect),
@@ -3446,16 +3523,108 @@ fn test_number_edit_mode_transitions() {
     assert_eq!(state.value, 44.0);
     assert_inactive(&state.edit);
 
+    // Existing valid editor -> OnDemand commits on unfocused frame and exits editing.
     enter_edit_state(&mut state, "55");
     focus_system.take_keyboard_focus(FocusId::new());
     run_key(default_spec(rect), &mut state, &mut focus_system, |_| {});
     assert_eq!(state.value, 55.0);
     assert_inactive(&state.edit);
 
+    // Existing invalid editor -> OnDemand remembers the invalid draft on unfocused frame.
     enter_edit_state(&mut state, "bad");
     focus_system.take_keyboard_focus(FocusId::new());
     run_key(default_spec(rect), &mut state, &mut focus_system, |_| {});
     assert_remembered(&state.edit, "bad");
+
+    // Always valid draft -> OnDemand commits and exits after a real Always frame.
+    let mut valid_state = NumberEditState {
+        value: 10.0,
+        ..Default::default()
+    };
+    enter_edit_state(&mut valid_state, "55");
+    let mut focus_system = FocusSystem::new();
+    run_key(
+        always_text_entry_spec(rect),
+        &mut valid_state,
+        &mut focus_system,
+        |_| {},
+    );
+    focus_system.take_keyboard_focus(FocusId::new());
+    run_key(
+        default_spec(rect),
+        &mut valid_state,
+        &mut focus_system,
+        |_| {},
+    );
+    assert_eq!(valid_state.value, 55.0);
+    assert_inactive(&valid_state.edit);
+
+    // Always invalid draft -> OnDemand remembers after a real Always frame.
+    let mut invalid_state = NumberEditState {
+        value: 10.0,
+        ..Default::default()
+    };
+    enter_edit_state(&mut invalid_state, "bad");
+    let mut focus_system = FocusSystem::new();
+    run_key(
+        always_text_entry_spec(rect),
+        &mut invalid_state,
+        &mut focus_system,
+        |_| {},
+    );
+    focus_system.take_keyboard_focus(FocusId::new());
+    run_key(
+        default_spec(rect),
+        &mut invalid_state,
+        &mut focus_system,
+        |_| {},
+    );
+    assert_eq!(invalid_state.value, 10.0);
+    assert_remembered(&invalid_state.edit, "bad");
+
+    // Always valid draft -> Disabled commits and exits after a real Always frame.
+    let mut valid_state = NumberEditState {
+        value: 10.0,
+        ..Default::default()
+    };
+    enter_edit_state(&mut valid_state, "66");
+    let mut focus_system = FocusSystem::new();
+    run_key(
+        always_text_entry_spec(rect),
+        &mut valid_state,
+        &mut focus_system,
+        |_| {},
+    );
+    run_key(
+        disabled_text_entry_spec(rect),
+        &mut valid_state,
+        &mut focus_system,
+        |_| {},
+    );
+    assert_eq!(valid_state.value, 66.0);
+    assert_inactive(&valid_state.edit);
+
+    // Always invalid draft -> Disabled discards and exits after a real Always frame.
+    let mut invalid_state = NumberEditState {
+        value: 10.0,
+        ..Default::default()
+    };
+    enter_edit_state(&mut invalid_state, "bad");
+    let mut focus_system = FocusSystem::new();
+    run_key(
+        always_text_entry_spec(rect),
+        &mut invalid_state,
+        &mut focus_system,
+        |_| {},
+    );
+    run_key(
+        disabled_text_entry_spec(rect),
+        &mut invalid_state,
+        &mut focus_system,
+        |_| {},
+    );
+    assert_eq!(invalid_state.value, 10.0);
+    assert_inactive(&invalid_state.edit);
 }
 
 #[test]

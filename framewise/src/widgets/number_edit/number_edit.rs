@@ -319,11 +319,18 @@ pub mod raw {
             }
 
             if let Some(direction) = start_step_direction {
-                step_value(state, direction, spec.step, clamp_min, clamp_max);
-                state.is_arrow_stepping = true;
-                state.arrow_step_direction = Some(direction);
-                begin_held_press_drag(&mut state.press_drag, input.mouse_pos);
-                state.repeat_timer.start(spec.time, RepeatTiming::PRESS);
+                let step_allowed = spec.text_entry_mode != super::NumberEditTextEntryMode::Always
+                    || try_commit_number_edit_keep_editing(state, clamp_min, clamp_max);
+                if step_allowed {
+                    step_value(state, direction, spec.step, clamp_min, clamp_max);
+                    if spec.text_entry_mode == super::NumberEditTextEntryMode::Always {
+                        set_number_edit_draft_from_value_clean(state, true);
+                    }
+                    state.is_arrow_stepping = true;
+                    state.arrow_step_direction = Some(direction);
+                    begin_held_press_drag(&mut state.press_drag, input.mouse_pos);
+                    state.repeat_timer.start(spec.time, RepeatTiming::PRESS);
+                }
             } else if value_hover.can_start && value_drag_enabled {
                 state.drag_start_value = state.value;
                 press_drag = begin_immediate_drag(
@@ -343,6 +350,9 @@ pub mod raw {
                         .consume_due(spec.time, RepeatTiming::PRESS)
                     {
                         step_value(state, direction, spec.step, clamp_min, clamp_max);
+                        if spec.text_entry_mode == super::NumberEditTextEntryMode::Always {
+                            set_number_edit_draft_from_value_clean(state, true);
+                        }
                     }
                 }
             }
@@ -1128,6 +1138,7 @@ fn try_commit_number_edit_keep_editing(
     };
     if let Some(value) = parse_number_edit_text(&text_edit.value) {
         state.value = clamp_optional(value, clamp_min, clamp_max);
+        text_edit.value = number_edit_raw_edit_text(state.value);
         *error = false;
         *dirty = false;
         select_all_number_edit_text(text_edit);
@@ -1160,7 +1171,7 @@ fn select_all_number_edit_text(text_edit: &mut TextEditState) {
     });
 }
 
-fn reset_number_edit_draft_from_value(state: &mut NumberEditState) {
+fn set_number_edit_draft_from_value_clean(state: &mut NumberEditState, select_all: bool) {
     let value = number_edit_raw_edit_text(state.value);
     if let NumberEditEditState::Editing {
         text_edit,
@@ -1168,12 +1179,22 @@ fn reset_number_edit_draft_from_value(state: &mut NumberEditState) {
         dirty,
     } = &mut state.edit
     {
-        let focus_id = text_edit.focus_id;
-        *text_edit = TextEditState::new(&value);
-        text_edit.focus_id = focus_id;
+        text_edit.value = value;
         *error = false;
         *dirty = false;
+        if select_all {
+            select_all_number_edit_text(text_edit);
+        } else {
+            let focus_id = text_edit.focus_id;
+            let value = text_edit.value.clone();
+            *text_edit = TextEditState::new(&value);
+            text_edit.focus_id = focus_id;
+        }
     }
+}
+
+fn reset_number_edit_draft_from_value(state: &mut NumberEditState) {
+    set_number_edit_draft_from_value_clean(state, false);
 }
 
 fn sync_number_edit_draft_from_value_if_clean_and_unfocused(
