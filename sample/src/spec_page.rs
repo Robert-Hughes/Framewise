@@ -63,6 +63,7 @@ use framewise::widgets::meter::{meter, MeterSpec};
 #[allow(unused_imports)]
 use framewise::widgets::number_edit::{
     number_edit, prefixed_number_edit, NumberEditSpec, NumberEditState, NumberEditStyle,
+    NumberEditTextEntryMode,
 };
 #[cfg(feature = "progress_bar")]
 #[allow(unused_imports)]
@@ -2755,6 +2756,7 @@ fn section_04_sliders<CF>(
                 .range(0.0, 100.0)
                 .drag_enabled(false)
                 .value_fill_enabled(false)
+                .text_entry_mode(NumberEditTextEntryMode::Always)
                 .style(NumberEditStyle::compact_stepper_from_theme(&b.theme)),
             local_rect(120.0, 0.0, 96.0, b.theme.h_sm),
             &mut state.number_edit_state[3],
@@ -4239,6 +4241,7 @@ fn section_12_in_use<CF>(
             let layout_params = Rect::new(widget_x, fy, (widget_w / 2.0) - 4.0, row_h);
             let spec = NumberEditSpec::new_from_theme(&win.theme)
                 .max(7680.0)
+                .text_entry_mode(NumberEditTextEntryMode::Always)
                 .value_formatter(|v: f32| format!("{v:.0}"));
             prefixed_number_edit("W", spec, layout_params, state, &mut win)
         };
@@ -4253,6 +4256,7 @@ fn section_12_in_use<CF>(
             );
             let spec = NumberEditSpec::new_from_theme(&win.theme)
                 .max(7680.0)
+                .text_entry_mode(NumberEditTextEntryMode::Always)
                 .value_formatter(|v: f32| format!("{v:.0}"));
             prefixed_number_edit("H", spec, layout_params, state, &mut win)
         };

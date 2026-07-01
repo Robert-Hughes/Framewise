@@ -4,8 +4,6 @@ Working notes, TODOs, open questions, and half-baked ideas.
 
 ## Current Work
 
-- value-labelled slider
-  - Clicking on the label should focus the slider
 - NumberEdit editor policy - on double click or always.
 - option to turn off the stepper buttons, leaving a simple text_edit that validates for numbers/min/max etc.!
 - change "padding" widget on spec page to this

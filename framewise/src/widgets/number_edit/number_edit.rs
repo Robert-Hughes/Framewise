@@ -36,6 +36,7 @@ pub mod raw {
         pub max: Option<f32>,
         pub step: f32,
         pub page_step: f32,
+        pub text_entry_mode: super::NumberEditTextEntryMode,
         pub drag_enabled: bool,
         pub value_fill_enabled: bool,
         pub value_formatter: F,
@@ -123,12 +124,20 @@ pub mod raw {
         F: Fn(f32) -> String,
     {
         let mut press_drag = PressDragInteraction::default();
+        let (clamp_min, clamp_max) = normalise_optional_bounds(spec.min, spec.max);
 
         if spec.disabled {
             state.is_arrow_stepping = false;
             state.arrow_step_direction = None;
             state.press_drag = PressDragState::default();
             state.edit = NumberEditEditState::Inactive;
+        } else {
+            normalise_number_edit_text_entry_mode(
+                state,
+                spec.text_entry_mode,
+                clamp_min,
+                clamp_max,
+            );
         }
 
         let s = spec.style;
@@ -178,18 +187,17 @@ pub mod raw {
             Some(crate::output::CursorIcon::Pointer),
             input,
         );
+        let text_edit_visible = state.edit.is_editing();
         let value_hover = crate::widgets::widget_helpers::handle_hover_interaction(
             value_rect,
             spec.clip_rect,
             spec.disabled,
             is_hover_active,
             state.press_drag.dragging,
-            spec.drag_enabled
+            (spec.drag_enabled && spec.text_entry_mode != super::NumberEditTextEntryMode::Always)
                 .then_some(crate::output::CursorIcon::EwResize),
             input,
         );
-
-        let (clamp_min, clamp_max) = normalise_optional_bounds(spec.min, spec.max);
 
         // Measure the displayed value text once here; drawing happens later, but
         // the layout also informs the overall value-lane visual balance.
@@ -226,6 +234,7 @@ pub mod raw {
         // happens before normal focus registration so only one widget registers it.
         if !state.edit.is_editing()
             && !spec.disabled
+            && spec.text_entry_mode == super::NumberEditTextEntryMode::OnDemand
             && input.mouse_pressed
             && input.mouse_click_count == 2
             && value_hover.can_start
@@ -237,12 +246,21 @@ pub mod raw {
 
         let keyboard_enter_starts_editing = !state.edit.is_editing()
             && !spec.disabled
+            && spec.text_entry_mode == super::NumberEditTextEntryMode::OnDemand
             && input.key_pressed(crate::input::Key::Enter)
             && focus_system.current_keyboard_focus() == Some(state.focus_id);
         if keyboard_enter_starts_editing {
             enter_number_edit_mode(state);
             focus_system.take_keyboard_focus(state.focus_id);
             started_editing_this_frame = true;
+        }
+        if spec.text_entry_mode == super::NumberEditTextEntryMode::Always
+            && input.mouse_pressed
+            && value_rect.contains(input.mouse_pos)
+            && is_visible
+            && !spec.disabled
+        {
+            focus_system.take_keyboard_focus(state.focus_id);
         }
 
         let mut text_edit_result = None;
@@ -338,7 +356,9 @@ pub mod raw {
                 state.value =
                     clamp_optional(state.drag_start_value + delta_val, clamp_min, clamp_max);
             }
-        } else if !spec.drag_enabled {
+        } else if !spec.drag_enabled
+            || spec.text_entry_mode == super::NumberEditTextEntryMode::Always
+        {
             state.press_drag = PressDragState::default();
         }
 
@@ -454,7 +474,7 @@ pub mod raw {
         cmds.push_crisp_fill_rect(draw_outer, tint(s.background), spec.layer.get_z());
 
         // Value area: rust_soft fill proportional to value fraction.
-        if spec.value_fill_enabled && !state.edit.is_editing() {
+        if spec.value_fill_enabled && !text_edit_visible {
             if let (Some(min), Some(max)) = (clamp_min, clamp_max) {
                 if min != max {
                     let frac = ((state.value - min) / (max - min)).clamp(0.0, 1.0);
@@ -520,7 +540,12 @@ pub mod raw {
             }
         }
 
-        if let NumberEditEditState::Editing { text_edit, error } = &mut state.edit {
+        if let NumberEditEditState::Editing {
+            text_edit,
+            error,
+            dirty,
+        } = &mut state.edit
+        {
             // Suppress the activation click for the inner TextEdit. The shared focus id
             // is intentional, but the initial double-click must not become word selection.
             let mut edit_input;
@@ -560,6 +585,7 @@ pub mod raw {
             );
             if text_edit.value != old_edit_value {
                 *error = false;
+                *dirty = true;
             }
             let text_edit_spec = text_edit::raw::TextEditSpec {
                 rect: value_rect,
@@ -636,20 +662,41 @@ pub mod raw {
             let clicked_outside_text_edit =
                 input.mouse_pressed && !value_rect.contains(input.mouse_pos);
             if input.key_pressed(crate::input::Key::Escape) {
-                state.edit = NumberEditEditState::Inactive;
-                focus_system.take_keyboard_focus(state.focus_id);
-                edit_focused = true;
+                if spec.text_entry_mode == super::NumberEditTextEntryMode::Always {
+                    reset_number_edit_draft_from_value(state);
+                    edit_focused = focus_system.current_keyboard_focus() == Some(state.focus_id);
+                } else {
+                    state.edit = NumberEditEditState::Inactive;
+                    focus_system.take_keyboard_focus(state.focus_id);
+                    edit_focused = true;
+                }
             } else if input.key_pressed(crate::input::Key::Enter) && !started_editing_this_frame {
-                if try_commit_number_edit(state, clamp_min, clamp_max) {
+                if spec.text_entry_mode == super::NumberEditTextEntryMode::Always {
+                    try_commit_number_edit_keep_editing(state, clamp_min, clamp_max);
+                    edit_focused = focus_system.current_keyboard_focus() == Some(state.focus_id);
+                } else if try_commit_number_edit(state, clamp_min, clamp_max) {
                     focus_system.take_keyboard_focus(state.focus_id);
                     edit_focused = true;
                 }
             } else if clicked_outside_text_edit {
-                commit_or_remember_number_edit_on_focus_loss(state, clamp_min, clamp_max);
+                if spec.text_entry_mode == super::NumberEditTextEntryMode::Always {
+                    try_commit_number_edit_keep_editing(state, clamp_min, clamp_max);
+                } else {
+                    commit_or_remember_number_edit_on_focus_loss(state, clamp_min, clamp_max);
+                }
                 edit_focused = false;
-            } else if !edit_focused {
+            } else if !edit_focused
+                && spec.text_entry_mode != super::NumberEditTextEntryMode::Always
+            {
                 commit_or_remember_number_edit_on_focus_loss(state, clamp_min, clamp_max);
             }
+        }
+
+        if spec.text_entry_mode == super::NumberEditTextEntryMode::Always
+            && !spec.disabled
+            && !edit_focused
+        {
+            sync_number_edit_draft_from_value_if_clean_and_unfocused(state, focus_system);
         }
 
         let hovered = decrement_hover.passive_hovered
@@ -862,6 +909,7 @@ pub enum NumberEditEditState {
     Editing {
         text_edit: TextEditState,
         error: bool,
+        dirty: bool,
     },
 
     /// A previous edit was abandoned by click-away or focus loss while invalid.
@@ -1005,19 +1053,27 @@ fn make_number_edit_text_edit_state(state: &NumberEditState, draft: &str) -> Tex
 }
 
 fn enter_number_edit_mode(state: &mut NumberEditState) {
-    let draft = match std::mem::take(&mut state.edit) {
-        NumberEditEditState::Inactive => number_edit_raw_edit_text(state.value),
-        NumberEditEditState::Remembered { draft } => draft,
+    let (draft, dirty) = match std::mem::take(&mut state.edit) {
+        NumberEditEditState::Inactive => (number_edit_raw_edit_text(state.value), false),
+        NumberEditEditState::Remembered { draft } => (draft, true),
         NumberEditEditState::Editing { .. } => unreachable!("guarded by !is_editing"),
     };
     let text_edit = make_number_edit_text_edit_state(state, &draft);
     state.edit = NumberEditEditState::Editing {
         text_edit,
         error: false,
+        dirty,
     };
     state.is_arrow_stepping = false;
     state.arrow_step_direction = None;
     state.press_drag = PressDragState::default();
+}
+
+fn ensure_number_edit_editing(state: &mut NumberEditState) {
+    if state.edit.is_editing() {
+        return;
+    }
+    enter_number_edit_mode(state);
 }
 
 fn parse_number_edit_text(text: &str) -> Option<f32> {
@@ -1030,7 +1086,10 @@ fn try_commit_number_edit(
     clamp_min: Option<f32>,
     clamp_max: Option<f32>,
 ) -> bool {
-    let NumberEditEditState::Editing { text_edit, error } = &mut state.edit else {
+    let NumberEditEditState::Editing {
+        text_edit, error, ..
+    } = &mut state.edit
+    else {
         return true;
     };
     if let Some(value) = parse_number_edit_text(&text_edit.value) {
@@ -1040,6 +1099,100 @@ fn try_commit_number_edit(
     } else {
         *error = true;
         false
+    }
+}
+
+fn try_commit_number_edit_keep_editing(
+    state: &mut NumberEditState,
+    clamp_min: Option<f32>,
+    clamp_max: Option<f32>,
+) -> bool {
+    let NumberEditEditState::Editing {
+        text_edit,
+        error,
+        dirty,
+    } = &mut state.edit
+    else {
+        return true;
+    };
+    if let Some(value) = parse_number_edit_text(&text_edit.value) {
+        state.value = clamp_optional(value, clamp_min, clamp_max);
+        *error = false;
+        *dirty = false;
+        true
+    } else {
+        *error = true;
+        *dirty = true;
+        false
+    }
+}
+
+fn reset_number_edit_draft_from_value(state: &mut NumberEditState) {
+    let value = number_edit_raw_edit_text(state.value);
+    if let NumberEditEditState::Editing {
+        text_edit,
+        error,
+        dirty,
+    } = &mut state.edit
+    {
+        let focus_id = text_edit.focus_id;
+        *text_edit = TextEditState::new(&value);
+        text_edit.focus_id = focus_id;
+        *error = false;
+        *dirty = false;
+    }
+}
+
+fn sync_number_edit_draft_from_value_if_clean_and_unfocused(
+    state: &mut NumberEditState,
+    focus_system: &FocusSystem,
+) {
+    if focus_system.current_keyboard_focus() == Some(state.focus_id) {
+        return;
+    }
+    let value = number_edit_raw_edit_text(state.value);
+    if let NumberEditEditState::Editing {
+        text_edit,
+        error,
+        dirty,
+    } = &mut state.edit
+    {
+        if !*dirty && text_edit.value != value {
+            let focus_id = text_edit.focus_id;
+            *text_edit = TextEditState::new(&value);
+            text_edit.focus_id = focus_id;
+            *error = false;
+            *dirty = false;
+        }
+    }
+}
+
+fn exit_number_edit_for_disabled_text_entry(
+    state: &mut NumberEditState,
+    clamp_min: Option<f32>,
+    clamp_max: Option<f32>,
+) {
+    let edit = std::mem::take(&mut state.edit);
+    if let NumberEditEditState::Editing { text_edit, .. } = edit {
+        if let Some(value) = parse_number_edit_text(&text_edit.value) {
+            state.value = clamp_optional(value, clamp_min, clamp_max);
+        }
+    }
+    state.edit = NumberEditEditState::Inactive;
+}
+
+fn normalise_number_edit_text_entry_mode(
+    state: &mut NumberEditState,
+    mode: NumberEditTextEntryMode,
+    clamp_min: Option<f32>,
+    clamp_max: Option<f32>,
+) {
+    match mode {
+        NumberEditTextEntryMode::OnDemand => {}
+        NumberEditTextEntryMode::Always => ensure_number_edit_editing(state),
+        NumberEditTextEntryMode::Disabled => {
+            exit_number_edit_for_disabled_text_entry(state, clamp_min, clamp_max);
+        }
     }
 }
 
@@ -1084,6 +1237,17 @@ pub fn default_number_edit_value_formatter(value: f32) -> String {
     format!("{value:.2}")
 }
 
+/// Controls how the number edit exposes text entry for the central value area.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum NumberEditTextEntryMode {
+    /// Text entry opens temporarily via normal activation (e.g. double-click or pressing Enter).
+    OnDemand,
+    /// The central value area is always rendered as a text editor.
+    Always,
+    /// Text entry is unavailable.
+    Disabled,
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct NumberEditSpec<F = DefaultNumberEditValueFormatter>
 where
@@ -1094,7 +1258,16 @@ where
     pub max: Option<f32>,
     pub step: f32,
     pub page_step: f32,
+    /// Controls how the number edit exposes text entry for the central value area.
+    pub text_entry_mode: NumberEditTextEntryMode,
+    /// Enables scrub dragging in the central value area.
+    ///
+    /// Ignored when `text_entry_mode` is `NumberEditTextEntryMode::Always`.
     pub drag_enabled: bool,
+    /// Enables the proportional value fill in the central value area.
+    ///
+    /// The fill is shown only while the value area is in display mode, not while
+    /// text entry is visible.
     pub value_fill_enabled: bool,
     pub value_formatter: F,
     pub disabled: bool,
@@ -1108,6 +1281,7 @@ impl Default for NumberEditSpec<DefaultNumberEditValueFormatter> {
             max: Some(100.0),
             step: 1.0,
             page_step: 10.0,
+            text_entry_mode: NumberEditTextEntryMode::OnDemand,
             drag_enabled: true,
             value_fill_enabled: true,
             value_formatter: default_number_edit_value_formatter,
@@ -1182,6 +1356,11 @@ where
         self
     }
 
+    pub fn text_entry_mode(mut self, mode: NumberEditTextEntryMode) -> Self {
+        self.text_entry_mode = mode;
+        self
+    }
+
     pub fn drag_enabled(mut self, enabled: bool) -> Self {
         self.drag_enabled = enabled;
         self
@@ -1202,6 +1381,7 @@ where
             max: self.max,
             step: self.step,
             page_step: self.page_step,
+            text_entry_mode: self.text_entry_mode,
             drag_enabled: self.drag_enabled,
             value_fill_enabled: self.value_fill_enabled,
             value_formatter,
@@ -1235,6 +1415,7 @@ where
         max: spec.max,
         step: spec.step,
         page_step: spec.page_step,
+        text_entry_mode: spec.text_entry_mode,
         drag_enabled: spec.drag_enabled,
         value_fill_enabled: spec.value_fill_enabled,
         value_formatter: spec.value_formatter,
@@ -1350,6 +1531,7 @@ where
         max: spec.max,
         step: spec.step,
         page_step: spec.page_step,
+        text_entry_mode: spec.text_entry_mode,
         drag_enabled: spec.drag_enabled,
         value_fill_enabled: spec.value_fill_enabled,
         value_formatter: spec.value_formatter,
