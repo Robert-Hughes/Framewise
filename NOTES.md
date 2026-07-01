@@ -11,8 +11,7 @@ Working notes, TODOs, open questions, and half-baked ideas.
 
 - Go through the spec_page, check/implement/test each widget/aspect to make better match the mock-up and add interactivity as we go (https://claude.ai/design/p/1aab4e86-cbf2-497e-b379-44cf41de2b12?file=Framewise+Widgets.html)
   - Done 01-03
-  - Section 04 in-progress - perhaps replace the "padding" field with another variation of NumberEdit? One that always has the text-edit functionality available?
-    - perhaps a separate option for "always editable". We could also have an option to turn off the stepper buttons, leaving a simple text_edit that validates for numbers/min/max etc.!
+  - Section 04 in-progress
   - Section 01 Build/Run/Ship should be a 'segmented' control?
   - Add demo pages for each widget type (or possibly in groups?)
   - Use/add reusable widget helpers (widget_helpers.rs)

@@ -124,12 +124,6 @@ pub fn slider_with_editor<T: TextBackend, S: LayoutState, CF>(
         gap,
     );
 
-    // The composite's visual/tab order is slider -> editor. The internal run
-    // order may vary so editor commits can be processed before slider
-    // repair/snap, so explicitly pin the forward Tab edge inside the composite.
-    ctx.focus_system
-        .override_keyboard_next(state.slider.focus_id, state.editor.focus_id);
-
     // Run the focused editor before the slider so committed text is repaired by
     // the slider's own clamp/snap logic in this frame. When the editor is not
     // focused, run the slider first so the visible editor mirrors the canonical
@@ -173,6 +167,13 @@ pub fn slider_with_editor<T: TextBackend, S: LayoutState, CF>(
         );
         (slider_result, editor_result)
     };
+
+    // The composite's visual tab order is slider -> editor. The internal run
+    // order may vary so editor commits can be processed before slider
+    // repair/snap, so reorder the registered focus IDs after both children have
+    // registered.
+    ctx.focus_system
+        .override_keyboard_order(&[state.slider.focus_id, state.editor.focus_id]);
 
     SliderWithEditorResult {
         slider: slider_result,
@@ -307,7 +308,7 @@ mod tests {
     use super::*;
     use crate::{
         draw::DrawCommands,
-        focus::{FocusId, FocusSystem, FocusTraversalKeys},
+        focus::FocusSystem,
         input::{Input, Key},
         layouts::ManualLayout,
         test_utils::TestTextBackend,
@@ -384,30 +385,36 @@ mod tests {
         };
         let mut focus = FocusSystem::new();
 
-        run_once(
-            SliderWithEditorSpec::default().slider(SliderSpec::default().max(1.0)),
-            &mut state,
-            &Input::default(),
-            &mut focus,
-        );
-
-        let outside_id = FocusId::new();
         let mut input = Input::default();
         input.keys_pressed.insert(Key::Tab);
         focus.take_keyboard_focus(state.slider.focus_id);
 
         focus.begin_frame();
-        focus.register_keyboard(state.editor.focus_id, Rect::new(0.0, 0.0, 80.0, 28.0), None);
-        let slider_focused = focus.register_keyboard(
-            state.slider.focus_id,
-            Rect::new(0.0, 40.0, 80.0, 28.0),
-            None,
+        run_once(
+            SliderWithEditorSpec::default().slider(SliderSpec::default().max(1.0)),
+            &mut state,
+            &input,
+            &mut focus,
         );
-        focus.register_keyboard(outside_id, Rect::new(0.0, 80.0, 80.0, 28.0), None);
-        focus.handle_keyboard_traversal(slider_focused, &input, FocusTraversalKeys::tab_only());
         focus.end_frame();
 
         assert_eq!(focus.current_keyboard_focus(), Some(state.editor.focus_id));
+
+        let mut input = Input::default();
+        input.keys_pressed.insert(Key::Tab);
+        input.modifier_shift = true;
+        focus.take_keyboard_focus(state.editor.focus_id);
+
+        focus.begin_frame();
+        run_once(
+            SliderWithEditorSpec::default().slider(SliderSpec::default().max(1.0)),
+            &mut state,
+            &input,
+            &mut focus,
+        );
+        focus.end_frame();
+
+        assert_eq!(focus.current_keyboard_focus(), Some(state.slider.focus_id));
     }
 
     #[test]

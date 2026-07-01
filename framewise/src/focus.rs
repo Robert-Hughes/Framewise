@@ -161,7 +161,6 @@ pub struct FocusSystem {
     keyboard_frame_order: Vec<FocusId>,
     keyboard_frame_rects: HashMap<FocusId, Rect>,
     pending_keyboard_shift: Option<FocusDirection>,
-    custom_keyboard_order: HashMap<FocusId, FocusId>, // map id -> next id
     /// Winner of the upward-scroll hover claim from the previous frame.
     active_scroll_up_id: Option<FocusId>,
     /// Winner of the downward-scroll hover claim from the previous frame.
@@ -210,7 +209,6 @@ impl FocusSystem {
             keyboard_frame_order: Vec::new(),
             keyboard_frame_rects: HashMap::new(),
             pending_keyboard_shift: None,
-            custom_keyboard_order: HashMap::new(),
             active_scroll_up_id: None,
             active_scroll_down_id: None,
             active_scroll_left_id: None,
@@ -250,6 +248,8 @@ impl FocusSystem {
     }
 
     pub fn begin_frame(&mut self) {
+        self.keyboard_frame_order.clear();
+        self.keyboard_frame_rects.clear();
         self.keyboard_scroll_scopes.clear();
         self.focused_scroll_path.clear();
         self.next_hover_id = None;
@@ -301,13 +301,43 @@ impl FocusSystem {
         self.pending_keyboard_shift = Some(direction);
     }
 
-    /// Override the next focus target for a specific widget (linear Next only).
+    /// Reorder registered keyboard focus IDs for this frame.
     ///
-    /// TODO: consider extending this to support directional overrides, e.g.
-    /// `override_direction(from, FocusDirection::Right, to)` for cases where
-    /// the spatial algorithm produces wrong results in a specific layout.
-    pub fn override_keyboard_next(&mut self, from: FocusId, to: FocusId) {
-        self.custom_keyboard_order.insert(from, to);
+    /// The supplied IDs must already have been registered in the current frame.
+    /// IDs that are not present are ignored. Present IDs are removed from their
+    /// current positions and inserted back at the earliest current position in
+    /// the supplied order.
+    pub fn override_keyboard_order(&mut self, ordered_ids: &[FocusId]) {
+        let mut present_ids = Vec::new();
+        let mut earliest_index = None;
+
+        for &ordered_id in ordered_ids {
+            if present_ids.contains(&ordered_id) {
+                continue;
+            }
+
+            if let Some(index) = self
+                .keyboard_frame_order
+                .iter()
+                .position(|&id| id == ordered_id)
+            {
+                earliest_index =
+                    Some(earliest_index.map_or(index, |earliest: usize| earliest.min(index)));
+                present_ids.push(ordered_id);
+            }
+        }
+
+        let Some(insert_index) = earliest_index else {
+            return;
+        };
+        if present_ids.len() < 2 {
+            return;
+        }
+
+        self.keyboard_frame_order
+            .retain(|id| !present_ids.contains(id));
+        self.keyboard_frame_order
+            .splice(insert_index..insert_index, present_ids);
     }
 
     /// Returns true if there is an active text input or something similar that
@@ -484,7 +514,6 @@ impl FocusSystem {
                         direction,
                         &self.keyboard_frame_order,
                         &self.keyboard_frame_rects,
-                        &self.custom_keyboard_order,
                     ),
                     None => {
                         // Nothing focused yet — start at the first widget.
@@ -507,12 +536,9 @@ fn resolve_shift(
     direction: FocusDirection,
     order: &[FocusId],
     rects: &HashMap<FocusId, Rect>,
-    custom_keyboard_order: &HashMap<FocusId, FocusId>,
 ) -> Option<FocusId> {
     match direction {
-        FocusDirection::Next | FocusDirection::Prev => {
-            resolve_linear(current, direction, order, custom_keyboard_order)
-        }
+        FocusDirection::Next | FocusDirection::Prev => resolve_linear(current, direction, order),
         FocusDirection::Up
         | FocusDirection::Down
         | FocusDirection::Left
@@ -523,7 +549,7 @@ fn resolve_shift(
                     FocusDirection::Up | FocusDirection::Left => FocusDirection::Prev,
                     _ => FocusDirection::Next,
                 };
-                resolve_linear(current, fallback, order, custom_keyboard_order)
+                resolve_linear(current, fallback, order)
             })
         }
     }
@@ -533,20 +559,13 @@ fn resolve_linear(
     current: FocusId,
     direction: FocusDirection,
     order: &[FocusId],
-    custom_keyboard_order: &HashMap<FocusId, FocusId>,
 ) -> Option<FocusId> {
     let idx = match order.iter().position(|&id| id == current) {
         Some(i) => i,
         None => return Some(order[0]), // focused item not drawn this frame
     };
     match direction {
-        FocusDirection::Next => {
-            if let Some(&next_id) = custom_keyboard_order.get(&current) {
-                Some(next_id)
-            } else {
-                Some(order[(idx + 1) % order.len()])
-            }
-        }
+        FocusDirection::Next => Some(order[(idx + 1) % order.len()]),
         FocusDirection::Prev => {
             let prev_idx = if idx == 0 { order.len() - 1 } else { idx - 1 };
             Some(order[prev_idx])
@@ -625,7 +644,7 @@ fn find_spatial_target(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types::{Rect, Vec2};
+    use crate::types::Rect;
 
     fn r(x: f32, y: f32) -> Rect {
         Rect::new(x, y, 80.0, 30.0)
@@ -739,29 +758,99 @@ mod tests {
     }
 
     #[test]
-    fn test_focus_system_custom_override() {
+    fn test_focus_system_override_keyboard_order_moves_next() {
         let mut sys = FocusSystem::new();
-        let id1 = FocusId::new();
-        let id2 = FocusId::new();
-        let id3 = FocusId::new();
+        let editor = FocusId::new();
+        let slider = FocusId::new();
+        let outside = FocusId::new();
 
-        sys.override_keyboard_next(id1, id3);
-        sys.take_keyboard_focus(id1);
-
+        sys.take_keyboard_focus(slider);
         sys.begin_frame();
-        sys.register_keyboard(id1, r(0.0, 0.0), None);
-        sys.register_keyboard(id2, r(0.0, 50.0), None);
-        sys.register_keyboard(id3, r(0.0, 100.0), None);
+        sys.register_keyboard(editor, r(0.0, 0.0), None);
+        sys.register_keyboard(slider, r(0.0, 50.0), None);
+        sys.register_keyboard(outside, r(0.0, 100.0), None);
+        sys.override_keyboard_order(&[slider, editor]);
         sys.request_keyboard_shift(FocusDirection::Next);
         sys.end_frame();
 
+        assert_eq!(sys.current_keyboard_focus(), Some(editor));
+    }
+
+    #[test]
+    fn test_focus_system_override_keyboard_order_moves_prev() {
+        let mut sys = FocusSystem::new();
+        let editor = FocusId::new();
+        let slider = FocusId::new();
+        let outside = FocusId::new();
+
+        sys.take_keyboard_focus(editor);
         sys.begin_frame();
-        assert!(!sys.register_keyboard(id1, r(0.0, 0.0), None));
-        assert!(!sys.register_keyboard(id2, r(0.0, 50.0), None));
-        assert!(
-            sys.register_keyboard(id3, r(0.0, 100.0), None),
-            "Focus should jump to id3 via custom override"
-        );
+        sys.register_keyboard(editor, r(0.0, 0.0), None);
+        sys.register_keyboard(slider, r(0.0, 50.0), None);
+        sys.register_keyboard(outside, r(0.0, 100.0), None);
+        sys.override_keyboard_order(&[slider, editor]);
+        sys.request_keyboard_shift(FocusDirection::Prev);
+        sys.end_frame();
+
+        assert_eq!(sys.current_keyboard_focus(), Some(slider));
+    }
+
+    #[test]
+    fn test_focus_system_override_keyboard_order_preserves_next_boundary() {
+        let mut sys = FocusSystem::new();
+        let editor = FocusId::new();
+        let slider = FocusId::new();
+        let outside = FocusId::new();
+
+        sys.take_keyboard_focus(editor);
+        sys.begin_frame();
+        sys.register_keyboard(editor, r(0.0, 0.0), None);
+        sys.register_keyboard(slider, r(0.0, 50.0), None);
+        sys.register_keyboard(outside, r(0.0, 100.0), None);
+        sys.override_keyboard_order(&[slider, editor]);
+        sys.request_keyboard_shift(FocusDirection::Next);
+        sys.end_frame();
+
+        assert_eq!(sys.current_keyboard_focus(), Some(outside));
+    }
+
+    #[test]
+    fn test_focus_system_override_keyboard_order_preserves_prev_boundary() {
+        let mut sys = FocusSystem::new();
+        let before = FocusId::new();
+        let editor = FocusId::new();
+        let slider = FocusId::new();
+
+        sys.take_keyboard_focus(slider);
+        sys.begin_frame();
+        sys.register_keyboard(before, r(0.0, 0.0), None);
+        sys.register_keyboard(editor, r(0.0, 50.0), None);
+        sys.register_keyboard(slider, r(0.0, 100.0), None);
+        sys.override_keyboard_order(&[slider, editor]);
+        sys.request_keyboard_shift(FocusDirection::Prev);
+        sys.end_frame();
+
+        assert_eq!(sys.current_keyboard_focus(), Some(before));
+    }
+
+    #[test]
+    fn test_focus_system_begin_frame_clears_stale_keyboard_order() {
+        let mut sys = FocusSystem::new();
+        let stale1 = FocusId::new();
+        let stale2 = FocusId::new();
+        let current = FocusId::new();
+
+        sys.begin_frame();
+        sys.register_keyboard(stale1, r(0.0, 0.0), None);
+        sys.register_keyboard(stale2, r(0.0, 50.0), None);
+
+        sys.take_keyboard_focus(current);
+        sys.begin_frame();
+        sys.register_keyboard(current, r(0.0, 100.0), None);
+        sys.request_keyboard_shift(FocusDirection::Next);
+        sys.end_frame();
+
+        assert_eq!(sys.current_keyboard_focus(), Some(current));
     }
 
     // ── handle_keyboard_traversal tests ─────────────────────────────────────────────────

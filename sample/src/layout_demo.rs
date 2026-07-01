@@ -640,7 +640,7 @@ pub(crate) fn draw_layout_page_content<'a, 'b, CF>(
 
         // J. Toolbar leftover via the emit-reorder trick: the request-sized right-hand
         // buttons are measured and placed first, the search field fills the gap,
-        // then override_keyboard_next restores logical left→right focus.
+        // then the registered focus IDs are reordered to logical left→right focus.
         subheading(
             &mut right,
             "J. Toolbar — search fills leftover, buttons stay request-sized (emit-reorder)",
@@ -700,12 +700,11 @@ pub(crate) fn draw_layout_page_content<'a, 'b, CF>(
             tb.finish();
 
             // Emitted right-first; restore logical left→right focus order.
-            right
-                .focus_system
-                .override_keyboard_next(state.j_search.focus_id, state.j_btns[0].focus_id);
-            right
-                .focus_system
-                .override_keyboard_next(state.j_btns[0].focus_id, state.j_btns[1].focus_id);
+            right.focus_system.override_keyboard_order(&[
+                state.j_search.focus_id,
+                state.j_btns[0].focus_id,
+                state.j_btns[1].focus_id,
+            ]);
         }
         right.spacer(18.0);
 
