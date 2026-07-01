@@ -5,9 +5,10 @@ Working notes, TODOs, open questions, and half-baked ideas.
 ## Current Work
 
 - slider_with_editor
-   - tab order override needs to support next AND prev
    - for "always" number edit editor, losing focus should probably still commit/validate/error
    - flickering with slider changes due to precision 0.29999978, even though slider has value_snap(Some(0.01))?
+
+- tidy alignment/padding in section 04 number_edit group.
 
 - Go through the spec_page, check/implement/test each widget/aspect to make better match the mock-up and add interactivity as we go (https://claude.ai/design/p/1aab4e86-cbf2-497e-b379-44cf41de2b12?file=Framewise+Widgets.html)
   - Done 01-03

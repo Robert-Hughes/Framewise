@@ -308,7 +308,7 @@ mod tests {
     use super::*;
     use crate::{
         draw::DrawCommands,
-        focus::FocusSystem,
+        focus::{FocusDirection, FocusId, FocusSystem},
         input::{Input, Key},
         layouts::ManualLayout,
         test_utils::TestTextBackend,
@@ -337,6 +337,22 @@ mod tests {
             &mut cmds,
         );
         slider_with_editor(spec, Rect::new(0.0, 0.0, 240.0, 28.0), state, &mut ctx)
+    }
+
+    fn run_slider_with_editor_then_register_outside(
+        state: &mut SliderWithEditorState,
+        input: &Input,
+        focus: &mut FocusSystem,
+        outside_id: FocusId,
+    ) {
+        run_once(
+            SliderWithEditorSpec::default().slider(SliderSpec::default().max(1.0)),
+            state,
+            input,
+            focus,
+        );
+
+        focus.register_keyboard(outside_id, Rect::new(300.0, 0.0, 80.0, 28.0), None);
     }
 
     fn editing_state(text: &str, dirty: bool) -> NumberEditEditState {
@@ -384,34 +400,47 @@ mod tests {
             },
         };
         let mut focus = FocusSystem::new();
+        let outside_id = FocusId::new();
 
-        let mut input = Input::default();
-        input.keys_pressed.insert(Key::Tab);
-        focus.take_keyboard_focus(state.slider.focus_id);
-
+        focus.take_keyboard_focus(state.editor.focus_id);
         focus.begin_frame();
-        run_once(
-            SliderWithEditorSpec::default().slider(SliderSpec::default().max(1.0)),
+        run_slider_with_editor_then_register_outside(
             &mut state,
-            &input,
+            &Input::default(),
             &mut focus,
+            outside_id,
         );
+        focus.take_keyboard_focus(state.slider.focus_id);
+        focus.request_keyboard_shift(FocusDirection::Next);
         focus.end_frame();
 
         assert_eq!(focus.current_keyboard_focus(), Some(state.editor.focus_id));
+    }
 
-        let mut input = Input::default();
-        input.keys_pressed.insert(Key::Tab);
-        input.modifier_shift = true;
+    #[test]
+    fn test_slider_with_editor_overrides_shift_tab_from_editor_to_slider() {
+        let mut state = SliderWithEditorState {
+            slider: SliderState {
+                value: SliderValue::Single(0.5),
+                ..Default::default()
+            },
+            editor: NumberEditState {
+                value: 0.5,
+                ..Default::default()
+            },
+        };
+        let mut focus = FocusSystem::new();
+        let outside_id = FocusId::new();
+
         focus.take_keyboard_focus(state.editor.focus_id);
-
         focus.begin_frame();
-        run_once(
-            SliderWithEditorSpec::default().slider(SliderSpec::default().max(1.0)),
+        run_slider_with_editor_then_register_outside(
             &mut state,
-            &input,
+            &Input::default(),
             &mut focus,
+            outside_id,
         );
+        focus.request_keyboard_shift(FocusDirection::Prev);
         focus.end_frame();
 
         assert_eq!(focus.current_keyboard_focus(), Some(state.slider.focus_id));
