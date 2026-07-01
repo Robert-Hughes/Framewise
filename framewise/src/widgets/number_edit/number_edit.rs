@@ -3,7 +3,7 @@ use crate::{
     focus::{FocusId, FocusSystem, NavDirections},
     input::Input,
     layout::{Align, AxisBound, LayoutState, SizeOffer},
-    text::{layout_text, TextBackend, TextBounds, TextLineAlign},
+    text::{layout_text, CaretPosition, TextBackend, TextBounds, TextLineAlign},
     types::{ClipRect, Color, Layer, Outline, Rect, Stroke, Vec2},
     widget::{InputInfo, LayoutInfo, WidgetContext},
     widgets::{
@@ -194,7 +194,7 @@ pub mod raw {
             spec.disabled,
             is_hover_active,
             state.press_drag.dragging,
-            (spec.drag_enabled && spec.text_entry_mode != super::NumberEditTextEntryMode::Always)
+            (spec.drag_enabled && !text_edit_visible)
                 .then_some(crate::output::CursorIcon::EwResize),
             input,
         );
@@ -254,15 +254,6 @@ pub mod raw {
             focus_system.take_keyboard_focus(state.focus_id);
             started_editing_this_frame = true;
         }
-        if spec.text_entry_mode == super::NumberEditTextEntryMode::Always
-            && input.mouse_pressed
-            && value_rect.contains(input.mouse_pos)
-            && is_visible
-            && !spec.disabled
-        {
-            focus_system.take_keyboard_focus(state.focus_id);
-        }
-
         let mut text_edit_result = None;
         // In display mode the NumberEdit owns focus registration; in edit mode raw
         // TextEdit registers the same focus id instead.
@@ -281,10 +272,14 @@ pub mod raw {
             .focused
         };
 
-        // Display-mode mouse interaction: arrow stepping, repeat, and scrub drag.
-        // Edit mode bypasses this so typed values do not also trigger value changes.
-        if !spec.disabled && !state.edit.is_editing() {
-            let drag_threshold = if spec.drag_enabled {
+        // Mouse interaction: the central scrub lane is display-mode only, but
+        // Always mode still allows the step buttons while the editor is visible.
+        let editing = state.edit.is_editing();
+        let step_buttons_enabled =
+            !editing || spec.text_entry_mode == super::NumberEditTextEntryMode::Always;
+        let value_drag_enabled = spec.drag_enabled && !editing;
+        if !spec.disabled && step_buttons_enabled {
+            let drag_threshold = if value_drag_enabled {
                 DEFAULT_DRAG_THRESHOLD
             } else {
                 f32::INFINITY
@@ -295,7 +290,7 @@ pub mod raw {
                 &mut state.press_drag,
                 input,
                 PressDragInteractionSpec {
-                    enabled: state.is_arrow_stepping || spec.drag_enabled,
+                    enabled: state.is_arrow_stepping || value_drag_enabled,
                     threshold: drag_threshold,
                     held_cursor_policy: HeldCursorPolicy::WhileActiveContains(
                         crate::output::CursorIcon::Pointer,
@@ -310,13 +305,16 @@ pub mod raw {
                 state.arrow_step_direction = None;
             }
 
-            if state.is_arrow_stepping && spec.drag_enabled && press_drag.drag_started {
+            if state.is_arrow_stepping && value_drag_enabled && press_drag.drag_started {
                 state.is_arrow_stepping = false;
                 state.arrow_step_direction = None;
                 state.drag_start_value = state.value;
             }
 
-            if decrement_hover.can_start || increment_hover.can_start || value_hover.can_start {
+            if decrement_hover.can_start
+                || increment_hover.can_start
+                || (value_hover.can_start && value_drag_enabled)
+            {
                 focus_system.take_keyboard_focus(state.focus_id);
             }
 
@@ -326,7 +324,7 @@ pub mod raw {
                 state.arrow_step_direction = Some(direction);
                 begin_held_press_drag(&mut state.press_drag, input.mouse_pos);
                 state.repeat_timer.start(spec.time, RepeatTiming::PRESS);
-            } else if value_hover.can_start && spec.drag_enabled {
+            } else if value_hover.can_start && value_drag_enabled {
                 state.drag_start_value = state.value;
                 press_drag = begin_immediate_drag(
                     &mut state.press_drag,
@@ -349,7 +347,7 @@ pub mod raw {
                 }
             }
 
-            if state.press_drag.dragging && spec.drag_enabled {
+            if state.press_drag.dragging && value_drag_enabled {
                 let dx = input.mouse_pos.x - state.press_drag.drag_start_pos.x;
                 let value_range = drag_value_range(clamp_min, clamp_max);
                 let delta_val = (dx / value_rect.w.max(1.0)) * value_range;
@@ -659,32 +657,45 @@ pub mod raw {
         }
 
         if state.edit.is_editing() && !spec.disabled {
+            let editor_has_keyboard_focus =
+                focus_system.current_keyboard_focus() == Some(state.focus_id);
             let clicked_outside_text_edit =
                 input.mouse_pressed && !value_rect.contains(input.mouse_pos);
-            if input.key_pressed(crate::input::Key::Escape) {
+            let clicked_step_button = input.mouse_pressed
+                && (decrement_rect.contains(input.mouse_pos)
+                    || increment_rect.contains(input.mouse_pos));
+            if editor_has_keyboard_focus && input.key_pressed(crate::input::Key::Escape) {
                 if spec.text_entry_mode == super::NumberEditTextEntryMode::Always {
                     reset_number_edit_draft_from_value(state);
-                    edit_focused = focus_system.current_keyboard_focus() == Some(state.focus_id);
+                    edit_focused = true;
                 } else {
                     state.edit = NumberEditEditState::Inactive;
                     focus_system.take_keyboard_focus(state.focus_id);
                     edit_focused = true;
                 }
-            } else if input.key_pressed(crate::input::Key::Enter) && !started_editing_this_frame {
+            } else if editor_has_keyboard_focus
+                && input.key_pressed(crate::input::Key::Enter)
+                && !started_editing_this_frame
+            {
                 if spec.text_entry_mode == super::NumberEditTextEntryMode::Always {
                     try_commit_number_edit_keep_editing(state, clamp_min, clamp_max);
-                    edit_focused = focus_system.current_keyboard_focus() == Some(state.focus_id);
+                    edit_focused = true;
                 } else if try_commit_number_edit(state, clamp_min, clamp_max) {
                     focus_system.take_keyboard_focus(state.focus_id);
                     edit_focused = true;
                 }
             } else if clicked_outside_text_edit {
                 if spec.text_entry_mode == super::NumberEditTextEntryMode::Always {
-                    try_commit_number_edit_keep_editing(state, clamp_min, clamp_max);
+                    if clicked_step_button {
+                        edit_focused = false;
+                    } else {
+                        try_commit_number_edit_keep_editing(state, clamp_min, clamp_max);
+                        edit_focused = false;
+                    }
                 } else {
                     commit_or_remember_number_edit_on_focus_loss(state, clamp_min, clamp_max);
+                    edit_focused = false;
                 }
-                edit_focused = false;
             } else if !edit_focused
                 && spec.text_entry_mode != super::NumberEditTextEntryMode::Always
             {
@@ -1119,12 +1130,34 @@ fn try_commit_number_edit_keep_editing(
         state.value = clamp_optional(value, clamp_min, clamp_max);
         *error = false;
         *dirty = false;
+        select_all_number_edit_text(text_edit);
         true
     } else {
         *error = true;
         *dirty = true;
         false
     }
+}
+
+fn select_all_number_edit_text(text_edit: &mut TextEditState) {
+    if text_edit.value.is_empty() {
+        text_edit.caret = CaretPosition::EmptyText;
+        text_edit.selection_anchor = None;
+        return;
+    }
+
+    let last_cluster_start = text_edit
+        .value
+        .char_indices()
+        .last()
+        .map_or(0, |(byte, _)| byte);
+    text_edit.caret = CaretPosition::AfterCluster {
+        cluster_byte_start: last_cluster_start,
+        cluster_byte_end: text_edit.value.len(),
+    };
+    text_edit.selection_anchor = Some(CaretPosition::BeforeCluster {
+        cluster_byte_start: 0,
+    });
 }
 
 fn reset_number_edit_draft_from_value(state: &mut NumberEditState) {
