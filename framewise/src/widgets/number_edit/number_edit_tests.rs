@@ -2957,6 +2957,62 @@ fn test_number_edit_text_edit_focus_lost_invalid_remembers_draft() {
 }
 
 #[test]
+fn test_number_edit_always_focus_lost_commits_valid_value_and_stays_editing() {
+    let rect = Rect::new(0.0, 0.0, 160.0, 28.0);
+    let mut state = NumberEditState {
+        value: 10.0,
+        ..Default::default()
+    };
+    enter_edit_state(&mut state, "42.5");
+
+    let mut focus_system = FocusSystem::new();
+    let other_focus = FocusId::new();
+    focus_system.take_keyboard_focus(other_focus);
+
+    run_key(
+        always_text_entry_spec(rect),
+        &mut state,
+        &mut focus_system,
+        |_| {},
+    );
+
+    assert_eq!(state.value, 42.5);
+    let (text_edit, error, dirty) = assert_editing(&state.edit);
+    assert_eq!(text_edit.value, "42.5");
+    assert!(!error);
+    assert!(!dirty);
+    assert_eq!(focus_system.current_keyboard_focus(), Some(other_focus));
+}
+
+#[test]
+fn test_number_edit_always_focus_lost_invalid_keeps_draft_and_sets_error() {
+    let rect = Rect::new(0.0, 0.0, 160.0, 28.0);
+    let mut state = NumberEditState {
+        value: 10.0,
+        ..Default::default()
+    };
+    enter_edit_state(&mut state, "abc");
+
+    let mut focus_system = FocusSystem::new();
+    let other_focus = FocusId::new();
+    focus_system.take_keyboard_focus(other_focus);
+
+    run_key(
+        always_text_entry_spec(rect),
+        &mut state,
+        &mut focus_system,
+        |_| {},
+    );
+
+    assert_eq!(state.value, 10.0);
+    let (text_edit, error, dirty) = assert_editing(&state.edit);
+    assert_eq!(text_edit.value, "abc");
+    assert!(error);
+    assert!(dirty);
+    assert_eq!(focus_system.current_keyboard_focus(), Some(other_focus));
+}
+
+#[test]
 fn test_number_edit_text_edit_arrow_keys_move_caret_not_value() {
     let rect = Rect::new(0.0, 0.0, 140.0, 28.0);
     let mut state = NumberEditState {
@@ -3190,7 +3246,7 @@ fn test_number_edit_always_renders_text_edit_first_frame_with_raw_text() {
 }
 
 #[test]
-fn test_number_edit_always_keeps_existing_dirty_draft_across_frames() {
+fn test_number_edit_always_keeps_focused_dirty_draft_across_frames() {
     let rect = Rect::new(0.0, 0.0, 160.0, 28.0);
     let mut state = NumberEditState {
         value: 12.0,
@@ -3198,6 +3254,7 @@ fn test_number_edit_always_keeps_existing_dirty_draft_across_frames() {
     };
     enter_edit_state(&mut state, "123");
     let mut focus_system = FocusSystem::new();
+    focus_system.take_keyboard_focus(state.focus_id);
 
     run_key(
         always_text_entry_spec(rect),
@@ -3390,7 +3447,7 @@ fn test_number_edit_always_enter_clamped_commit_updates_visible_text() {
 }
 
 #[test]
-fn test_number_edit_always_enter_and_escape_are_ignored_when_unfocused() {
+fn test_number_edit_always_unfocused_frame_validates_focus_loss_not_enter_escape() {
     let rect = Rect::new(0.0, 0.0, 160.0, 28.0);
     let other_focus = FocusId::new();
     let mut focus_system = FocusSystem::new();
@@ -3409,12 +3466,14 @@ fn test_number_edit_always_enter_and_escape_are_ignored_when_unfocused() {
             input.keys_pressed.insert(crate::input::Key::Enter);
         },
     );
-    assert_eq!(state.value, 10.0);
+    assert_eq!(state.value, 42.0);
     let (text_edit, error, dirty) = assert_editing(&state.edit);
     assert_eq!(text_edit.value, "42");
     assert!(!error);
-    assert!(dirty);
+    assert!(!dirty);
 
+    enter_edit_state(&mut state, "bad");
+    focus_system.take_keyboard_focus(other_focus);
     run_key(
         always_text_entry_spec(rect),
         &mut state,
@@ -3423,10 +3482,10 @@ fn test_number_edit_always_enter_and_escape_are_ignored_when_unfocused() {
             input.keys_pressed.insert(crate::input::Key::Escape);
         },
     );
-    assert_eq!(state.value, 10.0);
+    assert_eq!(state.value, 42.0);
     let (text_edit, error, dirty) = assert_editing(&state.edit);
-    assert_eq!(text_edit.value, "42");
-    assert!(!error);
+    assert_eq!(text_edit.value, "bad");
+    assert!(error);
     assert!(dirty);
     assert_eq!(focus_system.current_keyboard_focus(), Some(other_focus));
 }
@@ -3641,6 +3700,7 @@ fn test_number_edit_always_dirty_aware_external_sync() {
     assert!(!dirty);
 
     enter_edit_state(&mut state, "25");
+    focus_system.take_keyboard_focus(state.focus_id);
     state.value = 30.0;
     run_key(
         always_text_entry_spec(rect),

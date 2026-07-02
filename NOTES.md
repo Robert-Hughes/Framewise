@@ -5,7 +5,6 @@ Working notes, TODOs, open questions, and half-baked ideas.
 ## Current Work
 
 - slider_with_editor
-   - for "always" number edit editor, losing focus should probably still commit/validate/error
    - flickering with slider changes due to precision 0.29999978, even though slider has value_snap(Some(0.01))?
 
 - tidy alignment/padding in section 04 number_edit group.

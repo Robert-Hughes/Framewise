@@ -701,21 +701,24 @@ pub mod raw {
                     edit_focused = true;
                 }
             } else if clicked_outside_text_edit {
-                if spec.text_entry_mode == super::NumberEditTextEntryMode::Always {
-                    if clicked_step_button {
-                        edit_focused = false;
-                    } else {
-                        try_commit_number_edit_keep_editing(state, clamp_min, clamp_max);
-                        edit_focused = false;
-                    }
-                } else {
-                    commit_or_remember_number_edit_on_focus_loss(state, clamp_min, clamp_max);
-                    edit_focused = false;
+                if !(spec.text_entry_mode == super::NumberEditTextEntryMode::Always
+                    && clicked_step_button)
+                {
+                    commit_or_validate_number_edit_on_focus_loss(
+                        state,
+                        spec.text_entry_mode,
+                        clamp_min,
+                        clamp_max,
+                    );
                 }
-            } else if !edit_focused
-                && spec.text_entry_mode != super::NumberEditTextEntryMode::Always
-            {
-                commit_or_remember_number_edit_on_focus_loss(state, clamp_min, clamp_max);
+                edit_focused = false;
+            } else if !edit_focused {
+                commit_or_validate_number_edit_on_focus_loss(
+                    state,
+                    spec.text_entry_mode,
+                    clamp_min,
+                    clamp_max,
+                );
             }
         }
 
@@ -1295,7 +1298,29 @@ fn normalise_number_edit_text_entry_mode(
     }
 }
 
-fn commit_or_remember_number_edit_on_focus_loss(
+fn commit_or_validate_number_edit_on_focus_loss(
+    state: &mut NumberEditState,
+    mode: NumberEditTextEntryMode,
+    clamp_min: Option<f32>,
+    clamp_max: Option<f32>,
+) {
+    match mode {
+        NumberEditTextEntryMode::OnDemand => {
+            commit_or_remember_on_demand_number_edit_on_focus_loss(state, clamp_min, clamp_max);
+        }
+        NumberEditTextEntryMode::Always => {
+            if matches!(
+                &state.edit,
+                NumberEditEditState::Editing { dirty: true, .. }
+            ) {
+                try_commit_number_edit_keep_editing(state, clamp_min, clamp_max);
+            }
+        }
+        NumberEditTextEntryMode::Disabled => {}
+    }
+}
+
+fn commit_or_remember_on_demand_number_edit_on_focus_loss(
     state: &mut NumberEditState,
     clamp_min: Option<f32>,
     clamp_max: Option<f32>,
