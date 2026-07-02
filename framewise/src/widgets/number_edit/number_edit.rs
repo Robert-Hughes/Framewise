@@ -53,6 +53,7 @@ pub mod raw {
     {
         pub style: super::NumberEditStyle,
         pub value: f32,
+        pub text_entry_mode: super::NumberEditTextEntryMode,
         pub step_buttons_enabled: bool,
         pub text_converter: &'c C,
     }
@@ -89,7 +90,38 @@ pub mod raw {
 
     fn number_edit_size_request<T: TextBackend, C>(
         spec: &NumberEditPreLayoutSpec<'_, C>,
-        _offer: SizeOffer,
+        offer: SizeOffer,
+        text_backend: &mut T,
+    ) -> crate::layout::SizeRequest
+    where
+        C: super::NumberEditTextConverter,
+    {
+        let s = spec.style;
+        let step_button_w = if spec.step_buttons_enabled {
+            number_edit_step_button_width(s.step_button, text_backend)
+        } else {
+            0.0
+        };
+        let value_offer = number_edit_value_offer(offer, step_button_w);
+        let value_size = match spec.text_entry_mode {
+            super::NumberEditTextEntryMode::Disabled => {
+                number_edit_display_value_size_request(spec, text_backend)
+            }
+            super::NumberEditTextEntryMode::Always => {
+                number_edit_text_edit_value_size_request(spec, value_offer, text_backend)
+            }
+            super::NumberEditTextEntryMode::OnDemand => {
+                let display = number_edit_display_value_size_request(spec, text_backend);
+                let edit =
+                    number_edit_text_edit_value_size_request(spec, value_offer, text_backend);
+                max_size_request(display, edit)
+            }
+        };
+        add_number_edit_step_buttons_to_size_request(value_size, step_button_w)
+    }
+
+    fn number_edit_display_value_size_request<T: TextBackend, C>(
+        spec: &NumberEditPreLayoutSpec<'_, C>,
         text_backend: &mut T,
     ) -> crate::layout::SizeRequest
     where
@@ -104,13 +136,88 @@ pub mod raw {
             crate::text::TextBounds::UNBOUNDED,
         );
         let value_w = value_layout.metrics().logical_size.x + s.text_pad_x * 2.0;
-        let preferred_w = if spec.step_buttons_enabled {
-            let step_button_w = number_edit_step_button_width(s.step_button, text_backend);
-            value_w + step_button_w * 2.0
-        } else {
-            value_w
+        crate::layout::SizeRequest::preferred(Vec2::new(value_w, s.height))
+    }
+
+    fn number_edit_text_edit_value_size_request<T: TextBackend, C>(
+        spec: &NumberEditPreLayoutSpec<'_, C>,
+        offer: SizeOffer,
+        text_backend: &mut T,
+    ) -> crate::layout::SizeRequest
+    where
+        C: super::NumberEditTextConverter,
+    {
+        let edit_text = spec.text_converter.edit_text(spec.value);
+        let mut text_edit = text_edit::TextEditState::new(&edit_text);
+        let text_edit_spec = text_edit::raw::TextEditPreLayoutSpec {
+            style: spec.style.text_edit_style,
+            wrap: false,
+            line_align: TextLineAlign::Center,
+            error: false,
+            disabled: false,
+            newline_policy: super::NewlinePolicy::TrimAfterFirstNewline,
         };
-        crate::layout::SizeRequest::preferred(Vec2::new(preferred_w, s.height))
+        let focus_system = FocusSystem::new();
+        let size_request = text_edit::raw::pre_layout_text_edit(
+            &text_edit_spec,
+            offer,
+            &mut text_edit,
+            &Input::default(),
+            &focus_system,
+            text_backend,
+        )
+        .size_request;
+        min_preferred_height(size_request, spec.style.height)
+    }
+
+    fn number_edit_value_offer(offer: SizeOffer, step_button_w: f32) -> SizeOffer {
+        let subtract_buttons = |bound| match bound {
+            AxisBound::Exact(w) => AxisBound::Exact((w - step_button_w * 2.0).max(0.0)),
+            AxisBound::AtMost(w) => AxisBound::AtMost((w - step_button_w * 2.0).max(0.0)),
+            AxisBound::Unbounded => AxisBound::Unbounded,
+        };
+        SizeOffer::new(subtract_buttons(offer.width), offer.height)
+    }
+
+    fn add_number_edit_step_buttons_to_size_request(
+        request: crate::layout::SizeRequest,
+        step_button_w: f32,
+    ) -> crate::layout::SizeRequest {
+        let add_buttons = |size: Vec2| Vec2::new(size.x + step_button_w * 2.0, size.y);
+        crate::layout::SizeRequest {
+            min: request.min.map(add_buttons),
+            preferred: request.preferred.map(add_buttons),
+            max: request.max.map(add_buttons),
+        }
+    }
+
+    fn max_size_request(
+        a: crate::layout::SizeRequest,
+        b: crate::layout::SizeRequest,
+    ) -> crate::layout::SizeRequest {
+        let max_size = |a: Option<Vec2>, b: Option<Vec2>| match (a, b) {
+            (Some(a), Some(b)) => Some(Vec2::new(a.x.max(b.x), a.y.max(b.y))),
+            (Some(a), None) => Some(a),
+            (None, Some(b)) => Some(b),
+            (None, None) => None,
+        };
+        crate::layout::SizeRequest {
+            min: max_size(a.min, b.min),
+            preferred: max_size(a.preferred, b.preferred),
+            max: max_size(a.max, b.max),
+        }
+    }
+
+    fn min_preferred_height(
+        request: crate::layout::SizeRequest,
+        min_height: f32,
+    ) -> crate::layout::SizeRequest {
+        let with_min_height = |size: Vec2| Vec2::new(size.x, size.y.max(min_height));
+        crate::layout::SizeRequest {
+            min: request.min.map(with_min_height),
+            preferred: request.preferred.map(with_min_height),
+            max: request.max.map(with_min_height),
+        }
     }
 
     /// Low-level number edit widget function.
@@ -1143,10 +1250,7 @@ fn enter_number_edit_mode<C: NumberEditTextConverter>(
     text_converter: &C,
 ) {
     let (draft, dirty) = match std::mem::take(&mut state.edit) {
-        NumberEditEditState::Inactive => (
-            text_converter.edit_text(state.value),
-            false,
-        ),
+        NumberEditEditState::Inactive => (text_converter.edit_text(state.value), false),
         NumberEditEditState::Remembered { draft } => (draft, true),
         NumberEditEditState::Editing { .. } => unreachable!("guarded by !is_editing"),
     };
@@ -1395,6 +1499,22 @@ pub struct NumberEditResult {
 pub trait NumberEditTextConverter {
     fn display_text(&self, value: f32) -> String;
     fn edit_text(&self, value: f32) -> String;
+}
+
+pub struct NumberEditTextConverterClosures<D: Fn(f32) -> String, E: Fn(f32) -> String> {
+    pub display: D,
+    pub edit: E,
+}
+impl<D: Fn(f32) -> String, E: Fn(f32) -> String> NumberEditTextConverter
+    for NumberEditTextConverterClosures<D, E>
+{
+    fn display_text(&self, value: f32) -> String {
+        (self.display)(value)
+    }
+
+    fn edit_text(&self, value: f32) -> String {
+        (self.edit)(value)
+    }
 }
 
 impl<F> NumberEditTextConverter for F
@@ -1661,6 +1781,7 @@ where
     let pre_layout_spec = raw::NumberEditPreLayoutSpec {
         style: spec.style,
         value: state.value,
+        text_entry_mode: spec.text_entry_mode,
         step_buttons_enabled: spec.step_buttons_enabled,
         text_converter: &spec.text_converter,
     };
@@ -1696,6 +1817,7 @@ where
     let pre_layout_spec = raw::NumberEditPreLayoutSpec {
         style: spec.style,
         value: state.value,
+        text_entry_mode: spec.text_entry_mode,
         step_buttons_enabled: spec.step_buttons_enabled,
         text_converter: &spec.text_converter,
     };

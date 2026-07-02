@@ -233,12 +233,14 @@ fn test_number_edit_measurement_and_rendering() {
     let default_spec = raw::NumberEditPreLayoutSpec {
         style,
         value: 50.0,
+        text_entry_mode: NumberEditTextEntryMode::Disabled,
         step_buttons_enabled: true,
         text_converter: &default_formatter,
     };
     let integer_spec = raw::NumberEditPreLayoutSpec {
         style,
         value: 50.0,
+        text_entry_mode: NumberEditTextEntryMode::Disabled,
         step_buttons_enabled: true,
         text_converter: &integer_formatter,
     };
@@ -275,6 +277,64 @@ fn test_number_edit_measurement_and_rendering() {
     let expected_no_step_buttons_w = "50.00".len() as f32 * 8.0 + style.text_pad_x * 2.0;
     assert!(default_w > no_step_buttons_w);
     assert_eq!(no_step_buttons_w, expected_no_step_buttons_w);
+
+    let mode_converter = NumberEditTextConverterClosures {
+        display: |_| "7".to_string(),
+        edit: |_| "123456".to_string(),
+    };
+    let disabled_mode_spec = raw::NumberEditPreLayoutSpec {
+        style,
+        value: 7.0,
+        text_entry_mode: NumberEditTextEntryMode::Disabled,
+        step_buttons_enabled: false,
+        text_converter: &mode_converter,
+    };
+    let always_mode_spec = raw::NumberEditPreLayoutSpec {
+        style,
+        value: 7.0,
+        text_entry_mode: NumberEditTextEntryMode::Always,
+        step_buttons_enabled: false,
+        text_converter: &mode_converter,
+    };
+    let on_demand_mode_spec = raw::NumberEditPreLayoutSpec {
+        style,
+        value: 7.0,
+        text_entry_mode: NumberEditTextEntryMode::OnDemand,
+        step_buttons_enabled: false,
+        text_converter: &mode_converter,
+    };
+    let disabled_mode_w = raw::pre_layout_number_edit(
+        &disabled_mode_spec,
+        crate::layout::SizeOffer::UNBOUNDED,
+        &mut text_backend,
+    )
+    .size_request
+    .preferred
+    .unwrap()
+    .x;
+    let always_mode_w = raw::pre_layout_number_edit(
+        &always_mode_spec,
+        crate::layout::SizeOffer::UNBOUNDED,
+        &mut text_backend,
+    )
+    .size_request
+    .preferred
+    .unwrap()
+    .x;
+    let on_demand_mode_w = raw::pre_layout_number_edit(
+        &on_demand_mode_spec,
+        crate::layout::SizeOffer::UNBOUNDED,
+        &mut text_backend,
+    )
+    .size_request
+    .preferred
+    .unwrap()
+    .x;
+    let display_only_w = "7".len() as f32 * 8.0 + style.text_pad_x * 2.0;
+    let edit_only_w = "123456".len() as f32 * 8.0 + style.text_edit_style.padding_x * 2.0;
+    assert_eq!(disabled_mode_w, display_only_w);
+    assert_eq!(always_mode_w, edit_only_w);
+    assert_eq!(on_demand_mode_w, edit_only_w);
 
     let spec = raw::NumberEditSpec {
         layer: Layer::default(),
@@ -4312,6 +4372,7 @@ fn test_number_edit_step_button_visual_appearance() {
     let pre_layout_spec = raw::NumberEditPreLayoutSpec {
         style,
         value: 50.0,
+        text_entry_mode: NumberEditTextEntryMode::Disabled,
         step_buttons_enabled: true,
         text_converter: &text_converter,
     };

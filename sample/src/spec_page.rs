@@ -63,7 +63,7 @@ use framewise::widgets::meter::{meter, MeterSpec};
 #[allow(unused_imports)]
 use framewise::widgets::number_edit::{
     number_edit, prefixed_number_edit, NumberEditSpec, NumberEditState, NumberEditStyle,
-    NumberEditTextEntryMode,
+    NumberEditTextConverterClosures, NumberEditTextEntryMode,
 };
 #[cfg(feature = "progress_bar")]
 #[allow(unused_imports)]
@@ -1930,7 +1930,10 @@ fn section_01_buttons<CF>(
                 .page_step(10.0)
                 .drag_enabled(false)
                 .value_fill_enabled(false)
-                .text_converter(|v: f32| format!("Frame {v:.0}"))
+                .text_converter(NumberEditTextConverterClosures {
+                    display: |v: f32| format!("Frame {v:.0}"),
+                    edit: |v: f32| format!("{v:.0}"),
+                })
                 .style(NumberEditStyle::button_stepper_from_theme(&b.theme));
             number_edit(
                 spec,
@@ -2745,10 +2748,8 @@ fn section_04_sliders<CF>(
     {
         let mut b = b.child_with_layout(
             ColumnLayoutParams::fixed(content_w, b.theme.h_md),
-            ManualLayout,
+            RowLayout,
         );
-        let local_rect = |x: f32, y: f32, w: f32, h: f32| Rect::new(x, y, w, h);
-
         prefixed_number_edit(
             "padding",
             NumberEditSpec::new_from_theme(&b.theme)
@@ -2757,23 +2758,14 @@ fn section_04_sliders<CF>(
                 .value_fill_enabled(false)
                 .text_entry_mode(NumberEditTextEntryMode::Always)
                 .step_buttons_enabled(false)
+                .text_converter(|v: f32| format!("{v:.0}"))
                 .style(NumberEditStyle::compact_stepper_from_theme(&b.theme)),
-            local_rect(0.0, 0.0, 110.0, b.theme.h_md),
+            RowLayoutParams::auto(),
             &mut state.number_edit_state[3],
             &mut b,
         );
 
-        number_edit(
-            NumberEditSpec::new_from_theme(&b.theme)
-                .range(0.0, 100.0)
-                .drag_enabled(false)
-                .value_fill_enabled(false)
-                .text_entry_mode(NumberEditTextEntryMode::Always)
-                .style(NumberEditStyle::compact_stepper_from_theme(&b.theme)),
-            local_rect(120.0, 0.0, 96.0, b.theme.h_sm),
-            &mut state.number_edit_state[4],
-            &mut b,
-        );
+        b.spacer(16.0);
 
         prefixed_number_edit(
             "opacity",
@@ -2781,9 +2773,27 @@ fn section_04_sliders<CF>(
                 .range(0.0, 100.0)
                 .step_buttons_enabled(false)
                 .text_entry_mode(NumberEditTextEntryMode::OnDemand)
+                .text_converter(|v: f32| format!("{v:.0}"))
                 .style(NumberEditStyle::compact_stepper_from_theme(&b.theme)),
-            local_rect(220.0, 0.0, 120.0, b.theme.h_sm),
+            RowLayoutParams::auto(),
             &mut state.number_edit_state[5],
+            &mut b,
+        );
+
+        b.spacer(16.0);
+
+        number_edit(
+            NumberEditSpec::new_from_theme(&b.theme)
+                .range(0.0, 100.0)
+                .drag_enabled(false)
+                .value_fill_enabled(false)
+                .text_entry_mode(NumberEditTextEntryMode::Always)
+                .text_converter(|v: f32| format!("{v:.0}"))
+                .style(NumberEditStyle::compact_stepper_from_theme(&b.theme)),
+            RowLayoutParams::auto()
+                .fixed_y(b.theme.h_sm)
+                .align_y(Align::Center),
+            &mut state.number_edit_state[4],
             &mut b,
         );
 
