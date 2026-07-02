@@ -197,7 +197,6 @@ fn test_segmented_visual_focused() {
 
 #[test]
 fn test_segmented_click_takes_focus() {
-    let mut focus_system = FocusSystem::new();
     let mut state = SegmentedState::default();
     let input = Input {
         mouse_pos: Vec2::new(20.0, 10.0),
@@ -217,7 +216,7 @@ fn test_segmented_click_takes_focus() {
     };
 
     let mut cmds = DrawCommands::new(1.0);
-    focus_system = FocusSystem::new_mocked(None, Some(state.focus_id));
+    let mut focus_system = FocusSystem::new_mocked(None, Some(state.focus_id));
     focus_system.begin_frame();
     let result = raw::post_layout_segmented(
         spec,

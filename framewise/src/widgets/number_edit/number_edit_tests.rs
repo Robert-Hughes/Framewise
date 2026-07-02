@@ -10,7 +10,51 @@ fn default_style() -> NumberEditStyle {
     NumberEditStyle::from_theme(&crate::theme::Theme::framewise())
 }
 
-fn default_spec(rect: Rect) -> raw::NumberEditSpec {
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct LegacyNumberEditTextConverter;
+
+impl NumberEditTextConverter for LegacyNumberEditTextConverter {
+    fn display_text(&self, value: f32) -> String {
+        format!("{value:.2}")
+    }
+
+    fn edit_text(&self, value: f32) -> String {
+        value.to_string()
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct FrameDisplayLegacyEditTextConverter;
+
+impl NumberEditTextConverter for FrameDisplayLegacyEditTextConverter {
+    fn display_text(&self, value: f32) -> String {
+        format!("Frame {value:.0}")
+    }
+
+    fn edit_text(&self, value: f32) -> String {
+        value.to_string()
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+struct DisplayFnLegacyEditTextConverter {
+    display_text: fn(f32) -> String,
+}
+
+impl NumberEditTextConverter for DisplayFnLegacyEditTextConverter {
+    fn display_text(&self, value: f32) -> String {
+        (self.display_text)(value)
+    }
+
+    fn edit_text(&self, value: f32) -> String {
+        value.to_string()
+    }
+}
+
+fn spec_with_text_converter<C: NumberEditTextConverter>(
+    rect: Rect,
+    text_converter: C,
+) -> raw::NumberEditSpec<C> {
     raw::NumberEditSpec {
         layer: Layer::default(),
         rect,
@@ -22,12 +66,16 @@ fn default_spec(rect: Rect) -> raw::NumberEditSpec {
         drag_enabled: true,
         step_buttons_enabled: true,
         value_fill_enabled: true,
-        value_formatter: default_number_edit_value_formatter,
+        text_converter,
         time: 0.0,
         disabled: false,
         style: default_style(),
         clip_rect: None,
     }
+}
+
+fn default_spec(rect: Rect) -> raw::NumberEditSpec<LegacyNumberEditTextConverter> {
+    spec_with_text_converter(rect, LegacyNumberEditTextConverter)
 }
 
 fn run_raw<F>(
@@ -39,7 +87,7 @@ fn run_raw<F>(
     cmds: &mut DrawCommands,
 ) -> raw::NumberEditResult
 where
-    F: Fn(f32) -> String,
+    F: NumberEditTextConverter,
 {
     raw::post_layout_number_edit(
         spec,
@@ -60,7 +108,7 @@ fn run_key<F>(
     focus_system: &mut FocusSystem,
     set_key: impl FnOnce(&mut Input),
 ) where
-    F: Fn(f32) -> String,
+    F: NumberEditTextConverter,
 {
     let mut input = Input::default();
     set_key(&mut input);
@@ -156,7 +204,7 @@ fn selection_byte(text_edit: &TextEditState) -> Option<usize> {
 
 fn number_edit<F>(spec: NumberEditSpec<F>, value: f32) -> (raw::NumberEditResult, DrawCommands)
 where
-    F: Fn(f32) -> String,
+    F: NumberEditTextConverter,
 {
     let mut cmds = DrawCommands::new(1.0);
     let mut text_backend = TestTextBackend::default();
@@ -180,19 +228,19 @@ where
 #[test]
 fn test_number_edit_measurement_and_rendering() {
     let style = NumberEditStyle::from_theme(&crate::theme::Theme::framewise());
-    let default_formatter = default_number_edit_value_formatter;
+    let default_formatter = DefaultNumberEditTextConverter;
     let integer_formatter = |v: f32| format!("{v:.0}");
     let default_spec = raw::NumberEditPreLayoutSpec {
         style,
         value: 50.0,
         step_buttons_enabled: true,
-        value_formatter: &default_formatter,
+        text_converter: &default_formatter,
     };
     let integer_spec = raw::NumberEditPreLayoutSpec {
         style,
         value: 50.0,
         step_buttons_enabled: true,
-        value_formatter: &integer_formatter,
+        text_converter: &integer_formatter,
     };
     let no_step_buttons_spec = raw::NumberEditPreLayoutSpec {
         step_buttons_enabled: false,
@@ -239,7 +287,7 @@ fn test_number_edit_measurement_and_rendering() {
         drag_enabled: true,
         step_buttons_enabled: true,
         value_fill_enabled: true,
-        value_formatter: integer_formatter,
+        text_converter: integer_formatter,
         time: 0.0,
         disabled: false,
         style,
@@ -283,7 +331,7 @@ fn test_number_edit_visual_normal() {
         drag_enabled: true,
         step_buttons_enabled: true,
         value_fill_enabled: true,
-        value_formatter: default_number_edit_value_formatter,
+        text_converter: LegacyNumberEditTextConverter,
         time: 0.0,
         disabled: false,
         style: NumberEditStyle::from_theme(&crate::theme::Theme::framewise()),
@@ -420,7 +468,7 @@ fn test_number_edit_visual_editing() {
         drag_enabled: true,
         step_buttons_enabled: true,
         value_fill_enabled: true,
-        value_formatter: default_number_edit_value_formatter,
+        text_converter: LegacyNumberEditTextConverter,
         time: 0.0,
         disabled: false,
         style: NumberEditStyle::from_theme(&crate::theme::Theme::framewise()),
@@ -587,7 +635,7 @@ fn test_number_edit_visual_editing_hovered() {
         drag_enabled: true,
         step_buttons_enabled: true,
         value_fill_enabled: true,
-        value_formatter: default_number_edit_value_formatter,
+        text_converter: LegacyNumberEditTextConverter,
         time: 0.0,
         disabled: false,
         style: NumberEditStyle::from_theme(&crate::theme::Theme::framewise()),
@@ -708,7 +756,7 @@ fn test_number_edit_visual_hovered_value_area_draws_arrows() {
         drag_enabled: true,
         step_buttons_enabled: true,
         value_fill_enabled: true,
-        value_formatter: default_number_edit_value_formatter,
+        text_converter: LegacyNumberEditTextConverter,
         time: 0.0,
         disabled: false,
         style: NumberEditStyle::from_theme(&crate::theme::Theme::framewise()),
@@ -854,7 +902,7 @@ fn test_number_edit_visual_active() {
         drag_enabled: true,
         step_buttons_enabled: true,
         value_fill_enabled: true,
-        value_formatter: default_number_edit_value_formatter,
+        text_converter: LegacyNumberEditTextConverter,
         time: 0.0,
         disabled: false,
         style: NumberEditStyle::from_theme(&crate::theme::Theme::framewise()),
@@ -1004,7 +1052,7 @@ fn test_number_edit_visual_min_value() {
         drag_enabled: true,
         step_buttons_enabled: true,
         value_fill_enabled: true,
-        value_formatter: default_number_edit_value_formatter,
+        text_converter: LegacyNumberEditTextConverter,
         time: 0.0,
         disabled: false,
         style: NumberEditStyle::from_theme(&crate::theme::Theme::framewise()),
@@ -1090,7 +1138,6 @@ fn test_number_edit_visual_min_value() {
 
 #[test]
 fn test_number_edit_click_takes_focus() {
-    let mut focus_system = FocusSystem::new();
     let state = NumberEditState {
         value: 50.0,
         ..Default::default()
@@ -1113,7 +1160,7 @@ fn test_number_edit_click_takes_focus() {
         drag_enabled: true,
         step_buttons_enabled: true,
         value_fill_enabled: true,
-        value_formatter: default_number_edit_value_formatter,
+        text_converter: LegacyNumberEditTextConverter,
         time: 0.0,
         disabled: false,
         style: NumberEditStyle::from_theme(&crate::theme::Theme::framewise()),
@@ -1122,7 +1169,7 @@ fn test_number_edit_click_takes_focus() {
 
     let mut state = state;
     let mut cmds = DrawCommands::new(1.0);
-    focus_system = FocusSystem::new_mocked(None, Some(state.focus_id));
+    let mut focus_system = FocusSystem::new_mocked(None, Some(state.focus_id));
     focus_system.begin_frame();
     let result = raw::post_layout_number_edit(
         spec,
@@ -1173,7 +1220,7 @@ fn test_number_edit_clipped_click_does_not_take_focus() {
         drag_enabled: true,
         step_buttons_enabled: true,
         value_fill_enabled: true,
-        value_formatter: default_number_edit_value_formatter,
+        text_converter: LegacyNumberEditTextConverter,
         time: 0.0,
         disabled: false,
         style: NumberEditStyle::from_theme(&crate::theme::Theme::framewise()),
@@ -2271,7 +2318,7 @@ fn test_number_edit_min_greater_than_max_keyboard_does_not_panic() {
         drag_enabled: true,
         step_buttons_enabled: true,
         value_fill_enabled: true,
-        value_formatter: default_number_edit_value_formatter,
+        text_converter: LegacyNumberEditTextConverter,
         time: 0.0,
         disabled: false,
         style: default_style(),
@@ -2534,10 +2581,12 @@ fn test_number_edit_double_click_value_text_enters_text_edit() {
     let mut focus_system = FocusSystem::new();
     let mut text_backend = TestTextBackend::default();
     let formatter: fn(f32) -> String = |v| format!("{v:.0} px");
-    let spec = raw::NumberEditSpec {
-        value_formatter: formatter,
-        ..default_spec(rect)
-    };
+    let spec = spec_with_text_converter(
+        rect,
+        DisplayFnLegacyEditTextConverter {
+            display_text: formatter,
+        },
+    );
     let pos = value_text_pos(rect, "72 px");
 
     let warmup_input = Input {
@@ -2593,10 +2642,12 @@ fn test_number_edit_focused_enter_enters_text_edit() {
     focus_system.take_keyboard_focus(state.focus_id);
 
     let formatter: fn(f32) -> String = |v| format!("{v:.0} px");
-    let spec = raw::NumberEditSpec {
-        value_formatter: formatter,
-        ..default_spec(rect)
-    };
+    let spec = spec_with_text_converter(
+        rect,
+        DisplayFnLegacyEditTextConverter {
+            display_text: formatter,
+        },
+    );
 
     run_key(spec, &mut state, &mut focus_system, |input| {
         input.keys_pressed.insert(crate::input::Key::Enter);
@@ -2619,10 +2670,12 @@ fn test_number_edit_double_click_value_drag_region_enters_text_edit() {
     let mut focus_system = FocusSystem::new();
     let mut text_backend = TestTextBackend::default();
     let formatter: fn(f32) -> String = |v| format!("{v:.0}");
-    let spec = raw::NumberEditSpec {
-        value_formatter: formatter,
-        ..default_spec(rect)
-    };
+    let spec = spec_with_text_converter(
+        rect,
+        DisplayFnLegacyEditTextConverter {
+            display_text: formatter,
+        },
+    );
     let pos = Vec2::new(60.0, rect.y + rect.h * 0.5);
 
     let warmup_input = Input {
@@ -3202,17 +3255,26 @@ fn test_number_edit_text_edit_escape_clears_restored_draft() {
     assert_inactive(&state.edit);
 }
 
-fn always_text_entry_spec(rect: Rect) -> raw::NumberEditSpec {
+fn always_text_entry_spec(rect: Rect) -> raw::NumberEditSpec<LegacyNumberEditTextConverter> {
     raw::NumberEditSpec {
         text_entry_mode: NumberEditTextEntryMode::Always,
         ..default_spec(rect)
     }
 }
 
-fn disabled_text_entry_spec(rect: Rect) -> raw::NumberEditSpec {
+fn disabled_text_entry_spec(rect: Rect) -> raw::NumberEditSpec<LegacyNumberEditTextConverter> {
     raw::NumberEditSpec {
         text_entry_mode: NumberEditTextEntryMode::Disabled,
         ..default_spec(rect)
+    }
+}
+
+fn frame_display_always_spec(
+    rect: Rect,
+) -> raw::NumberEditSpec<FrameDisplayLegacyEditTextConverter> {
+    raw::NumberEditSpec {
+        text_entry_mode: NumberEditTextEntryMode::Always,
+        ..spec_with_text_converter(rect, FrameDisplayLegacyEditTextConverter)
     }
 }
 
@@ -3223,8 +3285,7 @@ fn test_number_edit_always_renders_text_edit_first_frame_with_raw_text() {
         value: 248.0,
         ..Default::default()
     };
-    let mut spec = always_text_entry_spec(rect);
-    spec.value_formatter = |v| format!("Frame {v:.0}");
+    let spec = frame_display_always_spec(rect);
     let mut focus_system = FocusSystem::new();
     let mut text_backend = TestTextBackend::default();
     let mut cmds = DrawCommands::new(1.0);
@@ -4247,12 +4308,12 @@ fn test_number_edit_step_button_visual_appearance() {
     style.step_button.glyph_color = Color::linear_rgba(0.7, 0.8, 0.9, 1.0);
     style.step_button.decrement_glyph = "-";
     style.step_button.increment_glyph = "+";
-    let value_formatter = default_number_edit_value_formatter;
+    let text_converter = LegacyNumberEditTextConverter;
     let pre_layout_spec = raw::NumberEditPreLayoutSpec {
         style,
         value: 50.0,
         step_buttons_enabled: true,
-        value_formatter: &value_formatter,
+        text_converter: &text_converter,
     };
     let mut text_backend = TestTextBackend::default()
         .with_char_advance('-', 5.0)

@@ -100,7 +100,7 @@ pub fn slider_with_editor<T: TextBackend, S: LayoutState, CF>(
         style: editor_spec.style,
         value: state.editor.value,
         step_buttons_enabled: editor_spec.step_buttons_enabled,
-        value_formatter: &editor_spec.value_formatter,
+        text_converter: &editor_spec.text_converter,
     };
     let editor_pre_layout =
         number_edit_raw::pre_layout_number_edit(&editor_pre_layout_spec, offer, ctx.text_backend);

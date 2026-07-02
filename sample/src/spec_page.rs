@@ -1930,7 +1930,7 @@ fn section_01_buttons<CF>(
                 .page_step(10.0)
                 .drag_enabled(false)
                 .value_fill_enabled(false)
-                .value_formatter(|v: f32| format!("Frame {v:.0}"))
+                .text_converter(|v: f32| format!("Frame {v:.0}"))
                 .style(NumberEditStyle::button_stepper_from_theme(&b.theme));
             number_edit(
                 spec,
@@ -4276,7 +4276,7 @@ fn section_12_in_use<CF>(
             let spec = NumberEditSpec::new_from_theme(&win.theme)
                 .max(7680.0)
                 .text_entry_mode(NumberEditTextEntryMode::Always)
-                .value_formatter(|v: f32| format!("{v:.0}"));
+                .text_converter(|v: f32| format!("{v:.0}"));
             prefixed_number_edit("W", spec, layout_params, state, &mut win)
         };
 
@@ -4291,7 +4291,7 @@ fn section_12_in_use<CF>(
             let spec = NumberEditSpec::new_from_theme(&win.theme)
                 .max(7680.0)
                 .text_entry_mode(NumberEditTextEntryMode::Always)
-                .value_formatter(|v: f32| format!("{v:.0}"));
+                .text_converter(|v: f32| format!("{v:.0}"));
             prefixed_number_edit("H", spec, layout_params, state, &mut win)
         };
         fy += row_h + row_gap;

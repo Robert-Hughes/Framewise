@@ -235,7 +235,6 @@ fn test_tabs_visual_focused() {
 
 #[test]
 fn test_tabs_click_takes_focus() {
-    let mut focus_system = FocusSystem::new();
     let mut state = TabsState::default();
     let input = Input {
         mouse_pos: Vec2::new(20.0, 10.0),
@@ -247,7 +246,7 @@ fn test_tabs_click_takes_focus() {
     let items = ["Tab1", "Tab2"];
     let spec = make_spec(&items);
 
-    focus_system = FocusSystem::new_mocked(None, Some(state.focus_id));
+    let mut focus_system = FocusSystem::new_mocked(None, Some(state.focus_id));
     focus_system.begin_frame();
     let mut cmds = DrawCommands::new(1.0);
     let result = raw::post_layout_tabs(

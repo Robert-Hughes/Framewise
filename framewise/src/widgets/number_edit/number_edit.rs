@@ -24,9 +24,9 @@ pub mod raw {
     use super::*;
 
     #[derive(Debug, Clone, PartialEq)]
-    pub struct NumberEditSpec<F = super::DefaultNumberEditValueFormatter>
+    pub struct NumberEditSpec<C = super::DefaultNumberEditTextConverter>
     where
-        F: Fn(f32) -> String,
+        C: super::NumberEditTextConverter,
     {
         pub layer: Layer,
         /// Bounding rect for the full number edit control.
@@ -40,21 +40,21 @@ pub mod raw {
         pub drag_enabled: bool,
         pub step_buttons_enabled: bool,
         pub value_fill_enabled: bool,
-        pub value_formatter: F,
+        pub text_converter: C,
         pub time: f64,
         pub disabled: bool,
         pub clip_rect: ClipRect,
     }
 
     #[derive(Debug, Clone, PartialEq)]
-    pub struct NumberEditPreLayoutSpec<'f, F>
+    pub struct NumberEditPreLayoutSpec<'c, C>
     where
-        F: Fn(f32) -> String,
+        C: super::NumberEditTextConverter,
     {
         pub style: super::NumberEditStyle,
         pub value: f32,
         pub step_buttons_enabled: bool,
-        pub value_formatter: &'f F,
+        pub text_converter: &'c C,
     }
 
     #[derive(Debug, Clone, PartialEq)]
@@ -74,29 +74,29 @@ pub mod raw {
     ///
     /// This currently measures text with unbounded bounds; offer-sensitive
     /// wrapping is future work.
-    pub fn pre_layout_number_edit<T: TextBackend, F>(
-        spec: &NumberEditPreLayoutSpec<'_, F>,
+    pub fn pre_layout_number_edit<T: TextBackend, C>(
+        spec: &NumberEditPreLayoutSpec<'_, C>,
         offer: SizeOffer,
         text_backend: &mut T,
     ) -> NumberEditPreLayoutResult
     where
-        F: Fn(f32) -> String,
+        C: super::NumberEditTextConverter,
     {
         NumberEditPreLayoutResult {
             size_request: number_edit_size_request(spec, offer, text_backend),
         }
     }
 
-    fn number_edit_size_request<T: TextBackend, F>(
-        spec: &NumberEditPreLayoutSpec<'_, F>,
+    fn number_edit_size_request<T: TextBackend, C>(
+        spec: &NumberEditPreLayoutSpec<'_, C>,
         _offer: SizeOffer,
         text_backend: &mut T,
     ) -> crate::layout::SizeRequest
     where
-        F: Fn(f32) -> String,
+        C: super::NumberEditTextConverter,
     {
         let s = spec.style;
-        let value_text = (spec.value_formatter)(spec.value);
+        let value_text = spec.text_converter.display_text(spec.value);
         let value_layout = layout_text(
             text_backend,
             &value_text,
@@ -117,8 +117,8 @@ pub mod raw {
     ///
     /// This is the raw implementation that takes all parameters explicitly.
     /// High-level wrappers should use this internally.
-    pub fn post_layout_number_edit<T: TextBackend, F>(
-        spec: NumberEditSpec<F>,
+    pub fn post_layout_number_edit<T: TextBackend, C>(
+        spec: NumberEditSpec<C>,
         _pre_layout: NumberEditPreLayoutResult,
         state: &mut NumberEditState,
         input: &Input,
@@ -127,7 +127,7 @@ pub mod raw {
         cmds: &mut DrawCommands,
     ) -> NumberEditResult
     where
-        F: Fn(f32) -> String,
+        C: super::NumberEditTextConverter,
     {
         let mut press_drag = PressDragInteraction::default();
         let (clamp_min, clamp_max) = normalise_optional_bounds(spec.min, spec.max);
@@ -143,6 +143,7 @@ pub mod raw {
                 spec.text_entry_mode,
                 clamp_min,
                 clamp_max,
+                &spec.text_converter,
             );
             if !spec.step_buttons_enabled {
                 state.is_arrow_stepping = false;
@@ -199,7 +200,7 @@ pub mod raw {
 
         // Measure the displayed value text once here; drawing happens later, but
         // the layout also informs the overall value-lane visual balance.
-        let value_text = (spec.value_formatter)(state.value);
+        let value_text = spec.text_converter.display_text(state.value);
         let value_layout = layout_text(
             text_backend,
             &value_text,
@@ -237,7 +238,7 @@ pub mod raw {
             && input.mouse_click_count == 2
             && value_hover.can_start
         {
-            enter_number_edit_mode(state);
+            enter_number_edit_mode(state, &spec.text_converter);
             focus_system.take_keyboard_focus(state.focus_id);
             started_editing_this_frame = true;
         }
@@ -248,7 +249,7 @@ pub mod raw {
             && input.key_pressed(crate::input::Key::Enter)
             && focus_system.current_keyboard_focus() == Some(state.focus_id);
         if keyboard_enter_starts_editing {
-            enter_number_edit_mode(state);
+            enter_number_edit_mode(state, &spec.text_converter);
             focus_system.take_keyboard_focus(state.focus_id);
             started_editing_this_frame = true;
         }
@@ -318,11 +319,16 @@ pub mod raw {
 
             if let Some(direction) = start_step_direction.filter(|_| mouse_step_buttons_enabled) {
                 let step_allowed = spec.text_entry_mode != super::NumberEditTextEntryMode::Always
-                    || try_commit_number_edit_keep_editing(state, clamp_min, clamp_max);
+                    || try_commit_number_edit_keep_editing(
+                        state,
+                        clamp_min,
+                        clamp_max,
+                        &spec.text_converter,
+                    );
                 if step_allowed {
                     step_value(state, direction, spec.step, clamp_min, clamp_max);
                     if spec.text_entry_mode == super::NumberEditTextEntryMode::Always {
-                        set_number_edit_draft_from_value_clean(state, true);
+                        set_number_edit_draft_from_value_clean(state, true, &spec.text_converter);
                     }
                     state.is_arrow_stepping = true;
                     state.arrow_step_direction = Some(direction);
@@ -350,7 +356,11 @@ pub mod raw {
                     {
                         step_value(state, direction, spec.step, clamp_min, clamp_max);
                         if spec.text_entry_mode == super::NumberEditTextEntryMode::Always {
-                            set_number_edit_draft_from_value_clean(state, true);
+                            set_number_edit_draft_from_value_clean(
+                                state,
+                                true,
+                                &spec.text_converter,
+                            );
                         }
                     }
                 }
@@ -682,7 +692,7 @@ pub mod raw {
                         .is_some_and(|rect| rect.contains(input.mouse_pos)));
             if editor_has_keyboard_focus && input.key_pressed(crate::input::Key::Escape) {
                 if spec.text_entry_mode == super::NumberEditTextEntryMode::Always {
-                    reset_number_edit_draft_from_value(state);
+                    reset_number_edit_draft_from_value(state, &spec.text_converter);
                     edit_focused = true;
                 } else {
                     state.edit = NumberEditEditState::Inactive;
@@ -694,7 +704,12 @@ pub mod raw {
                 && !started_editing_this_frame
             {
                 if spec.text_entry_mode == super::NumberEditTextEntryMode::Always {
-                    try_commit_number_edit_keep_editing(state, clamp_min, clamp_max);
+                    try_commit_number_edit_keep_editing(
+                        state,
+                        clamp_min,
+                        clamp_max,
+                        &spec.text_converter,
+                    );
                     edit_focused = true;
                 } else if try_commit_number_edit(state, clamp_min, clamp_max) {
                     focus_system.take_keyboard_focus(state.focus_id);
@@ -709,6 +724,7 @@ pub mod raw {
                         spec.text_entry_mode,
                         clamp_min,
                         clamp_max,
+                        &spec.text_converter,
                     );
                 }
                 edit_focused = false;
@@ -718,6 +734,7 @@ pub mod raw {
                     spec.text_entry_mode,
                     clamp_min,
                     clamp_max,
+                    &spec.text_converter,
                 );
             }
         }
@@ -726,7 +743,11 @@ pub mod raw {
             && !spec.disabled
             && !edit_focused
         {
-            sync_number_edit_draft_from_value_if_clean_and_unfocused(state, focus_system);
+            sync_number_edit_draft_from_value_if_clean_and_unfocused(
+                state,
+                focus_system,
+                &spec.text_converter,
+            );
         }
 
         let hovered = hovered_decrement || hovered_increment || value_hover.passive_hovered;
@@ -1021,12 +1042,12 @@ struct NumberEditParts {
     increment_rect: Option<Rect>,
 }
 
-fn number_edit_parts<T: TextBackend, F>(
-    spec: &raw::NumberEditSpec<F>,
+fn number_edit_parts<T: TextBackend, C>(
+    spec: &raw::NumberEditSpec<C>,
     text_backend: &mut T,
 ) -> NumberEditParts
 where
-    F: Fn(f32) -> String,
+    C: NumberEditTextConverter,
 {
     if !spec.step_buttons_enabled {
         return NumberEditParts {
@@ -1111,19 +1132,21 @@ fn draw_step_button_glyph<T: TextBackend>(
     }
 }
 
-fn number_edit_raw_edit_text(value: f32) -> String {
-    value.to_string()
-}
-
 fn make_number_edit_text_edit_state(state: &NumberEditState, draft: &str) -> TextEditState {
     let mut text_edit = TextEditState::new(draft);
     text_edit.focus_id = state.focus_id;
     text_edit
 }
 
-fn enter_number_edit_mode(state: &mut NumberEditState) {
+fn enter_number_edit_mode<C: NumberEditTextConverter>(
+    state: &mut NumberEditState,
+    text_converter: &C,
+) {
     let (draft, dirty) = match std::mem::take(&mut state.edit) {
-        NumberEditEditState::Inactive => (number_edit_raw_edit_text(state.value), false),
+        NumberEditEditState::Inactive => (
+            text_converter.edit_text(state.value),
+            false,
+        ),
         NumberEditEditState::Remembered { draft } => (draft, true),
         NumberEditEditState::Editing { .. } => unreachable!("guarded by !is_editing"),
     };
@@ -1138,11 +1161,14 @@ fn enter_number_edit_mode(state: &mut NumberEditState) {
     state.press_drag = PressDragState::default();
 }
 
-fn ensure_number_edit_editing(state: &mut NumberEditState) {
+fn ensure_number_edit_editing<C: NumberEditTextConverter>(
+    state: &mut NumberEditState,
+    text_converter: &C,
+) {
     if state.edit.is_editing() {
         return;
     }
-    enter_number_edit_mode(state);
+    enter_number_edit_mode(state, text_converter);
 }
 
 fn parse_number_edit_text(text: &str) -> Option<f32> {
@@ -1171,10 +1197,11 @@ fn try_commit_number_edit(
     }
 }
 
-fn try_commit_number_edit_keep_editing(
+fn try_commit_number_edit_keep_editing<C: NumberEditTextConverter>(
     state: &mut NumberEditState,
     clamp_min: Option<f32>,
     clamp_max: Option<f32>,
+    text_converter: &C,
 ) -> bool {
     let NumberEditEditState::Editing {
         text_edit,
@@ -1186,7 +1213,7 @@ fn try_commit_number_edit_keep_editing(
     };
     if let Some(value) = parse_number_edit_text(&text_edit.value) {
         state.value = clamp_optional(value, clamp_min, clamp_max);
-        text_edit.value = number_edit_raw_edit_text(state.value);
+        text_edit.value = text_converter.edit_text(state.value);
         *error = false;
         *dirty = false;
         select_all_number_edit_text(text_edit);
@@ -1219,8 +1246,12 @@ fn select_all_number_edit_text(text_edit: &mut TextEditState) {
     });
 }
 
-fn set_number_edit_draft_from_value_clean(state: &mut NumberEditState, select_all: bool) {
-    let value = number_edit_raw_edit_text(state.value);
+fn set_number_edit_draft_from_value_clean<C: NumberEditTextConverter>(
+    state: &mut NumberEditState,
+    select_all: bool,
+    text_converter: &C,
+) {
+    let value = text_converter.edit_text(state.value);
     if let NumberEditEditState::Editing {
         text_edit,
         error,
@@ -1241,18 +1272,22 @@ fn set_number_edit_draft_from_value_clean(state: &mut NumberEditState, select_al
     }
 }
 
-fn reset_number_edit_draft_from_value(state: &mut NumberEditState) {
-    set_number_edit_draft_from_value_clean(state, false);
+fn reset_number_edit_draft_from_value<C: NumberEditTextConverter>(
+    state: &mut NumberEditState,
+    text_converter: &C,
+) {
+    set_number_edit_draft_from_value_clean(state, false, text_converter);
 }
 
-fn sync_number_edit_draft_from_value_if_clean_and_unfocused(
+fn sync_number_edit_draft_from_value_if_clean_and_unfocused<C: NumberEditTextConverter>(
     state: &mut NumberEditState,
     focus_system: &FocusSystem,
+    text_converter: &C,
 ) {
     if focus_system.current_keyboard_focus() == Some(state.focus_id) {
         return;
     }
-    let value = number_edit_raw_edit_text(state.value);
+    let value = text_converter.edit_text(state.value);
     if let NumberEditEditState::Editing {
         text_edit,
         error,
@@ -1283,26 +1318,28 @@ fn exit_number_edit_for_disabled_text_entry(
     state.edit = NumberEditEditState::Inactive;
 }
 
-fn normalise_number_edit_text_entry_mode(
+fn normalise_number_edit_text_entry_mode<C: NumberEditTextConverter>(
     state: &mut NumberEditState,
     mode: NumberEditTextEntryMode,
     clamp_min: Option<f32>,
     clamp_max: Option<f32>,
+    text_converter: &C,
 ) {
     match mode {
         NumberEditTextEntryMode::OnDemand => {}
-        NumberEditTextEntryMode::Always => ensure_number_edit_editing(state),
+        NumberEditTextEntryMode::Always => ensure_number_edit_editing(state, text_converter),
         NumberEditTextEntryMode::Disabled => {
             exit_number_edit_for_disabled_text_entry(state, clamp_min, clamp_max);
         }
     }
 }
 
-fn commit_or_validate_number_edit_on_focus_loss(
+fn commit_or_validate_number_edit_on_focus_loss<C: NumberEditTextConverter>(
     state: &mut NumberEditState,
     mode: NumberEditTextEntryMode,
     clamp_min: Option<f32>,
     clamp_max: Option<f32>,
+    text_converter: &C,
 ) {
     match mode {
         NumberEditTextEntryMode::OnDemand => {
@@ -1313,7 +1350,7 @@ fn commit_or_validate_number_edit_on_focus_loss(
                 &state.edit,
                 NumberEditEditState::Editing { dirty: true, .. }
             ) {
-                try_commit_number_edit_keep_editing(state, clamp_min, clamp_max);
+                try_commit_number_edit_keep_editing(state, clamp_min, clamp_max, text_converter);
             }
         }
         NumberEditTextEntryMode::Disabled => {}
@@ -1355,10 +1392,35 @@ pub struct NumberEditResult {
 
 // ── Spec ─────────────────────────────────────────────────────────────────────
 
-pub type DefaultNumberEditValueFormatter = fn(f32) -> String;
+pub trait NumberEditTextConverter {
+    fn display_text(&self, value: f32) -> String;
+    fn edit_text(&self, value: f32) -> String;
+}
 
-pub fn default_number_edit_value_formatter(value: f32) -> String {
-    format!("{value:.2}")
+impl<F> NumberEditTextConverter for F
+where
+    F: Fn(f32) -> String,
+{
+    fn display_text(&self, value: f32) -> String {
+        self(value)
+    }
+
+    fn edit_text(&self, value: f32) -> String {
+        self(value)
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct DefaultNumberEditTextConverter;
+
+impl NumberEditTextConverter for DefaultNumberEditTextConverter {
+    fn display_text(&self, value: f32) -> String {
+        format!("{value:.2}")
+    }
+
+    fn edit_text(&self, value: f32) -> String {
+        format!("{value:.2}")
+    }
 }
 
 /// Controls how the number edit exposes text entry for the central value area.
@@ -1373,9 +1435,9 @@ pub enum NumberEditTextEntryMode {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct NumberEditSpec<F = DefaultNumberEditValueFormatter>
+pub struct NumberEditSpec<C = DefaultNumberEditTextConverter>
 where
-    F: Fn(f32) -> String,
+    C: NumberEditTextConverter,
 {
     pub style: NumberEditStyle,
     pub min: Option<f32>,
@@ -1397,11 +1459,11 @@ where
     /// The fill is shown only while the value area is in display mode, not while
     /// text entry is visible.
     pub value_fill_enabled: bool,
-    pub value_formatter: F,
+    pub text_converter: C,
     pub disabled: bool,
 }
 
-impl Default for NumberEditSpec<DefaultNumberEditValueFormatter> {
+impl Default for NumberEditSpec<DefaultNumberEditTextConverter> {
     fn default() -> Self {
         Self {
             style: NumberEditStyle::default(),
@@ -1413,13 +1475,13 @@ impl Default for NumberEditSpec<DefaultNumberEditValueFormatter> {
             drag_enabled: true,
             step_buttons_enabled: true,
             value_fill_enabled: true,
-            value_formatter: default_number_edit_value_formatter,
+            text_converter: DefaultNumberEditTextConverter,
             disabled: false,
         }
     }
 }
 
-impl NumberEditSpec<DefaultNumberEditValueFormatter> {
+impl NumberEditSpec<DefaultNumberEditTextConverter> {
     pub fn new() -> Self {
         Self::default()
     }
@@ -1429,9 +1491,9 @@ impl NumberEditSpec<DefaultNumberEditValueFormatter> {
     }
 }
 
-impl<F> NumberEditSpec<F>
+impl<C> NumberEditSpec<C>
 where
-    F: Fn(f32) -> String,
+    C: NumberEditTextConverter,
 {
     pub fn theme(mut self, theme: &crate::theme::Theme) -> Self {
         self.style = NumberEditStyle::from_theme(theme);
@@ -1510,9 +1572,9 @@ where
         self
     }
 
-    pub fn value_formatter<G>(self, value_formatter: G) -> NumberEditSpec<G>
+    pub fn text_converter<D>(self, text_converter: D) -> NumberEditSpec<D>
     where
-        G: Fn(f32) -> String,
+        D: NumberEditTextConverter,
     {
         NumberEditSpec {
             style: self.style,
@@ -1524,7 +1586,7 @@ where
             drag_enabled: self.drag_enabled,
             step_buttons_enabled: self.step_buttons_enabled,
             value_fill_enabled: self.value_fill_enabled,
-            value_formatter,
+            text_converter,
             disabled: self.disabled,
         }
     }
@@ -1537,15 +1599,15 @@ where
 
 // ── High-level widget function ───────────────────────────────────────────────────
 
-pub(crate) fn run_number_edit_at_rect<T: TextBackend, S: LayoutState, CF, F>(
-    spec: NumberEditSpec<F>,
+pub(crate) fn run_number_edit_at_rect<T: TextBackend, S: LayoutState, CF, C>(
+    spec: NumberEditSpec<C>,
     rect: Rect,
     pre_layout: raw::NumberEditPreLayoutResult,
     state: &mut NumberEditState,
     ctx: &mut WidgetContext<T, S, CF>,
 ) -> NumberEditResult
 where
-    F: Fn(f32) -> String,
+    C: NumberEditTextConverter,
 {
     let raw_spec = raw::NumberEditSpec {
         layer: ctx.layer,
@@ -1559,7 +1621,7 @@ where
         drag_enabled: spec.drag_enabled,
         step_buttons_enabled: spec.step_buttons_enabled,
         value_fill_enabled: spec.value_fill_enabled,
-        value_formatter: spec.value_formatter,
+        text_converter: spec.text_converter,
         time: ctx.time,
         disabled: spec.disabled,
         clip_rect: ctx.clip_rect,
@@ -1587,20 +1649,20 @@ where
 ///
 /// Runs the raw pre-layout phase to obtain a `SizeRequest`, resolves the final
 /// rect with layout, then runs the raw post-layout phase.
-pub fn number_edit<T: TextBackend, S: LayoutState, CF, F>(
-    spec: NumberEditSpec<F>,
+pub fn number_edit<T: TextBackend, S: LayoutState, CF, C>(
+    spec: NumberEditSpec<C>,
     layout_params: S::Params,
     state: &mut NumberEditState,
     ctx: &mut WidgetContext<T, S, CF>,
 ) -> NumberEditResult
 where
-    F: Fn(f32) -> String,
+    C: NumberEditTextConverter,
 {
     let pre_layout_spec = raw::NumberEditPreLayoutSpec {
         style: spec.style,
         value: state.value,
         step_buttons_enabled: spec.step_buttons_enabled,
-        value_formatter: &spec.value_formatter,
+        text_converter: &spec.text_converter,
     };
     let offer = ctx.peek_offer(layout_params.clone());
     let pre_layout = raw::pre_layout_number_edit(&pre_layout_spec, offer, ctx.text_backend);
@@ -1612,15 +1674,15 @@ where
 ///
 /// The prefix is control chrome, not an external label: it shares the same outer
 /// background, border, and focus outline as the numeric value editor.
-pub fn prefixed_number_edit<T: TextBackend, S: LayoutState, CF, F>(
+pub fn prefixed_number_edit<T: TextBackend, S: LayoutState, CF, C>(
     prefix: &str,
-    spec: NumberEditSpec<F>,
+    spec: NumberEditSpec<C>,
     layout_params: S::Params,
     state: &mut NumberEditState,
     ctx: &mut WidgetContext<T, S, CF>,
 ) -> NumberEditResult
 where
-    F: Fn(f32) -> String,
+    C: NumberEditTextConverter,
 {
     let prefix_style = PrefixedControlStyle {
         border: spec.style.border,
@@ -1635,7 +1697,7 @@ where
         style: spec.style,
         value: state.value,
         step_buttons_enabled: spec.step_buttons_enabled,
-        value_formatter: &spec.value_formatter,
+        text_converter: &spec.text_converter,
     };
     let pre_layout = raw::pre_layout_number_edit(&pre_layout_spec, child_offer, ctx.text_backend);
     let size_request = prefixed_control_size_request(pre_layout.size_request, prefix_width);
@@ -1678,7 +1740,7 @@ where
         drag_enabled: spec.drag_enabled,
         step_buttons_enabled: spec.step_buttons_enabled,
         value_fill_enabled: spec.value_fill_enabled,
-        value_formatter: spec.value_formatter,
+        text_converter: spec.text_converter,
         disabled: spec.disabled,
     };
     let result = run_number_edit_at_rect(child_spec, layout.child_rect, pre_layout, state, ctx);
